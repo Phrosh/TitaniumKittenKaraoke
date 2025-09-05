@@ -112,7 +112,16 @@ router.put('/current', verifyToken, async (req, res) => {
 // Go to next song
 router.post('/next', verifyToken, async (req, res) => {
   try {
-    const nextSong = await Song.getNextSong();
+    const currentSong = await Song.getCurrentSong();
+    let nextSong;
+    
+    if (currentSong) {
+      // Get next song after current one
+      nextSong = await Song.getNextSong();
+    } else {
+      // No current song, get first song
+      nextSong = await Song.getFirstSong();
+    }
     
     if (!nextSong) {
       return res.status(404).json({ message: 'No next song found' });

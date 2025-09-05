@@ -7,102 +7,66 @@ class PlaylistAlgorithm {
       // Get current playlist
       const playlist = await Song.getAll();
       
-      // Get max delay setting
-      const maxDelay = await this.getMaxDelaySetting();
+      // Get the new song to find its user ID and device ID
+      const newSong = await Song.getById(songId);
+      if (!newSong) {
+        throw new Error('Song not found');
+      }
       
-      // Find optimal position
-      const optimalPosition = this.findOptimalPosition(playlist, maxDelay);
+      // Calculate priority based on name + device_id combination
+      const priority = await this.calculatePriority(newSong.user_id, newSong.device_id);
       
-      // Update positions for songs that need to be shifted
-      await this.shiftPositions(optimalPosition);
+      // Update the song's priority
+      await this.updateSongPriority(songId, priority);
       
-      // Set the new song's position
-      await Song.updatePosition(songId, optimalPosition);
+      // Add song to end of playlist
+      const nextPosition = playlist.length === 0 ? 1 : Math.max(...playlist.map(song => song.position)) + 1;
+      await Song.updatePosition(songId, nextPosition);
       
-      return optimalPosition;
+      // Apply priority-based sorting
+      await this.sortByPriority();
+      
+      return nextPosition;
     } catch (error) {
       console.error('Error inserting song:', error);
       throw error;
     }
   }
 
-  static findOptimalPosition(playlist, maxDelay) {
-    if (playlist.length === 0) {
-      return 1;
-    }
-
-    // Group songs by user
-    const userSongCounts = {};
-    const userLastPositions = {};
-    
-    playlist.forEach(song => {
-      const userId = song.user_id;
-      userSongCounts[userId] = (userSongCounts[userId] || 0) + 1;
-      userLastPositions[userId] = song.position;
-    });
-
-    // Find users with only one song (should be prioritized)
-    const usersWithOneSong = Object.keys(userSongCounts).filter(
-      userId => userSongCounts[userId] === 1
-    );
-
-    // If there are users with only one song, try to place new song before their songs
-    if (usersWithOneSong.length > 0) {
-      const minPosition = Math.min(
-        ...usersWithOneSong.map(userId => userLastPositions[userId])
-      );
-      
-      // Check if we can insert before this position without exceeding max delay
-      const songsToShift = playlist.filter(song => song.position >= minPosition);
-      const canShift = songsToShift.every(song => song.delay_count < maxDelay);
-      
-      if (canShift) {
-        return minPosition;
-      }
-    }
-
-    // Otherwise, find the best position considering fairness
-    return this.findFairPosition(playlist, userSongCounts, maxDelay);
-  }
-
-  static findFairPosition(playlist, userSongCounts, maxDelay) {
-    // Sort users by song count (ascending) and last position (ascending)
-    const sortedUsers = Object.keys(userSongCounts).sort((a, b) => {
-      if (userSongCounts[a] !== userSongCounts[b]) {
-        return userSongCounts[a] - userSongCounts[b];
-      }
-      return userLastPositions[a] - userLastPositions[b];
-    });
-
-    // Try to find a position that maintains fairness
-    for (let i = 0; i < sortedUsers.length; i++) {
-      const userId = sortedUsers[i];
-      const userSongs = playlist.filter(song => song.user_id == userId);
-      
-      // Find the earliest position where we can insert without exceeding max delay
-      for (let j = 0; j < userSongs.length; j++) {
-        const song = userSongs[j];
-        const insertPosition = song.position;
-        
-        // Check if inserting here would exceed max delay for any song
-        const songsToShift = playlist.filter(s => s.position >= insertPosition);
-        const wouldExceedDelay = songsToShift.some(s => s.delay_count >= maxDelay);
-        
-        if (!wouldExceedDelay) {
-          return insertPosition;
+  static async calculatePriority(userId, deviceId) {
+    return new Promise((resolve, reject) => {
+      // Get the user's name
+      db.get(`
+        SELECT name FROM users WHERE id = ?
+      `, [userId], (err, user) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      }
-    }
-
-    // If no fair position found, append to end
-    return Math.max(...playlist.map(song => song.position)) + 1;
+        
+        // Count existing songs from users with the same name
+        db.get(`
+          SELECT COUNT(*) as count 
+          FROM songs s 
+          JOIN users u ON s.user_id = u.id 
+          WHERE u.name = ?
+        `, [user.name], (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Priority = existing songs count + 1
+            resolve((row.count || 0) + 1);
+          }
+        });
+      });
+    });
   }
 
-  static async shiftPositions(fromPosition) {
+  static async updateSongPriority(songId, priority) {
     return new Promise((resolve, reject) => {
       db.run(
-        'UPDATE songs SET position = position + 1 WHERE position >= ?',
-        [fromPosition],
+        'UPDATE songs SET priority = ? WHERE id = ?',
+        [priority, songId],
         function(err) {
           if (err) {
             reject(err);
@@ -114,10 +78,49 @@ class PlaylistAlgorithm {
     });
   }
 
-  static async incrementDelayCounts(fromPosition) {
+  static async sortByPriority() {
+    return new Promise((resolve, reject) => {
+      // Get all songs ordered by current position
+      db.all(`
+        SELECT s.*, u.name as user_name, u.device_id 
+        FROM songs s 
+        JOIN users u ON s.user_id = u.id 
+        ORDER BY s.position ASC
+      `, (err, songs) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Sort songs by priority (ascending) - lower priority first
+        songs.sort((a, b) => a.priority - b.priority);
+
+        // Update positions based on new order
+        let position = 1;
+        const updatePromises = songs.map(song => {
+          return new Promise((resolveUpdate, rejectUpdate) => {
+            db.run(
+              'UPDATE songs SET position = ? WHERE id = ?',
+              [position++, song.id],
+              function(err) {
+                if (err) rejectUpdate(err);
+                else resolveUpdate();
+              }
+            );
+          });
+        });
+
+        Promise.all(updatePromises)
+          .then(() => resolve())
+          .catch(reject);
+      });
+    });
+  }
+
+  static async shiftPositions(fromPosition) {
     return new Promise((resolve, reject) => {
       db.run(
-        'UPDATE songs SET delay_count = delay_count + 1 WHERE position >= ?',
+        'UPDATE songs SET position = position + 1 WHERE position >= ?',
         [fromPosition],
         function(err) {
           if (err) {

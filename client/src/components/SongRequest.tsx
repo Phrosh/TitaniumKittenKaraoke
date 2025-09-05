@@ -181,13 +181,14 @@ const SongRequest: React.FC = () => {
 
     try {
       const response = await songAPI.requestSong(formData);
+      
       setMessage({
         type: 'success',
         text: `Song "${response.data.song.title}" wurde erfolgreich zur Playlist hinzugefügt!`
       });
       
-      // Reset form
-      setFormData(prev => ({ ...prev, name: '', songInput: '' }));
+      // Reset form - keep name, clear only song input
+      setFormData(prev => ({ ...prev, songInput: '' }));
     } catch (error: any) {
       setMessage({
         type: 'error',

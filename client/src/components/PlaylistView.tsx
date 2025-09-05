@@ -30,21 +30,30 @@ const PlaylistContainer = styled.div`
   margin: 0 auto;
 `;
 
-const SongCard = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean }>`
-  background: white;
+const SongCard = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean; isPast?: boolean }>`
+  background: ${props => 
+    props.isCurrent ? 'white' :
+    props.isPast ? '#f8f9fa' : 
+    'white'
+  };
   border-radius: 12px;
   padding: 20px;
   margin: 15px 0;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  border-left: 5px solid ${props => 
-    props.isCurrent ? '#e74c3c' : 
-    props.hasNoYoutube ? '#f39c12' : 
-    '#27ae60'
+  box-shadow: ${props => 
+    props.isCurrent ? '0 8px 25px rgba(231, 76, 60, 0.3)' :
+    props.isPast ? '0 2px 8px rgba(0, 0, 0, 0.05)' :
+    '0 5px 15px rgba(0, 0, 0, 0.1)'
   };
-  transition: transform 0.3s ease;
+  border: ${props => 
+    props.isCurrent ? '3px solid #e74c3c' :
+    props.isPast ? '1px solid #e9ecef' :
+    '1px solid #dee2e6'
+  };
+  transition: all 0.3s ease;
+  opacity: ${props => props.isPast ? 0.6 : 1};
 
   &:hover {
-    transform: translateY(-2px);
+    transform: ${props => props.isPast ? 'none' : 'translateY(-2px)'};
   }
 `;
 
@@ -219,11 +228,16 @@ const PlaylistView: React.FC = () => {
             <p>Scanne den QR Code oder gehe zu /new um Songs hinzuzufügen!</p>
           </EmptyMessage>
         ) : (
-          playlist.map((song) => (
+          playlist.map((song) => {
+            const isCurrent = currentSong?.id === song.id;
+            const isPast = currentSong && song.position < currentSong.position;
+            
+            return (
             <SongCard 
               key={song.id} 
-              isCurrent={currentSong?.id === song.id}
+              isCurrent={isCurrent}
               hasNoYoutube={!song.youtube_url}
+              isPast={isPast}
             >
               <SongHeader>
                 <SongTitle>{song.title}</SongTitle>
@@ -244,7 +258,8 @@ const PlaylistView: React.FC = () => {
               
               <SongUser>📱 {song.user_name} ({song.device_id})</SongUser>
             </SongCard>
-          ))
+            );
+          })
         )}
       </PlaylistContainer>
     </Container>

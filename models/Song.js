@@ -1,16 +1,16 @@
 const db = require('../config/database');
 
 class Song {
-  static create(userId, title, artist = null, youtubeUrl = null) {
+  static create(userId, title, artist = null, youtubeUrl = null, priority = 1) {
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO songs (user_id, title, artist, youtube_url) VALUES (?, ?, ?, ?)',
-        [userId, title, artist, youtubeUrl],
+        'INSERT INTO songs (user_id, title, artist, youtube_url, priority) VALUES (?, ?, ?, ?, ?)',
+        [userId, title, artist, youtubeUrl, priority],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl });
+            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority });
           }
         }
       );
@@ -171,11 +171,33 @@ class Song {
         FROM songs s 
         JOIN users u ON s.user_id = u.id 
         WHERE s.position > (
-          SELECT COALESCE(CAST(value AS INTEGER), 0) 
-          FROM settings 
-          WHERE key = 'current_song_id'
+          SELECT COALESCE(s2.position, 0) 
+          FROM songs s2 
+          WHERE s2.id = (
+            SELECT COALESCE(CAST(value AS INTEGER), 0) 
+            FROM settings 
+            WHERE key = 'current_song_id'
+          )
         )
-        ORDER BY s.position ASC, s.created_at ASC
+        ORDER BY s.position ASC
+        LIMIT 1
+      `, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  static getFirstSong() {
+    return new Promise((resolve, reject) => {
+      db.get(`
+        SELECT s.*, u.name as user_name, u.device_id 
+        FROM songs s 
+        JOIN users u ON s.user_id = u.id 
+        ORDER BY s.position ASC
         LIMIT 1
       `, (err, row) => {
         if (err) {

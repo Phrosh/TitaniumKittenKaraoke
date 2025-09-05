@@ -121,7 +121,7 @@ const Button = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
   }
 `;
 
-const SongItem = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean }>`
+const SongItem = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean; isPast?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -130,14 +130,17 @@ const SongItem = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean }>`
   margin: 10px 0;
   background: ${props => 
     props.isCurrent ? '#fff3cd' :
+    props.isPast ? '#f8f9fa' :
     props.hasNoYoutube ? '#fff3cd' :
     '#f8f9fa'
   };
-  border-left: 4px solid ${props => 
-    props.isCurrent ? '#e74c3c' :
-    props.hasNoYoutube ? '#f39c12' :
-    '#27ae60'
+  border: ${props => 
+    props.isCurrent ? '3px solid #e74c3c' :
+    props.isPast ? '1px solid #e9ecef' :
+    '1px solid #dee2e6'
   };
+  opacity: ${props => props.isPast ? 0.6 : 1};
+  transition: all 0.3s ease;
 `;
 
 const SongInfo = styled.div`
@@ -372,6 +375,24 @@ const AdminDashboard: React.FC = () => {
     alert('Text in Zwischenablage kopiert: "' + text + ' Karaoke"');
   };
 
+  const handleClearAllSongs = async () => {
+    if (!window.confirm('Wirklich ALLE Songs aus der Playlist löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      await adminAPI.clearAllSongs();
+      await fetchDashboardData();
+      alert('Alle Songs wurden erfolgreich gelöscht!');
+    } catch (error) {
+      console.error('Error clearing all songs:', error);
+      alert('Fehler beim Löschen der Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Container>
@@ -427,6 +448,13 @@ const AdminDashboard: React.FC = () => {
             >
               ⏭️ Weiter
             </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleClearAllSongs}
+              disabled={actionLoading}
+            >
+              🗑️ Liste Leeren
+            </Button>
           </ControlButtons>
         </PlaylistHeader>
 
@@ -435,11 +463,16 @@ const AdminDashboard: React.FC = () => {
             Keine Songs in der Playlist
           </div>
         ) : (
-          playlist.map((song) => (
+          playlist.map((song) => {
+            const isCurrent = currentSong?.id === song.id;
+            const isPast = currentSong && song.position < currentSong.position;
+            
+            return (
             <SongItem 
               key={song.id} 
-              isCurrent={currentSong?.id === song.id}
+              isCurrent={isCurrent}
               hasNoYoutube={!song.youtube_url}
+              isPast={isPast}
             >
               <SongInfo>
                 <SongTitle>{song.title}</SongTitle>
@@ -496,7 +529,8 @@ const AdminDashboard: React.FC = () => {
                 </Button>
               </SongActions>
             </SongItem>
-          ))
+            );
+          })
         )}
       </PlaylistContainer>
 

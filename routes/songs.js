@@ -39,34 +39,12 @@ router.post('/request', [
       artist = 'Unknown';
     }
 
-    // Find or create user
-    let user;
-    if (deviceId) {
-      user = await User.findByDeviceId(deviceId);
-      if (user) {
-        // Update name if provided
-        if (user.name !== name) {
-          await new Promise((resolve, reject) => {
-            const db = require('../config/database');
-            db.run(
-              'UPDATE users SET name = ? WHERE device_id = ?',
-              [name, deviceId],
-              function(err) {
-                if (err) reject(err);
-                else resolve();
-              }
-            );
-          });
-        }
-      }
-    }
-    
-    if (!user) {
-      user = await User.create(name, deviceId);
-    }
+    // Always create a new user for each song request
+    // Device ID is only used as additional information
+    const user = await User.create(name, deviceId);
 
-    // Create song
-    const song = await Song.create(user.id, title, artist, youtubeUrl);
+    // Create song with priority
+    const song = await Song.create(user.id, title, artist, youtubeUrl, 1);
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);

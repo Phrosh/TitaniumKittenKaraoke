@@ -13,11 +13,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 function initializeDatabase() {
-  // Users table (for device tracking)
+  // Users table (for device tracking) - device_id is NOT unique anymore
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      device_id TEXT UNIQUE NOT NULL,
+      device_id TEXT NOT NULL,
       name TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -33,6 +33,7 @@ function initializeDatabase() {
       youtube_url TEXT,
       status TEXT DEFAULT 'pending',
       position INTEGER DEFAULT 0,
+      priority INTEGER DEFAULT 1,
       delay_count INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
