@@ -167,13 +167,13 @@ const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $is
   border-radius: 8px;
   margin: 10px 0;
   background: ${props => 
-    props.$isCurrent ? '#fff3cd' :
+    props.$isCurrent ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%)' :
     props.$isPast ? '#f8f9fa' :
     props.$hasNoYoutube ? '#fff3cd' :
     '#f8f9fa'
   };
   border: ${props => 
-    props.$isCurrent ? '3px solid #e74c3c' :
+    props.$isCurrent ? '3px solid #5a6fd8' :
     props.$hasNoYoutube ? '2px solid #dc3545' :
     props.$isPast ? '1px solid #e9ecef' :
     props.$isDropTarget ? '2px dashed #3498db' :
@@ -187,7 +187,11 @@ const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $is
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  box-shadow: ${props => props.$isDragging ? '0 8px 25px rgba(0,0,0,0.15)' : 'none'};
+  box-shadow: ${props => 
+    props.$isDragging ? '0 8px 25px rgba(0,0,0,0.15)' : 
+    props.$isCurrent ? '0 4px 15px rgba(102, 126, 234, 0.3)' :
+    'none'
+  };
 `;
 
 const DragHandle = styled.div`
@@ -235,19 +239,19 @@ const SongContent = styled.div`
   gap: 8px;
 `;
 
-const SongName = styled.div`
+const SongName = styled.div<{ $isCurrent?: boolean }>`
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: ${props => props.$isCurrent ? '#5a6fd8' : '#333'};
   display: flex;
   align-items: center;
   gap: 8px;
 `;
 
-const DeviceId = styled.span`
+const DeviceId = styled.span<{ $isCurrent?: boolean }>`
   font-size: 0.85rem;
-  color: #666;
-  background: #f0f0f0;
+  color: ${props => props.$isCurrent ? '#5a6fd8' : '#666'};
+  background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.1)' : '#f0f0f0'};
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
@@ -259,10 +263,10 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
-const SongTitle = styled.div`
+const SongTitle = styled.div<{ $isCurrent?: boolean }>`
   flex: 1;
   font-size: 0.95rem;
-  color: #666;
+  color: ${props => props.$isCurrent ? '#5a6fd8' : '#666'};
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
@@ -271,10 +275,10 @@ const SongTitle = styled.div`
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
-
+  
   &:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #333;
+    background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
+    color: ${props => props.$isCurrent ? '#4a5bb8' : '#333'};
   }
 `;
 
@@ -919,12 +923,13 @@ const AdminDashboard: React.FC = () => {
                     </PositionBadge>
                     
                     <SongContent>
-                      <SongName>
+                      <SongName $isCurrent={song.id === currentSong?.id}>
                         {song.user_name}
-                        <DeviceId>📱 {song.device_id}</DeviceId>
+                        <DeviceId $isCurrent={song.id === currentSong?.id}>📱 {song.device_id}</DeviceId>
                       </SongName>
                       <SongTitleRow>
                                               <SongTitle 
+                        $isCurrent={song.id === currentSong?.id}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleCopyToClipboard(song);
