@@ -70,6 +70,9 @@ const SingerName = styled.div`
   font-weight: 700;
   color: #fff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const SongTitle = styled.div`
@@ -77,6 +80,9 @@ const SongTitle = styled.div`
   color: #ffd700;
   font-weight: 500;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const Footer = styled.div`
@@ -104,25 +110,33 @@ const NextSongsTitle = styled.div`
 
 const NextSongsList = styled.div`
   display: flex;
-  gap: 30px;
-  flex-wrap: wrap;
+  gap: 20px;
+  width: 100%;
 `;
 
 const NextSongItem = styled.div`
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
+  min-width: 0;
 `;
 
 const NextSingerName = styled.div`
   font-size: 0.9rem;
   color: #fff;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const NextSongTitle = styled.div`
   font-size: 0.8rem;
   color: #ffd700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const NoVideoMessage = styled.div`
