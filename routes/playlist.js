@@ -102,6 +102,19 @@ router.put('/current', verifyToken, async (req, res) => {
 
     await Song.setCurrentSong(songId);
     
+    // Automatically hide QR overlay when song changes
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_qr_overlay', 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    
     res.json({ message: 'Current song updated', song });
   } catch (error) {
     console.error('Set current song error:', error);
@@ -128,6 +141,19 @@ router.post('/next', verifyToken, async (req, res) => {
     }
 
     await Song.setCurrentSong(nextSong.id);
+    
+    // Automatically hide QR overlay when song changes
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_qr_overlay', 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
     
     res.json({ message: 'Moved to next song', song: nextSong });
   } catch (error) {

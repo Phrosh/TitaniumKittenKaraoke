@@ -36,6 +36,7 @@ function initializeDatabase() {
       priority REAL DEFAULT 1.0,
       delay_count INTEGER DEFAULT 0,
       regression_count INTEGER DEFAULT 0,
+      duration_seconds INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )

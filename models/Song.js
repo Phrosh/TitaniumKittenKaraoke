@@ -1,16 +1,16 @@
 const db = require('../config/database');
 
 class Song {
-  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0) {
+  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null) {
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO songs (user_id, title, artist, youtube_url, priority) VALUES (?, ?, ?, ?, ?)',
-        [userId, title, artist, youtubeUrl, priority],
+        'INSERT INTO songs (user_id, title, artist, youtube_url, priority, duration_seconds) VALUES (?, ?, ?, ?, ?, ?)',
+        [userId, title, artist, youtubeUrl, priority, durationSeconds],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority });
+            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds });
           }
         }
       );
@@ -240,6 +240,7 @@ class Song {
       });
     });
   }
+
 }
 
 module.exports = Song;

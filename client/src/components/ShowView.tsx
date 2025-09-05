@@ -9,6 +9,7 @@ interface CurrentSong {
   title: string;
   youtube_url: string;
   position: number;
+  duration_seconds?: number;
 }
 
 interface Song {
@@ -85,6 +86,17 @@ const SongTitle = styled.div`
   text-overflow: ellipsis;
 `;
 
+const TimerDisplay = styled.div`
+  font-size: 1rem;
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 5px 10px;
+  border-radius: 15px;
+  margin-left: 20px;
+`;
+
 const Footer = styled.div`
   position: absolute;
   bottom: 0;
@@ -139,6 +151,188 @@ const NextSongTitle = styled.div`
   text-overflow: ellipsis;
 `;
 
+const TransitionOverlay = styled.div<{ $isVisible: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  transition: all 0.5s ease;
+`;
+
+const TransitionContent = styled.div`
+  text-align: center;
+  max-width: 800px;
+  padding: 40px;
+`;
+
+const TransitionTitle = styled.h1`
+  font-size: 3rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 30px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const NextSongInfo = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 40px;
+  backdrop-filter: blur(10px);
+`;
+
+const NextSinger = styled.div`
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffd700;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const NextSong = styled.div`
+  font-size: 1.8rem;
+  color: #fff;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+`;
+
+const QRCodeContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+`;
+
+const QRCodeImage = styled.img`
+  width: 200px;
+  height: 200px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+`;
+
+const QRCodeText = styled.div`
+  font-size: 1.2rem;
+  color: #fff;
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.5;
+`;
+
+// QR Code Overlay Components
+const QRCodeOverlay = styled.div<{ $isVisible: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: ${props => props.$isVisible ? 'flex' : 'none'};
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  padding: 40px;
+`;
+
+const QRCodeContent = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 60px;
+  max-width: 1200px;
+  width: 100%;
+`;
+
+const QRCodeLeftSide = styled.div`
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+`;
+
+const QRCodeTitle = styled.h1`
+  color: #fff;
+  font-size: 4rem;
+  margin: 0 0 40px 0;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const QRCodeNextSongInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+`;
+
+const QRCodeNextSinger = styled.h2`
+  font-size: 3rem;
+  margin: 0;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const QRCodeNextSongTitle = styled.h3`
+  font-size: 2.5rem;
+  margin: 0;
+  font-weight: normal;
+  color: #ffd700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const QRCodeRightSide = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+`;
+
+const QRCodeImageLarge = styled.img`
+  width: 300px;
+  height: 300px;
+  border-radius: 15px;
+  border: 20px solid white;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+`;
+
+const QRCodeTextLarge = styled.p`
+  color: #fff;
+  font-size: 1.4rem;
+  margin: 0;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  max-width: 300px;
+`;
+
+const QRCodeCloseButton = styled.button`
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 30px;
+
+  &:hover {
+    background: #c0392b;
+  }
+`;
+
 const NoVideoMessage = styled.div`
   display: flex;
   align-items: center;
@@ -168,24 +362,61 @@ const ShowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
+  const [showTransition, setShowTransition] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
 
   const fetchCurrentSong = async () => {
     try {
       const response = await showAPI.getCurrentSong();
       const newSong = response.data.currentSong;
       const nextSongs = response.data.nextSongs || [];
+      const overlayStatus = response.data.showQRCodeOverlay || false;
+      
+      console.log('🎵 Fetched song data:', { 
+        currentSong: newSong?.id, 
+        currentSongTitle: newSong?.title,
+        nextSongsCount: nextSongs.length,
+        overlayStatus,
+        lastSongId 
+      });
+      
+      // Update overlay status from API
+      setShowQRCodeOverlay(overlayStatus);
       
       // Nur State aktualisieren wenn sich der Song geändert hat
       if (!newSong || newSong.id !== lastSongId) {
+        console.log('🔄 Song changed:', { 
+          from: lastSongId, 
+          to: newSong?.id,
+          newSongTitle: newSong?.title,
+          duration: newSong?.duration_seconds 
+        });
         setCurrentSong(newSong);
         setLastSongId(newSong?.id || null);
         setError(null);
+        
+        
+        // Start timer for new song
+        if (newSong && newSong.duration_seconds) {
+          setVideoStartTime(Date.now());
+          setTimeRemaining(newSong.duration_seconds);
+          console.log('⏱️ Timer started:', { 
+            duration: newSong.duration_seconds,
+            startTime: Date.now() 
+          });
+        } else {
+          setVideoStartTime(null);
+          setTimeRemaining(null);
+        }
       }
       
       setNextSongs(nextSongs);
       setLoading(false);
     } catch (error: any) {
-      console.error('Error fetching current song:', error);
+      console.error('❌ Error fetching current song:', error);
       setError('Fehler beim Laden des aktuellen Songs');
       setCurrentSong(null);
       setNextSongs([]);
@@ -202,6 +433,58 @@ const ShowView: React.FC = () => {
     return () => clearInterval(interval);
   }, [lastSongId]);
 
+  // Timer effect
+  useEffect(() => {
+    if (!videoStartTime || !timeRemaining) return;
+
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - videoStartTime) / 1000);
+      const remaining = Math.max(0, timeRemaining - elapsed);
+      
+      setTimeRemaining(remaining);
+      
+      console.log('⏱️ Timer update:', { 
+        elapsed, 
+        remaining, 
+        duration: currentSong?.duration_seconds 
+      });
+      
+      // Video ended - show transition
+      if (remaining <= 0) {
+        console.log('🎬 Video ended - showing transition overlay');
+        setShowTransition(true);
+        setVideoStartTime(null);
+        setTimeRemaining(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
+
+  // Generate QR code URL
+  useEffect(() => {
+    const baseUrl = window.location.origin;
+    const qrUrl = `${baseUrl}/new`;
+    setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`);
+  }, []);
+
+  // Show transition overlay when no current song
+  useEffect(() => {
+    console.log('🎬 Video transition check:', { 
+      loading, 
+      currentSong: currentSong?.id, 
+      showTransition: !loading && !currentSong 
+    });
+    
+    if (!loading && !currentSong) {
+      console.log('🎤 Showing transition overlay - no current song');
+      setShowTransition(true);
+    } else {
+      console.log('🎵 Hiding transition overlay - song is playing');
+      setShowTransition(false);
+    }
+  }, [loading, currentSong]);
+
   const getYouTubeEmbedUrl = (url: string) => {
     if (!url) return null;
     
@@ -214,6 +497,12 @@ const ShowView: React.FC = () => {
     }
     
     return null;
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const embedUrl = currentSong?.youtube_url ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
@@ -229,6 +518,13 @@ const ShowView: React.FC = () => {
             title={`${currentSong?.user_name} - ${currentSong?.title}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            onLoad={() => {
+              console.log('🎬 YouTube video loaded:', { 
+                songId: currentSong?.id, 
+                title: currentSong?.title,
+                embedUrl 
+              });
+            }}
           />
         </VideoWrapper>
       ) : (
@@ -238,6 +534,50 @@ const ShowView: React.FC = () => {
           </NoVideoMessage>
         </VideoWrapper>
       )}
+
+      {/* Transition Overlay */}
+      {showTransition && console.log('🎤 Rendering transition overlay:', { 
+        showTransition, 
+        currentSong: currentSong?.id,
+        nextSongsCount: nextSongs.length 
+      })}
+      <TransitionOverlay $isVisible={showTransition}>
+        <TransitionContent>
+          <TransitionTitle>🎤 Nächster Song</TransitionTitle>
+          
+          {nextSongs.length > 0 ? (
+            <NextSongInfo>
+              <NextSinger>🎵 {nextSongs[0].user_name}</NextSinger>
+              <NextSong>
+                {nextSongs[0].artist ? `${nextSongs[0].artist} - ${nextSongs[0].title}` : nextSongs[0].title}
+              </NextSong>
+            </NextSongInfo>
+          ) : (
+            <NextSongInfo>
+              <NextSinger>🎵 Kein Song in der Warteschlange</NextSinger>
+              <NextSong>Warte auf neue Songwünsche...</NextSong>
+            </NextSongInfo>
+          )}
+
+          <QRCodeContainer>
+            <QRCodeImage 
+              src={qrCodeUrl} 
+              alt="QR Code für Songwünsche"
+              onError={(e) => {
+                console.error('❌ QR Code failed to load');
+                e.currentTarget.style.display = 'none';
+              }}
+              onLoad={() => {
+                console.log('📱 QR Code loaded successfully');
+              }}
+            />
+            <QRCodeText>
+              📱 QR-Code scannen für Songwünsche<br/>
+              Oder besuche: {window.location.origin}/new
+            </QRCodeText>
+          </QRCodeContainer>
+        </TransitionContent>
+      </TransitionOverlay>
 
       {/* Header Overlay */}
       <Header>
@@ -254,6 +594,11 @@ const ShowView: React.FC = () => {
               )}
             </SongTitle>
           </CurrentSongInfo>
+          {timeRemaining !== null && (
+            <TimerDisplay>
+              ⏱️ {formatTime(timeRemaining)}
+            </TimerDisplay>
+          )}
         </HeaderContent>
       </Header>
 
@@ -280,6 +625,47 @@ const ShowView: React.FC = () => {
           </NextSongsList>
         </FooterContent>
       </Footer>
+
+      {/* QR Code Overlay */}
+      <QRCodeOverlay $isVisible={showQRCodeOverlay}>
+        <QRCodeContent>
+          <QRCodeLeftSide>
+            <QRCodeTitle>🎤 Nächster Song</QRCodeTitle>
+            
+            {(() => {
+              const nextSong = currentSong ? 
+                nextSongs.find(song => song.position > currentSong.position) :
+                nextSongs.find(song => song.position === 1);
+              
+              return nextSong ? (
+                <QRCodeNextSongInfo>
+                  <QRCodeNextSinger>
+                    {nextSong.user_name}
+                  </QRCodeNextSinger>
+                  <QRCodeNextSongTitle>
+                    {nextSong.artist ? `${nextSong.artist} - ${nextSong.title}` : nextSong.title}
+                  </QRCodeNextSongTitle>
+                </QRCodeNextSongInfo>
+              ) : (
+                <QRCodeNextSongInfo>
+                  <QRCodeNextSinger>Keine Songs in der Warteschlange</QRCodeNextSinger>
+                  <QRCodeNextSongTitle>Füge den ersten Song hinzu!</QRCodeNextSongTitle>
+                </QRCodeNextSongInfo>
+              );
+            })()}
+          </QRCodeLeftSide>
+          
+          <QRCodeRightSide>
+            <QRCodeImageLarge 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(window.location.origin + '/new')}`}
+              alt="QR Code für Song-Anfrage"
+            />
+            <QRCodeTextLarge>
+              QR-Code scannen für neue Song-Anfragen
+            </QRCodeTextLarge>
+          </QRCodeRightSide>
+        </QRCodeContent>
+      </QRCodeOverlay>
     </ShowContainer>
   );
 };

@@ -47,6 +47,23 @@ class YouTubeMetadataService {
   }
 
   /**
+   * Holt Video-Dauer über YouTube's oEmbed API (kostenlos, aber ohne Dauer)
+   * Alternative: Verwende eine andere Methode oder akzeptiere, dass Dauer nicht verfügbar ist
+   */
+  static async getVideoDuration(videoId) {
+    try {
+      // YouTube's oEmbed API liefert keine Dauer-Informationen
+      // Für eine echte Dauer-Extraktion bräuchten wir die YouTube Data API v3 mit API-Key
+      // Für jetzt geben wir null zurück und verwenden einen Standard-Wert
+      console.log('Duration extraction not available for video:', videoId);
+      return null;
+    } catch (error) {
+      console.error('Error fetching video duration:', error);
+      return null;
+    }
+  }
+
+  /**
    * Parst Titel und Interpret aus dem YouTube-Titel
    * Versucht verschiedene Formate zu erkennen
    */
@@ -122,7 +139,12 @@ class YouTubeMetadataService {
         throw new Error('Keine gültige YouTube-Video-ID gefunden');
       }
 
-      const metadata = await this.getMetadataFromOEmbed(videoId);
+      // Parallel beide APIs aufrufen
+      const [metadata, duration] = await Promise.all([
+        this.getMetadataFromOEmbed(videoId),
+        this.getVideoDuration(videoId)
+      ]);
+
       if (!metadata) {
         throw new Error('Metadaten konnten nicht abgerufen werden');
       }
@@ -134,7 +156,8 @@ class YouTubeMetadataService {
         artist: artist,
         youtube_title: metadata.title,
         thumbnail: metadata.thumbnail,
-        video_id: videoId
+        video_id: videoId,
+        duration_seconds: duration
       };
 
     } catch (error) {

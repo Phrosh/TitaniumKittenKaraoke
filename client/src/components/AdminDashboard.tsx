@@ -21,6 +21,43 @@ const Header = styled.div`
   backdrop-filter: blur(10px);
 `;
 
+const QRCodeToggleButton = styled.button<{ $active: boolean }>`
+  background: ${props => props.$active ? '#27ae60' : '#95a5a6'};
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: ${props => props.$active ? '#229954' : '#7f8c8d'};
+  }
+`;
+
+const ShowPastSongsToggleButton = styled.button<{ $active: boolean }>`
+  background: ${props => props.$active ? '#3498db' : '#95a5a6'};
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: ${props => props.$active ? '#2980b9' : '#7f8c8d'};
+  }
+`;
+
+
 const Title = styled.h1`
   color: white;
   font-size: 2.5rem;
@@ -450,6 +487,8 @@ const AdminDashboard: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
+  const [showPastSongs, setShowPastSongs] = useState(false);
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -492,6 +531,17 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Aktualisieren des Regression-Werts');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const handleToggleQRCodeOverlay = async (show: boolean) => {
+    try {
+      await adminAPI.setQRCodeOverlay(show);
+      setShowQRCodeOverlay(show);
+      toast.success(show ? 'QR-Code Overlay aktiviert!' : 'QR-Code Overlay deaktiviert!');
+    } catch (error) {
+      console.error('Error toggling QR code overlay:', error);
+      toast.error('Fehler beim Umschalten des QR-Code Overlays');
     }
   };
 
@@ -611,6 +661,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin/login');
@@ -729,6 +780,11 @@ const AdminDashboard: React.FC = () => {
   }
 
   const { playlist, currentSong, stats } = dashboardData;
+  
+  // Filter playlist based on showPastSongs setting
+  const filteredPlaylist = showPastSongs 
+    ? playlist 
+    : playlist.filter(song => !currentSong || song.position >= currentSong.position);
 
   return (
     <Container>
@@ -783,7 +839,7 @@ const AdminDashboard: React.FC = () => {
 
       <PlaylistContainer>
         <PlaylistHeader>
-          <PlaylistTitle>Playlist ({playlist.length} Songs)</PlaylistTitle>
+          <PlaylistTitle>Playlist ({filteredPlaylist.length} Songs)</PlaylistTitle>
           <ControlButtons>
             <Button 
               variant="success" 
@@ -792,6 +848,18 @@ const AdminDashboard: React.FC = () => {
             >
               ⏭️ Weiter
             </Button>
+            <QRCodeToggleButton 
+              $active={showQRCodeOverlay}
+              onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
+            >
+              📱 {showQRCodeOverlay ? 'QR-Code ausblenden' : 'QR-Code anzeigen'}
+            </QRCodeToggleButton>
+            <ShowPastSongsToggleButton 
+              $active={showPastSongs}
+              onClick={() => setShowPastSongs(!showPastSongs)}
+            >
+              📜 {showPastSongs ? 'Vergangene ausblenden' : 'Vergangene anzeigen'}
+            </ShowPastSongsToggleButton>
             <Button 
               variant="danger" 
               onClick={handleClearAllSongs}
@@ -802,13 +870,13 @@ const AdminDashboard: React.FC = () => {
           </ControlButtons>
         </PlaylistHeader>
 
-        {playlist.length === 0 ? (
+        {filteredPlaylist.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
             Keine Songs in der Playlist
           </div>
         ) : (
           <div>
-            {playlist.map((song, index) => {
+            {filteredPlaylist.map((song, index) => {
               const isCurrent = currentSong?.id === song.id;
               const isPast = currentSong && song.position < currentSong.position;
               const isDragging = draggedItem === song.id;
@@ -847,14 +915,14 @@ const AdminDashboard: React.FC = () => {
                         <DeviceId>📱 {song.device_id}</DeviceId>
                       </SongName>
                       <SongTitleRow>
-                        <SongTitle 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyToClipboard(song);
-                          }}
-                        >
-                          {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                        </SongTitle>
+                                              <SongTitle 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyToClipboard(song);
+                        }}
+                      >
+                        {song.artist ? `${song.artist} - ${song.title}` : song.title}
+                      </SongTitle>
                         <YouTubeField
                           type="url"
                           placeholder="YouTube-Link hier eingeben..."
@@ -968,6 +1036,7 @@ const AdminDashboard: React.FC = () => {
           </ModalContent>
         </Modal>
       )}
+
     </Container>
   );
 };

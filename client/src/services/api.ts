@@ -78,6 +78,8 @@ export const adminAPI = {
   
   updateYouTubeUrl: (songId: number, youtubeUrl: string) =>
     api.put(`/admin/song/${songId}/youtube`, { youtubeUrl }),
+  setQRCodeOverlay: (show: boolean) =>
+    api.put('/admin/qr-overlay', { show }),
   
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),

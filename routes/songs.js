@@ -33,7 +33,12 @@ router.post('/request', [
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
         title = metadata.title;
         artist = metadata.artist || 'Unknown Artist';
-        console.log('Extracted metadata:', { title, artist });
+        console.log('Extracted metadata:', { 
+          title, 
+          artist, 
+          duration: metadata.duration_seconds,
+          durationFormatted: metadata.duration_seconds ? `${Math.floor(metadata.duration_seconds / 60)}:${(metadata.duration_seconds % 60).toString().padStart(2, '0')}` : 'N/A'
+        });
       } catch (error) {
         console.error('Failed to extract YouTube metadata:', error.message);
         // Fallback to generic values
@@ -55,8 +60,35 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Create song with priority
-    const song = await Song.create(user.id, title, artist, youtubeUrl, 1);
+    // Get duration if it's a YouTube URL
+    let durationSeconds = null;
+    if (youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
+      try {
+        const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
+        durationSeconds = metadata.duration_seconds;
+        console.log('Duration extracted for database:', { 
+          durationSeconds, 
+          formatted: durationSeconds ? `${Math.floor(durationSeconds / 60)}:${(durationSeconds % 60).toString().padStart(2, '0')}` : 'N/A' 
+        });
+      } catch (error) {
+        console.error('Failed to get duration:', error.message);
+      }
+    }
+
+    // Create song with priority and duration
+    console.log('Creating song with data:', { 
+      userId: user.id, 
+      title, 
+      artist, 
+      youtubeUrl, 
+      priority: 1, 
+      durationSeconds 
+    });
+    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds);
+    console.log('Song created:', { 
+      id: song.id, 
+      duration_seconds: song.duration_seconds 
+    });
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);

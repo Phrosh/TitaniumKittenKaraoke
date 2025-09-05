@@ -24,6 +24,21 @@ router.get('/', async (req, res) => {
         }));
     }
 
+    // Get QR overlay status from settings
+    const db = require('../config/database');
+    const overlaySetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['show_qr_overlay'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const showQRCodeOverlay = overlaySetting ? overlaySetting.value === 'true' : false;
+
     res.json({
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -31,9 +46,11 @@ router.get('/', async (req, res) => {
         artist: currentSong.artist,
         title: currentSong.title,
         youtube_url: currentSong.youtube_url,
-        position: currentSong.position
+        position: currentSong.position,
+        duration_seconds: currentSong.duration_seconds
       } : null,
-      nextSongs
+      nextSongs,
+      showQRCodeOverlay
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

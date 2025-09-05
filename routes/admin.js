@@ -17,6 +17,18 @@ router.get('/dashboard', async (req, res) => {
     const playlist = await Song.getAll();
     console.log('Playlist loaded:', playlist.length, 'songs');
     
+    // Debug: Check if duration_seconds is present
+    const songsWithDuration = playlist.filter(s => s.duration_seconds);
+    console.log('Songs with duration:', songsWithDuration.length);
+    if (songsWithDuration.length > 0) {
+      console.log('Sample song with duration:', {
+        id: songsWithDuration[0].id,
+        title: songsWithDuration[0].title,
+        duration_seconds: songsWithDuration[0].duration_seconds,
+        formatted: `${Math.floor(songsWithDuration[0].duration_seconds / 60)}:${(songsWithDuration[0].duration_seconds % 60).toString().padStart(2, '0')}`
+      });
+    }
+    
     const pendingSongs = await Song.getPending();
     console.log('Pending songs loaded:', pendingSongs.length, 'songs');
     
@@ -242,6 +254,39 @@ router.put('/settings/regression', [
   } catch (error) {
     console.error('Update regression value error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Set QR Code Overlay Status
+router.put('/qr-overlay', [
+  body('show').isBoolean().withMessage('Show muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { show } = req.body;
+
+    // Store overlay status in settings
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_qr_overlay', show.toString()],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'QR-Code Overlay Status aktualisiert', show });
+  } catch (error) {
+    console.error('Error setting QR overlay status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
