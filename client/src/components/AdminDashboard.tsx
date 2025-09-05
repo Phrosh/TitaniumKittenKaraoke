@@ -137,6 +137,7 @@ const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $is
   };
   border: ${props => 
     props.$isCurrent ? '3px solid #e74c3c' :
+    props.$hasNoYoutube ? '2px solid #dc3545' :
     props.$isPast ? '1px solid #e9ecef' :
     props.$isDropTarget ? '2px dashed #3498db' :
     '1px solid #dee2e6'
@@ -178,6 +179,18 @@ const DragHandle = styled.div`
   }
 `;
 
+const PositionBadge = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  color: #6c757d;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: monospace;
+`;
+
 const SongContent = styled.div`
   flex: 1;
   display: flex;
@@ -189,9 +202,28 @@ const SongName = styled.div`
   font-size: 1.1rem;
   font-weight: 600;
   color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const DeviceId = styled.span`
+  font-size: 0.85rem;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+`;
+
+const SongTitleRow = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
 `;
 
 const SongTitle = styled.div`
+  flex: 1;
   font-size: 0.95rem;
   color: #666;
   cursor: pointer;
@@ -206,6 +238,31 @@ const SongTitle = styled.div`
   &:hover {
     background: rgba(0, 0, 0, 0.1);
     color: #333;
+  }
+`;
+
+const YouTubeField = styled.input`
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+
+  &:hover {
+    border-color: #bbb;
+  }
+
+  &::placeholder {
+    color: #999;
+    font-style: italic;
   }
 `;
 
@@ -437,6 +494,7 @@ const AdminDashboard: React.FC = () => {
 
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
+  const [youtubeLinks, setYoutubeLinks] = useState<{[key: number]: string}>({});
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -515,6 +573,38 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error copying to clipboard:', error);
       toast.error('Fehler beim Kopieren in die Zwischenablage');
+    }
+  };
+
+  const handleYouTubeFieldClick = async (song: Song) => {
+    const currentLink = youtubeLinks[song.id] || song.youtube_url;
+    if (currentLink) {
+      try {
+        await navigator.clipboard.writeText(currentLink);
+        toast.success('YouTube-Link in die Zwischenablage kopiert!');
+      } catch (error) {
+        console.error('Error copying YouTube link:', error);
+        toast.error('Fehler beim Kopieren des YouTube-Links');
+      }
+    }
+  };
+
+  const handleYouTubeFieldChange = (songId: number, value: string) => {
+    setYoutubeLinks(prev => ({
+      ...prev,
+      [songId]: value
+    }));
+  };
+
+  const handleYouTubeFieldBlur = async (songId: number, value: string) => {
+    try {
+      await adminAPI.updateYouTubeUrl(songId, value);
+      toast.success('YouTube-Link aktualisiert!');
+      // Refresh data to get updated link
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error updating YouTube URL:', error);
+      toast.error('Fehler beim Aktualisieren des YouTube-Links');
     }
   };
 
@@ -720,79 +810,96 @@ const AdminDashboard: React.FC = () => {
               const isPast = currentSong && song.position < currentSong.position;
               const isDragging = draggedItem === song.id;
               const isDropTarget = dropTarget === song.id;
+              const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
               
               return (
-                <SongItem 
-                  key={song.id}
-                  $isCurrent={isCurrent}
-                  $hasNoYoutube={!song.youtube_url}
-                  $isPast={isPast}
-                  $isDragging={isDragging}
-                  $isDropTarget={isDropTarget}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, song.id)}
-                  onDragOver={(e) => handleDragOver(e, song.id)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, song.id)}
-                >
-                  <DragHandle>
-                    ⋮⋮⋮
-                  </DragHandle>
+                <React.Fragment key={song.id}>
+                  {showDropZoneAbove && (
+                    <DropZone $isVisible={true} />
+                  )}
                   
-                  <SongContent>
-                    <SongName>{song.user_name}</SongName>
-                    <SongTitle 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopyToClipboard(song);
-                      }}
-                    >
-                      {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                    </SongTitle>
-                    <SongDetails>
-                      📱 {song.device_id} • Position #{song.position}
-                    </SongDetails>
-                  </SongContent>
+                  <SongItem 
+                    $isCurrent={isCurrent}
+                    $hasNoYoutube={!song.youtube_url}
+                    $isPast={isPast}
+                    $isDragging={isDragging}
+                    $isDropTarget={isDropTarget}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, song.id)}
+                    onDragOver={(e) => handleDragOver(e, song.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, song.id)}
+                  >
+                    <DragHandle>
+                      ⋮⋮⋮
+                    </DragHandle>
+                    
+                    <PositionBadge>
+                      #{song.position}
+                    </PositionBadge>
+                    
+                    <SongContent>
+                      <SongName>
+                        {song.user_name}
+                        <DeviceId>📱 {song.device_id}</DeviceId>
+                      </SongName>
+                      <SongTitleRow>
+                        <SongTitle 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyToClipboard(song);
+                          }}
+                        >
+                          {song.artist ? `${song.artist} - ${song.title}` : song.title}
+                        </SongTitle>
+                        <YouTubeField
+                          type="url"
+                          placeholder="YouTube-Link hier eingeben..."
+                          value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
+                          onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
+                          onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleYouTubeFieldClick(song);
+                          }}
+                        />
+                      </SongTitleRow>
+                    </SongContent>
+                    
+                    <SongActions>
+                      {currentSong?.id === song.id && (
+                        <Badge type="current">🎤 AKTUELL</Badge>
+                      )}
+                      
+                      <Button 
+                        variant="success"
+                        onClick={() => handlePlaySong(song.id)}
+                        disabled={actionLoading}
+                      >
+                        ▶️
+                      </Button>
+                      
+                      <Button 
+                        onClick={() => openModal(song, 'edit')}
+                        disabled={actionLoading}
+                      >
+                        ✏️
+                      </Button>
+                      
+                      <Button 
+                        variant="danger"
+                        onClick={() => handleDeleteSong(song.id)}
+                        disabled={actionLoading}
+                      >
+                        🗑️
+                      </Button>
+                    </SongActions>
+                  </SongItem>
                   
-                  <SongActions>
-                    {currentSong?.id === song.id && (
-                      <Badge type="current">🎤 AKTUELL</Badge>
-                    )}
-                    {!song.youtube_url && (
-                      <Badge type="no-youtube">⚠️ Kein Link</Badge>
-                    )}
-                    
-                    <Button 
-                      variant="success"
-                      onClick={() => handlePlaySong(song.id)}
-                      disabled={actionLoading}
-                    >
-                      ▶️
-                    </Button>
-                    
-                    <Button 
-                      onClick={() => openModal(song, 'edit')}
-                      disabled={actionLoading}
-                    >
-                      ✏️
-                    </Button>
-                    
-                    <Button 
-                      onClick={() => openModal(song, 'youtube')}
-                      disabled={actionLoading}
-                    >
-                      🔗
-                    </Button>
-                    
-                    <Button 
-                      variant="danger"
-                      onClick={() => handleDeleteSong(song.id)}
-                      disabled={actionLoading}
-                    >
-                      🗑️
-                    </Button>
-                  </SongActions>
-                </SongItem>
+                  {index === playlist.length - 1 && draggedItem && !dropTarget && (
+                    <DropZone $isVisible={true} />
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
