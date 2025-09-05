@@ -12,10 +12,19 @@ router.use(verifyToken);
 // Get admin dashboard data
 router.get('/dashboard', async (req, res) => {
   try {
+    console.log('Admin dashboard request received');
+    
     const playlist = await Song.getAll();
+    console.log('Playlist loaded:', playlist.length, 'songs');
+    
     const pendingSongs = await Song.getPending();
+    console.log('Pending songs loaded:', pendingSongs.length, 'songs');
+    
     const users = await User.getAll();
+    console.log('Users loaded:', users.length, 'users');
+    
     const currentSong = await Song.getCurrentSong();
+    console.log('Current song:', currentSong);
     
     // Statistics
     const stats = {
@@ -26,6 +35,8 @@ router.get('/dashboard', async (req, res) => {
       songsWithoutYoutube: playlist.filter(s => !s.youtube_url).length
     };
 
+    console.log('Stats:', stats);
+
     res.json({
       playlist,
       pendingSongs,
@@ -35,7 +46,7 @@ router.get('/dashboard', async (req, res) => {
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -199,6 +210,37 @@ router.get('/settings', async (req, res) => {
     res.json({ settings });
   } catch (error) {
     console.error('Get settings error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update regression value
+router.put('/settings/regression', [
+  body('value').isFloat({ min: 0, max: 1 }).withMessage('Regression value must be between 0 and 1')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { value } = req.body;
+    
+    await new Promise((resolve, reject) => {
+      const db = require('../config/database');
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['regression_value', value.toString()],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Regression value updated successfully' });
+  } catch (error) {
+    console.error('Update regression value error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

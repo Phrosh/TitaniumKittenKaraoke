@@ -53,10 +53,34 @@ class PlaylistAlgorithm {
         `, [user.name], (err, row) => {
           if (err) {
             reject(err);
-          } else {
-            // Priority = existing songs count + 1
-            resolve((row.count || 0) + 1);
+            return;
           }
+          
+          const userSongCount = row.count || 0;
+          
+          // Get current song's priority
+          db.get(`
+            SELECT s.priority 
+            FROM songs s 
+            WHERE s.id = (
+              SELECT CAST(value AS INTEGER) 
+              FROM settings 
+              WHERE key = 'current_song_id'
+            )
+          `, (err, currentSong) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            
+            // Minimum priority is current song's priority (or 1 if no current song)
+            const minPriority = currentSong ? currentSong.priority : 1;
+            
+            // User's priority is max of: (user's song count + 1) and minPriority
+            const finalPriority = Math.max(userSongCount + 1, minPriority);
+            
+            resolve(finalPriority);
+          });
         });
       });
     });
@@ -95,13 +119,21 @@ class PlaylistAlgorithm {
         // Sort songs by priority (ascending) - lower priority first
         songs.sort((a, b) => a.priority - b.priority);
 
-        // Update positions based on new order
+        // Update positions and apply regression
         let position = 1;
-        const updatePromises = songs.map(song => {
-          return new Promise((resolveUpdate, rejectUpdate) => {
+        const updatePromises = songs.map((song, index) => {
+          return new Promise(async (resolveUpdate, rejectUpdate) => {
+            const oldPosition = song.position;
+            const newPosition = position++;
+            
+            // If song moved down (higher position number), apply regression
+            if (newPosition > oldPosition) {
+              await this.applyRegression(song.id);
+            }
+            
             db.run(
               'UPDATE songs SET position = ? WHERE id = ?',
-              [position++, song.id],
+              [newPosition, song.id],
               function(err) {
                 if (err) rejectUpdate(err);
                 else resolveUpdate();
@@ -113,6 +145,40 @@ class PlaylistAlgorithm {
         Promise.all(updatePromises)
           .then(() => resolve())
           .catch(reject);
+      });
+    });
+  }
+
+  static async applyRegression(songId) {
+    try {
+      // Get regression value from settings
+      const regressionValue = await this.getRegressionValue();
+      
+      // Increment regression count
+      await Song.incrementRegressionCount(songId);
+      
+      // Get current priority
+      const song = await Song.getById(songId);
+      if (song) {
+        // Reduce priority by regression value
+        const newPriority = Math.max(0.1, song.priority - regressionValue);
+        await Song.updatePriority(songId, newPriority);
+      }
+    } catch (error) {
+      console.error('Error applying regression:', error);
+    }
+  }
+
+  static async getRegressionValue() {
+    return new Promise((resolve, reject) => {
+      db.get(`
+        SELECT value FROM settings WHERE key = 'regression_value'
+      `, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(parseFloat(row ? row.value : '0.1'));
+        }
       });
     });
   }

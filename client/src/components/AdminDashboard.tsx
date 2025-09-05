@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { adminAPI, playlistAPI } from '../services/api';
 import { AdminDashboardData, Song } from '../types';
 
@@ -121,7 +122,7 @@ const Button = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
   }
 `;
 
-const SongItem = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean; isPast?: boolean }>`
+const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -129,28 +130,87 @@ const SongItem = styled.div<{ isCurrent?: boolean; hasNoYoutube?: boolean; isPas
   border-radius: 8px;
   margin: 10px 0;
   background: ${props => 
-    props.isCurrent ? '#fff3cd' :
-    props.isPast ? '#f8f9fa' :
-    props.hasNoYoutube ? '#fff3cd' :
+    props.$isCurrent ? '#fff3cd' :
+    props.$isPast ? '#f8f9fa' :
+    props.$hasNoYoutube ? '#fff3cd' :
     '#f8f9fa'
   };
   border: ${props => 
-    props.isCurrent ? '3px solid #e74c3c' :
-    props.isPast ? '1px solid #e9ecef' :
+    props.$isCurrent ? '3px solid #e74c3c' :
+    props.$isPast ? '1px solid #e9ecef' :
+    props.$isDropTarget ? '2px dashed #3498db' :
     '1px solid #dee2e6'
   };
-  opacity: ${props => props.isPast ? 0.6 : 1};
+  opacity: ${props => props.$isPast ? 0.6 : props.$isDragging ? 0.5 : 1};
   transition: all 0.3s ease;
+  transform: ${props => props.$isDragging ? 'scale(1.02)' : 'none'};
+  gap: 15px;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  box-shadow: ${props => props.$isDragging ? '0 8px 25px rgba(0,0,0,0.15)' : 'none'};
+`;
+
+const DragHandle = styled.div`
+  cursor: grab;
+  padding: 8px;
+  color: rgba(0, 0, 0, 0.4);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: none;
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+`;
+
+const SongContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const SongName = styled.div`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+`;
+
+const SongTitle = styled.div`
+  font-size: 0.95rem;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #333;
+  }
 `;
 
 const SongInfo = styled.div`
   flex: 1;
-`;
-
-const SongTitle = styled.div`
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 5px;
 `;
 
 const SongDetails = styled.div`
@@ -225,20 +285,6 @@ const Input = styled.input`
   }
 `;
 
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  font-size: 14px;
-  resize: vertical;
-  min-height: 80px;
-
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-  }
-`;
 
 const ModalButtons = styled.div`
   display: flex;
@@ -253,6 +299,86 @@ const LoadingMessage = styled.div`
   color: #666;
 `;
 
+const SettingsSection = styled.div`
+  margin-bottom: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+`;
+
+const SettingsTitle = styled.h2`
+  color: white;
+  margin: 0 0 20px 0;
+  font-size: 1.5rem;
+`;
+
+const SettingsCard = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const SettingsLabel = styled.label`
+  display: block;
+  color: white;
+  margin-bottom: 8px;
+  font-weight: 600;
+`;
+
+const SettingsInput = styled.input`
+  width: 100px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  margin-right: 10px;
+  
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+  }
+`;
+
+const SettingsButton = styled.button`
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 15px;
+
+  &:hover:not(:disabled) {
+    background: #2980b9;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const SettingsDescription = styled.p`
+  color: #ccc;
+  font-size: 0.9rem;
+  margin: 10px 0 0 0;
+  line-height: 1.4;
+`;
+
+const DropZone = styled.div<{ $isVisible?: boolean }>`
+  height: 4px;
+  background: #3498db;
+  border-radius: 2px;
+  margin: 5px 0;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  transition: opacity 0.2s ease;
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+`;
+
 const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,19 +391,20 @@ const AdminDashboard: React.FC = () => {
     youtubeUrl: ''
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [regressionValue, setRegressionValue] = useState(0.1);
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchDashboardData();
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const response = await adminAPI.getDashboard();
       setDashboardData(response.data);
+      
+      // Fetch settings including regression value
+      const settingsResponse = await adminAPI.getSettings();
+      if (settingsResponse.data.settings.regression_value) {
+        setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
+      }
     } catch (error: any) {
       if (error.response?.status === 401) {
         navigate('/admin/login');
@@ -285,6 +412,109 @@ const AdminDashboard: React.FC = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    // Refresh every 10 seconds
+    const interval = setInterval(fetchDashboardData, 10000);
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
+
+  const handleUpdateRegressionValue = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateRegressionValue(regressionValue);
+      toast.success('Regression-Wert erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating regression value:', error);
+      toast.error('Fehler beim Aktualisieren des Regression-Werts');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const [draggedItem, setDraggedItem] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, songId: number) => {
+    setDraggedItem(songId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', songId.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, songId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (songId !== draggedItem) {
+      setDropTarget(songId);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear drop target if we're leaving the entire song item
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDropTarget(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetSongId: number) => {
+    e.preventDefault();
+    
+    if (!draggedItem || !dashboardData || draggedItem === targetSongId) {
+      setDraggedItem(null);
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      
+      const draggedIndex = dashboardData.playlist.findIndex(song => song.id === draggedItem);
+      const targetIndex = dashboardData.playlist.findIndex(song => song.id === targetSongId);
+      
+      if (draggedIndex === -1 || targetIndex === -1) {
+        setDraggedItem(null);
+        return;
+      }
+
+      // Update local state immediately for better UX
+      const newPlaylist = Array.from(dashboardData.playlist);
+      const [reorderedItem] = newPlaylist.splice(draggedIndex, 1);
+      newPlaylist.splice(targetIndex, 0, reorderedItem);
+      
+      setDashboardData(prev => prev ? {
+        ...prev,
+        playlist: newPlaylist
+      } : null);
+
+      // Update positions in backend
+      await playlistAPI.reorderPlaylist(
+        reorderedItem.id,
+        targetIndex + 1
+      );
+      
+      toast.success('Playlist-Reihenfolge aktualisiert!');
+    } catch (error) {
+      console.error('Error reordering playlist:', error);
+      toast.error('Fehler beim Neuordnen der Playlist');
+      // Revert local state on error
+      fetchDashboardData();
+    } finally {
+      setActionLoading(false);
+      setDraggedItem(null);
+      setDropTarget(null);
+    }
+  };
+
+  const handleCopyToClipboard = async (song: Song) => {
+    const textToCopy = `${song.artist} - ${song.title} Karaoke`;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      toast.success(`"${textToCopy}" in die Zwischenablage kopiert!`);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error('Fehler beim Kopieren in die Zwischenablage');
     }
   };
 
@@ -370,10 +600,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text + ' Karaoke');
-    alert('Text in Zwischenablage kopiert: "' + text + ' Karaoke"');
-  };
 
   const handleClearAllSongs = async () => {
     if (!window.confirm('Wirklich ALLE Songs aus der Playlist löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
@@ -437,6 +663,31 @@ const AdminDashboard: React.FC = () => {
         </StatCard>
       </StatsGrid>
 
+      <SettingsSection>
+        <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
+        <SettingsCard>
+          <SettingsLabel>Regression-Wert:</SettingsLabel>
+          <SettingsInput
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={regressionValue}
+            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
+          />
+          <SettingsButton 
+            onClick={handleUpdateRegressionValue}
+            disabled={settingsLoading}
+          >
+            {settingsLoading ? 'Speichert...' : 'Speichern'}
+          </SettingsButton>
+          <SettingsDescription>
+            Der Regression-Wert bestimmt, um wie viel die Priorität eines Songs reduziert wird, 
+            wenn er nach unten rutscht (Standard: 0.1). Bei 10 Regressionen wird die Priorität um 1.0 reduziert.
+          </SettingsDescription>
+        </SettingsCard>
+      </SettingsSection>
+
       <PlaylistContainer>
         <PlaylistHeader>
           <PlaylistTitle>Playlist ({playlist.length} Songs)</PlaylistTitle>
@@ -463,74 +714,88 @@ const AdminDashboard: React.FC = () => {
             Keine Songs in der Playlist
           </div>
         ) : (
-          playlist.map((song) => {
-            const isCurrent = currentSong?.id === song.id;
-            const isPast = currentSong && song.position < currentSong.position;
-            
-            return (
-            <SongItem 
-              key={song.id} 
-              isCurrent={isCurrent}
-              hasNoYoutube={!song.youtube_url}
-              isPast={isPast}
-            >
-              <SongInfo>
-                <SongTitle>{song.title}</SongTitle>
-                <SongDetails>
-                  {song.artist && song.artist !== 'Unknown' && `👤 ${song.artist} • `}
-                  📱 {song.user_name} ({song.device_id}) • 
-                  Position #{song.position}
-                </SongDetails>
-              </SongInfo>
+          <div>
+            {playlist.map((song, index) => {
+              const isCurrent = currentSong?.id === song.id;
+              const isPast = currentSong && song.position < currentSong.position;
+              const isDragging = draggedItem === song.id;
+              const isDropTarget = dropTarget === song.id;
               
-              <SongActions>
-                {currentSong?.id === song.id && (
-                  <Badge type="current">🎤 AKTUELL</Badge>
-                )}
-                {!song.youtube_url && (
-                  <Badge type="no-youtube">⚠️ Kein Link</Badge>
-                )}
-                
-                <Button 
-                  variant="success"
-                  onClick={() => handlePlaySong(song.id)}
-                  disabled={actionLoading}
+              return (
+                <SongItem 
+                  key={song.id}
+                  $isCurrent={isCurrent}
+                  $hasNoYoutube={!song.youtube_url}
+                  $isPast={isPast}
+                  $isDragging={isDragging}
+                  $isDropTarget={isDropTarget}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, song.id)}
+                  onDragOver={(e) => handleDragOver(e, song.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, song.id)}
                 >
-                  ▶️
-                </Button>
-                
-                <Button 
-                  onClick={() => openModal(song, 'edit')}
-                  disabled={actionLoading}
-                >
-                  ✏️
-                </Button>
-                
-                <Button 
-                  onClick={() => openModal(song, 'youtube')}
-                  disabled={actionLoading}
-                >
-                  🔗
-                </Button>
-                
-                <Button 
-                  onClick={() => copyToClipboard(`${song.artist} - ${song.title}`)}
-                  disabled={actionLoading}
-                >
-                  📋
-                </Button>
-                
-                <Button 
-                  variant="danger"
-                  onClick={() => handleDeleteSong(song.id)}
-                  disabled={actionLoading}
-                >
-                  🗑️
-                </Button>
-              </SongActions>
-            </SongItem>
-            );
-          })
+                  <DragHandle>
+                    ⋮⋮⋮
+                  </DragHandle>
+                  
+                  <SongContent>
+                    <SongName>{song.user_name}</SongName>
+                    <SongTitle 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyToClipboard(song);
+                      }}
+                    >
+                      {song.artist ? `${song.artist} - ${song.title}` : song.title}
+                    </SongTitle>
+                    <SongDetails>
+                      📱 {song.device_id} • Position #{song.position}
+                    </SongDetails>
+                  </SongContent>
+                  
+                  <SongActions>
+                    {currentSong?.id === song.id && (
+                      <Badge type="current">🎤 AKTUELL</Badge>
+                    )}
+                    {!song.youtube_url && (
+                      <Badge type="no-youtube">⚠️ Kein Link</Badge>
+                    )}
+                    
+                    <Button 
+                      variant="success"
+                      onClick={() => handlePlaySong(song.id)}
+                      disabled={actionLoading}
+                    >
+                      ▶️
+                    </Button>
+                    
+                    <Button 
+                      onClick={() => openModal(song, 'edit')}
+                      disabled={actionLoading}
+                    >
+                      ✏️
+                    </Button>
+                    
+                    <Button 
+                      onClick={() => openModal(song, 'youtube')}
+                      disabled={actionLoading}
+                    >
+                      🔗
+                    </Button>
+                    
+                    <Button 
+                      variant="danger"
+                      onClick={() => handleDeleteSong(song.id)}
+                      disabled={actionLoading}
+                    >
+                      🗑️
+                    </Button>
+                  </SongActions>
+                </SongItem>
+              );
+            })}
+          </div>
         )}
       </PlaylistContainer>
 

@@ -96,6 +96,9 @@ export const adminAPI = {
   
   getSettings: () =>
     api.get('/admin/settings'),
+  
+  updateRegressionValue: (value: number) =>
+    api.put('/admin/settings/regression', { value }),
 };
 
 export default api;

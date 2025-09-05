@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import QRCode from 'qrcode';
 import { songAPI } from '../services/api';
-import { SongRequestData, QRData } from '../types';
+import { SongRequestData } from '../types';
 
 const Container = styled.div`
   min-height: 100vh;

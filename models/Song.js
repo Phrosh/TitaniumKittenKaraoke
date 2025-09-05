@@ -1,7 +1,7 @@
 const db = require('../config/database');
 
 class Song {
-  static create(userId, title, artist = null, youtubeUrl = null, priority = 1) {
+  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0) {
     return new Promise((resolve, reject) => {
       db.run(
         'INSERT INTO songs (user_id, title, artist, youtube_url, priority) VALUES (?, ?, ?, ?, ?)',
@@ -73,6 +73,38 @@ class Song {
       db.run(
         'UPDATE songs SET position = ? WHERE id = ?',
         [position, songId],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
+  static updatePriority(songId, priority) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET priority = ? WHERE id = ?',
+        [priority, songId],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
+  static incrementRegressionCount(songId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET regression_count = regression_count + 1 WHERE id = ?',
+        [songId],
         function(err) {
           if (err) {
             reject(err);

@@ -33,8 +33,9 @@ function initializeDatabase() {
       youtube_url TEXT,
       status TEXT DEFAULT 'pending',
       position INTEGER DEFAULT 0,
-      priority INTEGER DEFAULT 1,
+      priority REAL DEFAULT 1.0,
       delay_count INTEGER DEFAULT 0,
+      regression_count INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
@@ -63,7 +64,8 @@ function initializeDatabase() {
     db.run(`
       INSERT OR IGNORE INTO settings (key, value) VALUES 
       ('max_song_delay', '15'),
-      ('current_song_id', '0')
+      ('current_song_id', '0'),
+      ('regression_value', '0.1')
     `);
   });
 }

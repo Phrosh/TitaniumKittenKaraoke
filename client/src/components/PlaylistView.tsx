@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { songAPI } from '../services/api';
-import { PlaylistResponse, Song } from '../types';
+import { PlaylistResponse } from '../types';
 
 const Container = styled.div`
   min-height: 100vh;
