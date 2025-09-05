@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
+const YouTubeMetadataService = require('../utils/youtubeMetadata');
 
 const router = express.Router();
 
@@ -24,10 +25,21 @@ router.post('/request', [
     let title, artist, youtubeUrl = null;
     
     if (songInput.includes('youtube.com') || songInput.includes('youtu.be')) {
-      // It's a YouTube URL
+      // It's a YouTube URL - try to extract metadata
       youtubeUrl = songInput;
-      title = 'YouTube Song';
-      artist = 'Unknown';
+      
+      try {
+        console.log('Extracting YouTube metadata for:', youtubeUrl);
+        const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
+        title = metadata.title;
+        artist = metadata.artist || 'Unknown Artist';
+        console.log('Extracted metadata:', { title, artist });
+      } catch (error) {
+        console.error('Failed to extract YouTube metadata:', error.message);
+        // Fallback to generic values
+        title = 'YouTube Song';
+        artist = 'Unknown Artist';
+      }
     } else if (songInput.includes(' - ')) {
       // It's "Artist - Title" format
       const parts = songInput.split(' - ');
@@ -36,7 +48,7 @@ router.post('/request', [
     } else {
       // Treat as title only
       title = songInput;
-      artist = 'Unknown';
+      artist = 'Unknown Artist';
     }
 
     // Always create a new user for each song request

@@ -462,11 +462,14 @@ const AdminDashboard: React.FC = () => {
       if (settingsResponse.data.settings.regression_value) {
         setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
       }
+      
+      return response.data; // Return data for use in other functions
     } catch (error: any) {
       if (error.response?.status === 401) {
         navigate('/admin/login');
       }
       console.error('Error fetching dashboard data:', error);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -873,14 +876,20 @@ const AdminDashboard: React.FC = () => {
                       
                       <Button 
                         variant="success"
-                        onClick={() => handlePlaySong(song.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlaySong(song.id);
+                        }}
                         disabled={actionLoading}
                       >
                         ▶️
                       </Button>
                       
                       <Button 
-                        onClick={() => openModal(song, 'edit')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openModal(song, 'edit');
+                        }}
                         disabled={actionLoading}
                       >
                         ✏️
@@ -888,7 +897,10 @@ const AdminDashboard: React.FC = () => {
                       
                       <Button 
                         variant="danger"
-                        onClick={() => handleDeleteSong(song.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSong(song.id);
+                        }}
                         disabled={actionLoading}
                       >
                         🗑️

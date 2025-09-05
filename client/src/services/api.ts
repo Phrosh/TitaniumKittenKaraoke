@@ -101,4 +101,9 @@ export const adminAPI = {
     api.put('/admin/settings/regression', { value }),
 };
 
+export const showAPI = {
+  getCurrentSong: () =>
+    api.get('/show'),
+};
+
 export default api;

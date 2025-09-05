@@ -6,6 +6,7 @@ import SongRequest from './components/SongRequest';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import PlaylistView from './components/PlaylistView';
+import ShowView from './components/ShowView';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -19,6 +20,7 @@ function App() {
         <Routes>
           <Route path="/" element={<PlaylistView />} />
           <Route path="/new" element={<SongRequest />} />
+          <Route path="/show" element={<ShowView />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>

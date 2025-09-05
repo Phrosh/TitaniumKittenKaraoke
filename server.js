@@ -9,6 +9,7 @@ const { router: authRoutes } = require('./routes/auth');
 const songRoutes = require('./routes/songs');
 const playlistRoutes = require('./routes/playlist');
 const adminRoutes = require('./routes/admin');
+const showRoutes = require('./routes/show');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/songs', songRoutes);
 app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/show', showRoutes);
 
 // Serve static files from React app in production
 if (process.env.NODE_ENV === 'production') {
