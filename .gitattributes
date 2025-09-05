@@ -1,0 +1,2 @@
+ai-services/assets/uvr5_weights/*.pth filter=lfs diff=lfs merge=lfs -text
+ff*.exe filter=lfs diff=lfs merge=lfs -text
