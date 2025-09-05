@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const YouTubeMetadataService = require('../utils/youtubeMetadata');
+const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
 
 const router = express.Router();
 
@@ -144,14 +145,72 @@ router.get('/pending', async (req, res) => {
 });
 
 // Generate QR code data
-router.get('/qr-data', (req, res) => {
-  const baseUrl = req.protocol + '://' + req.get('host');
-  const qrData = {
-    url: `${baseUrl}/new`,
-    timestamp: new Date().toISOString()
-  };
-  
-  res.json(qrData);
+router.get('/qr-data', async (req, res) => {
+  try {
+    // Get custom URL from settings
+    const db = require('../config/database');
+    const customUrlSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['custom_url'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const customUrl = customUrlSetting ? customUrlSetting.value : '';
+    
+    let qrUrl;
+    if (customUrl && customUrl.trim()) {
+      // Use custom URL + /new
+      qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
+    } else {
+      // Use current domain + /new
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      qrUrl = `${protocol}://${host}/new`;
+    }
+
+    console.log('🔍 Songs QR Code Debug:', { 
+      customUrl, 
+      qrUrl, 
+      protocol: req.get('x-forwarded-proto') || req.protocol,
+      host: req.get('host')
+    });
+
+    // Generate QR code data URL using local library
+    const QRCode = require('qrcode');
+    const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
+      quality: 0.92,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      },
+      width: 300
+    });
+    
+    console.log('🔍 Songs QR Code Generated:', {
+      qrUrl,
+      dataUrlLength: qrCodeDataUrl ? qrCodeDataUrl.length : 0,
+      dataUrlStart: qrCodeDataUrl ? qrCodeDataUrl.substring(0, 50) + '...' : 'null'
+    });
+
+    const qrData = {
+      url: qrUrl,
+      qrCodeDataUrl: qrCodeDataUrl,
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(qrData);
+  } catch (error) {
+    console.error('Error generating QR data:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;

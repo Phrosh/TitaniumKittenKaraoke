@@ -78,10 +78,6 @@ const Position = styled.span`
   font-weight: bold;
 `;
 
-const SongArtist = styled.p`
-  color: #666;
-  margin: 5px 0;
-`;
 
 const SongUser = styled.p`
   color: #999;
@@ -98,44 +94,7 @@ const CurrentBadge = styled.span`
   font-weight: bold;
 `;
 
-const NoYoutubeBadge = styled.span`
-  background: #f39c12;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: bold;
-`;
 
-const StatsContainer = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(10px);
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
-`;
-
-const StatItem = styled.div`
-  text-align: center;
-  color: white;
-`;
-
-const StatNumber = styled.div`
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 5px;
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.9rem;
-  opacity: 0.8;
-`;
 
 const LoadingMessage = styled.div`
   text-align: center;
@@ -196,6 +155,9 @@ const PlaylistView: React.FC = () => {
   }
 
   const { playlist, currentSong, total } = playlistData || { playlist: [], currentSong: null, total: 0 };
+  
+  // Filter out past songs - only show current and future songs
+  const visiblePlaylist = playlist.filter(song => !currentSong || song.position >= currentSong.position);
 
   return (
     <Container>
@@ -205,58 +167,32 @@ const PlaylistView: React.FC = () => {
       </Header>
 
       <PlaylistContainer>
-        <StatsContainer>
-          <StatsGrid>
-            <StatItem>
-              <StatNumber>{total}</StatNumber>
-              <StatLabel>Gesamt Songs</StatLabel>
-            </StatItem>
-            <StatItem>
-              <StatNumber>{playlist.filter(s => !s.youtube_url).length}</StatNumber>
-              <StatLabel>Ohne YouTube Link</StatLabel>
-            </StatItem>
-            <StatItem>
-              <StatNumber>{playlist.length > 0 ? playlist[0]?.position || 0 : 0}</StatNumber>
-              <StatLabel>Als nächstes</StatLabel>
-            </StatItem>
-          </StatsGrid>
-        </StatsContainer>
-
-        {playlist.length === 0 ? (
+        {visiblePlaylist.length === 0 ? (
           <EmptyMessage>
             <h3>🎵 Keine Songs in der Playlist</h3>
             <p>Scanne den QR Code oder gehe zu /new um Songs hinzuzufügen!</p>
           </EmptyMessage>
         ) : (
-          playlist.map((song) => {
+          visiblePlaylist.map((song) => {
             const isCurrent = currentSong?.id === song.id;
-            const isPast = currentSong && song.position < currentSong.position;
             
             return (
             <SongCard 
               key={song.id} 
               isCurrent={isCurrent}
               hasNoYoutube={!song.youtube_url}
-              isPast={isPast}
             >
               <SongHeader>
-                <SongTitle>{song.title}</SongTitle>
+                <SongTitle>{song.user_name}</SongTitle>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   {currentSong?.id === song.id && (
                     <CurrentBadge>🎤 AKTUELL</CurrentBadge>
-                  )}
-                  {!song.youtube_url && (
-                    <NoYoutubeBadge>⚠️ Kein Link</NoYoutubeBadge>
                   )}
                   <Position>#{song.position}</Position>
                 </div>
               </SongHeader>
               
-              {song.artist && song.artist !== 'Unknown' && (
-                <SongArtist>👤 {song.artist}</SongArtist>
-              )}
-              
-              <SongUser>📱 {song.user_name} ({song.device_id})</SongUser>
+              <SongUser>{song.artist && song.artist !== 'Unknown' ? `${song.artist} - ${song.title}` : song.title}</SongUser>
             </SongCard>
             );
           })

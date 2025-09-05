@@ -10,6 +10,105 @@ const Container = styled.div`
   padding: 20px;
 `;
 
+const TabContainer = styled.div`
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+`;
+
+const TabHeader = styled.div`
+  display: flex;
+  border-bottom: 1px solid #e9ecef;
+`;
+
+const TabButton = styled.button<{ $active: boolean }>`
+  background: ${props => props.$active ? '#e3f2fd' : 'transparent'};
+  color: ${props => props.$active ? '#1976d2' : '#666'};
+  border: none;
+  padding: 15px 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: ${props => props.$active ? '12px 12px 0 0' : '0'};
+  
+  &:hover {
+    background: ${props => props.$active ? '#bbdefb' : '#f8f9fa'};
+    color: ${props => props.$active ? '#1565c0' : '#333'};
+  }
+  
+  &:first-child {
+    border-radius: 12px 0 0 0;
+  }
+  
+  &:last-child {
+    border-radius: 0 12px 0 0;
+  }
+`;
+
+const TabContent = styled.div`
+  padding: 20px;
+`;
+
+const ManualSongSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+`;
+
+const ManualSongTitle = styled.h3`
+  color: #333;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+`;
+
+const ManualSongForm = styled.div`
+  display: flex;
+  gap: 15px;
+  align-items: end;
+`;
+
+
+const ManualSongInput = styled.input`
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 400px;
+  
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+`;
+
+const ManualSongButton = styled.button`
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: fit-content;
+  
+  &:hover:not(:disabled) {
+    background: #229954;
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -106,10 +205,10 @@ const StatLabel = styled.div`
 `;
 
 const PlaylistContainer = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 `;
 
 const PlaylistHeader = styled.div`
@@ -406,7 +505,7 @@ const SettingsSection = styled.div`
 `;
 
 const SettingsTitle = styled.h2`
-  color: white;
+  color: #333;
   margin: 0 0 20px 0;
   font-size: 1.5rem;
 `;
@@ -420,7 +519,7 @@ const SettingsCard = styled.div`
 
 const SettingsLabel = styled.label`
   display: block;
-  color: white;
+  color: #333;
   margin-bottom: 8px;
   font-weight: 600;
 `;
@@ -428,15 +527,15 @@ const SettingsLabel = styled.label`
 const SettingsInput = styled.input`
   width: 100px;
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid #ddd;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: white;
+  color: #333;
   margin-right: 10px;
   
   &:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: #667eea;
   }
 `;
 
@@ -461,7 +560,7 @@ const SettingsButton = styled.button`
 `;
 
 const SettingsDescription = styled.p`
-  color: #ccc;
+  color: #666;
   font-size: 0.9rem;
   margin: 10px 0 0 0;
   line-height: 1.4;
@@ -490,9 +589,15 @@ const AdminDashboard: React.FC = () => {
   });
   const [actionLoading, setActionLoading] = useState(false);
   const [regressionValue, setRegressionValue] = useState(0.1);
+  const [customUrl, setCustomUrl] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
+  const [activeTab, setActiveTab] = useState<'playlist' | 'settings'>('playlist');
+  const [manualSongData, setManualSongData] = useState({
+    singerName: '',
+    songInput: ''
+  });
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -500,10 +605,13 @@ const AdminDashboard: React.FC = () => {
       const response = await adminAPI.getDashboard();
       setDashboardData(response.data);
       
-      // Fetch settings including regression value
+      // Fetch settings including regression value and custom URL
       const settingsResponse = await adminAPI.getSettings();
       if (settingsResponse.data.settings.regression_value) {
         setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
+      }
+      if (settingsResponse.data.settings.custom_url) {
+        setCustomUrl(settingsResponse.data.settings.custom_url);
       }
       
       // Check QR overlay status from show API
@@ -542,6 +650,19 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error updating regression value:', error);
       toast.error('Fehler beim Aktualisieren des Regression-Werts');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateCustomUrl = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateCustomUrl(customUrl);
+      toast.success('Eigene URL erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating custom URL:', error);
+      toast.error('Fehler beim Aktualisieren der eigenen URL');
     } finally {
       setSettingsLoading(false);
     }
@@ -776,6 +897,42 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleManualSongSubmit = async () => {
+    if (!manualSongData.singerName.trim() || !manualSongData.songInput.trim()) {
+      toast.error('Bitte fülle alle Felder aus');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      // Use the same API endpoint as the /new route
+      const response = await fetch('/api/songs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: manualSongData.singerName.trim(),
+          song: manualSongData.songInput.trim(),
+          device_id: 'ADM' // Admin device ID
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Hinzufügen des Songs');
+      }
+
+      toast.success('Song erfolgreich hinzugefügt!');
+      setManualSongData({ singerName: '', songInput: '' });
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error adding manual song:', error);
+      toast.error('Fehler beim Hinzufügen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Container>
@@ -825,34 +982,51 @@ const AdminDashboard: React.FC = () => {
         </StatCard>
       </StatsGrid>
 
-      <SettingsSection>
-        <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
-        <SettingsCard>
-          <SettingsLabel>Regression-Wert:</SettingsLabel>
-          <SettingsInput
-            type="number"
-            step="0.01"
-            min="0"
-            max="1"
-            value={regressionValue}
-            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
+      <ManualSongSection>
+        <ManualSongTitle>➕ Song manuell hinzufügen</ManualSongTitle>
+        <ManualSongForm>
+          <ManualSongInput
+            type="text"
+            placeholder="Sänger-Name"
+            value={manualSongData.singerName}
+            onChange={(e) => setManualSongData(prev => ({ ...prev, singerName: e.target.value }))}
           />
-          <SettingsButton 
-            onClick={handleUpdateRegressionValue}
-            disabled={settingsLoading}
+          <ManualSongInput
+            type="text"
+            placeholder="Song (Interpret - Titel oder YouTube-Link)"
+            value={manualSongData.songInput}
+            onChange={(e) => setManualSongData(prev => ({ ...prev, songInput: e.target.value }))}
+          />
+          <ManualSongButton 
+            onClick={handleManualSongSubmit}
+            disabled={actionLoading}
           >
-            {settingsLoading ? 'Speichert...' : 'Speichern'}
-          </SettingsButton>
-          <SettingsDescription>
-            Der Regression-Wert bestimmt, um wie viel die Priorität eines Songs reduziert wird, 
-            wenn er nach unten rutscht (Standard: 0.1). Bei 10 Regressionen wird die Priorität um 1.0 reduziert.
-          </SettingsDescription>
-        </SettingsCard>
-      </SettingsSection>
+            {actionLoading ? 'Hinzufügen...' : '➕ Hinzufügen'}
+          </ManualSongButton>
+        </ManualSongForm>
+      </ManualSongSection>
 
-      <PlaylistContainer>
+      <TabContainer>
+        <TabHeader>
+          <TabButton 
+            $active={activeTab === 'playlist'} 
+            onClick={() => setActiveTab('playlist')}
+          >
+            🎵 Playlist ({filteredPlaylist.length} Songs)
+          </TabButton>
+          <TabButton 
+            $active={activeTab === 'settings'} 
+            onClick={() => setActiveTab('settings')}
+          >
+            ⚙️ Einstellungen
+          </TabButton>
+        </TabHeader>
+        
+        <TabContent>
+          {activeTab === 'playlist' && (
+            <PlaylistContainer>
         <PlaylistHeader>
-          <PlaylistTitle>Playlist ({filteredPlaylist.length} Songs)</PlaylistTitle>
+          <div></div>
           <ControlButtons>
             <Button 
               variant="success" 
@@ -999,6 +1173,57 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </PlaylistContainer>
+          )}
+          
+          {activeTab === 'settings' && (
+            <SettingsSection>
+              <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
+              <SettingsCard>
+                <SettingsLabel>Regression-Wert:</SettingsLabel>
+                <SettingsInput
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="1"
+                  value={regressionValue}
+                  onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
+                />
+                <SettingsButton 
+                  onClick={handleUpdateRegressionValue}
+                  disabled={settingsLoading}
+                >
+                  {settingsLoading ? 'Speichert...' : 'Speichern'}
+                </SettingsButton>
+                <SettingsDescription>
+                  Der Regression-Wert bestimmt, um wie viel die Priorität eines Songs reduziert wird, 
+                  wenn er nach unten rutscht (Standard: 0.1). Bei 10 Regressionen wird die Priorität um 1.0 reduziert.
+                </SettingsDescription>
+              </SettingsCard>
+              
+              <SettingsCard>
+                <SettingsLabel>Eigene URL:</SettingsLabel>
+                <SettingsInput
+                  type="url"
+                  placeholder="https://meine-domain.com"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  style={{ minWidth: '300px' }}
+                />
+                <SettingsButton 
+                  onClick={handleUpdateCustomUrl}
+                  disabled={settingsLoading}
+                >
+                  {settingsLoading ? 'Speichert...' : 'Speichern'}
+                </SettingsButton>
+                <SettingsDescription>
+                  Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
+                  Wenn leer, wird automatisch die aktuelle Domain verwendet.
+                </SettingsDescription>
+              </SettingsCard>
+            </SettingsSection>
+          )}
+        </TabContent>
+      </TabContainer>
 
       {showModal && selectedSong && (
         <Modal onClick={closeModal}>

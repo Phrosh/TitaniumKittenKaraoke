@@ -101,6 +101,8 @@ export const adminAPI = {
   
   updateRegressionValue: (value: number) =>
     api.put('/admin/settings/regression', { value }),
+  updateCustomUrl: (customUrl: string) =>
+    api.put('/admin/settings/custom-url', { customUrl }),
 };
 
 export const showAPI = {

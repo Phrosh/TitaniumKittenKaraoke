@@ -226,6 +226,38 @@ router.get('/settings', async (req, res) => {
   }
 });
 
+// Update custom URL setting
+router.put('/settings/custom-url', [
+  body('customUrl').optional().isString().withMessage('Custom URL muss ein String sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { customUrl } = req.body;
+
+    // Store custom URL in settings
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['custom_url', customUrl || ''],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Custom URL erfolgreich aktualisiert', customUrl: customUrl || '' });
+  } catch (error) {
+    console.error('Error updating custom URL:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update regression value
 router.put('/settings/regression', [
   body('value').isFloat({ min: 0, max: 1 }).withMessage('Regression value must be between 0 and 1')

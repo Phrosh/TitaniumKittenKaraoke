@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Song = require('../models/Song');
+const QRCode = require('qrcode');
 
 // GET /show - Zeige aktuelles Video und nächste Songs
 router.get('/', async (req, res) => {
@@ -39,6 +40,63 @@ router.get('/', async (req, res) => {
 
     const showQRCodeOverlay = overlaySetting ? overlaySetting.value === 'true' : false;
 
+    // Generate QR code for /new endpoint
+    let qrCodeDataUrl = null;
+    try {
+      // Get custom URL from settings
+      const customUrlSetting = await new Promise((resolve, reject) => {
+        db.get(
+          'SELECT value FROM settings WHERE key = ?',
+          ['custom_url'],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+
+      const customUrl = customUrlSetting ? customUrlSetting.value : '';
+      
+      let qrUrl;
+      if (customUrl && customUrl.trim()) {
+        // Use custom URL + /new
+        qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
+      } else {
+        // Use current domain + /new (same as songs route)
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const host = req.get('host');
+        qrUrl = `${protocol}://${host}/new`;
+      }
+
+      console.log('🔍 Show QR Code Debug:', { 
+        customUrl, 
+        qrUrl, 
+        protocol: req.get('x-forwarded-proto') || req.protocol,
+        host: req.get('host'),
+        originalUrl: req.originalUrl
+      });
+      
+      qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        width: 300
+      });
+      
+      console.log('🔍 Show QR Code Generated:', {
+        qrUrl,
+        dataUrlLength: qrCodeDataUrl ? qrCodeDataUrl.length : 0,
+        dataUrlStart: qrCodeDataUrl ? qrCodeDataUrl.substring(0, 50) + '...' : 'null'
+      });
+    } catch (error) {
+      console.error('Error generating QR code for show:', error);
+    }
+
     res.json({
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -50,7 +108,8 @@ router.get('/', async (req, res) => {
         duration_seconds: currentSong.duration_seconds
       } : null,
       nextSongs,
-      showQRCodeOverlay
+      showQRCodeOverlay,
+      qrCodeDataUrl
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

@@ -374,6 +374,7 @@ const ShowView: React.FC = () => {
       const newSong = response.data.currentSong;
       const nextSongs = response.data.nextSongs || [];
       const overlayStatus = response.data.showQRCodeOverlay || false;
+      const qrCodeDataUrl = response.data.qrCodeDataUrl;
       
       console.log('🎵 Fetched song data:', { 
         currentSong: newSong?.id, 
@@ -385,6 +386,11 @@ const ShowView: React.FC = () => {
       
       // Update overlay status from API
       setShowQRCodeOverlay(overlayStatus);
+      
+      // Update QR code if provided
+      if (qrCodeDataUrl) {
+        setQrCodeUrl(qrCodeDataUrl);
+      }
       
       // Nur State aktualisieren wenn sich der Song geändert hat
       if (!newSong || newSong.id !== lastSongId) {
@@ -461,12 +467,6 @@ const ShowView: React.FC = () => {
     return () => clearInterval(timer);
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
 
-  // Generate QR code URL
-  useEffect(() => {
-    const baseUrl = window.location.origin;
-    const qrUrl = `${baseUrl}/new`;
-    setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`);
-  }, []);
 
   // Show transition overlay when no current song
   useEffect(() => {
@@ -657,7 +657,7 @@ const ShowView: React.FC = () => {
           
           <QRCodeRightSide>
             <QRCodeImageLarge 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(window.location.origin + '/new')}`}
+              src={qrCodeUrl || ''}
               alt="QR Code für Song-Anfrage"
             />
             <QRCodeTextLarge>
