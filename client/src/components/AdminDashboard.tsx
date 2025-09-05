@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { adminAPI, playlistAPI } from '../services/api';
+import { adminAPI, playlistAPI, showAPI } from '../services/api';
 import { AdminDashboardData, Song } from '../types';
 
 const Container = styled.div`
@@ -500,6 +500,15 @@ const AdminDashboard: React.FC = () => {
       const settingsResponse = await adminAPI.getSettings();
       if (settingsResponse.data.settings.regression_value) {
         setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
+      }
+      
+      // Check QR overlay status from show API
+      try {
+        const showResponse = await showAPI.getCurrentSong();
+        const overlayStatus = showResponse.data.showQRCodeOverlay || false;
+        setShowQRCodeOverlay(overlayStatus);
+      } catch (showError) {
+        console.log('Could not fetch overlay status:', showError);
       }
       
       return response.data; // Return data for use in other functions
