@@ -121,20 +121,21 @@ const Header = styled.div`
 `;
 
 const QRCodeToggleButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? '#27ae60' : '#95a5a6'};
+  background: ${props => props.$active ? '#8e44ad' : '#95a5a6'};
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 15px 25px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 1.1rem;
   display: flex;
   align-items: center;
   gap: 8px;
   transition: background-color 0.2s;
 
   &:hover {
-    background: ${props => props.$active ? '#229954' : '#7f8c8d'};
+    background: ${props => props.$active ? '#7d3c98' : '#7f8c8d'};
   }
 `;
 
@@ -142,10 +143,11 @@ const ShowPastSongsToggleButton = styled.button<{ $active: boolean }>`
   background: ${props => props.$active ? '#3498db' : '#95a5a6'};
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 15px 25px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 1.1rem;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -177,32 +179,6 @@ const LogoutButton = styled.button`
   }
 `;
 
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-`;
-
-const StatCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-`;
-
-const StatNumber = styled.div`
-  font-size: 2rem;
-  font-weight: bold;
-  color: #667eea;
-  margin-bottom: 5px;
-`;
-
-const StatLabel = styled.div`
-  color: #666;
-  font-size: 0.9rem;
-`;
 
 const PlaylistContainer = styled.div`
   background: transparent;
@@ -236,10 +212,11 @@ const Button = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
   };
   color: white;
   border: none;
-  padding: 10px 15px;
+  padding: 15px 25px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 1.1rem;
   transition: all 0.3s ease;
 
   &:hover {
@@ -963,24 +940,6 @@ const AdminDashboard: React.FC = () => {
         <LogoutButton onClick={handleLogout}>Abmelden</LogoutButton>
       </Header>
 
-      <StatsGrid>
-        <StatCard>
-          <StatNumber>{stats.totalSongs}</StatNumber>
-          <StatLabel>Gesamt Songs</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.pendingSongs}</StatNumber>
-          <StatLabel>Ohne YouTube Link</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.totalUsers}</StatNumber>
-          <StatLabel>Nutzer</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.songsWithYoutube}</StatNumber>
-          <StatLabel>Mit YouTube Link</StatLabel>
-        </StatCard>
-      </StatsGrid>
 
       <ManualSongSection>
         <ManualSongTitle>➕ Song manuell hinzufügen</ManualSongTitle>
