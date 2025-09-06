@@ -132,6 +132,13 @@ export const adminAPI = {
     api.post('/admin/admin-users', userData),
   deleteAdminUser: (id: number) => api.delete(`/admin/admin-users/${id}`),
   checkAdminExists: () => api.get('/auth/check-admin-exists'),
+
+  // Banlist Management
+  getBanlist: () => api.get('/admin/banlist'),
+  addToBanlist: (deviceId: string, reason?: string) =>
+    api.post('/admin/banlist', { deviceId, reason }),
+  removeFromBanlist: (deviceId: string) =>
+    api.delete(`/admin/banlist/${deviceId}`),
 };
 
 export const showAPI = {

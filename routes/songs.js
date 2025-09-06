@@ -37,6 +37,31 @@ router.post('/request', [
     
     const youtubeEnabled = youtubeSetting ? youtubeSetting.value === 'true' : true; // Default to true if not set
 
+    // Check if device ID is banned
+    const banCheck = await new Promise((resolve, reject) => {
+      db.get('SELECT device_id FROM banlist WHERE device_id = ?', [deviceId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (banCheck) {
+      // Device is banned - return success response but don't actually add the song
+      console.log(`🚫 Song request blocked due to banlist - Device ID: ${deviceId}, Song: ${songInput}, User: ${name}`);
+      
+      // Return fake success response to user
+      return res.json({
+        success: true,
+        song: {
+          id: 0, // Fake ID
+          title: songInput.includes(' - ') ? songInput.split(' - ')[1] : songInput,
+          artist: songInput.includes(' - ') ? songInput.split(' - ')[0] : 'Unknown',
+          position: 0
+        },
+        message: 'Song wurde erfolgreich zur Playlist hinzugefügt!'
+      });
+    }
+
     // Parse song input (could be "Artist - Title" or YouTube URL)
     let title, artist, youtubeUrl = null;
     

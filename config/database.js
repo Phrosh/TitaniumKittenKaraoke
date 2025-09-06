@@ -61,6 +61,18 @@ function initializeDatabase() {
       value TEXT NOT NULL,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Banlist table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS banlist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      device_id TEXT UNIQUE NOT NULL,
+      reason TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES admin_users (id)
+    )
   `, () => {
   // Insert default settings
   db.run(`
