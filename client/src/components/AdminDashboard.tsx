@@ -664,6 +664,7 @@ const AdminDashboard: React.FC = () => {
   const [songs, setSongs] = useState<any[]>([]);
   const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
   const [songSearchTerm, setSongSearchTerm] = useState('');
+  const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -2111,15 +2112,76 @@ const AdminDashboard: React.FC = () => {
             <SettingsSection>
               <SettingsTitle>🎵 Songverwaltung</SettingsTitle>
               
-              {/* Search songs */}
+              {/* Song Tabs */}
               <SettingsCard>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <button
+                    onClick={() => setSongTab('all')}
+                    style={{
+                      padding: '10px 20px',
+                      border: '2px solid',
+                      borderColor: songTab === 'all' ? '#667eea' : '#e1e5e9',
+                      background: songTab === 'all' ? '#667eea' : 'white',
+                      color: songTab === 'all' ? 'white' : '#333',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    Alle Songs ({songs.length})
+                  </button>
+                  <button
+                    onClick={() => setSongTab('visible')}
+                    style={{
+                      padding: '10px 20px',
+                      border: '2px solid',
+                      borderColor: songTab === 'visible' ? '#28a745' : '#e1e5e9',
+                      background: songTab === 'visible' ? '#28a745' : 'white',
+                      color: songTab === 'visible' ? 'white' : '#333',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    Eingeblendete ({songs.filter(song => !invisibleSongs.some(invisible => 
+                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                      invisible.title.toLowerCase() === song.title.toLowerCase()
+                    )).length})
+                  </button>
+                  <button
+                    onClick={() => setSongTab('invisible')}
+                    style={{
+                      padding: '10px 20px',
+                      border: '2px solid',
+                      borderColor: songTab === 'invisible' ? '#dc3545' : '#e1e5e9',
+                      background: songTab === 'invisible' ? '#dc3545' : 'white',
+                      color: songTab === 'invisible' ? 'white' : '#333',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    Ausgeblendete ({songs.filter(song => invisibleSongs.some(invisible => 
+                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                      invisible.title.toLowerCase() === song.title.toLowerCase()
+                    )).length})
+                  </button>
+                </div>
+                
+                {/* Search songs */}
                 <SettingsLabel>Songs durchsuchen:</SettingsLabel>
                 <SettingsInput
                   type="text"
                   placeholder="Nach Song oder Interpret suchen..."
                   value={songSearchTerm}
                   onChange={(e) => setSongSearchTerm(e.target.value)}
-                  style={{ marginBottom: '15px' }}
+                  style={{ marginBottom: '15px', width: '100%', maxWidth: '600px' }}
                 />
                 <SettingsDescription>
                   Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.
@@ -2128,14 +2190,40 @@ const AdminDashboard: React.FC = () => {
               
               {/* Songs list */}
               <SettingsCard>
-                <SettingsLabel>Alle Songs ({songs.length}):</SettingsLabel>
+                <SettingsLabel>
+                  {songTab === 'all' && `Alle Songs (${songs.length}):`}
+                  {songTab === 'visible' && `Eingeblendete Songs (${songs.filter(song => !invisibleSongs.some(invisible => 
+                    invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                    invisible.title.toLowerCase() === song.title.toLowerCase()
+                  )).length}):`}
+                  {songTab === 'invisible' && `Ausgeblendete Songs (${songs.filter(song => invisibleSongs.some(invisible => 
+                    invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                    invisible.title.toLowerCase() === song.title.toLowerCase()
+                  )).length}):`}
+                </SettingsLabel>
                 {songs.length === 0 ? (
                   <div style={{ color: '#666', fontStyle: 'italic' }}>
                     Keine Songs vorhanden
                   </div>
                 ) : (() => {
-                  // Filter and group songs
-                  const filteredSongs = songs.filter(song => 
+                  // Filter songs based on tab and search term
+                  let filteredSongs = songs;
+                  
+                  // Apply tab filter
+                  if (songTab === 'visible') {
+                    filteredSongs = songs.filter(song => !invisibleSongs.some(invisible => 
+                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                      invisible.title.toLowerCase() === song.title.toLowerCase()
+                    ));
+                  } else if (songTab === 'invisible') {
+                    filteredSongs = songs.filter(song => invisibleSongs.some(invisible => 
+                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                      invisible.title.toLowerCase() === song.title.toLowerCase()
+                    ));
+                  }
+                  
+                  // Apply search filter
+                  filteredSongs = filteredSongs.filter(song => 
                     !songSearchTerm || 
                     song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
                     song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
@@ -2181,37 +2269,35 @@ const AdminDashboard: React.FC = () => {
                             key={`${song.artist}-${song.title}`} 
                             style={{ 
                               display: 'flex', 
-                              justifyContent: 'space-between', 
                               alignItems: 'center',
                               padding: '12px',
                               border: '1px solid #eee',
                               borderRadius: '6px',
                               marginBottom: '8px',
                               background: isInvisible ? '#f8f9fa' : '#fff',
-                              opacity: isInvisible ? 0.7 : 1
+                              opacity: isInvisible ? 0.7 : 1,
+                              gap: '12px'
                             }}
                           >
+                            <input
+                              type="checkbox"
+                              checked={!isInvisible}
+                              onChange={() => handleToggleSongVisibility(song)}
+                              disabled={actionLoading}
+                              style={{
+                                cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                flexShrink: 0
+                              }}
+                            />
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                 <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
                                   {song.artist} - {song.title}
                                 </div>
-                                {isInvisible && (
-                                  <span style={{ 
-                                    fontSize: '12px', 
-                                    color: '#dc3545', 
-                                    background: '#f8d7da', 
-                                    padding: '2px 6px', 
-                                    borderRadius: '4px',
-                                    fontWeight: '500'
-                                  }}>
-                                    👁️‍🗨️ Unsichtbar
-                                  </span>
-                                )}
                                 <span style={{ 
                                   fontSize: '12px', 
-                                  color: song.mode === 'youtube' ? '#dc3545' : song.mode === 'local_video' ? '#28a745' : '#007bff', 
-                                  background: song.mode === 'youtube' ? '#f8d7da' : song.mode === 'local_video' ? '#d4edda' : '#cce7ff', 
+                                  color: song.mode === 'youtube' ? '#dc3545' : song.mode === 'local_video' ? '#28a745' : '#007bff',
+                                  background: song.mode === 'youtube' ? '#f8d7da' : song.mode === 'local_video' ? '#d4edda' : '#cce7ff',
                                   padding: '2px 6px', 
                                   borderRadius: '4px',
                                   fontWeight: '500'
@@ -2219,22 +2305,7 @@ const AdminDashboard: React.FC = () => {
                                   {song.mode === 'youtube' ? '🔴 YouTube' : song.mode === 'local_video' ? '🟢 Lokal' : '🔵 Datei'}
                                 </span>
                               </div>
-                              <div style={{ fontSize: '14px', color: '#666', marginBottom: '2px' }}>
-                                Verfügbar in der Songliste
-                              </div>
                             </div>
-                            <Button 
-                              variant={isInvisible ? 'success' : 'danger'}
-                              onClick={() => handleToggleSongVisibility(song)}
-                              disabled={actionLoading}
-                              style={{ 
-                                padding: '8px 12px', 
-                                fontSize: '0.9em', 
-                                minWidth: '100px'
-                              }}
-                            >
-                              {isInvisible ? '👁️ Anzeigen' : '👁️‍🗨️ Unsichtbar'}
-                            </Button>
                           </div>
                         );
                           })}
