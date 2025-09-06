@@ -62,3 +62,11 @@ export interface AuthResponse {
     username: string;
   };
 }
+
+export interface ShowData {
+  currentSong: Song | null;
+  nextSongs: Song[];
+  showQRCodeOverlay: boolean;
+  qrCodeDataUrl: string | null;
+  overlayTitle: string;
+}

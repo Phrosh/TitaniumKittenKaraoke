@@ -167,10 +167,9 @@ router.get('/qr-data', async (req, res) => {
       // Use custom URL + /new
       qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
     } else {
-      // Use current domain + /new
-      const protocol = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('host');
-      qrUrl = `${protocol}://${host}/new`;
+      // Use environment CLIENT_URL + /new, fallback to current domain
+      const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
+      qrUrl = CLIENT_URL.replace(/\/$/, '') + '/new';
     }
 
     console.log('🔍 Songs QR Code Debug:', { 

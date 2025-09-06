@@ -13,13 +13,15 @@ const showRoutes = require('./routes/show');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const SERVER_URL = (process.env.SERVER_URL && process.env.SERVER_URL.trim()) || 'http://localhost:5000';
+const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
 
 // Security middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : 'http://localhost:3000',
+    ? CLIENT_URL 
+    : [CLIENT_URL, 'http://localhost:3000'],
   credentials: true
 }));
 

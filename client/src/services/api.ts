@@ -2,7 +2,13 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
-  : 'http://localhost:5000/api';
+  : ((process.env.REACT_APP_SERVER_URL && process.env.REACT_APP_SERVER_URL.trim()) || 'http://localhost:5000') + '/api';
+
+console.log('🔧 API Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  REACT_APP_SERVER_URL: process.env.REACT_APP_SERVER_URL,
+  API_BASE_URL: API_BASE_URL
+});
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -103,6 +109,8 @@ export const adminAPI = {
     api.put('/admin/settings/regression', { value }),
   updateCustomUrl: (customUrl: string) =>
     api.put('/admin/settings/custom-url', { customUrl }),
+  updateOverlayTitle: (overlayTitle: string) =>
+    api.put('/admin/settings/overlay-title', { overlayTitle }),
 };
 
 export const showAPI = {

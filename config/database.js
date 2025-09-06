@@ -66,7 +66,8 @@ function initializeDatabase() {
       INSERT OR IGNORE INTO settings (key, value) VALUES 
       ('max_song_delay', '15'),
       ('current_song_id', '0'),
-      ('regression_value', '0.1')
+      ('regression_value', '0.1'),
+      ('overlay_title', 'Willkommen beim Karaoke')
     `);
   });
 }

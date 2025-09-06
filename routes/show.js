@@ -40,6 +40,20 @@ router.get('/', async (req, res) => {
 
     const showQRCodeOverlay = overlaySetting ? overlaySetting.value === 'true' : false;
 
+    // Get overlay title from settings
+    const overlayTitleSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['overlay_title'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const overlayTitle = overlayTitleSetting ? overlayTitleSetting.value : 'Willkommen beim Karaoke';
+
     // Generate QR code for /new endpoint
     let qrCodeDataUrl = null;
     try {
@@ -62,10 +76,9 @@ router.get('/', async (req, res) => {
         // Use custom URL + /new
         qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
       } else {
-        // Use current domain + /new (same as songs route)
-        const protocol = req.get('x-forwarded-proto') || req.protocol;
-        const host = req.get('host');
-        qrUrl = `${protocol}://${host}/new`;
+        // Use environment CLIENT_URL + /new, fallback to current domain
+        const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
+        qrUrl = CLIENT_URL.replace(/\/$/, '') + '/new';
       }
 
       console.log('🔍 Show QR Code Debug:', { 
@@ -109,7 +122,8 @@ router.get('/', async (req, res) => {
       } : null,
       nextSongs,
       showQRCodeOverlay,
-      qrCodeDataUrl
+      qrCodeDataUrl,
+      overlayTitle
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

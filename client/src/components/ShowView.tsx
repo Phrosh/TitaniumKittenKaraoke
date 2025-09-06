@@ -12,6 +12,14 @@ interface CurrentSong {
   duration_seconds?: number;
 }
 
+interface ShowData {
+  currentSong: CurrentSong | null;
+  nextSongs: Song[];
+  showQRCodeOverlay: boolean;
+  qrCodeDataUrl: string | null;
+  overlayTitle: string;
+}
+
 interface Song {
   id: number;
   user_name: string;
@@ -236,12 +244,29 @@ const QRCodeOverlay = styled.div<{ $isVisible: boolean }>`
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.95);
-  display: ${props => props.$isVisible ? 'flex' : 'none'};
-  flex-direction: row;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 200;
   padding: 40px;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+`;
+
+const QRCodeHeader = styled.h1`
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 3rem;
+  margin: 0;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  z-index: 201;
 `;
 
 const QRCodeContent = styled.div`
@@ -367,6 +392,7 @@ const ShowView: React.FC = () => {
   const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
+  const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
 
   const fetchCurrentSong = async () => {
     try {
@@ -375,6 +401,7 @@ const ShowView: React.FC = () => {
       const nextSongs = response.data.nextSongs || [];
       const overlayStatus = response.data.showQRCodeOverlay || false;
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
+      const title = response.data.overlayTitle || 'Willkommen beim Karaoke';
       
       console.log('🎵 Fetched song data:', { 
         currentSong: newSong?.id, 
@@ -391,6 +418,9 @@ const ShowView: React.FC = () => {
       if (qrCodeDataUrl) {
         setQrCodeUrl(qrCodeDataUrl);
       }
+      
+      // Update overlay title
+      setOverlayTitle(title);
       
       // Nur State aktualisieren wenn sich der Song geändert hat
       if (!newSong || newSong.id !== lastSongId) {
@@ -628,6 +658,7 @@ const ShowView: React.FC = () => {
 
       {/* QR Code Overlay */}
       <QRCodeOverlay $isVisible={showQRCodeOverlay}>
+        <QRCodeHeader>{overlayTitle}</QRCodeHeader>
         <QRCodeContent>
           <QRCodeLeftSide>
             <QRCodeTitle>🎤 Nächster Song</QRCodeTitle>

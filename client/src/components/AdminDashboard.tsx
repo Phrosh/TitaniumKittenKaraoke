@@ -567,6 +567,7 @@ const AdminDashboard: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [customUrl, setCustomUrl] = useState('');
+  const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
@@ -589,6 +590,9 @@ const AdminDashboard: React.FC = () => {
       }
       if (settingsResponse.data.settings.custom_url) {
         setCustomUrl(settingsResponse.data.settings.custom_url);
+      }
+      if (settingsResponse.data.settings.overlay_title) {
+        setOverlayTitle(settingsResponse.data.settings.overlay_title);
       }
       
       // Check QR overlay status from show API
@@ -640,6 +644,19 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error updating custom URL:', error);
       toast.error('Fehler beim Aktualisieren der eigenen URL');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateOverlayTitle = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateOverlayTitle(overlayTitle);
+      toast.success('Overlay-Überschrift erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating overlay title:', error);
+      toast.error('Fehler beim Aktualisieren der Overlay-Überschrift');
     } finally {
       setSettingsLoading(false);
     }
@@ -1177,6 +1194,26 @@ const AdminDashboard: React.FC = () => {
                 <SettingsDescription>
                   Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
                   Wenn leer, wird automatisch die aktuelle Domain verwendet.
+                </SettingsDescription>
+              </SettingsCard>
+              
+              <SettingsCard>
+                <SettingsLabel>Overlay-Überschrift:</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  placeholder="Willkommen beim Karaoke"
+                  value={overlayTitle}
+                  onChange={(e) => setOverlayTitle(e.target.value)}
+                  style={{ minWidth: '300px' }}
+                />
+                <SettingsButton 
+                  onClick={handleUpdateOverlayTitle}
+                  disabled={settingsLoading}
+                >
+                  {settingsLoading ? 'Speichert...' : 'Speichern'}
+                </SettingsButton>
+                <SettingsDescription>
+                  Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
                 </SettingsDescription>
               </SettingsCard>
             </SettingsSection>

@@ -258,6 +258,38 @@ router.put('/settings/custom-url', [
   }
 });
 
+// Update overlay title setting
+router.put('/settings/overlay-title', [
+  body('overlayTitle').optional().isString().withMessage('Overlay Title muss ein String sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { overlayTitle } = req.body;
+
+    // Store overlay title in settings
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['overlay_title', overlayTitle || 'Willkommen beim Karaoke'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Overlay Title erfolgreich aktualisiert', overlayTitle: overlayTitle || 'Willkommen beim Karaoke' });
+  } catch (error) {
+    console.error('Error updating overlay title:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update regression value
 router.put('/settings/regression', [
   body('value').isFloat({ min: 0, max: 1 }).withMessage('Regression value must be between 0 and 1')
