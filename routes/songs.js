@@ -6,6 +6,7 @@ const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const YouTubeMetadataService = require('../utils/youtubeMetadata');
 const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
 const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
+const { findFileSong } = require('../utils/fileSongs');
 const path = require('path');
 const fs = require('fs');
 
@@ -57,17 +58,37 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Check for local video first
+    // Check for songs in priority order: file > local_video > youtube
     let mode = 'youtube';
     let durationSeconds = null;
     
     if (!youtubeUrl) {
-      // Only check for local video if no YouTube URL is provided
-      const localVideo = findLocalVideo(artist, title);
-      if (localVideo) {
-        mode = 'local_video';
-        youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
-        console.log(`Found local video: ${localVideo.filename}`);
+      // First check file songs (highest priority)
+      const db = require('../config/database');
+      const fileFolderSetting = await new Promise((resolve, reject) => {
+        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+      
+      if (fileFolderSetting && fileFolderSetting.value) {
+        const fileSong = findFileSong(fileFolderSetting.value, artist, title);
+        if (fileSong) {
+          mode = 'file';
+          youtubeUrl = `file://${fileSong.fullPath}`;
+          console.log(`Found file song: ${fileSong.filename}`);
+        }
+      }
+      
+      // If no file song found, check local videos
+      if (mode === 'youtube') {
+        const localVideo = findLocalVideo(artist, title);
+        if (localVideo) {
+          mode = 'local_video';
+          youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+          console.log(`Found local video: ${localVideo.filename}`);
+        }
       }
     }
 

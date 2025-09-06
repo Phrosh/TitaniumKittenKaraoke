@@ -235,6 +235,7 @@ const SongRequest: React.FC = () => {
   const [deviceId, setDeviceId] = useState<string>('');
   const [showSongList, setShowSongList] = useState(false);
   const [localVideos, setLocalVideos] = useState<any[]>([]);
+  const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -307,14 +308,43 @@ const SongRequest: React.FC = () => {
 
   const handleOpenSongList = async () => {
     try {
-      const response = await songAPI.getLocalVideos();
-      setLocalVideos(response.data.videos);
+      const [localResponse, fileResponse] = await Promise.all([
+        songAPI.getLocalVideos(),
+        songAPI.getFileSongs()
+      ]);
+      
+      const localVideos = localResponse.data.videos || [];
+      const fileSongs = fileResponse.data.fileSongs || [];
+      
+      // Combine and deduplicate songs
+      const allSongs = [...fileSongs];
+      localVideos.forEach(localVideo => {
+        const exists = allSongs.some(song => 
+          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === localVideo.title.toLowerCase()
+        );
+        if (!exists) {
+          allSongs.push(localVideo);
+        }
+      });
+      
+      // Sort alphabetically by artist, then by title
+      allSongs.sort((a, b) => {
+        const artistA = a.artist.toLowerCase();
+        const artistB = b.artist.toLowerCase();
+        if (artistA !== artistB) {
+          return artistA.localeCompare(artistB);
+        }
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      });
+      
+      setLocalVideos(allSongs);
       setShowSongList(true);
     } catch (error) {
-      console.error('Error loading local videos:', error);
+      console.error('Error loading songs:', error);
       setMessage({
         type: 'error',
-        text: 'Fehler beim Laden der lokalen Songs'
+        text: 'Fehler beim Laden der Songs'
       });
     }
   };

@@ -46,6 +46,9 @@ export const songAPI = {
   
   getLocalVideos: (search?: string) =>
     api.get('/songs/local-videos', { params: search ? { search } : {} }),
+  
+  getFileSongs: () =>
+    api.get('/admin/settings/file-songs-folder'),
 };
 
 export const playlistAPI = {
@@ -108,6 +111,16 @@ export const adminAPI = {
   updateOverlayTitle: (overlayTitle: string) =>
     api.put('/admin/settings/overlay-title', { overlayTitle }),
   
+  // File Songs Management
+  getFileSongsFolder: () =>
+    api.get('/admin/settings/file-songs-folder'),
+  
+  setFileSongsFolder: (folderPath: string) =>
+    api.put('/admin/settings/file-songs-folder', { folderPath }),
+  
+  rescanFileSongs: () =>
+    api.post('/admin/settings/rescan-file-songs'),
+
   // Admin User Management
   getAdminUsers: () => api.get('/admin/admin-users'),
   createAdminUser: (userData: { username: string; password: string }) =>

@@ -451,4 +451,93 @@ router.delete('/admin-users/:id', async (req, res) => {
   }
 });
 
+// File Songs Management
+const { scanFileSongs, findFileSong } = require('../utils/fileSongs');
+
+// Get file songs folder setting
+router.get('/settings/file-songs-folder', async (req, res) => {
+  try {
+    const setting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    res.json({ 
+      folderPath: setting ? setting.value : '',
+      fileSongs: setting ? scanFileSongs(setting.value) : []
+    });
+  } catch (error) {
+    console.error('Error getting file songs folder:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Set file songs folder setting
+router.put('/settings/file-songs-folder', [
+  body('folderPath').isString().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { folderPath } = req.body;
+
+    // Validate folder exists
+    const fs = require('fs');
+    if (folderPath && !fs.existsSync(folderPath)) {
+      return res.status(400).json({ message: 'Ordner existiert nicht' });
+    }
+
+    // Save setting
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+        ['file_songs_folder', folderPath],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Scan files in the folder
+    const fileSongs = folderPath ? scanFileSongs(folderPath) : [];
+
+    res.json({ 
+      message: 'File songs folder updated successfully',
+      fileSongs: fileSongs
+    });
+  } catch (error) {
+    console.error('Error setting file songs folder:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Rescan file songs
+router.post('/settings/rescan-file-songs', async (req, res) => {
+  try {
+    const setting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    const folderPath = setting ? setting.value : '';
+    const fileSongs = folderPath ? scanFileSongs(folderPath) : [];
+
+    res.json({ 
+      message: 'File songs rescanned successfully',
+      fileSongs: fileSongs
+    });
+  } catch (error) {
+    console.error('Error rescanning file songs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

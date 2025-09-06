@@ -383,14 +383,21 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
-const ModeBadge = styled.div<{ $mode: 'youtube' | 'local_video' }>`
+const ModeBadge = styled.div<{ $mode: 'youtube' | 'local_video' | 'file' }>`
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background: ${props => props.$mode === 'youtube' ? '#ff4444' : '#28a745'};
+  background: ${props => {
+    switch (props.$mode) {
+      case 'youtube': return '#ff4444';
+      case 'local_video': return '#28a745';
+      case 'file': return '#667eea';
+      default: return '#ff4444';
+    }
+  }};
   color: white;
   min-width: 60px;
   text-align: center;
@@ -655,6 +662,15 @@ const AdminDashboard: React.FC = () => {
         setOverlayTitle(settingsResponse.data.settings.overlay_title);
       }
       
+      // Load file songs folder setting
+      try {
+        const fileSongsResponse = await adminAPI.getFileSongsFolder();
+        setFileSongsFolder(fileSongsResponse.data.folderPath || '');
+        setFileSongs(fileSongsResponse.data.fileSongs || []);
+      } catch (error) {
+        console.error('Error loading file songs folder:', error);
+      }
+      
       // Check QR overlay status from show API
       try {
         const showResponse = await showAPI.getCurrentSong();
@@ -728,6 +744,34 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleUpdateFileSongsFolder = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.setFileSongsFolder(fileSongsFolder);
+      setFileSongs(response.data.fileSongs);
+      toast.success('Song-Ordner erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating file songs folder:', error);
+      toast.error('Fehler beim Aktualisieren des Song-Ordners');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleRescanFileSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.rescanFileSongs();
+      setFileSongs(response.data.fileSongs);
+      toast.success('Songs erfolgreich neu gescannt!');
+    } catch (error) {
+      console.error('Error rescanning file songs:', error);
+      toast.error('Fehler beim Neu-Scannen der Songs');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const handleToggleQRCodeOverlay = async (show: boolean) => {
     try {
       await adminAPI.setQRCodeOverlay(show);
@@ -747,6 +791,10 @@ const AdminDashboard: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [newUserData, setNewUserData] = useState({ username: '', password: '' });
   const [userManagementLoading, setUserManagementLoading] = useState(false);
+  
+  // File Songs Management
+  const [fileSongsFolder, setFileSongsFolder] = useState('');
+  const [fileSongs, setFileSongs] = useState<any[]>([]);
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1224,7 +1272,8 @@ const AdminDashboard: React.FC = () => {
                         >
                           {song.artist ? `${song.artist} - ${song.title}` : song.title}
                           <ModeBadge $mode={song.mode || 'youtube'}>
-                            {song.mode === 'local_video' ? 'Lokal' : 'YouTube'}
+                            {song.mode === 'local_video' ? 'Lokal' : 
+                             song.mode === 'file' ? 'Datei' : 'YouTube'}
                           </ModeBadge>
                         </SongTitle>
                         {(song.mode || 'youtube') === 'youtube' && (
@@ -1357,6 +1406,53 @@ const AdminDashboard: React.FC = () => {
                 <SettingsDescription>
                   Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
                 </SettingsDescription>
+              </SettingsCard>
+              
+              <SettingsCard>
+                <SettingsLabel>Lokaler Song-Ordner:</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  placeholder="C:/songs"
+                  value={fileSongsFolder}
+                  onChange={(e) => setFileSongsFolder(e.target.value)}
+                  style={{ minWidth: '300px' }}
+                />
+                <SettingsButton 
+                  onClick={handleUpdateFileSongsFolder}
+                  disabled={settingsLoading}
+                >
+                  {settingsLoading ? 'Speichert...' : 'Speichern'}
+                </SettingsButton>
+                <SettingsButton 
+                  onClick={handleRescanFileSongs}
+                  disabled={settingsLoading}
+                  style={{ marginLeft: '10px', backgroundColor: '#17a2b8' }}
+                >
+                  {settingsLoading ? 'Scannt...' : 'Neu scannen'}
+                </SettingsButton>
+                <SettingsDescription>
+                  Ordner mit lokalen Karaoke-Videos im Format "Interpret - Songtitel.erweiterung". 
+                  Diese Songs haben höchste Priorität bei der Erkennung.
+                </SettingsDescription>
+                {fileSongs.length > 0 && (
+                  <div style={{ marginTop: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '8px', color: '#333' }}>
+                      Gefundene Songs ({fileSongs.length}):
+                    </div>
+                    <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '14px' }}>
+                      {fileSongs.slice(0, 10).map((song, index) => (
+                        <div key={index} style={{ marginBottom: '4px', color: '#666' }}>
+                          {song.artist} - {song.title}
+                        </div>
+                      ))}
+                      {fileSongs.length > 10 && (
+                        <div style={{ color: '#999', fontStyle: 'italic' }}>
+                          ... und {fileSongs.length - 10} weitere
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </SettingsCard>
             </SettingsSection>
           )}

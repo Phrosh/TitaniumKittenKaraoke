@@ -8,7 +8,7 @@ interface CurrentSong {
   artist: string;
   title: string;
   youtube_url: string;
-  mode: 'youtube' | 'local_video';
+  mode: 'youtube' | 'local_video' | 'file';
   position: number;
   duration_seconds?: number;
 }
@@ -530,14 +530,15 @@ const ShowView: React.FC = () => {
   };
 
   const isLocalVideo = currentSong?.mode === 'local_video';
-  const embedUrl = currentSong?.youtube_url && !isLocalVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+  const isFileVideo = currentSong?.mode === 'file';
+  const embedUrl = currentSong?.youtube_url && !isLocalVideo && !isFileVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   return (
     <ShowContainer>
       {/* Fullscreen Video */}
       {currentSong?.youtube_url ? (
         <VideoWrapper>
-          {isLocalVideo ? (
+          {(isLocalVideo || isFileVideo) ? (
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
               src={currentSong.youtube_url}
@@ -545,16 +546,18 @@ const ShowView: React.FC = () => {
               controls
               autoPlay
               onLoadStart={() => {
-                console.log('🎬 Local video started:', { 
+                console.log(`🎬 ${isFileVideo ? 'File' : 'Local'} video started:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  url: currentSong.youtube_url 
+                  url: currentSong.youtube_url,
+                  mode: currentSong?.mode
                 });
               }}
               onEnded={() => {
-                console.log('🎬 Local video ended:', { 
+                console.log(`🎬 ${isFileVideo ? 'File' : 'Local'} video ended:`, { 
                   songId: currentSong?.id, 
-                  title: currentSong?.title 
+                  title: currentSong?.title,
+                  mode: currentSong?.mode
                 });
               }}
             />
