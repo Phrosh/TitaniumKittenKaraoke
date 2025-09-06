@@ -70,3 +70,9 @@ export interface ShowData {
   qrCodeDataUrl: string | null;
   overlayTitle: string;
 }
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  created_at: string;
+}

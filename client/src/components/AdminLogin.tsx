@@ -110,7 +110,7 @@ const AdminLogin: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showInitAdmin, setShowInitAdmin] = useState(false);
+  const [showInitAdmin, setShowInitAdmin] = useState(true);
   const [initLoading, setInitLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -120,6 +120,22 @@ const AdminLogin: React.FC = () => {
     if (token) {
       navigate('/admin');
     }
+    
+    // Check if admin users already exist
+    const checkAdminExists = async () => {
+      try {
+        const response = await adminAPI.checkAdminExists();
+        console.log('Admin exists check:', response.data);
+        console.log('Setting showInitAdmin to:', !response.data.adminExists);
+        setShowInitAdmin(!response.data.adminExists); // Show init form only if no admins exist
+      } catch (error) {
+        // If we can't check, show init form
+        console.log('Could not check admin users, showing init form');
+        setShowInitAdmin(true);
+      }
+    };
+    
+    checkAdminExists();
   }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,22 +234,6 @@ const AdminLogin: React.FC = () => {
           </Button>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button
-            type="button"
-            onClick={() => setShowInitAdmin(!showInitAdmin)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#667eea',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            {showInitAdmin ? 'Admin-Erstellung ausblenden' : 'Ersten Admin-Benutzer erstellen'}
-          </button>
-        </div>
-
         {showInitAdmin && (
           <InitAdminCard>
             <InitTitle>Ersten Admin-Benutzer erstellen</InitTitle>
@@ -271,11 +271,6 @@ const AdminLogin: React.FC = () => {
           </InitAdminCard>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>
-          <p>Standard-Anmeldedaten:</p>
-          <p><strong>Benutzername:</strong> admin</p>
-          <p><strong>Passwort:</strong> admin123</p>
-        </div>
       </Card>
     </Container>
   );

@@ -104,6 +104,13 @@ export const adminAPI = {
     api.put('/admin/settings/custom-url', { customUrl }),
   updateOverlayTitle: (overlayTitle: string) =>
     api.put('/admin/settings/overlay-title', { overlayTitle }),
+  
+  // Admin User Management
+  getAdminUsers: () => api.get('/admin/admin-users'),
+  createAdminUser: (userData: { username: string; password: string }) =>
+    api.post('/admin/admin-users', userData),
+  deleteAdminUser: (id: number) => api.delete(`/admin/admin-users/${id}`),
+  checkAdminExists: () => api.get('/auth/check-admin-exists'),
 };
 
 export const showAPI = {

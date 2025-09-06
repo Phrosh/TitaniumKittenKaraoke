@@ -123,4 +123,24 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// Check if admin users exist (public route)
+router.get('/check-admin-exists', async (req, res) => {
+  try {
+    const adminCount = await new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) as count FROM admin_users', (err, row) => {
+        if (err) reject(err);
+        else resolve(row.count);
+      });
+    });
+
+    res.json({ 
+      adminExists: adminCount > 0,
+      adminCount: adminCount 
+    });
+  } catch (error) {
+    console.error('Error checking admin existence:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = { router, verifyToken };
