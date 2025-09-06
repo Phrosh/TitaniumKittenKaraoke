@@ -780,13 +780,11 @@ const AdminDashboard: React.FC = () => {
     
     switch (localServerTab) {
       case 'node':
-        return `npx http-server "${folderPath}" -p ${localServerPort} -c-1 --cors`;
+        return `node -e "const http=require('http'),fs=require('fs'),path=require('path');const port=${localServerPort},dir='${folderPath}';const server=http.createServer((req,res)=>{res.setHeader('Access-Control-Allow-Origin','*');const filePath=path.join(dir,req.url.slice(1));fs.stat(filePath,(err,stats)=>{if(err||!stats.isFile()){res.writeHead(404);res.end('Not found');return;}res.setHeader('Content-Type','video/mp4');fs.createReadStream(filePath).pipe(res);});});server.listen(port,()=>console.log('🌐 Server: http://localhost:'+port+'/'));"`;
       case 'npx':
         return `npx serve "${folderPath}" -p ${localServerPort} -s`;
       case 'python':
         return `python -m http.server ${localServerPort} --directory "${folderPath}"`;
-      case 'powershell':
-        return `powershell -Command "Start-Process python -ArgumentList '-m', 'http.server', '${localServerPort}', '--directory', '${folderPath}' -WindowStyle Normal"`;
       default:
         return '';
     }
@@ -832,7 +830,7 @@ const AdminDashboard: React.FC = () => {
   const [fileSongsFolder, setFileSongsFolder] = useState('');
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [localServerPort, setLocalServerPort] = useState(4000);
-  const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python' | 'powershell'>('node');
+  const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python'>('python');
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1508,10 +1506,9 @@ const AdminDashboard: React.FC = () => {
                     <div style={{ marginBottom: '15px' }}>
                       <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                         {[
-                          { key: 'node', label: 'Node.js', desc: 'http-server' },
-                          { key: 'npx', label: 'NPX', desc: 'serve' },
                           { key: 'python', label: 'Python', desc: 'Built-in' },
-                          { key: 'powershell', label: 'PowerShell', desc: 'Native' }
+                          { key: 'npx', label: 'NPX', desc: 'serve' },
+                          { key: 'node', label: 'Node.js', desc: 'Native' }
                         ].map(({ key, label, desc }) => (
                           <button
                             key={key}

@@ -29,7 +29,7 @@ app.use(helmet({
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
+      mediaSrc: ["'self'", "https://www.youtube.com", "https://youtube.com", "http://localhost:*"],
       frameAncestors: ["'none'"],
     },
   },
