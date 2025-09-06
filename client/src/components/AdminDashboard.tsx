@@ -635,6 +635,7 @@ const AdminDashboard: React.FC = () => {
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [customUrl, setCustomUrl] = useState('');
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
@@ -663,6 +664,9 @@ const AdminDashboard: React.FC = () => {
       }
       if (settingsResponse.data.settings.overlay_title) {
         setOverlayTitle(settingsResponse.data.settings.overlay_title);
+      }
+      if (settingsResponse.data.settings.youtube_enabled !== undefined) {
+        setYoutubeEnabled(settingsResponse.data.settings.youtube_enabled === 'true');
       }
       
       // Load file songs folder setting
@@ -743,6 +747,19 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error updating overlay title:', error);
       toast.error('Fehler beim Aktualisieren der Overlay-Überschrift');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateYouTubeEnabled = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateYouTubeEnabled(youtubeEnabled);
+      toast.success('YouTube-Einstellung erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating YouTube setting:', error);
+      toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
     } finally {
       setSettingsLoading(false);
     }
@@ -1519,6 +1536,34 @@ const AdminDashboard: React.FC = () => {
                 </SettingsButton>
                 <SettingsDescription>
                   Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
+                </SettingsDescription>
+              </SettingsCard>
+
+              <SettingsCard>
+                <SettingsLabel>Erlaube YouTube-Links in Songwünschen:</SettingsLabel>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={youtubeEnabled}
+                      onChange={(e) => setYoutubeEnabled(e.target.checked)}
+                      style={{ transform: 'scale(1.2)' }}
+                    />
+                    <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>
+                      {youtubeEnabled ? 'Aktiviert' : 'Deaktiviert'}
+                    </span>
+                  </label>
+                  <SettingsButton 
+                    onClick={handleUpdateYouTubeEnabled}
+                    disabled={settingsLoading}
+                    style={{ marginLeft: '10px' }}
+                  >
+                    {settingsLoading ? 'Speichert...' : 'Speichern'}
+                  </SettingsButton>
+                </div>
+                <SettingsDescription>
+                  Wenn deaktiviert, können Benutzer nur Songs aus der lokalen Songliste auswählen. 
+                  YouTube-Links werden nicht akzeptiert.
                 </SettingsDescription>
               </SettingsCard>
               

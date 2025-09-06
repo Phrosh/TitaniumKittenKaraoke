@@ -237,6 +237,7 @@ const SongRequest: React.FC = () => {
   const [localVideos, setLocalVideos] = useState<any[]>([]);
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [youtubeEnabled, setYoutubeEnabled] = useState(true);
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -258,6 +259,23 @@ const SongRequest: React.FC = () => {
 
     // Generate QR code
     generateQRCode();
+  }, []);
+
+  useEffect(() => {
+    // Load YouTube enabled setting
+    const loadYouTubeSetting = async () => {
+      try {
+        const response = await songAPI.getYouTubeEnabled();
+        const youtubeEnabledValue = response.data.settings.youtube_enabled;
+        setYoutubeEnabled(youtubeEnabledValue === 'true' || youtubeEnabledValue === undefined);
+      } catch (error) {
+        console.error('Error loading YouTube setting:', error);
+        // Default to true if error
+        setYoutubeEnabled(true);
+      }
+    };
+
+    loadYouTubeSetting();
   }, []);
 
   const generateQRCode = async () => {
@@ -392,21 +410,45 @@ const SongRequest: React.FC = () => {
 
           <FormGroup>
             <Label htmlFor="songInput">Song Wunsch:</Label>
-            <TextArea
-              id="songInput"
-              name="songInput"
-              value={formData.songInput}
-              onChange={handleInputChange}
-              required
-              placeholder="Interpret - Songtitel oder YouTube Link"
-            />
+            {youtubeEnabled ? (
+              <Input
+                type="text"
+                id="songInput"
+                name="songInput"
+                value={formData.songInput}
+                onChange={handleInputChange}
+                required
+                placeholder="Interpret - Songtitel oder YouTube Link"
+              />
+            ) : (
+              <div style={{
+                padding: '12px',
+                border: '2px solid #e1e5e9',
+                borderRadius: '8px',
+                background: '#f8f9fa',
+                fontSize: '16px',
+                color: formData.songInput ? '#333' : '#666',
+                fontWeight: formData.songInput ? '500' : 'normal',
+                fontStyle: formData.songInput ? 'normal' : 'italic',
+                minHeight: '48px',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                {formData.songInput || 'Bitte wähle einen Song aus der Songliste'}
+              </div>
+            )}
           </FormGroup>
 
           <LocalSongsSection>
-            <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
-              Oder nimm einen Song aus der Liste:
-            </div>
-            <LocalSongsButton type="button" onClick={handleOpenSongList}>
+            {youtubeEnabled && (
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+                Oder nimm einen Song aus der Liste:
+              </div>
+            )}
+            <LocalSongsButton 
+              type="button" 
+              onClick={handleOpenSongList}
+            >
               🎵 Songliste öffnen
             </LocalSongsButton>
           </LocalSongsSection>
@@ -417,7 +459,10 @@ const SongRequest: React.FC = () => {
             </Alert>
           )}
 
-          <Button type="submit" disabled={loading}>
+          <Button 
+            type="submit" 
+            disabled={loading || !formData.name.trim() || !formData.songInput.trim()}
+          >
             {loading ? 'Wird hinzugefügt...' : 'Song hinzufügen'}
           </Button>
         </Form>

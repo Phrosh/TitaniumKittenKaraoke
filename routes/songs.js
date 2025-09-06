@@ -26,10 +26,28 @@ router.post('/request', [
 
     const { name, songInput, deviceId } = req.body;
 
+    // Check if YouTube is enabled
+    const db = require('../config/database');
+    const youtubeSetting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['youtube_enabled'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    const youtubeEnabled = youtubeSetting ? youtubeSetting.value === 'true' : true; // Default to true if not set
+
     // Parse song input (could be "Artist - Title" or YouTube URL)
     let title, artist, youtubeUrl = null;
     
     if (songInput.includes('youtube.com') || songInput.includes('youtu.be')) {
+      // Check if YouTube is enabled
+      if (!youtubeEnabled) {
+        return res.status(400).json({ 
+          error: 'YouTube-Links sind derzeit nicht erlaubt. Bitte wähle einen Song aus der lokalen Songliste.' 
+        });
+      }
+      
       // It's a YouTube URL - try to extract metadata
       youtubeUrl = songInput;
       

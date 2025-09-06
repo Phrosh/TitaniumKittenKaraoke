@@ -49,6 +49,8 @@ export const songAPI = {
   
   getFileSongs: () =>
     api.get('/admin/settings/file-songs-folder'),
+  
+  getYouTubeEnabled: () => api.get('/admin/settings'), // Get all settings including youtube_enabled
 };
 
 export const playlistAPI = {
@@ -110,6 +112,9 @@ export const adminAPI = {
     api.put('/admin/settings/custom-url', { customUrl }),
   updateOverlayTitle: (overlayTitle: string) =>
     api.put('/admin/settings/overlay-title', { overlayTitle }),
+
+  updateYouTubeEnabled: (youtubeEnabled: boolean) =>
+    api.put('/admin/settings/youtube-enabled', { youtubeEnabled }),
   
   // File Songs Management
   getFileSongsFolder: () =>

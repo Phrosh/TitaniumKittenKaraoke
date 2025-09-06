@@ -273,6 +273,37 @@ router.put('/settings/overlay-title', [
   }
 });
 
+// Update YouTube enabled setting
+router.put('/settings/youtube-enabled', [
+  body('youtubeEnabled').isBoolean().withMessage('YouTube Enabled muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { youtubeEnabled } = req.body;
+
+    // Store YouTube enabled setting in settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['youtube_enabled', youtubeEnabled ? 'true' : 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'YouTube-Einstellung erfolgreich aktualisiert', youtubeEnabled });
+  } catch (error) {
+    console.error('Error updating YouTube setting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update regression value
 router.put('/settings/regression', [
   body('value').isFloat({ min: 0, max: 1 }).withMessage('Regression value must be between 0 and 1')
