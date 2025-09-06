@@ -384,6 +384,29 @@ const SongRequest: React.FC = () => {
     `${video.artist} - ${video.title}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group songs by first letter of artist
+  const getFirstLetter = (artist: string) => {
+    const firstChar = artist.charAt(0).toUpperCase();
+    if (/[A-Z]/.test(firstChar)) {
+      return firstChar;
+    } else if (/[0-9]/.test(firstChar)) {
+      return '#';
+    } else {
+      return '#';
+    }
+  };
+
+  const groupedSongs = filteredVideos.reduce((groups, song) => {
+    const letter = getFirstLetter(song.artist);
+    if (!groups[letter]) {
+      groups[letter] = [];
+    }
+    groups[letter].push(song);
+    return groups;
+  }, {} as Record<string, typeof filteredVideos>);
+
+  const sortedGroups = Object.keys(groupedSongs).sort();
+
   return (
     <Container>
       <Card>
@@ -495,11 +518,28 @@ const SongRequest: React.FC = () => {
           
           <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {filteredVideos.length > 0 ? (
-              filteredVideos.map((video, index) => (
-                <SongItem key={index} onClick={() => handleSelectSong(video)}>
-                  <SongArtist>{video.artist}</SongArtist>
-                  <SongTitle>{video.title}</SongTitle>
-                </SongItem>
+              sortedGroups.map((letter) => (
+                <div key={letter}>
+                  <div style={{
+                    position: 'sticky',
+                    top: 0,
+                    background: '#adb5bd',
+                    color: 'white',
+                    padding: '8px 15px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    zIndex: 10,
+                    borderBottom: '2px solid #9ca3af'
+                  }}>
+                    {letter}
+                  </div>
+                  {groupedSongs[letter].map((video, index) => (
+                    <SongItem key={`${letter}-${index}`} onClick={() => handleSelectSong(video)}>
+                      <SongArtist>{video.artist}</SongArtist>
+                      <SongTitle>{video.title}</SongTitle>
+                    </SongItem>
+                  ))}
+                </div>
               ))
             ) : (
               <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
