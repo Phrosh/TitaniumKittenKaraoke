@@ -12,6 +12,73 @@ const fs = require('fs');
 
 const router = express.Router();
 
+// Get YouTube enabled setting (public)
+router.get('/youtube-enabled', async (req, res) => {
+  try {
+    const db = require('../config/database');
+    const youtubeSetting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['youtube_enabled'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    const youtubeEnabled = youtubeSetting ? youtubeSetting.value === 'true' : true; // Default to true if not set
+    
+    res.json({ 
+      settings: { 
+        youtube_enabled: youtubeEnabled.toString() 
+      } 
+    });
+  } catch (error) {
+    console.error('Error getting YouTube setting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get file songs (public)
+router.get('/file-songs', async (req, res) => {
+  try {
+    const db = require('../config/database');
+    
+    // Get file songs folder and port from settings
+    const folderSetting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    const portSetting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_port'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    const folderPath = folderSetting ? folderSetting.value : '';
+    const port = portSetting ? parseInt(portSetting.value) : 4000;
+    
+    if (!folderPath) {
+      return res.json({ fileSongs: [] });
+    }
+    
+    // Scan the folder for video files
+    const { scanFileSongs } = require('../utils/fileSongs');
+    const fileSongs = await scanFileSongs(folderPath);
+    
+    res.json({ 
+      fileSongs: fileSongs.map(song => ({
+        ...song,
+        port: port
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting file songs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Submit new song request
 router.post('/request', [
   body('name').notEmpty().trim().isLength({ min: 1, max: 100 }),
@@ -309,6 +376,24 @@ router.put('/qr-overlay', [
     res.json({ message: 'QR Overlay Status erfolgreich aktualisiert', show });
   } catch (error) {
     console.error('Error updating QR overlay status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Public endpoint to get invisible songs (for filtering in /new)
+router.get('/invisible-songs', async (req, res) => {
+  try {
+    const db = require('../config/database');
+    const invisibleSongs = await new Promise((resolve, reject) => {
+      db.all('SELECT artist, title FROM invisible_songs', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    res.json({ invisibleSongs });
+  } catch (error) {
+    console.error('Error getting invisible songs:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

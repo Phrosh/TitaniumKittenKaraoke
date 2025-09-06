@@ -100,6 +100,18 @@ function initializeDatabase() {
       console.error('Migration error:', err);
     }
   });
+
+  // Invisible songs table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS invisible_songs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      artist TEXT NOT NULL,
+      title TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES admin_users (id)
+    )
+  `);
   });
 }
 

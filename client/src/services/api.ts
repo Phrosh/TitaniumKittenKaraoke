@@ -48,9 +48,10 @@ export const songAPI = {
     api.get('/songs/local-videos', { params: search ? { search } : {} }),
   
   getFileSongs: () =>
-    api.get('/admin/settings/file-songs-folder'),
+    api.get('/songs/file-songs'), // Public endpoint for file songs
   
-  getYouTubeEnabled: () => api.get('/admin/settings'), // Get all settings including youtube_enabled
+  getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
+  getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
 };
 
 export const playlistAPI = {
@@ -139,6 +140,13 @@ export const adminAPI = {
     api.post('/admin/banlist', { deviceId, reason }),
   removeFromBanlist: (deviceId: string) =>
     api.delete(`/admin/banlist/${deviceId}`),
+
+  // Invisible Songs Management
+  getInvisibleSongs: () => api.get('/admin/invisible-songs'),
+  addToInvisibleSongs: (artist: string, title: string) =>
+    api.post('/admin/invisible-songs', { artist, title }),
+  removeFromInvisibleSongs: (id: number) =>
+    api.delete(`/admin/invisible-songs/${id}`),
 };
 
 export const showAPI = {

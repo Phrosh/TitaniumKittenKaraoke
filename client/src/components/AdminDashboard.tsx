@@ -646,7 +646,7 @@ const AdminDashboard: React.FC = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
-  const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist'>('playlist');
+  const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
   const [manualSongData, setManualSongData] = useState({
     singerName: '',
     songInput: ''
@@ -659,6 +659,11 @@ const AdminDashboard: React.FC = () => {
   const [banlist, setBanlist] = useState<any[]>([]);
   const [newBanDeviceId, setNewBanDeviceId] = useState('');
   const [newBanReason, setNewBanReason] = useState('');
+  
+  // Song Management
+  const [songs, setSongs] = useState<any[]>([]);
+  const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
+  const [songSearchTerm, setSongSearchTerm] = useState('');
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -729,6 +734,14 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'banlist') {
       fetchBanlist();
+    }
+  }, [activeTab]);
+
+  // Load songs when songs tab is active
+  useEffect(() => {
+    if (activeTab === 'songs') {
+      fetchSongs();
+      fetchInvisibleSongs();
     }
   }, [activeTab]);
 
@@ -1253,6 +1266,95 @@ const AdminDashboard: React.FC = () => {
     }, 100);
   };
 
+  // Song Management Functions
+  const fetchSongs = async () => {
+    try {
+      const [localResponse, fileResponse] = await Promise.all([
+        songAPI.getLocalVideos(),
+        songAPI.getFileSongs()
+      ]);
+      
+      const localVideos = localResponse.data.videos || [];
+      const fileSongs = fileResponse.data.fileSongs || [];
+      
+      // Combine and deduplicate songs (same logic as modal)
+      const allSongs = [...fileSongs];
+      localVideos.forEach(localVideo => {
+        const exists = allSongs.some(song => 
+          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === localVideo.title.toLowerCase()
+        );
+        if (!exists) {
+          allSongs.push(localVideo);
+        }
+      });
+      
+      // Sort alphabetically by artist, then by title
+      allSongs.sort((a, b) => {
+        const artistA = a.artist.toLowerCase();
+        const artistB = b.artist.toLowerCase();
+        if (artistA !== artistB) {
+          return artistA.localeCompare(artistB);
+        }
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      });
+      
+      setSongs(allSongs);
+    } catch (error) {
+      console.error('Error loading songs:', error);
+      toast.error('Fehler beim Laden der Songliste');
+    }
+  };
+
+  const fetchInvisibleSongs = async () => {
+    try {
+      const response = await adminAPI.getInvisibleSongs();
+      setInvisibleSongs(response.data.invisibleSongs || []);
+    } catch (error) {
+      console.error('Error fetching invisible songs:', error);
+    }
+  };
+
+  const handleToggleSongVisibility = async (song: any) => {
+    const isInvisible = invisibleSongs.some(invisible => 
+      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+      invisible.title.toLowerCase() === song.title.toLowerCase()
+    );
+
+    if (isInvisible) {
+      // Remove from invisible songs
+      const invisibleSong = invisibleSongs.find(invisible => 
+        invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+        invisible.title.toLowerCase() === song.title.toLowerCase()
+      );
+      
+      setActionLoading(true);
+      try {
+        await adminAPI.removeFromInvisibleSongs(invisibleSong.id);
+        toast.success(`${song.artist} - ${song.title} wieder sichtbar gemacht`);
+        await fetchInvisibleSongs();
+      } catch (error: any) {
+        console.error('Error removing from invisible songs:', error);
+        toast.error(error.response?.data?.message || 'Fehler beim Sichtbarmachen des Songs');
+      } finally {
+        setActionLoading(false);
+      }
+    } else {
+      // Add to invisible songs
+      setActionLoading(true);
+      try {
+        await adminAPI.addToInvisibleSongs(song.artist, song.title);
+        toast.success(`${song.artist} - ${song.title} unsichtbar gemacht`);
+        await fetchInvisibleSongs();
+      } catch (error: any) {
+        console.error('Error adding to invisible songs:', error);
+        toast.error(error.response?.data?.message || 'Fehler beim Unsichtbarmachen des Songs');
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+
   const handleCreateAdminUser = async () => {
     if (!newUserData.username.trim() || !newUserData.password.trim()) {
       toast.error('Bitte fülle alle Felder aus');
@@ -1394,6 +1496,12 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('banlist')}
           >
             🚫 Banlist
+          </TabButton>
+          <TabButton 
+            $active={activeTab === 'songs'} 
+            onClick={() => setActiveTab('songs')}
+          >
+            🎵 Songverwaltung
           </TabButton>
         </TabHeader>
         
@@ -1982,6 +2090,117 @@ const AdminDashboard: React.FC = () => {
                 )}
                 <SettingsDescription>
                   Verwaltung der gesperrten Device IDs. Gesperrte Geräte können keine Songs hinzufügen.
+                </SettingsDescription>
+              </SettingsCard>
+            </SettingsSection>
+          )}
+          
+          {activeTab === 'songs' && (
+            <SettingsSection>
+              <SettingsTitle>🎵 Songverwaltung</SettingsTitle>
+              
+              {/* Search songs */}
+              <SettingsCard>
+                <SettingsLabel>Songs durchsuchen:</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  placeholder="Nach Song oder Interpret suchen..."
+                  value={songSearchTerm}
+                  onChange={(e) => setSongSearchTerm(e.target.value)}
+                  style={{ marginBottom: '15px' }}
+                />
+                <SettingsDescription>
+                  Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.
+                </SettingsDescription>
+              </SettingsCard>
+              
+              {/* Songs list */}
+              <SettingsCard>
+                <SettingsLabel>Alle Songs ({songs.length}):</SettingsLabel>
+                {songs.length === 0 ? (
+                  <div style={{ color: '#666', fontStyle: 'italic' }}>
+                    Keine Songs vorhanden
+                  </div>
+                ) : (
+                  <div style={{ marginTop: '10px', maxHeight: '500px', overflowY: 'auto' }}>
+                    {songs
+                      .filter(song => 
+                        !songSearchTerm || 
+                        song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
+                        song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
+                      )
+                      .map((song) => {
+                        const isInvisible = invisibleSongs.some(invisible => 
+                          invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                          invisible.title.toLowerCase() === song.title.toLowerCase()
+                        );
+                        
+                        return (
+                          <div 
+                            key={`${song.artist}-${song.title}`} 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              padding: '12px',
+                              border: '1px solid #eee',
+                              borderRadius: '6px',
+                              marginBottom: '8px',
+                              background: isInvisible ? '#f8f9fa' : '#fff',
+                              opacity: isInvisible ? 0.7 : 1
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
+                                  {song.artist} - {song.title}
+                                </div>
+                                {isInvisible && (
+                                  <span style={{ 
+                                    fontSize: '12px', 
+                                    color: '#dc3545', 
+                                    background: '#f8d7da', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '500'
+                                  }}>
+                                    👁️‍🗨️ Unsichtbar
+                                  </span>
+                                )}
+                                <span style={{ 
+                                  fontSize: '12px', 
+                                  color: song.mode === 'youtube' ? '#dc3545' : song.mode === 'local_video' ? '#28a745' : '#007bff', 
+                                  background: song.mode === 'youtube' ? '#f8d7da' : song.mode === 'local_video' ? '#d4edda' : '#cce7ff', 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '500'
+                                }}>
+                                  {song.mode === 'youtube' ? '🔴 YouTube' : song.mode === 'local_video' ? '🟢 Lokal' : '🔵 Datei'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '14px', color: '#666', marginBottom: '2px' }}>
+                                Verfügbar in der Songliste
+                              </div>
+                            </div>
+                            <Button 
+                              variant={isInvisible ? 'success' : 'danger'}
+                              onClick={() => handleToggleSongVisibility(song)}
+                              disabled={actionLoading}
+                              style={{ 
+                                padding: '8px 12px', 
+                                fontSize: '0.9em', 
+                                minWidth: '100px'
+                              }}
+                            >
+                              {isInvisible ? '👁️ Anzeigen' : '👁️‍🗨️ Unsichtbar'}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                <SettingsDescription>
+                  Unsichtbare Songs erscheinen nicht in der öffentlichen Songliste (/new), sind aber im Admin-Dashboard weiterhin sichtbar.
                 </SettingsDescription>
               </SettingsCard>
             </SettingsSection>

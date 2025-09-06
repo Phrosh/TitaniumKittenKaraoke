@@ -334,6 +334,16 @@ const SongRequest: React.FC = () => {
       const localVideos = localResponse.data.videos || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
+      // Try to get invisible songs, but don't fail if it doesn't work
+      let invisibleSongs = [];
+      try {
+        const invisibleResponse = await songAPI.getInvisibleSongs();
+        invisibleSongs = invisibleResponse.data.invisibleSongs || [];
+      } catch (invisibleError) {
+        console.warn('Could not load invisible songs, continuing without filter:', invisibleError);
+        // Continue without filtering invisible songs
+      }
+      
       // Combine and deduplicate songs
       const allSongs = [...fileSongs];
       localVideos.forEach(localVideo => {
@@ -346,8 +356,27 @@ const SongRequest: React.FC = () => {
         }
       });
       
+      // Filter out invisible songs (if we have the list)
+      console.log('🔍 Debug - Invisible songs:', invisibleSongs);
+      console.log('🔍 Debug - All songs before filter:', allSongs.length);
+      
+      const visibleSongs = allSongs.filter(song => {
+        const isInvisible = invisibleSongs.some(invisible => 
+          invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+          invisible.title.toLowerCase() === song.title.toLowerCase()
+        );
+        
+        if (isInvisible) {
+          console.log('🚫 Filtering out invisible song:', song.artist, '-', song.title);
+        }
+        
+        return !isInvisible;
+      });
+      
+      console.log('🔍 Debug - Visible songs after filter:', visibleSongs.length);
+      
       // Sort alphabetically by artist, then by title
-      allSongs.sort((a, b) => {
+      visibleSongs.sort((a, b) => {
         const artistA = a.artist.toLowerCase();
         const artistB = b.artist.toLowerCase();
         if (artistA !== artistB) {
@@ -356,7 +385,7 @@ const SongRequest: React.FC = () => {
         return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
       });
       
-      setLocalVideos(allSongs);
+      setLocalVideos(visibleSongs);
       setShowSongList(true);
     } catch (error) {
       console.error('Error loading songs:', error);
