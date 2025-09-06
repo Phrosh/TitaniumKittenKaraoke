@@ -457,16 +457,28 @@ const { scanFileSongs, findFileSong } = require('../utils/fileSongs');
 // Get file songs folder setting
 router.get('/settings/file-songs-folder', async (req, res) => {
   try {
-    const setting = await new Promise((resolve, reject) => {
-      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    const [folderSetting, portSetting] = await Promise.all([
+      new Promise((resolve, reject) => {
+        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_port'], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      })
+    ]);
+
+    const folderPath = folderSetting ? folderSetting.value : '';
+    const port = portSetting ? parseInt(portSetting.value) : 4000;
 
     res.json({ 
-      folderPath: setting ? setting.value : '',
-      fileSongs: setting ? scanFileSongs(setting.value) : []
+      folderPath: folderPath,
+      port: port,
+      fileSongs: folderPath ? scanFileSongs(folderPath) : []
     });
   } catch (error) {
     console.error('Error getting file songs folder:', error);
@@ -476,7 +488,8 @@ router.get('/settings/file-songs-folder', async (req, res) => {
 
 // Set file songs folder setting
 router.put('/settings/file-songs-folder', [
-  body('folderPath').isString().trim()
+  body('folderPath').isString().trim(),
+  body('port').optional().isInt({ min: 1000, max: 65535 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -484,7 +497,7 @@ router.put('/settings/file-songs-folder', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { folderPath } = req.body;
+    const { folderPath, port } = req.body;
 
     // Validate folder exists
     const fs = require('fs');
@@ -492,7 +505,7 @@ router.put('/settings/file-songs-folder', [
       return res.status(400).json({ message: 'Ordner existiert nicht' });
     }
 
-    // Save setting
+    // Save folder setting
     await new Promise((resolve, reject) => {
       db.run(
         'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
@@ -503,6 +516,20 @@ router.put('/settings/file-songs-folder', [
         }
       );
     });
+
+    // Save port setting if provided
+    if (port) {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+          ['file_songs_port', port.toString()],
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
 
     // Scan files in the folder
     const fileSongs = folderPath ? scanFileSongs(folderPath) : [];

@@ -667,6 +667,7 @@ const AdminDashboard: React.FC = () => {
         const fileSongsResponse = await adminAPI.getFileSongsFolder();
         setFileSongsFolder(fileSongsResponse.data.folderPath || '');
         setFileSongs(fileSongsResponse.data.fileSongs || []);
+        setLocalServerPort(fileSongsResponse.data.port || 4000);
       } catch (error) {
         console.error('Error loading file songs folder:', error);
       }
@@ -747,7 +748,7 @@ const AdminDashboard: React.FC = () => {
   const handleUpdateFileSongsFolder = async () => {
     setSettingsLoading(true);
     try {
-      const response = await adminAPI.setFileSongsFolder(fileSongsFolder);
+      const response = await adminAPI.setFileSongsFolder(fileSongsFolder, localServerPort);
       setFileSongs(response.data.fileSongs);
       toast.success('Song-Ordner erfolgreich aktualisiert!');
     } catch (error) {
@@ -769,6 +770,41 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Neu-Scannen der Songs');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const generateLocalServerCommand = () => {
+    if (!fileSongsFolder) return '';
+    
+    const folderPath = fileSongsFolder.replace(/\\/g, '/');
+    
+    switch (localServerTab) {
+      case 'node':
+        return `npx http-server "${folderPath}" -p ${localServerPort} -c-1 --cors`;
+      case 'npx':
+        return `npx serve "${folderPath}" -p ${localServerPort} -s`;
+      case 'python':
+        return `python -m http.server ${localServerPort} --directory "${folderPath}"`;
+      case 'powershell':
+        return `powershell -Command "Start-Process python -ArgumentList '-m', 'http.server', '${localServerPort}', '--directory', '${folderPath}' -WindowStyle Normal"`;
+      default:
+        return '';
+    }
+  };
+
+  const handleCopyServerCommand = async () => {
+    const command = generateLocalServerCommand();
+    if (!command) {
+      toast.error('Bitte zuerst einen Song-Ordner angeben');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(command);
+      toast.success('Befehl in die Zwischenablage kopiert!');
+    } catch (error) {
+      console.error('Error copying command:', error);
+      toast.error('Fehler beim Kopieren des Befehls');
     }
   };
 
@@ -795,6 +831,8 @@ const AdminDashboard: React.FC = () => {
   // File Songs Management
   const [fileSongsFolder, setFileSongsFolder] = useState('');
   const [fileSongs, setFileSongs] = useState<any[]>([]);
+  const [localServerPort, setLocalServerPort] = useState(4000);
+  const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python' | 'powershell'>('node');
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1434,6 +1472,115 @@ const AdminDashboard: React.FC = () => {
                   Ordner mit lokalen Karaoke-Videos im Format "Interpret - Songtitel.erweiterung". 
                   Diese Songs haben höchste Priorität bei der Erkennung.
                 </SettingsDescription>
+                
+                {/* Local Server Section */}
+                {fileSongsFolder && (
+                  <div style={{ marginTop: '20px', padding: '15px', background: '#e8f4fd', borderRadius: '8px', border: '1px solid #bee5eb' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '10px', color: '#0c5460' }}>
+                      🌐 Lokaler Webserver für Videos
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#0c5460', marginBottom: '15px' }}>
+                      Starte einen lokalen Webserver, damit Videos über HTTP abgespielt werden können:
+                    </div>
+                    
+                    {/* Port Selection */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
+                        Port:
+                      </label>
+                      <input
+                        type="number"
+                        value={localServerPort}
+                        onChange={(e) => setLocalServerPort(parseInt(e.target.value) || 4000)}
+                        min="1000"
+                        max="65535"
+                        style={{
+                          width: '80px',
+                          padding: '5px',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Server Type Tabs */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+                        {[
+                          { key: 'node', label: 'Node.js', desc: 'http-server' },
+                          { key: 'npx', label: 'NPX', desc: 'serve' },
+                          { key: 'python', label: 'Python', desc: 'Built-in' },
+                          { key: 'powershell', label: 'PowerShell', desc: 'Native' }
+                        ].map(({ key, label, desc }) => (
+                          <button
+                            key={key}
+                            onClick={() => setLocalServerTab(key as any)}
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px',
+                              background: localServerTab === key ? '#007bff' : 'white',
+                              color: localServerTab === key ? 'white' : '#333',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            {label}
+                            <div style={{ fontSize: '10px', opacity: 0.8 }}>{desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Command Display */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
+                        Befehl zum Kopieren:
+                      </label>
+                      <div style={{
+                        padding: '10px',
+                        background: '#f8f9fa',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '4px',
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        wordBreak: 'break-all',
+                        color: '#495057'
+                      }}>
+                        {generateLocalServerCommand() || 'Bitte Ordner angeben'}
+                      </div>
+                    </div>
+                    
+                    {/* Copy Button */}
+                    <button
+                      onClick={handleCopyServerCommand}
+                      disabled={!fileSongsFolder}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: fileSongsFolder ? 'pointer' : 'not-allowed',
+                        opacity: fileSongsFolder ? 1 : 0.6,
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      📋 Befehl kopieren
+                    </button>
+                    
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#6c757d' }}>
+                      <strong>Anleitung:</strong><br/>
+                      1. Befehl kopieren und in CMD/PowerShell ausführen<br/>
+                      2. Server läuft auf http://localhost:{localServerPort}/<br/>
+                      3. Videos werden automatisch über HTTP abgespielt
+                    </div>
+                  </div>
+                )}
+                
                 {fileSongs.length > 0 && (
                   <div style={{ marginTop: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '8px' }}>
                     <div style={{ fontWeight: '600', marginBottom: '8px', color: '#333' }}>

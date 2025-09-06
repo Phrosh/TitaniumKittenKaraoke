@@ -115,8 +115,8 @@ export const adminAPI = {
   getFileSongsFolder: () =>
     api.get('/admin/settings/file-songs-folder'),
   
-  setFileSongsFolder: (folderPath: string) =>
-    api.put('/admin/settings/file-songs-folder', { folderPath }),
+  setFileSongsFolder: (folderPath: string, port?: number) =>
+    api.put('/admin/settings/file-songs-folder', { folderPath, port }),
   
   rescanFileSongs: () =>
     api.post('/admin/settings/rescan-file-songs'),

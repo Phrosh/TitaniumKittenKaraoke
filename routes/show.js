@@ -99,13 +99,28 @@ router.get('/', async (req, res) => {
       console.error('Error generating QR code for show:', error);
     }
 
+    // Build dynamic URL for file songs
+    let youtubeUrl = currentSong?.youtube_url;
+    if (currentSong?.mode === 'file' && currentSong?.youtube_url) {
+      // Get the configured port for file songs
+      const portSetting = await new Promise((resolve, reject) => {
+        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_port'], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+      
+      const port = portSetting ? portSetting.value : '4000';
+      youtubeUrl = `http://localhost:${port}/${encodeURIComponent(currentSong.youtube_url)}`;
+    }
+
     res.json({
       currentSong: currentSong ? {
         id: currentSong.id,
         user_name: currentSong.user_name,
         artist: currentSong.artist,
         title: currentSong.title,
-        youtube_url: currentSong.youtube_url,
+        youtube_url: youtubeUrl,
         mode: currentSong.mode || 'youtube',
         position: currentSong.position,
         duration_seconds: currentSong.duration_seconds

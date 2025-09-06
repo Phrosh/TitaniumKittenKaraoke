@@ -76,7 +76,8 @@ router.post('/request', [
         const fileSong = findFileSong(fileFolderSetting.value, artist, title);
         if (fileSong) {
           mode = 'file';
-          youtubeUrl = `file://${fileSong.fullPath}`;
+          // Store only the filename, URL will be built dynamically in /show
+          youtubeUrl = fileSong.filename;
           console.log(`Found file song: ${fileSong.filename}`);
         }
       }
