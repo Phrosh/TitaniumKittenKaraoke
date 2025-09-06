@@ -30,16 +30,9 @@ router.post('/request', [
       youtubeUrl = songInput;
       
       try {
-        console.log('Extracting YouTube metadata for:', youtubeUrl);
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
         title = metadata.title;
         artist = metadata.artist || 'Unknown Artist';
-        console.log('Extracted metadata:', { 
-          title, 
-          artist, 
-          duration: metadata.duration_seconds,
-          durationFormatted: metadata.duration_seconds ? `${Math.floor(metadata.duration_seconds / 60)}:${(metadata.duration_seconds % 60).toString().padStart(2, '0')}` : 'N/A'
-        });
       } catch (error) {
         console.error('Failed to extract YouTube metadata:', error.message);
         // Fallback to generic values
@@ -67,29 +60,13 @@ router.post('/request', [
       try {
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
         durationSeconds = metadata.duration_seconds;
-        console.log('Duration extracted for database:', { 
-          durationSeconds, 
-          formatted: durationSeconds ? `${Math.floor(durationSeconds / 60)}:${(durationSeconds % 60).toString().padStart(2, '0')}` : 'N/A' 
-        });
       } catch (error) {
         console.error('Failed to get duration:', error.message);
       }
     }
 
     // Create song with priority and duration
-    console.log('Creating song with data:', { 
-      userId: user.id, 
-      title, 
-      artist, 
-      youtubeUrl, 
-      priority: 1, 
-      durationSeconds 
-    });
     const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds);
-    console.log('Song created:', { 
-      id: song.id, 
-      duration_seconds: song.duration_seconds 
-    });
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);
@@ -167,17 +144,12 @@ router.get('/qr-data', async (req, res) => {
       // Use custom URL + /new
       qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
     } else {
-      // Use environment CLIENT_URL + /new, fallback to current domain
-      const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
-      qrUrl = CLIENT_URL.replace(/\/$/, '') + '/new';
+      // Use same domain for QR code generation
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      qrUrl = `${protocol}://${host}/new`;
     }
 
-    console.log('🔍 Songs QR Code Debug:', { 
-      customUrl, 
-      qrUrl, 
-      protocol: req.get('x-forwarded-proto') || req.protocol,
-      host: req.get('host')
-    });
 
     // Generate QR code data URL using local library
     const QRCode = require('qrcode');
@@ -193,11 +165,6 @@ router.get('/qr-data', async (req, res) => {
       width: 300
     });
     
-    console.log('🔍 Songs QR Code Generated:', {
-      qrUrl,
-      dataUrlLength: qrCodeDataUrl ? qrCodeDataUrl.length : 0,
-      dataUrlStart: qrCodeDataUrl ? qrCodeDataUrl.substring(0, 50) + '...' : 'null'
-    });
 
     const qrData = {
       url: qrUrl,

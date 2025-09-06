@@ -76,18 +76,12 @@ router.get('/', async (req, res) => {
         // Use custom URL + /new
         qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
       } else {
-        // Use environment CLIENT_URL + /new, fallback to current domain
-        const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
-        qrUrl = CLIENT_URL.replace(/\/$/, '') + '/new';
+        // Use same domain for QR code generation
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const host = req.get('host');
+        qrUrl = `${protocol}://${host}/new`;
       }
 
-      console.log('🔍 Show QR Code Debug:', { 
-        customUrl, 
-        qrUrl, 
-        protocol: req.get('x-forwarded-proto') || req.protocol,
-        host: req.get('host'),
-        originalUrl: req.originalUrl
-      });
       
       qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
         errorCorrectionLevel: 'M',
@@ -101,11 +95,6 @@ router.get('/', async (req, res) => {
         width: 300
       });
       
-      console.log('🔍 Show QR Code Generated:', {
-        qrUrl,
-        dataUrlLength: qrCodeDataUrl ? qrCodeDataUrl.length : 0,
-        dataUrlStart: qrCodeDataUrl ? qrCodeDataUrl.substring(0, 50) + '...' : 'null'
-      });
     } catch (error) {
       console.error('Error generating QR code for show:', error);
     }

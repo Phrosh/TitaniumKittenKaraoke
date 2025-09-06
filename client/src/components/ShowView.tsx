@@ -403,13 +403,6 @@ const ShowView: React.FC = () => {
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
       const title = response.data.overlayTitle || 'Willkommen beim Karaoke';
       
-      console.log('🎵 Fetched song data:', { 
-        currentSong: newSong?.id, 
-        currentSongTitle: newSong?.title,
-        nextSongsCount: nextSongs.length,
-        overlayStatus,
-        lastSongId 
-      });
       
       // Update overlay status from API
       setShowQRCodeOverlay(overlayStatus);
@@ -424,12 +417,6 @@ const ShowView: React.FC = () => {
       
       // Nur State aktualisieren wenn sich der Song geändert hat
       if (!newSong || newSong.id !== lastSongId) {
-        console.log('🔄 Song changed:', { 
-          from: lastSongId, 
-          to: newSong?.id,
-          newSongTitle: newSong?.title,
-          duration: newSong?.duration_seconds 
-        });
         setCurrentSong(newSong);
         setLastSongId(newSong?.id || null);
         setError(null);

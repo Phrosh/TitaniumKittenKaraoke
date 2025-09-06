@@ -12,31 +12,15 @@ router.use(verifyToken);
 // Get admin dashboard data
 router.get('/dashboard', async (req, res) => {
   try {
-    console.log('Admin dashboard request received');
     
     const playlist = await Song.getAll();
-    console.log('Playlist loaded:', playlist.length, 'songs');
     
-    // Debug: Check if duration_seconds is present
-    const songsWithDuration = playlist.filter(s => s.duration_seconds);
-    console.log('Songs with duration:', songsWithDuration.length);
-    if (songsWithDuration.length > 0) {
-      console.log('Sample song with duration:', {
-        id: songsWithDuration[0].id,
-        title: songsWithDuration[0].title,
-        duration_seconds: songsWithDuration[0].duration_seconds,
-        formatted: `${Math.floor(songsWithDuration[0].duration_seconds / 60)}:${(songsWithDuration[0].duration_seconds % 60).toString().padStart(2, '0')}`
-      });
-    }
     
     const pendingSongs = await Song.getPending();
-    console.log('Pending songs loaded:', pendingSongs.length, 'songs');
     
     const users = await User.getAll();
-    console.log('Users loaded:', users.length, 'users');
     
     const currentSong = await Song.getCurrentSong();
-    console.log('Current song:', currentSong);
     
     // Statistics
     const stats = {
@@ -47,7 +31,6 @@ router.get('/dashboard', async (req, res) => {
       songsWithoutYoutube: playlist.filter(s => !s.youtube_url).length
     };
 
-    console.log('Stats:', stats);
 
     res.json({
       playlist,

@@ -13,15 +13,29 @@ const showRoutes = require('./routes/show');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const SERVER_URL = (process.env.SERVER_URL && process.env.SERVER_URL.trim()) || 'http://localhost:5000';
-const CLIENT_URL = (process.env.CLIENT_URL && process.env.CLIENT_URL.trim()) || 'http://localhost:3000';
+
+// Trust proxy for ngrok and other tunneling services
+app.set('trust proxy', true);
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      frameSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
+      frameAncestors: ["'none'"],
+    },
+  },
+}));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? CLIENT_URL 
-    : [CLIENT_URL, 'http://localhost:3000'],
+  origin: true, // Allow all origins in development, restrict in production
   credentials: true
 }));
 
@@ -43,14 +57,13 @@ app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/show', showRoutes);
 
-// Serve static files from React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
-}
+// Serve static files from React app (both production and development)
+app.use(express.static(path.join(__dirname, 'client/build')));
+
+// Catch all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

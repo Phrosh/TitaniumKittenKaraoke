@@ -54,14 +54,37 @@ MAX_SONG_DELAY=15
 ```
 
 4. **System starten:**
-```bash
-# Entwicklung (Backend + Frontend)
-npm run dev
 
-# Oder separat:
-npm run server  # Backend auf Port 5000
-npm run client  # Frontend auf Port 3000
+### 🚀 Entwicklung (empfohlen):
+```bash
+npm run dev
 ```
+- **Startet:** Backend (Port 5000) + React Dev Server (Port 3000)
+- **Hot Reload:** Änderungen werden automatisch übernommen
+- **Kein Build nötig:** React läuft im Development-Modus
+- **Ideal für:** Entwicklung und lokales Testen
+
+### 🏭 Produktion (für ngrok/Remote-Zugriff):
+```bash
+npm run server
+```
+- **Startet:** Nur Backend (Port 5000) mit gebauten React-Dateien
+- **Build nötig:** Bei jeder Code-Änderung `npm run build` ausführen
+- **Ideal für:** ngrok-Tunnel, Remote-Zugriff, Produktions-Tests
+
+### 📝 Wann welchen Modus verwenden:
+
+**`npm run dev` verwenden wenn:**
+- ✅ Du entwickelst oder Code änderst
+- ✅ Du lokal testest
+- ✅ Du keine ngrok benötigst
+- ✅ Du Hot Reload willst (kein Build nötig)
+
+**`npm run server` verwenden wenn:**
+- ✅ Du ngrok oder Remote-Zugriff brauchst
+- ✅ Du den Production-Build testest
+- ✅ Du das System anderen zur Verfügung stellst
+- ⚠️ **Achtung:** Bei Code-Änderungen musst du `npm run build` ausführen
 
 ## 📱 Verwendung
 
@@ -127,11 +150,21 @@ Der Algorithmus sorgt für eine faire Verteilung der Songs:
 
 ### Scripts:
 ```bash
-npm start          # Produktions-Server
-npm run dev        # Entwicklung (Backend + Frontend)
-npm run server     # Nur Backend
-npm run client     # Nur Frontend
+npm start          # Produktions-Server (wie npm run server)
+npm run dev        # Entwicklung (Backend + Frontend mit Hot Reload)
+npm run server     # Nur Backend mit gebauten React-Dateien
+npm run client     # Nur Frontend (React Dev Server)
 npm run build      # Frontend für Produktion bauen
+npm run install-all # Alle Dependencies installieren
+```
+
+### 🔄 Build-Prozess:
+```bash
+# Bei Code-Änderungen im Production-Modus:
+cd client
+npm run build
+cd ..
+npm run server
 ```
 
 ### API Endpoints:

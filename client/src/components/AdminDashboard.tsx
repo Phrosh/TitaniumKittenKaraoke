@@ -601,7 +601,6 @@ const AdminDashboard: React.FC = () => {
         const overlayStatus = showResponse.data.showQRCodeOverlay || false;
         setShowQRCodeOverlay(overlayStatus);
       } catch (showError) {
-        console.log('Could not fetch overlay status:', showError);
       }
       
       return response.data; // Return data for use in other functions
