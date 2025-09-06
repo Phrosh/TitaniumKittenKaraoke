@@ -428,6 +428,13 @@ const ShowView: React.FC = () => {
         setLastSongId(newSong?.id || null);
         setError(null);
         
+        // Automatically hide overlay when song changes
+        if (showQRCodeOverlay) {
+          showAPI.toggleQRCodeOverlay(false).catch(error => {
+            console.error('Error hiding overlay:', error);
+          });
+        }
+        
         
         // Start timer for new song
         if (newSong && newSong.duration_seconds) {
@@ -559,6 +566,13 @@ const ShowView: React.FC = () => {
                   title: currentSong?.title,
                   mode: currentSong?.mode
                 });
+                
+                // Automatically show QR code overlay when non-YouTube video ends
+                if (currentSong?.mode !== 'youtube') {
+                  showAPI.toggleQRCodeOverlay(true).catch(error => {
+                    console.error('Error showing overlay:', error);
+                  });
+                }
               }}
             />
           ) : (

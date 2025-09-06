@@ -256,4 +256,36 @@ router.get('/local-videos', (req, res) => {
   }
 });
 
+// Public route to toggle QR overlay (for automatic overlay when videos end)
+router.put('/qr-overlay', [
+  body('show').isBoolean().withMessage('Show muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { show } = req.body;
+    const db = require('../config/database');
+
+    // Store overlay status in settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_qr_overlay', show.toString()],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'QR Overlay Status erfolgreich aktualisiert', show });
+  } catch (error) {
+    console.error('Error updating QR overlay status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 module.exports = router;

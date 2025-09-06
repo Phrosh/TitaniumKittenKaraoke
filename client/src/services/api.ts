@@ -137,6 +137,9 @@ export const adminAPI = {
 export const showAPI = {
   getCurrentSong: () =>
     api.get('/show'),
+  
+  toggleQRCodeOverlay: (show: boolean) =>
+    api.put('/songs/qr-overlay', { show }),
 };
 
 export default api;
