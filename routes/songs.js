@@ -168,7 +168,7 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Check for songs in priority order: file > server_video > youtube
+    // Check for songs in priority order: file > server_video > ultrastar > youtube
     let mode = 'youtube';
     let durationSeconds = null;
     
@@ -192,13 +192,24 @@ router.post('/request', [
         }
       }
       
-      // If no file song found, check local videos
+      // If no file song found, check server videos
       if (mode === 'youtube') {
         const localVideo = findLocalVideo(artist, title);
         if (localVideo) {
           mode = 'server_video';
           youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
-          console.log(`Found local video: ${localVideo.filename}`);
+          console.log(`Found server video: ${localVideo.filename}`);
+        }
+      }
+      
+      // If no server video found, check ultrastar songs
+      if (mode === 'youtube') {
+        const { findUltrastarSong } = require('../utils/ultrastarSongs');
+        const ultrastarSong = findUltrastarSong(artist, title);
+        if (ultrastarSong) {
+          mode = 'ultrastar';
+          youtubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
+          console.log(`Found ultrastar song: ${ultrastarSong.folderName}`);
         }
       }
     }
@@ -344,6 +355,26 @@ router.get('/server-videos', (req, res) => {
     res.json({ videos });
   } catch (error) {
     console.error('Error getting local videos:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get list of ultrastar songs for song selection
+router.get('/ultrastar-songs', (req, res) => {
+  try {
+    const { search } = req.query;
+    const { scanUltrastarSongs, searchUltrastarSongs } = require('../utils/ultrastarSongs');
+    
+    let songs;
+    if (search && search.trim()) {
+      songs = searchUltrastarSongs(search.trim());
+    } else {
+      songs = scanUltrastarSongs();
+    }
+    
+    res.json({ songs });
+  } catch (error) {
+    console.error('Error getting ultrastar songs:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

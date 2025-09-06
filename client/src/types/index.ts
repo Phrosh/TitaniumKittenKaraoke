@@ -11,7 +11,7 @@ export interface Song {
   title: string;
   artist?: string;
   youtube_url?: string;
-  mode: 'youtube' | 'server_video' | 'file';
+  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar';
   status: string;
   position: number;
   delay_count: number;

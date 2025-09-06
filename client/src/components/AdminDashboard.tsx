@@ -390,7 +390,7 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
-const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' }>`
+const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' }>`
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.7rem;
@@ -402,6 +402,7 @@ const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' }>`
       case 'youtube': return '#ff4444';
       case 'server_video': return '#28a745';
       case 'file': return '#667eea';
+      case 'ultrastar': return '#8e44ad';
       default: return '#ff4444';
     }
   }};
@@ -1137,16 +1138,20 @@ const AdminDashboard: React.FC = () => {
 
   const handleOpenManualSongList = async () => {
     try {
-      const [localResponse, fileResponse] = await Promise.all([
+      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
+        songAPI.getUltrastarSongs(),
         songAPI.getFileSongs()
       ]);
       
       const serverVideos = localResponse.data.videos || [];
+      const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
       // Combine and deduplicate songs
       const allSongs = [...fileSongs];
+      
+      // Add server videos
       serverVideos.forEach(serverVideo => {
         const exists = allSongs.some(song => 
           song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
@@ -1154,6 +1159,17 @@ const AdminDashboard: React.FC = () => {
         );
         if (!exists) {
           allSongs.push(serverVideo);
+        }
+      });
+      
+      // Add ultrastar songs
+      ultrastarSongs.forEach(ultrastarSong => {
+        const exists = allSongs.some(song => 
+          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+        );
+        if (!exists) {
+          allSongs.push(ultrastarSong);
         }
       });
       
@@ -1270,31 +1286,54 @@ const AdminDashboard: React.FC = () => {
   // Song Management Functions
   const fetchSongs = async () => {
     try {
-      const [localResponse, fileResponse] = await Promise.all([
+      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
+        songAPI.getUltrastarSongs(),
         songAPI.getFileSongs()
       ]);
       
       const serverVideos = localResponse.data.videos || [];
+      const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
-      // Combine and deduplicate songs, preserving both modes
+      // Combine and deduplicate songs, preserving all modes
       const allSongs = [...fileSongs];
+      
+      // Add server videos
       serverVideos.forEach(serverVideo => {
         const existingIndex = allSongs.findIndex(song => 
           song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
           song.title.toLowerCase() === serverVideo.title.toLowerCase()
         );
         if (existingIndex !== -1) {
-          // Song exists as file, add local mode
-          allSongs[existingIndex].modes = ['file', 'server_video'];
+          // Song exists, add server_video mode
+          if (!allSongs[existingIndex].modes.includes('server_video')) {
+            allSongs[existingIndex].modes.push('server_video');
+          }
         } else {
-          // Song doesn't exist, add as local only
+          // Song doesn't exist, add as server_video only
           allSongs.push({ ...serverVideo, modes: ['server_video'] });
         }
       });
       
-      // Add modes array to file songs that don't have local equivalent
+      // Add ultrastar songs
+      ultrastarSongs.forEach(ultrastarSong => {
+        const existingIndex = allSongs.findIndex(song => 
+          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+        );
+        if (existingIndex !== -1) {
+          // Song exists, add ultrastar mode
+          if (!allSongs[existingIndex].modes.includes('ultrastar')) {
+            allSongs[existingIndex].modes.push('ultrastar');
+          }
+        } else {
+          // Song doesn't exist, add as ultrastar only
+          allSongs.push({ ...ultrastarSong, modes: ['ultrastar'] });
+        }
+      });
+      
+      // Add modes array to songs that don't have modes yet
       allSongs.forEach(song => {
         if (!song.modes) {
           song.modes = ['file'];
@@ -1626,10 +1665,21 @@ const AdminDashboard: React.FC = () => {
                           }}
                         >
                           {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                          <ModeBadge $mode={song.mode || 'youtube'}>
-                            {song.mode === 'server_video' ? 'Server' : 
-                             song.mode === 'file' ? 'Datei' : 'YouTube'}
-                          </ModeBadge>
+                          {song.modes ? (
+                            song.modes.map((mode, index) => (
+                              <ModeBadge key={index} $mode={mode}>
+                                {mode === 'server_video' ? '🟢 Server' : 
+                                 mode === 'file' ? '🔵 Datei' : 
+                                 mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                              </ModeBadge>
+                            ))
+                          ) : (
+                            <ModeBadge $mode={song.mode || 'youtube'}>
+                              {song.mode === 'server_video' ? '🟢 Server' : 
+                               song.mode === 'file' ? '🔵 Datei' : 
+                               song.mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                            </ModeBadge>
+                          )}
                         </SongTitle>
                         {(song.mode || 'youtube') === 'youtube' && (
                           <YouTubeField

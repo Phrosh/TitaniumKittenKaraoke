@@ -47,6 +47,9 @@ export const songAPI = {
   getServerVideos: (search?: string) =>
     api.get('/songs/server-videos', { params: search ? { search } : {} }),
   
+  getUltrastarSongs: (search?: string) =>
+    api.get('/songs/ultrastar-songs', { params: search ? { search } : {} }),
+  
   getFileSongs: () =>
     api.get('/songs/file-songs'), // Public endpoint for file songs
   

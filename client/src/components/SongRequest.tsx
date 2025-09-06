@@ -235,6 +235,7 @@ const SongRequest: React.FC = () => {
   const [deviceId, setDeviceId] = useState<string>('');
   const [showSongList, setShowSongList] = useState(false);
   const [serverVideos, setServerVideos] = useState<any[]>([]);
+  const [ultrastarSongs, setUltrastarSongs] = useState<any[]>([]);
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
@@ -326,12 +327,14 @@ const SongRequest: React.FC = () => {
 
   const handleOpenSongList = async () => {
     try {
-      const [localResponse, fileResponse] = await Promise.all([
+      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
+        songAPI.getUltrastarSongs(),
         songAPI.getFileSongs()
       ]);
       
       const serverVideos = localResponse.data.videos || [];
+      const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
       // Try to get invisible songs, but don't fail if it doesn't work
@@ -346,6 +349,8 @@ const SongRequest: React.FC = () => {
       
       // Combine and deduplicate songs
       const allSongs = [...fileSongs];
+      
+      // Add server videos
       serverVideos.forEach(serverVideo => {
         const exists = allSongs.some(song => 
           song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
@@ -353,6 +358,17 @@ const SongRequest: React.FC = () => {
         );
         if (!exists) {
           allSongs.push(serverVideo);
+        }
+      });
+      
+      // Add ultrastar songs
+      ultrastarSongs.forEach(ultrastarSong => {
+        const exists = allSongs.some(song => 
+          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+        );
+        if (!exists) {
+          allSongs.push(ultrastarSong);
         }
       });
       
@@ -375,6 +391,8 @@ const SongRequest: React.FC = () => {
       });
       
       setServerVideos(visibleSongs);
+      setUltrastarSongs(ultrastarSongs);
+      setFileSongs(fileSongs);
       setShowSongList(true);
     } catch (error) {
       console.error('Error loading songs:', error);
@@ -518,7 +536,7 @@ const SongRequest: React.FC = () => {
       <SongListModal $isOpen={showSongList}>
         <SongListContent>
           <SongListHeader>
-            <SongListTitle>🎵 Server Songs</SongListTitle>
+            <SongListTitle>🎵 Alle Songs</SongListTitle>
             <CloseButton onClick={handleCloseSongList}>×</CloseButton>
           </SongListHeader>
           
@@ -561,7 +579,7 @@ const SongRequest: React.FC = () => {
               ))
             ) : (
               <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                {searchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
+                {searchTerm ? 'Keine Songs gefunden' : 'Keine Songs verfügbar'}
               </div>
             )}
           </div>
