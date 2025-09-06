@@ -31,6 +31,7 @@ function initializeDatabase() {
       title TEXT NOT NULL,
       artist TEXT,
       youtube_url TEXT,
+      mode TEXT DEFAULT 'youtube',
       status TEXT DEFAULT 'pending',
       position INTEGER DEFAULT 0,
       priority REAL DEFAULT 1.0,
@@ -61,14 +62,32 @@ function initializeDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `, () => {
-    // Insert default settings
-    db.run(`
-      INSERT OR IGNORE INTO settings (key, value) VALUES 
-      ('max_song_delay', '15'),
-      ('current_song_id', '0'),
-      ('regression_value', '0.1'),
-      ('overlay_title', 'Willkommen beim Karaoke')
-    `);
+  // Insert default settings
+  db.run(`
+    INSERT OR IGNORE INTO settings (key, value) VALUES
+    ('max_song_delay', '15'),
+    ('current_song_id', '0'),
+    ('regression_value', '0.1'),
+    ('overlay_title', 'Willkommen beim Karaoke')
+  `);
+
+  // Migration: Add mode column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN mode TEXT DEFAULT 'youtube'
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  // Migration: Add regression_count column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN regression_count INTEGER DEFAULT 0
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
   });
 }
 

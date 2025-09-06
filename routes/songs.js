@@ -5,6 +5,9 @@ const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const YouTubeMetadataService = require('../utils/youtubeMetadata');
 const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
+const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
 
@@ -54,9 +57,22 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Get duration if it's a YouTube URL
+    // Check for local video first
+    let mode = 'youtube';
     let durationSeconds = null;
-    if (youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
+    
+    if (!youtubeUrl) {
+      // Only check for local video if no YouTube URL is provided
+      const localVideo = findLocalVideo(artist, title);
+      if (localVideo) {
+        mode = 'local_video';
+        youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+        console.log(`Found local video: ${localVideo.filename}`);
+      }
+    }
+
+    // Get duration if it's a YouTube URL
+    if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
       try {
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
         durationSeconds = metadata.duration_seconds;
@@ -65,8 +81,8 @@ router.post('/request', [
       }
     }
 
-    // Create song with priority and duration
-    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds);
+    // Create song with priority, duration and mode
+    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode);
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);
@@ -175,6 +191,27 @@ router.get('/qr-data', async (req, res) => {
     res.json(qrData);
   } catch (error) {
     console.error('Error generating QR data:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+// Get list of local videos for song selection
+router.get('/local-videos', (req, res) => {
+  try {
+    const { search } = req.query;
+    const { scanLocalVideos, searchLocalVideos } = require('../utils/localVideos');
+    
+    let videos;
+    if (search && search.trim()) {
+      videos = searchLocalVideos(search.trim());
+    } else {
+      videos = scanLocalVideos();
+    }
+    
+    res.json({ videos });
+  } catch (error) {
+    console.error('Error getting local videos:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

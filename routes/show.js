@@ -106,6 +106,7 @@ router.get('/', async (req, res) => {
         artist: currentSong.artist,
         title: currentSong.title,
         youtube_url: currentSong.youtube_url,
+        mode: currentSong.mode || 'youtube',
         position: currentSong.position,
         duration_seconds: currentSong.duration_seconds
       } : null,

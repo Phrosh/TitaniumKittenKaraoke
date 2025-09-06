@@ -11,12 +11,21 @@ export interface Song {
   title: string;
   artist?: string;
   youtube_url?: string;
+  mode: 'youtube' | 'local_video';
   status: string;
   position: number;
   delay_count: number;
   created_at: string;
   user_name?: string;
   device_id?: string;
+}
+
+export interface LocalVideo {
+  filename: string;
+  artist: string;
+  title: string;
+  extension: string;
+  fullPath: string;
 }
 
 export interface PlaylistResponse {

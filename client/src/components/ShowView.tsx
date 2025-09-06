@@ -8,6 +8,7 @@ interface CurrentSong {
   artist: string;
   title: string;
   youtube_url: string;
+  mode: 'youtube' | 'local_video';
   position: number;
   duration_seconds?: number;
 }
@@ -47,6 +48,12 @@ const VideoIframe = styled.iframe`
   width: 100%;
   height: 100%;
   border: none;
+`;
+
+const VideoElement = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 `;
 
 const Header = styled.div`
@@ -522,27 +529,51 @@ const ShowView: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const embedUrl = currentSong?.youtube_url ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+  const isLocalVideo = currentSong?.mode === 'local_video';
+  const embedUrl = currentSong?.youtube_url && !isLocalVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   return (
     <ShowContainer>
       {/* Fullscreen Video */}
-      {embedUrl ? (
+      {currentSong?.youtube_url ? (
         <VideoWrapper>
-          <VideoIframe
-            key={currentSong?.id} // Force re-render only when song changes
-            src={embedUrl}
-            title={`${currentSong?.user_name} - ${currentSong?.title}`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={() => {
-              console.log('🎬 YouTube video loaded:', { 
-                songId: currentSong?.id, 
-                title: currentSong?.title,
-                embedUrl 
-              });
-            }}
-          />
+          {isLocalVideo ? (
+            <VideoElement
+              key={currentSong?.id} // Force re-render only when song changes
+              src={currentSong.youtube_url}
+              title={`${currentSong?.user_name} - ${currentSong?.title}`}
+              controls
+              autoPlay
+              onLoadStart={() => {
+                console.log('🎬 Local video started:', { 
+                  songId: currentSong?.id, 
+                  title: currentSong?.title,
+                  url: currentSong.youtube_url 
+                });
+              }}
+              onEnded={() => {
+                console.log('🎬 Local video ended:', { 
+                  songId: currentSong?.id, 
+                  title: currentSong?.title 
+                });
+              }}
+            />
+          ) : (
+            <VideoIframe
+              key={currentSong?.id} // Force re-render only when song changes
+              src={embedUrl}
+              title={`${currentSong?.user_name} - ${currentSong?.title}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              onLoad={() => {
+                console.log('🎬 YouTube video loaded:', { 
+                  songId: currentSong?.id, 
+                  title: currentSong?.title,
+                  embedUrl 
+                });
+              }}
+            />
+          )}
         </VideoWrapper>
       ) : (
         <VideoWrapper>

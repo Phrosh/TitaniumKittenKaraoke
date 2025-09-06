@@ -43,6 +43,9 @@ export const songAPI = {
   
   getQRData: () =>
     api.get('/songs/qr-data'),
+  
+  getLocalVideos: (search?: string) =>
+    api.get('/songs/local-videos', { params: search ? { search } : {} }),
 };
 
 export const playlistAPI = {

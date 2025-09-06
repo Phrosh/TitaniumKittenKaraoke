@@ -1,16 +1,16 @@
 const db = require('../config/database');
 
 class Song {
-  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null) {
+  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null, mode = 'youtube') {
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO songs (user_id, title, artist, youtube_url, priority, duration_seconds) VALUES (?, ?, ?, ?, ?, ?)',
-        [userId, title, artist, youtubeUrl, priority, durationSeconds],
+        'INSERT INTO songs (user_id, title, artist, youtube_url, priority, duration_seconds, mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userId, title, artist, youtubeUrl, priority, durationSeconds, mode],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds });
+            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds, mode });
           }
         }
       );

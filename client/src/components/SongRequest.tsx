@@ -109,6 +109,114 @@ const QRCodeContainer = styled.div`
   margin: 30px 0;
 `;
 
+const LocalSongsSection = styled.div`
+  margin-top: 15px;
+`;
+
+const LocalSongsButton = styled.button`
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 15px;
+
+  &:hover {
+    background: #218838;
+    transform: translateY(-1px);
+  }
+`;
+
+const SongListModal = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: ${props => props.$isOpen ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const SongListContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+const SongListHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const SongListTitle = styled.h3`
+  margin: 0;
+  color: #333;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  
+  &:hover {
+    color: #333;
+  }
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 15px;
+`;
+
+const SongItem = styled.div`
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  
+  &:hover {
+    background: #f8f9fa;
+    border-color: #667eea;
+  }
+`;
+
+const SongArtist = styled.div`
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+  padding-right: 10px;
+`;
+
+const SongTitle = styled.div`
+  color: #666;
+  font-size: 14px;
+  flex: 1;
+  padding-left: 10px;
+  border-left: 1px solid #eee;
+`;
+
 const QRCodeImage = styled.img`
   max-width: 200px;
   border-radius: 8px;
@@ -125,6 +233,9 @@ const SongRequest: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string>('');
+  const [showSongList, setShowSongList] = useState(false);
+  const [localVideos, setLocalVideos] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -194,10 +305,40 @@ const SongRequest: React.FC = () => {
     }
   };
 
+  const handleOpenSongList = async () => {
+    try {
+      const response = await songAPI.getLocalVideos();
+      setLocalVideos(response.data.videos);
+      setShowSongList(true);
+    } catch (error) {
+      console.error('Error loading local videos:', error);
+      setMessage({
+        type: 'error',
+        text: 'Fehler beim Laden der lokalen Songs'
+      });
+    }
+  };
+
+  const handleCloseSongList = () => {
+    setShowSongList(false);
+    setSearchTerm('');
+  };
+
+  const handleSelectSong = (video: any) => {
+    const songInput = `${video.artist} - ${video.title}`;
+    setFormData(prev => ({ ...prev, songInput }));
+    handleCloseSongList();
+  };
+
+  const filteredVideos = localVideos.filter(video =>
+    video.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${video.artist} - ${video.title}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <Container>
       <Card>
-        <Title>🎤 Karaoke Song Wunsch</Title>
         
 
         <QRCodeContainer>
@@ -231,6 +372,15 @@ const SongRequest: React.FC = () => {
             />
           </FormGroup>
 
+          <LocalSongsSection>
+            <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+              Oder nimm einen Song aus der Liste:
+            </div>
+            <LocalSongsButton type="button" onClick={handleOpenSongList}>
+              🎵 Songliste öffnen
+            </LocalSongsButton>
+          </LocalSongsSection>
+
           {message && (
             <Alert type={message.type}>
               {message.text}
@@ -247,6 +397,43 @@ const SongRequest: React.FC = () => {
           <p>Das System sorgt für eine faire Reihenfolge.</p>
         </div>
       </Card>
+
+      {/* Song List Modal */}
+      <SongListModal $isOpen={showSongList}>
+        <SongListContent>
+          <SongListHeader>
+            <SongListTitle>🎵 Lokale Songs</SongListTitle>
+            <CloseButton onClick={handleCloseSongList}>×</CloseButton>
+          </SongListHeader>
+          
+          <SearchInput
+            type="text"
+            placeholder="Songs durchsuchen..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          
+          <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
+            <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
+            <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+          </div>
+          
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            {filteredVideos.length > 0 ? (
+              filteredVideos.map((video, index) => (
+                <SongItem key={index} onClick={() => handleSelectSong(video)}>
+                  <SongArtist>{video.artist}</SongArtist>
+                  <SongTitle>{video.title}</SongTitle>
+                </SongItem>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                {searchTerm ? 'Keine Songs gefunden' : 'Keine lokalen Songs verfügbar'}
+              </div>
+            )}
+          </div>
+        </SongListContent>
+      </SongListModal>
     </Container>
   );
 };

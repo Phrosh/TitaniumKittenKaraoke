@@ -201,7 +201,51 @@ const PlaylistTitle = styled.h2`
 
 const ControlButtons = styled.div`
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+`;
+
+const CenterButtons = styled.div`
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+`;
+
+const RightButtons = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const SmallButton = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
+  background: ${props => 
+    props.variant === 'success' ? '#27ae60' :
+    props.variant === 'danger' ? '#e74c3c' :
+    '#667eea'
+  };
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: ${props => 
+      props.variant === 'success' ? '#229954' :
+      props.variant === 'danger' ? '#c0392b' :
+      '#5a6fd8'
+    };
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
@@ -339,6 +383,19 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
+const ModeBadge = styled.div<{ $mode: 'youtube' | 'local_video' }>`
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: ${props => props.$mode === 'youtube' ? '#ff4444' : '#28a745'};
+  color: white;
+  min-width: 60px;
+  text-align: center;
+`;
+
 const SongTitle = styled.div<{ $isCurrent?: boolean }>`
   flex: 1;
   font-size: 0.95rem;
@@ -348,6 +405,9 @@ const SongTitle = styled.div<{ $isCurrent?: boolean }>`
   border-radius: 4px;
   transition: all 0.2s ease;
   user-select: text;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
@@ -1076,34 +1136,37 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'playlist' && (
             <PlaylistContainer>
         <PlaylistHeader>
-          <div></div>
           <ControlButtons>
-            <Button 
-              variant="success" 
-              onClick={handleNextSong}
-              disabled={actionLoading}
-            >
-              ⏭️ Weiter
-            </Button>
-            <QRCodeToggleButton 
-              $active={showQRCodeOverlay}
-              onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
-            >
-              📱 {showQRCodeOverlay ? 'QR-Code ausblenden' : 'QR-Code anzeigen'}
-            </QRCodeToggleButton>
-            <ShowPastSongsToggleButton 
-              $active={showPastSongs}
-              onClick={() => setShowPastSongs(!showPastSongs)}
-            >
-              📜 {showPastSongs ? 'Vergangene ausblenden' : 'Vergangene anzeigen'}
-            </ShowPastSongsToggleButton>
-            <Button 
-              variant="danger" 
-              onClick={handleClearAllSongs}
-              disabled={actionLoading}
-            >
-              🗑️ Liste Leeren
-            </Button>
+            <div></div>
+            <CenterButtons>
+              <QRCodeToggleButton 
+                $active={showQRCodeOverlay}
+                onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
+              >
+                📱 {showQRCodeOverlay ? 'Overlay ausblenden' : 'Overlay anzeigen'}
+              </QRCodeToggleButton>
+              <Button 
+                variant="success" 
+                onClick={handleNextSong}
+                disabled={actionLoading}
+              >
+                ⏭️ Weiter
+              </Button>
+            </CenterButtons>
+            <RightButtons>
+              <SmallButton 
+                onClick={() => setShowPastSongs(!showPastSongs)}
+              >
+                📜 {showPastSongs ? 'Vergangene ausblenden' : 'Vergangene anzeigen'}
+              </SmallButton>
+              <SmallButton 
+                variant="danger" 
+                onClick={handleClearAllSongs}
+                disabled={actionLoading}
+              >
+                🗑️ Liste Leeren
+              </SmallButton>
+            </RightButtons>
           </ControlButtons>
         </PlaylistHeader>
 
@@ -1128,7 +1191,7 @@ const AdminDashboard: React.FC = () => {
                   
                   <SongItem 
                     $isCurrent={isCurrent}
-                    $hasNoYoutube={!song.youtube_url}
+                    $hasNoYoutube={song.mode === 'youtube' && !song.youtube_url}
                     $isPast={isPast}
                     $isDragging={isDragging}
                     $isDropTarget={isDropTarget}
@@ -1152,26 +1215,31 @@ const AdminDashboard: React.FC = () => {
                         <DeviceId $isCurrent={song.id === currentSong?.id}>📱 {song.device_id}</DeviceId>
                       </SongName>
                       <SongTitleRow>
-                                              <SongTitle 
-                        $isCurrent={song.id === currentSong?.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyToClipboard(song);
-                        }}
-                      >
-                        {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                      </SongTitle>
-                        <YouTubeField
-                          type="url"
-                          placeholder="YouTube-Link hier eingeben..."
-                          value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
-                          onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
-                          onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
+                        <SongTitle 
+                          $isCurrent={song.id === currentSong?.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleYouTubeFieldClick(song);
+                            handleCopyToClipboard(song);
                           }}
-                        />
+                        >
+                          {song.artist ? `${song.artist} - ${song.title}` : song.title}
+                          <ModeBadge $mode={song.mode || 'youtube'}>
+                            {song.mode === 'local_video' ? 'Lokal' : 'YouTube'}
+                          </ModeBadge>
+                        </SongTitle>
+                        {(song.mode || 'youtube') === 'youtube' && (
+                          <YouTubeField
+                            type="url"
+                            placeholder="YouTube-Link hier eingeben..."
+                            value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
+                            onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
+                            onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleYouTubeFieldClick(song);
+                            }}
+                          />
+                        )}
                       </SongTitleRow>
                     </SongContent>
                     
