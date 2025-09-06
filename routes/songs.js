@@ -379,6 +379,122 @@ router.get('/ultrastar-songs', (req, res) => {
   }
 });
 
+// Get ultrastar song data (parsed .txt file) - MUST be before /:filename route
+router.get('/ultrastar/:folderName/data', (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+    const { parseUltrastarFile, findAudioFile } = require('../utils/ultrastarParser');
+    
+    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    
+    console.log('🔍 Ultrastar data request:', {
+      folderName: folderName,
+      decodedFolderName: decodeURIComponent(folderName),
+      folderPath: folderPath,
+      exists: fs.existsSync(folderPath)
+    });
+    
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ message: 'Ultrastar folder not found', folderPath });
+    }
+    
+    // Find .txt file
+    const files = fs.readdirSync(folderPath);
+    const txtFile = files.find(file => file.toLowerCase().endsWith('.txt'));
+    
+    if (!txtFile) {
+      return res.status(404).json({ message: 'Ultrastar .txt file not found' });
+    }
+    
+    const txtPath = path.join(folderPath, txtFile);
+    const songData = parseUltrastarFile(txtPath);
+    
+    if (!songData) {
+      return res.status(500).json({ message: 'Error parsing Ultrastar file' });
+    }
+    
+    // Find audio file
+    const audioFile = findAudioFile(folderPath);
+    if (audioFile) {
+      const audioFilename = path.basename(audioFile);
+      songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+    }
+    
+    res.json({ songData });
+  } catch (error) {
+    console.error('Error getting ultrastar song data:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Serve ultrastar song files (audio, video, cover, txt)
+router.get('/ultrastar/:folderName/:filename', (req, res) => {
+  try {
+    const { folderName, filename } = req.params;
+    const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+    
+    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    const filePath = path.join(folderPath, decodeURIComponent(filename));
+    
+    // Security check - ensure file is within ultrastar directory
+    if (!filePath.startsWith(ULTRASTAR_DIR)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+    
+    // Set appropriate content type
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'application/octet-stream';
+    
+    switch (ext) {
+      case '.mp3':
+        contentType = 'audio/mpeg';
+        break;
+      case '.flac':
+        contentType = 'audio/flac';
+        break;
+      case '.wav':
+        contentType = 'audio/wav';
+        break;
+      case '.ogg':
+        contentType = 'audio/ogg';
+        break;
+      case '.m4a':
+        contentType = 'audio/mp4';
+        break;
+      case '.aac':
+        contentType = 'audio/aac';
+        break;
+      case '.jpg':
+      case '.jpeg':
+        contentType = 'image/jpeg';
+        break;
+      case '.png':
+        contentType = 'image/png';
+        break;
+      case '.txt':
+        contentType = 'text/plain';
+        break;
+      case '.avi':
+      case '.mp4':
+      case '.mkv':
+        contentType = 'video/mp4';
+        break;
+    }
+    
+    res.setHeader('Content-Type', contentType);
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving ultrastar file:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 // Public route to toggle QR overlay (for automatic overlay when videos end)
 router.put('/qr-overlay', [
   body('show').isBoolean().withMessage('Show muss ein Boolean sein')

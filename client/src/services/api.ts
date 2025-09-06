@@ -50,6 +50,9 @@ export const songAPI = {
   getUltrastarSongs: (search?: string) =>
     api.get('/songs/ultrastar-songs', { params: search ? { search } : {} }),
   
+  getUltrastarSongData: (folderName: string) =>
+    api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/data`),
+  
   getFileSongs: () =>
     api.get('/songs/file-songs'), // Public endpoint for file songs
   

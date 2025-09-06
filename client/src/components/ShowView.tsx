@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { showAPI } from '../services/api';
+import { showAPI, songAPI } from '../services/api';
 
 interface CurrentSong {
   id: number;
@@ -8,7 +8,7 @@ interface CurrentSong {
   artist: string;
   title: string;
   youtube_url: string;
-  mode: 'youtube' | 'server_video' | 'file';
+  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar';
   position: number;
   duration_seconds?: number;
 }
@@ -27,6 +27,34 @@ interface Song {
   artist: string;
   title: string;
   position: number;
+}
+
+interface UltrastarNote {
+  type: string;
+  startBeat: number;
+  duration: number;
+  pitch: number;
+  text: string;
+  line: string;
+}
+
+interface UltrastarSongData {
+  title: string;
+  artist: string;
+  language: string;
+  edition: string;
+  genre: string;
+  year: string;
+  mp3: string;
+  cover: string;
+  video: string;
+  videogap: number;
+  bpm: number;
+  gap: number;
+  background: string;
+  notes: UltrastarNote[];
+  version: string;
+  audioUrl?: string;
 }
 
 const ShowContainer = styled.div`
@@ -55,6 +83,59 @@ const VideoElement = styled.video`
   height: 100%;
   object-fit: contain;
   background: black;
+`;
+
+const AudioElement = styled.audio`
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  max-width: 600px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 10px;
+  padding: 10px;
+  z-index: 10;
+`;
+
+const LyricsDisplay = styled.div`
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  max-width: 600px;
+  min-height: 80px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 10px;
+  padding: 20px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`;
+
+const CurrentLyric = styled.div`
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const NextLyric = styled.div`
+  font-size: 1.2rem;
+  color: #ccc;
+  text-align: center;
+  opacity: 0.7;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 `;
 
 const Header = styled.div`
@@ -401,6 +482,161 @@ const ShowView: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  
+  // Ultrastar-specific state
+  const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const currentLyricRef = useRef<HTMLDivElement | null>(null);
+  const nextLyricRef = useRef<HTMLDivElement | null>(null);
+  const lastLoggedText = useRef<string>('');
+
+  // Ultrastar functions
+  const stopUltrastarTiming = useCallback(() => {
+    if (timingIntervalRef.current) {
+      clearInterval(timingIntervalRef.current);
+      timingIntervalRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const startUltrastarTiming = useCallback((songData: UltrastarSongData) => {
+    // Clear existing interval
+    stopUltrastarTiming();
+    
+    if (!songData.audioUrl || songData.bpm <= 0) {
+      console.warn('Cannot start Ultrastar timing: missing audio URL or invalid BPM');
+      return;
+    }
+    
+    console.log('🎵 Starting Ultrastar timing:', {
+      bpm: songData.bpm,
+      gap: songData.gap,
+      notesCount: songData.notes.length
+    });
+    
+    // Calculate beat duration in milliseconds
+    const beatDuration = (60000 / (songData.bpm)) / 4; // 60 seconds / BPM
+    
+      console.log('🎵 Starting requestAnimationFrame timing:', { 
+        bpm: songData.bpm,
+        beatDuration: Math.round(beatDuration), 
+        beatsPerSecond: songData.bpm / 60
+      });
+      
+      // Debug: Log all parsed notes
+      console.log('🎵 Parsed notes:', songData.notes.slice(0, 20)); // First 20 notes
+      console.log('🎵 Total notes count:', songData.notes.length);
+    
+    // Use requestAnimationFrame for smooth 60fps updates
+    const updateLyrics = () => {
+      if (!audioRef.current) return;
+      
+      const currentTime = audioRef.current.currentTime * 1000; // Convert to milliseconds
+      const songTime = currentTime - songData.gap; // Subtract gap
+      
+      if (songTime < 0) {
+        // Before song starts, continue animation loop
+        animationFrameRef.current = requestAnimationFrame(updateLyrics);
+        return;
+      }
+      
+      // Find current note based on time
+      const currentBeat = songTime / beatDuration;
+      
+      // Find notes that should be active now
+      const activeNotes = songData.notes.filter(note => {
+        const noteStartTime = note.startBeat * beatDuration;
+        const noteEndTime = (note.startBeat + note.duration) * beatDuration;
+        return currentBeat >= note.startBeat && currentBeat < note.startBeat + note.duration;
+      });
+      
+      // Debug: Log timing info every 2 seconds
+      if (Math.floor(currentBeat) % 8 === 0 && Math.floor(currentBeat) > 0) {
+        console.log('🎵 Timing debug:', {
+          currentBeat: Math.round(currentBeat * 100) / 100,
+          songTime: Math.round(songTime),
+          activeNotesCount: activeNotes.length,
+          nextNotes: songData.notes.filter(note => note.startBeat > currentBeat).slice(0, 3)
+        });
+      }
+      
+      // Update lyrics display directly in DOM
+      if (activeNotes.length > 0) {
+        const currentNote = activeNotes[0];
+        if (currentNote.text.trim()) {
+          // Console log for current syllable (only if different from last logged)
+          if (currentNote.text !== lastLoggedText.current) {
+            console.log(`🎤 ${currentNote.text} (${currentNote.type})`);
+            lastLoggedText.current = currentNote.text;
+          }
+          
+          // Direct DOM manipulation for performance
+          if (currentLyricRef.current) {
+            currentLyricRef.current.textContent = currentNote.text;
+          }
+          
+          // Find next note
+          const nextNote = songData.notes.find(note => 
+            note.startBeat > currentNote.startBeat && note.text.trim()
+          );
+          if (nextLyricRef.current) {
+            nextLyricRef.current.textContent = nextNote ? nextNote.text : '';
+          }
+        }
+      } else {
+        // No active notes, clear current lyric
+        if (currentLyricRef.current) {
+          currentLyricRef.current.textContent = '';
+        }
+        // Reset last logged text when no active notes
+        lastLoggedText.current = '';
+      }
+      
+      // Continue animation loop
+      animationFrameRef.current = requestAnimationFrame(updateLyrics);
+    };
+    
+    // Start the animation loop
+    animationFrameRef.current = requestAnimationFrame(updateLyrics);
+  }, [stopUltrastarTiming]);
+
+  const loadUltrastarData = useCallback(async (song: CurrentSong) => {
+    try {
+      // Extract folder name from youtube_url (e.g., "/api/ultrastar/Artist - Title" -> "Artist - Title")
+      const encodedFolderName = song.youtube_url.replace('/api/ultrastar/', '');
+      const folderName = decodeURIComponent(encodedFolderName);
+      console.log('🎵 Loading Ultrastar data for:', folderName);
+      
+      const response = await songAPI.getUltrastarSongData(folderName);
+      const songData = response.data.songData;
+      
+      setUltrastarData(songData);
+      setCurrentNoteIndex(0);
+      
+      console.log('🎵 Ultrastar data loaded:', {
+        title: songData.title,
+        artist: songData.artist,
+        bpm: songData.bpm,
+        gap: songData.gap,
+        notesCount: songData.notes.length,
+        audioUrl: songData.audioUrl
+      });
+      
+      // Start timing if audio is available
+      if (songData.audioUrl) {
+        startUltrastarTiming(songData);
+      }
+    } catch (error) {
+      console.error('Error loading Ultrastar data:', error);
+    }
+  }, [startUltrastarTiming]);
 
   const fetchCurrentSong = async () => {
     try {
@@ -437,6 +673,15 @@ const ShowView: React.FC = () => {
         }
         
         
+        // Load Ultrastar data if it's an ultrastar song
+        if (newSong && newSong.mode === 'ultrastar') {
+          await loadUltrastarData(newSong);
+        } else {
+          // Clear ultrastar data for non-ultrastar songs
+          setUltrastarData(null);
+          stopUltrastarTiming();
+        }
+        
         // Start timer for new song
         if (newSong && newSong.duration_seconds) {
           setVideoStartTime(Date.now());
@@ -468,7 +713,10 @@ const ShowView: React.FC = () => {
     // Refresh every 2 seconds to catch song changes
     const interval = setInterval(fetchCurrentSong, 2000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      stopUltrastarTiming(); // Cleanup ultrastar timing
+    };
   }, [lastSongId]);
 
   // Timer effect
@@ -539,12 +787,13 @@ const ShowView: React.FC = () => {
 
   const isServerVideo = currentSong?.mode === 'server_video';
   const isFileVideo = currentSong?.mode === 'file';
-  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+  const isUltrastar = currentSong?.mode === 'ultrastar';
+  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   return (
     <ShowContainer>
       {/* Fullscreen Video */}
-      {currentSong?.youtube_url ? (
+      {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
           {(isServerVideo || isFileVideo) ? (
             <VideoElement
@@ -576,7 +825,42 @@ const ShowView: React.FC = () => {
                 }
               }}
             />
-          ) : (
+          ) : isUltrastar && ultrastarData?.audioUrl ? (
+            <>
+              <AudioElement
+                key={currentSong?.id}
+                ref={audioRef}
+                src={ultrastarData.audioUrl}
+                controls
+                autoPlay
+                onLoadStart={() => {
+                  console.log('🎵 Ultrastar audio started:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title,
+                    audioUrl: ultrastarData.audioUrl,
+                    mode: currentSong?.mode,
+                    bpm: ultrastarData.bpm,
+                    gap: ultrastarData.gap
+                  });
+                }}
+                onEnded={() => {
+                  console.log('🎵 Ultrastar audio ended:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title 
+                  });
+                  stopUltrastarTiming();
+                  // Automatically show QR overlay when audio ends
+                  showAPI.toggleQRCodeOverlay(true).catch(error => {
+                    console.error('Error showing overlay:', error);
+                  });
+                }}
+              />
+              <LyricsDisplay>
+                <CurrentLyric ref={currentLyricRef}></CurrentLyric>
+                <NextLyric ref={nextLyricRef}></NextLyric>
+              </LyricsDisplay>
+            </>
+          ) : embedUrl ? (
             <VideoIframe
               key={currentSong?.id} // Force re-render only when song changes
               src={embedUrl}
@@ -587,10 +871,15 @@ const ShowView: React.FC = () => {
                 console.log('🎬 YouTube video loaded:', { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  embedUrl 
+                  embedUrl,
+                  mode: currentSong?.mode
                 });
               }}
             />
+          ) : (
+            <NoVideoMessage>
+              {currentSong ? '🎵 Kein Video verfügbar' : '🎤 Kein Song ausgewählt'}
+            </NoVideoMessage>
           )}
         </VideoWrapper>
       ) : (
