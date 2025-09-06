@@ -1278,15 +1278,26 @@ const AdminDashboard: React.FC = () => {
       const localVideos = localResponse.data.videos || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
-      // Combine and deduplicate songs (same logic as modal)
+      // Combine and deduplicate songs, preserving both modes
       const allSongs = [...fileSongs];
       localVideos.forEach(localVideo => {
-        const exists = allSongs.some(song => 
+        const existingIndex = allSongs.findIndex(song => 
           song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
           song.title.toLowerCase() === localVideo.title.toLowerCase()
         );
-        if (!exists) {
-          allSongs.push(localVideo);
+        if (existingIndex !== -1) {
+          // Song exists as file, add local mode
+          allSongs[existingIndex].modes = ['file', 'local_video'];
+        } else {
+          // Song doesn't exist, add as local only
+          allSongs.push({ ...localVideo, modes: ['local_video'] });
+        }
+      });
+      
+      // Add modes array to file songs that don't have local equivalent
+      allSongs.forEach(song => {
+        if (!song.modes) {
+          song.modes = ['file'];
         }
       });
       
@@ -2294,16 +2305,44 @@ const AdminDashboard: React.FC = () => {
                                 <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
                                   {song.artist} - {song.title}
                                 </div>
-                                <span style={{ 
-                                  fontSize: '12px', 
-                                  color: song.mode === 'youtube' ? '#dc3545' : song.mode === 'local_video' ? '#28a745' : '#007bff',
-                                  background: song.mode === 'youtube' ? '#f8d7da' : song.mode === 'local_video' ? '#d4edda' : '#cce7ff',
-                                  padding: '2px 6px', 
-                                  borderRadius: '4px',
-                                  fontWeight: '500'
-                                }}>
-                                  {song.mode === 'youtube' ? '🔴 YouTube' : song.mode === 'local_video' ? '🟢 Lokal' : '🔵 Datei'}
-                                </span>
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  {song.modes?.includes('local_video') && (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#28a745',
+                                      background: '#d4edda',
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontWeight: '500'
+                                    }}>
+                                      🟢 Lokal
+                                    </span>
+                                  )}
+                                  {song.modes?.includes('file') && (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#007bff',
+                                      background: '#cce7ff',
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontWeight: '500'
+                                    }}>
+                                      🔵 Datei
+                                    </span>
+                                  )}
+                                  {song.mode === 'youtube' && (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#dc3545',
+                                      background: '#f8d7da',
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontWeight: '500'
+                                    }}>
+                                      🔴 YouTube
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
