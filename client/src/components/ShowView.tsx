@@ -53,7 +53,8 @@ const VideoIframe = styled.iframe`
 const VideoElement = styled.video`
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: black;
 `;
 
 const Header = styled.div`
