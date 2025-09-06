@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { adminAPI, playlistAPI, showAPI } from '../services/api';
+import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData, Song, AdminUser } from '../types';
 
 const Container = styled.div`
@@ -643,6 +643,9 @@ const AdminDashboard: React.FC = () => {
     singerName: '',
     songInput: ''
   });
+  const [showManualSongList, setShowManualSongList] = useState(false);
+  const [manualSongList, setManualSongList] = useState<any[]>([]);
+  const [manualSongSearchTerm, setManualSongSearchTerm] = useState('');
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -1082,6 +1085,65 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleOpenManualSongList = async () => {
+    try {
+      const [localResponse, fileResponse] = await Promise.all([
+        songAPI.getLocalVideos(),
+        songAPI.getFileSongs()
+      ]);
+      
+      const localVideos = localResponse.data.videos || [];
+      const fileSongs = fileResponse.data.fileSongs || [];
+      
+      // Combine and deduplicate songs
+      const allSongs = [...fileSongs];
+      localVideos.forEach(localVideo => {
+        const exists = allSongs.some(song => 
+          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === localVideo.title.toLowerCase()
+        );
+        if (!exists) {
+          allSongs.push(localVideo);
+        }
+      });
+      
+      // Sort alphabetically by artist, then by title
+      allSongs.sort((a, b) => {
+        const artistA = a.artist.toLowerCase();
+        const artistB = b.artist.toLowerCase();
+        if (artistA !== artistB) {
+          return artistA.localeCompare(artistB);
+        }
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      });
+      
+      setManualSongList(allSongs);
+      setShowManualSongList(true);
+    } catch (error) {
+      console.error('Error loading manual song list:', error);
+      toast.error('Fehler beim Laden der Songliste');
+    }
+  };
+
+  const handleCloseManualSongList = () => {
+    setShowManualSongList(false);
+    setManualSongSearchTerm('');
+  };
+
+  const handleSelectManualSong = (song: any) => {
+    setManualSongData(prev => ({
+      ...prev,
+      songInput: `${song.artist} - ${song.title}`
+    }));
+    handleCloseManualSongList();
+  };
+
+  const filteredManualSongs = manualSongList.filter(song =>
+    song.artist.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
+    song.title.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
+    `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
+  );
+
   // Admin User Management Functions
   const fetchAdminUsers = async () => {
     try {
@@ -1191,6 +1253,22 @@ const AdminDashboard: React.FC = () => {
           >
             {actionLoading ? 'Hinzufügen...' : '➕ Hinzufügen'}
           </ManualSongButton>
+          <button
+            type="button"
+            onClick={handleOpenManualSongList}
+            style={{
+              background: '#6c757d',
+              color: 'white',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              marginLeft: '15px'
+            }}
+          >
+            🎵 Songliste
+          </button>
         </ManualSongForm>
       </ManualSongSection>
 
@@ -1734,6 +1812,116 @@ const AdminDashboard: React.FC = () => {
             </ModalButtons>
           </ModalContent>
         </Modal>
+      )}
+
+      {/* Manual Song List Modal */}
+      {showManualSongList && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              borderBottom: '1px solid #eee',
+              paddingBottom: '15px'
+            }}>
+              <h3 style={{ margin: 0, color: '#333' }}>🎵 Lokale Songs</h3>
+              <button
+                onClick={handleCloseManualSongList}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Songs durchsuchen..."
+              value={manualSongSearchTerm}
+              onChange={(e) => setManualSongSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                marginBottom: '15px',
+                fontSize: '14px'
+              }}
+            />
+            
+            <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
+              <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
+              <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
+              {filteredManualSongs.length > 0 ? (
+                filteredManualSongs.map((song, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelectManualSong(song)}
+                    style={{
+                      padding: '10px',
+                      border: '1px solid #eee',
+                      borderRadius: '8px',
+                      marginBottom: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f8f9fa';
+                      e.currentTarget.style.borderColor = '#667eea';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#eee';
+                    }}
+                  >
+                    <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                      {song.artist}
+                    </div>
+                    <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                      {song.title}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                  {manualSongSearchTerm ? 'Keine Songs gefunden' : 'Keine lokalen Songs verfügbar'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </Container>
