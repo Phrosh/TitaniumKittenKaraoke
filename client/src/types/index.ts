@@ -11,7 +11,7 @@ export interface Song {
   title: string;
   artist?: string;
   youtube_url?: string;
-  mode: 'youtube' | 'local_video' | 'file';
+  mode: 'youtube' | 'server_video' | 'file';
   status: string;
   position: number;
   delay_count: number;
@@ -20,7 +20,7 @@ export interface Song {
   device_id?: string;
 }
 
-export interface LocalVideo {
+export interface ServerVideo {
   filename: string;
   artist: string;
   title: string;

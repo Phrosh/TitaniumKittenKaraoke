@@ -390,7 +390,7 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
-const ModeBadge = styled.div<{ $mode: 'youtube' | 'local_video' | 'file' }>`
+const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' }>`
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.7rem;
@@ -400,7 +400,7 @@ const ModeBadge = styled.div<{ $mode: 'youtube' | 'local_video' | 'file' }>`
   background: ${props => {
     switch (props.$mode) {
       case 'youtube': return '#ff4444';
-      case 'local_video': return '#28a745';
+      case 'server_video': return '#28a745';
       case 'file': return '#667eea';
       default: return '#ff4444';
     }
@@ -1138,22 +1138,22 @@ const AdminDashboard: React.FC = () => {
   const handleOpenManualSongList = async () => {
     try {
       const [localResponse, fileResponse] = await Promise.all([
-        songAPI.getLocalVideos(),
+        songAPI.getServerVideos(),
         songAPI.getFileSongs()
       ]);
       
-      const localVideos = localResponse.data.videos || [];
+      const serverVideos = localResponse.data.videos || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
       // Combine and deduplicate songs
       const allSongs = [...fileSongs];
-      localVideos.forEach(localVideo => {
+      serverVideos.forEach(serverVideo => {
         const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === localVideo.title.toLowerCase()
+          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === serverVideo.title.toLowerCase()
         );
         if (!exists) {
-          allSongs.push(localVideo);
+          allSongs.push(serverVideo);
         }
       });
       
@@ -1271,26 +1271,26 @@ const AdminDashboard: React.FC = () => {
   const fetchSongs = async () => {
     try {
       const [localResponse, fileResponse] = await Promise.all([
-        songAPI.getLocalVideos(),
+        songAPI.getServerVideos(),
         songAPI.getFileSongs()
       ]);
       
-      const localVideos = localResponse.data.videos || [];
+      const serverVideos = localResponse.data.videos || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
       // Combine and deduplicate songs, preserving both modes
       const allSongs = [...fileSongs];
-      localVideos.forEach(localVideo => {
+      serverVideos.forEach(serverVideo => {
         const existingIndex = allSongs.findIndex(song => 
-          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === localVideo.title.toLowerCase()
+          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === serverVideo.title.toLowerCase()
         );
         if (existingIndex !== -1) {
           // Song exists as file, add local mode
-          allSongs[existingIndex].modes = ['file', 'local_video'];
+          allSongs[existingIndex].modes = ['file', 'server_video'];
         } else {
           // Song doesn't exist, add as local only
-          allSongs.push({ ...localVideo, modes: ['local_video'] });
+          allSongs.push({ ...serverVideo, modes: ['server_video'] });
         }
       });
       
@@ -1627,7 +1627,7 @@ const AdminDashboard: React.FC = () => {
                         >
                           {song.artist ? `${song.artist} - ${song.title}` : song.title}
                           <ModeBadge $mode={song.mode || 'youtube'}>
-                            {song.mode === 'local_video' ? 'Lokal' : 
+                            {song.mode === 'server_video' ? 'Server' : 
                              song.mode === 'file' ? 'Datei' : 'YouTube'}
                           </ModeBadge>
                         </SongTitle>
@@ -2306,7 +2306,7 @@ const AdminDashboard: React.FC = () => {
                                   {song.artist} - {song.title}
                                 </div>
                                 <div style={{ display: 'flex', gap: '4px' }}>
-                                  {song.modes?.includes('local_video') && (
+                                  {song.modes?.includes('server_video') && (
                                     <span style={{ 
                                       fontSize: '12px', 
                                       color: '#28a745',
@@ -2315,7 +2315,7 @@ const AdminDashboard: React.FC = () => {
                                       borderRadius: '4px',
                                       fontWeight: '500'
                                     }}>
-                                      🟢 Lokal
+                                      🟢 Server
                                     </span>
                                   )}
                                   {song.modes?.includes('file') && (
@@ -2446,7 +2446,7 @@ const AdminDashboard: React.FC = () => {
               borderBottom: '1px solid #eee',
               paddingBottom: '15px'
             }}>
-              <h3 style={{ margin: 0, color: '#333' }}>🎵 Lokale Songs</h3>
+              <h3 style={{ margin: 0, color: '#333' }}>🎵 Server Songs</h3>
               <button
                 onClick={handleCloseManualSongList}
                 style={{
@@ -2548,7 +2548,7 @@ const AdminDashboard: React.FC = () => {
                 );
               })() : (
                 <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                  {manualSongSearchTerm ? 'Keine Songs gefunden' : 'Keine lokalen Songs verfügbar'}
+                  {manualSongSearchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
                 </div>
               )}
             </div>

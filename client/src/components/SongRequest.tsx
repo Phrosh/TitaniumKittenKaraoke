@@ -234,7 +234,7 @@ const SongRequest: React.FC = () => {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string>('');
   const [showSongList, setShowSongList] = useState(false);
-  const [localVideos, setLocalVideos] = useState<any[]>([]);
+  const [serverVideos, setServerVideos] = useState<any[]>([]);
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
@@ -327,11 +327,11 @@ const SongRequest: React.FC = () => {
   const handleOpenSongList = async () => {
     try {
       const [localResponse, fileResponse] = await Promise.all([
-        songAPI.getLocalVideos(),
+        songAPI.getServerVideos(),
         songAPI.getFileSongs()
       ]);
       
-      const localVideos = localResponse.data.videos || [];
+      const serverVideos = localResponse.data.videos || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
       // Try to get invisible songs, but don't fail if it doesn't work
@@ -346,13 +346,13 @@ const SongRequest: React.FC = () => {
       
       // Combine and deduplicate songs
       const allSongs = [...fileSongs];
-      localVideos.forEach(localVideo => {
+      serverVideos.forEach(serverVideo => {
         const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === localVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === localVideo.title.toLowerCase()
+          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === serverVideo.title.toLowerCase()
         );
         if (!exists) {
-          allSongs.push(localVideo);
+          allSongs.push(serverVideo);
         }
       });
       
@@ -374,7 +374,7 @@ const SongRequest: React.FC = () => {
         return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
       });
       
-      setLocalVideos(visibleSongs);
+      setServerVideos(visibleSongs);
       setShowSongList(true);
     } catch (error) {
       console.error('Error loading songs:', error);
@@ -396,7 +396,7 @@ const SongRequest: React.FC = () => {
     handleCloseSongList();
   };
 
-  const filteredVideos = localVideos.filter(video =>
+  const filteredVideos = serverVideos.filter(video =>
     video.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
     video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     `${video.artist} - ${video.title}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -518,7 +518,7 @@ const SongRequest: React.FC = () => {
       <SongListModal $isOpen={showSongList}>
         <SongListContent>
           <SongListHeader>
-            <SongListTitle>🎵 Lokale Songs</SongListTitle>
+            <SongListTitle>🎵 Server Songs</SongListTitle>
             <CloseButton onClick={handleCloseSongList}>×</CloseButton>
           </SongListHeader>
           
@@ -561,7 +561,7 @@ const SongRequest: React.FC = () => {
               ))
             ) : (
               <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                {searchTerm ? 'Keine Songs gefunden' : 'Keine lokalen Songs verfügbar'}
+                {searchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
               </div>
             )}
           </div>

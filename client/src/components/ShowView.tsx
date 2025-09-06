@@ -8,7 +8,7 @@ interface CurrentSong {
   artist: string;
   title: string;
   youtube_url: string;
-  mode: 'youtube' | 'local_video' | 'file';
+  mode: 'youtube' | 'server_video' | 'file';
   position: number;
   duration_seconds?: number;
 }
@@ -537,16 +537,16 @@ const ShowView: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isLocalVideo = currentSong?.mode === 'local_video';
+  const isServerVideo = currentSong?.mode === 'server_video';
   const isFileVideo = currentSong?.mode === 'file';
-  const embedUrl = currentSong?.youtube_url && !isLocalVideo && !isFileVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   return (
     <ShowContainer>
       {/* Fullscreen Video */}
       {currentSong?.youtube_url ? (
         <VideoWrapper>
-          {(isLocalVideo || isFileVideo) ? (
+          {(isServerVideo || isFileVideo) ? (
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
               src={currentSong.youtube_url}
@@ -554,7 +554,7 @@ const ShowView: React.FC = () => {
               controls
               autoPlay
               onLoadStart={() => {
-                console.log(`🎬 ${isFileVideo ? 'File' : 'Local'} video started:`, { 
+                console.log(`🎬 ${isFileVideo ? 'File' : 'Server'} video started:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
                   url: currentSong.youtube_url,
@@ -562,7 +562,7 @@ const ShowView: React.FC = () => {
                 });
               }}
               onEnded={() => {
-                console.log(`🎬 ${isFileVideo ? 'File' : 'Local'} video ended:`, { 
+                console.log(`🎬 ${isFileVideo ? 'File' : 'Server'} video ended:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
                   mode: currentSong?.mode

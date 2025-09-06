@@ -168,7 +168,7 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Check for songs in priority order: file > local_video > youtube
+    // Check for songs in priority order: file > server_video > youtube
     let mode = 'youtube';
     let durationSeconds = null;
     
@@ -196,7 +196,7 @@ router.post('/request', [
       if (mode === 'youtube') {
         const localVideo = findLocalVideo(artist, title);
         if (localVideo) {
-          mode = 'local_video';
+          mode = 'server_video';
           youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
           console.log(`Found local video: ${localVideo.filename}`);
         }
@@ -329,7 +329,7 @@ router.get('/qr-data', async (req, res) => {
 
 
 // Get list of local videos for song selection
-router.get('/local-videos', (req, res) => {
+router.get('/server-videos', (req, res) => {
   try {
     const { search } = req.query;
     const { scanLocalVideos, searchLocalVideos } = require('../utils/localVideos');

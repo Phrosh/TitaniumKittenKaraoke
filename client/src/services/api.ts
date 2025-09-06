@@ -44,8 +44,8 @@ export const songAPI = {
   getQRData: () =>
     api.get('/songs/qr-data'),
   
-  getLocalVideos: (search?: string) =>
-    api.get('/songs/local-videos', { params: search ? { search } : {} }),
+  getServerVideos: (search?: string) =>
+    api.get('/songs/server-videos', { params: search ? { search } : {} }),
   
   getFileSongs: () =>
     api.get('/songs/file-songs'), // Public endpoint for file songs
