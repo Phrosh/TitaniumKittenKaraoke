@@ -375,6 +375,13 @@ const DeviceId = styled.span<{ $isCurrent?: boolean }>`
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.2)' : '#e0e0e0'};
+    transform: scale(1.05);
+  }
 `;
 
 const SongTitleRow = styled.div`
@@ -1234,6 +1241,18 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleDeviceIdClick = (deviceId: string) => {
+    setActiveTab('banlist');
+    setNewBanDeviceId(deviceId);
+    // Focus the input field after a short delay to ensure the tab is rendered
+    setTimeout(() => {
+      const input = document.querySelector('input[placeholder="ABC (3 Zeichen)"]') as HTMLInputElement;
+      if (input) {
+        input.focus();
+      }
+    }, 100);
+  };
+
   const handleCreateAdminUser = async () => {
     if (!newUserData.username.trim() || !newUserData.password.trim()) {
       toast.error('Bitte fülle alle Felder aus');
@@ -1458,7 +1477,13 @@ const AdminDashboard: React.FC = () => {
                     <SongContent>
                       <SongName $isCurrent={song.id === currentSong?.id}>
                         {song.user_name}
-                        <DeviceId $isCurrent={song.id === currentSong?.id}>📱 {song.device_id}</DeviceId>
+                        <DeviceId 
+                          $isCurrent={song.id === currentSong?.id}
+                          onClick={() => handleDeviceIdClick(song.device_id)}
+                          title="Klicken um zur Banlist hinzuzufügen"
+                        >
+                          📱 {song.device_id}
+                        </DeviceId>
                       </SongName>
                       <SongTitleRow>
                         <SongTitle 
