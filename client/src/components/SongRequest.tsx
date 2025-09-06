@@ -357,23 +357,12 @@ const SongRequest: React.FC = () => {
       });
       
       // Filter out invisible songs (if we have the list)
-      console.log('🔍 Debug - Invisible songs:', invisibleSongs);
-      console.log('🔍 Debug - All songs before filter:', allSongs.length);
-      
       const visibleSongs = allSongs.filter(song => {
-        const isInvisible = invisibleSongs.some(invisible => 
+        return !invisibleSongs.some(invisible => 
           invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
           invisible.title.toLowerCase() === song.title.toLowerCase()
         );
-        
-        if (isInvisible) {
-          console.log('🚫 Filtering out invisible song:', song.artist, '-', song.title);
-        }
-        
-        return !isInvisible;
       });
-      
-      console.log('🔍 Debug - Visible songs after filter:', visibleSongs.length);
       
       // Sort alphabetically by artist, then by title
       visibleSongs.sort((a, b) => {

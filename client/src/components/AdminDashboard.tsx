@@ -1423,6 +1423,18 @@ const AdminDashboard: React.FC = () => {
     ? playlist 
     : playlist.filter(song => !currentSong || song.position >= currentSong.position);
 
+  // Helper function to get first letter for grouping (same as in SongRequest)
+  const getFirstLetter = (artist: string) => {
+    const firstChar = artist.charAt(0).toUpperCase();
+    if (/[A-Z]/.test(firstChar)) {
+      return firstChar;
+    } else if (/[0-9]/.test(firstChar)) {
+      return '#';
+    } else {
+      return '#';
+    }
+  };
+
   return (
     <Container>
       <Header>
@@ -2121,15 +2133,44 @@ const AdminDashboard: React.FC = () => {
                   <div style={{ color: '#666', fontStyle: 'italic' }}>
                     Keine Songs vorhanden
                   </div>
-                ) : (
-                  <div style={{ marginTop: '10px', maxHeight: '500px', overflowY: 'auto' }}>
-                    {songs
-                      .filter(song => 
-                        !songSearchTerm || 
-                        song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
-                        song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
-                      )
-                      .map((song) => {
+                ) : (() => {
+                  // Filter and group songs
+                  const filteredSongs = songs.filter(song => 
+                    !songSearchTerm || 
+                    song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
+                    song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
+                  );
+                  
+                  // Group songs by first letter of artist
+                  const groupedSongs = filteredSongs.reduce((groups, song) => {
+                    const letter = getFirstLetter(song.artist);
+                    if (!groups[letter]) {
+                      groups[letter] = [];
+                    }
+                    groups[letter].push(song);
+                    return groups;
+                  }, {} as Record<string, typeof filteredSongs>);
+                  
+                  const sortedGroups = Object.keys(groupedSongs).sort();
+                  
+                  return (
+                    <div style={{ marginTop: '10px', maxHeight: '500px', overflowY: 'auto' }}>
+                      {sortedGroups.map((letter) => (
+                        <div key={letter}>
+                          <div style={{
+                            position: 'sticky',
+                            top: 0,
+                            background: '#adb5bd',
+                            color: 'white',
+                            padding: '8px 15px',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            zIndex: 10,
+                            borderBottom: '2px solid #9ca3af'
+                          }}>
+                            {letter}
+                          </div>
+                          {groupedSongs[letter].map((song) => {
                         const isInvisible = invisibleSongs.some(invisible => 
                           invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                           invisible.title.toLowerCase() === song.title.toLowerCase()
@@ -2196,9 +2237,12 @@ const AdminDashboard: React.FC = () => {
                             </Button>
                           </div>
                         );
-                      })}
-                  </div>
-                )}
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <SettingsDescription>
                   Unsichtbare Songs erscheinen nicht in der öffentlichen Songliste (/new), sind aber im Admin-Dashboard weiterhin sichtbar.
                 </SettingsDescription>
@@ -2328,38 +2372,71 @@ const AdminDashboard: React.FC = () => {
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-              {filteredManualSongs.length > 0 ? (
-                filteredManualSongs.map((song, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handleSelectManualSong(song)}
-                    style={{
-                      padding: '10px',
-                      border: '1px solid #eee',
-                      borderRadius: '8px',
-                      marginBottom: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f8f9fa';
-                      e.currentTarget.style.borderColor = '#667eea';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'white';
-                      e.currentTarget.style.borderColor = '#eee';
-                    }}
-                  >
-                    <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                      {song.artist}
-                    </div>
-                    <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                      {song.title}
-                    </div>
-                  </div>
-                ))
-              ) : (
+              {filteredManualSongs.length > 0 ? (() => {
+                // Group songs by first letter of artist
+                const groupedSongs = filteredManualSongs.reduce((groups, song) => {
+                  const letter = getFirstLetter(song.artist);
+                  if (!groups[letter]) {
+                    groups[letter] = [];
+                  }
+                  groups[letter].push(song);
+                  return groups;
+                }, {} as Record<string, typeof filteredManualSongs>);
+                
+                const sortedGroups = Object.keys(groupedSongs).sort();
+                
+                return (
+                  <>
+                    {sortedGroups.map((letter) => (
+                      <div key={letter}>
+                        <div style={{
+                          position: 'sticky',
+                          top: 0,
+                          background: '#adb5bd',
+                          color: 'white',
+                          padding: '8px 15px',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          zIndex: 10,
+                          borderBottom: '2px solid #9ca3af'
+                        }}>
+                          {letter}
+                        </div>
+                        {groupedSongs[letter].map((song, index) => (
+                          <div
+                            key={`${letter}-${index}`}
+                            onClick={() => handleSelectManualSong(song)}
+                            style={{
+                              padding: '10px',
+                              border: '1px solid #eee',
+                              borderRadius: '8px',
+                              marginBottom: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              display: 'flex'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#f8f9fa';
+                              e.currentTarget.style.borderColor = '#667eea';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.borderColor = '#eee';
+                            }}
+                          >
+                            <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                              {song.artist}
+                            </div>
+                            <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                              {song.title}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                );
+              })() : (
                 <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
                   {manualSongSearchTerm ? 'Keine Songs gefunden' : 'Keine lokalen Songs verfügbar'}
                 </div>
