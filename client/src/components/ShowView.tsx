@@ -1063,6 +1063,27 @@ const ShowView: React.FC = () => {
   const isUltrastar = currentSong?.mode === 'ultrastar';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
+  // Handle click on screen to toggle play/pause
+  const handleScreenClick = useCallback(() => {
+    if (isUltrastar && audioRef.current) {
+      if (audioRef.current.paused) {
+        console.log('🎵 Screen clicked - resuming playback:', {
+          songId: currentSong?.id,
+          title: currentSong?.title
+        });
+        audioRef.current.play().catch(error => {
+          console.error('🎵 Error resuming playback:', error);
+        });
+      } else {
+        console.log('🎵 Screen clicked - pausing playback:', {
+          songId: currentSong?.id,
+          title: currentSong?.title
+        });
+        audioRef.current.pause();
+      }
+    }
+  }, [isUltrastar, currentSong?.id, currentSong?.title]);
+
   // Check if both audio and video/background are ready for autoplay
   const checkMediaReady = useCallback(() => {
     if (isUltrastar && ultrastarData) {
@@ -1117,7 +1138,7 @@ const ShowView: React.FC = () => {
   }, [currentSong?.id, lastSongId]);
 
   return (
-    <ShowContainer>
+    <ShowContainer onClick={handleScreenClick}>
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
@@ -1185,8 +1206,9 @@ const ShowView: React.FC = () => {
                 key={currentSong?.id}
                 ref={audioRef}
                 src={ultrastarData.audioUrl}
-                controls
                 autoPlay={canAutoPlay}
+                onClick={(e) => e.stopPropagation()}
+                style={{ display: 'none' }}
                 onLoadStart={() => {
                   console.log('🎵 Ultrastar audio loading started:', { 
                     songId: currentSong?.id, 
@@ -1276,7 +1298,7 @@ const ShowView: React.FC = () => {
                   });
                 }}
               />
-              <div style={lyricsDisplayStyle}>
+              <div style={lyricsDisplayStyle} onClick={(e) => e.stopPropagation()}>
                 <div ref={currentLyricRef} style={currentLyricStyle}></div>
                 <div ref={nextLyricRef} style={previewLyricStyle}></div>
                 <div ref={nextNextLyricRef} style={previewLyricStyle}></div>
