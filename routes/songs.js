@@ -36,25 +36,6 @@ router.get('/youtube-enabled', async (req, res) => {
   }
 });
 
-// Get highlight color setting (public)
-router.get('/highlight-color', async (req, res) => {
-  try {
-    const db = require('../config/database');
-    const highlightSetting = await new Promise((resolve, reject) => {
-      db.get('SELECT value FROM settings WHERE key = ?', ['highlight_color'], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-    
-    const highlightColor = highlightSetting ? highlightSetting.value : '#87CEEB'; // Default helles Blau
-    
-    res.json({ highlightColor });
-  } catch (error) {
-    console.error('Error getting highlight color:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
 
 // Get file songs (public)
 router.get('/file-songs', async (req, res) => {

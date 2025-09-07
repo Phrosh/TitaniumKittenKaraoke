@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { showAPI, songAPI } from '../services/api';
 
-// Constants
-const LYRICS_FADE_DURATION = '3s'; // Duration for lyrics fade-in/fade-out transitions
-const unsungColor = '#ffffff';
-const currentLineOpacity = 1;
-const nextLineOpacity = 0.6;
-const nextNextLineOpacity = 0.4;
+// Constants will be moved inside component to use dynamic settings
 
 interface CurrentSong {
   id: number;
@@ -117,49 +112,16 @@ const BackgroundVideo = styled.video`
   z-index: 1;
 `;
 
-const LyricsDisplay = styled.div<{ $visible: boolean }>`
-  position: absolute;
-  top: 55%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
-  width: 100%;
-  min-height: 150px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 0;
-  padding: 40px 20px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: ${props => props.$visible ? 1 : 0};
-  transition: opacity ${LYRICS_FADE_DURATION} ease-in-out, 
-              height 1s ease-in-out, 
-              min-height 1s ease-in-out, 
-              padding 1s ease-in-out;
-  white-space: pre;
-`;
+// createLyricsDisplay removed - now using inline styles
 
-const CurrentLyric = styled.div`
-  font-size: 5rem;
-  font-weight: bold;
-  color: ${unsungColor};
-  text-align: center;
-  margin-bottom: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  min-height: 5.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
+// createCurrentLyric removed - now using inline styles
 
 const PreviewLyric = styled.div`
   font-size: 3rem;
-  color: ${unsungColor};
+  color: #ffffff;
   text-align: center;
   margin-bottom: 5px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  text-shadow: 4px 4px 8px rgba(0, 0, 0, 1);
   min-height: 3.5rem;
   display: flex;
   align-items: center;
@@ -172,11 +134,11 @@ const HighlightedSyllable = styled.span`
   -webkit-text-fill-color: transparent;
   background-clip: text;
   font-weight: 900;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 4px 4px px rgba(0, 0, 0, 1);
 `;
 
 const CurrentSyllable = styled.span`
-  color: ${unsungColor};
+  color: #ffffff;
   font-weight: bold;
   transform: scale(1.1);
   transition: transform 0.2s ease-in-out;
@@ -337,7 +299,7 @@ const NextSongInfo = styled.div`
 const NextSinger = styled.div`
   font-size: 2.5rem;
   font-weight: 700;
-  color: ${unsungColor};
+  color: #ffffff;
   margin-bottom: 15px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 `;
@@ -540,9 +502,67 @@ const ShowView: React.FC = () => {
   const nextLyricRef = useRef<HTMLDivElement | null>(null);
   const nextNextLyricRef = useRef<HTMLDivElement | null>(null);
   const lastLoggedText = useRef<string>('');
-  const [highlightColor, setHighlightColor] = useState('#87CEEB'); // Default helles Blau
+  // Constants for display settings
+  const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
+  const UNSUNG_COLOR = '#ffffff';
+  const CURRENT_LINE_OPACITY = 1;
+  const NEXT_LINE_OPACITY = 0.7;
+  const NEXT_NEXT_LINE_OPACITY = 0.3;
+  const LYRICS_FADE_DURATION = '4s';
   const [showLyrics, setShowLyrics] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Using constant values for display settings
+
+  // Styled components are now replaced with inline styles for dynamic settings
+
+  // CSS styles using constants
+  const lyricsDisplayStyle = {
+    position: 'absolute' as const,
+    top: '55%',
+    left: 0,
+    right: 0,
+    transform: 'translateY(-50%)',
+    width: '100%',
+    minHeight: '150px',
+    background: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 0,
+    padding: '40px 20px',
+    zIndex: 10,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: showLyrics ? 1 : 0,
+    transition: `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out`,
+    whiteSpace: 'pre' as const
+  };
+
+  const currentLyricStyle = {
+    fontSize: '5rem',
+    fontWeight: 'bold',
+    color: UNSUNG_COLOR,
+    textAlign: 'center' as const,
+    marginBottom: '10px',
+    textShadow: '4px 4px 8px rgba(0, 0, 0, 1)',
+    minHeight: '5.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  };
+
+  const previewLyricStyle = {
+    fontSize: '3rem',
+    color: UNSUNG_COLOR,
+    textAlign: 'center' as const,
+    marginBottom: '5px',
+    opacity: 0.7,
+    textShadow: '4px 4px 8px rgba(0, 0, 0, 1)',
+    minHeight: '3.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  };
 
   // Helper functions for lyrics display
   const getLineText = (line: any) => {
@@ -569,14 +589,14 @@ const ShowView: React.FC = () => {
   const updateLyricsDisplay = (currentLine: any, nextLine: any, nextNextLine: any, isActive: boolean = false) => {
     if (isActive) {
       // Active line - current line gets full opacity, others get reduced
-      setLyricContent(currentLyricRef, currentLine, '#ffd700', currentLineOpacity);
-      setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
-      setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
+      setLyricContent(currentLyricRef, currentLine, '#ffd700', CURRENT_LINE_OPACITY);
+      setLyricContent(nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
+      setLyricContent(nextNextLyricRef, nextNextLine, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
     } else {
       // Preview mode - all lines get unsung color with different opacities
-      setLyricContent(currentLyricRef, currentLine, unsungColor, currentLineOpacity);
-      setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
-      setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
+      setLyricContent(currentLyricRef, currentLine, UNSUNG_COLOR, CURRENT_LINE_OPACITY);
+      setLyricContent(nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
+      setLyricContent(nextNextLyricRef, nextNextLine, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
     }
   };
 
@@ -707,7 +727,7 @@ const ShowView: React.FC = () => {
                 
                 if (isSung) {
                   // Already sung - highlight color
-                  noteSpan.style.color = highlightColor;
+                  noteSpan.style.color = HIGHLIGHT_COLOR;
                   noteSpan.style.fontWeight = 'bold';
                   noteSpan.textContent = note.text;
                 } else if (isCurrent) {
@@ -735,7 +755,7 @@ const ShowView: React.FC = () => {
                   highlightSpan.style.left = '0';
                   highlightSpan.style.width = `${width}%`;
                   highlightSpan.style.overflow = 'hidden';
-                  highlightSpan.style.color = highlightColor;
+                  highlightSpan.style.color = HIGHLIGHT_COLOR;
                   highlightSpan.style.fontWeight = 'bold';
                   highlightSpan.textContent = note.text;
                   
@@ -765,7 +785,7 @@ const ShowView: React.FC = () => {
                 
                 if (isSung) {
                   // Already sung - highlight color
-                  noteSpan.style.color = highlightColor;
+                  noteSpan.style.color = HIGHLIGHT_COLOR;
                   noteSpan.style.fontWeight = 'bold';
                   noteSpan.textContent = note.text;
                 } else {
@@ -781,8 +801,8 @@ const ShowView: React.FC = () => {
         }
         
         // Update next lines using helper function (but keep current line with syllable logic)
-        setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
-        setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
+        setLyricContent(nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
+        setLyricContent(nextNextLyricRef, nextNextLine, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
       } else if (shouldShowLyrics && nextLineIndex >= 0) {
         // Show preview of upcoming line (5 seconds before it starts)
         const nextLine = songData.lines[nextLineIndex];
@@ -814,15 +834,6 @@ const ShowView: React.FC = () => {
     animationFrameRef.current = requestAnimationFrame(updateLyrics);
   }, [stopUltrastarTiming]);
 
-  const loadHighlightColor = useCallback(async () => {
-    try {
-      const response = await songAPI.getHighlightColor();
-      setHighlightColor(response.data.highlightColor);
-    } catch (error) {
-      console.error('Error loading highlight color:', error);
-      // Keep default color
-    }
-  }, []);
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
     try {
@@ -836,6 +847,7 @@ const ShowView: React.FC = () => {
       
       setUltrastarData(songData);
       setCurrentNoteIndex(0);
+      setShowLyrics(false); // Reset lyrics visibility for new song
       
       console.log('🎵 Ultrastar data loaded:', {
         title: songData.title,
@@ -919,6 +931,7 @@ const ShowView: React.FC = () => {
         } else {
           // Clear ultrastar data for non-ultrastar songs
           setUltrastarData(null);
+          setShowLyrics(false); // Hide lyrics when switching away from ultrastar
           stopUltrastarTiming();
         }
         
@@ -949,7 +962,6 @@ const ShowView: React.FC = () => {
 
   useEffect(() => {
     fetchCurrentSong();
-    loadHighlightColor();
     
     // Refresh every 2 seconds to catch song changes
     const interval = setInterval(fetchCurrentSong, 2000);
@@ -958,7 +970,7 @@ const ShowView: React.FC = () => {
       clearInterval(interval);
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
-  }, [lastSongId, loadHighlightColor]);
+  }, [lastSongId]);
 
   // Timer effect
   useEffect(() => {
@@ -1157,11 +1169,11 @@ const ShowView: React.FC = () => {
                   });
                 }}
               />
-              <LyricsDisplay $visible={showLyrics}>
-                <CurrentLyric ref={currentLyricRef}></CurrentLyric>
-                <PreviewLyric ref={nextLyricRef}></PreviewLyric>
-                <PreviewLyric ref={nextNextLyricRef}></PreviewLyric>
-              </LyricsDisplay>
+              <div style={lyricsDisplayStyle}>
+                <div ref={currentLyricRef} style={currentLyricStyle}></div>
+                <div ref={nextLyricRef} style={previewLyricStyle}></div>
+                <div ref={nextNextLyricRef} style={previewLyricStyle}></div>
+              </div>
             </>
           ) : embedUrl ? (
             <VideoIframe
