@@ -88,12 +88,25 @@ function parseUltrastarFile(filePath) {
       } else if (line.match(/^[:*\-FE]\s+\d+/)) {
         // Parse note lines - starts with note type followed by space and number
         const note = parseNoteLine(line);
+        let merge = false;
+        let lastNote = null;
         if (note) {
+          if (note.text === '~') {
+            lastNote = songData.notes[songData.notes.length - 1];
+            if (lastNote) {
+              if (lastNote.type !== '-') {
+                merge = true;
+              }
+            }
+          }
+        }
+        if (merge) {
+          lastNote.duration = note.startBeat - (lastNote.startBeat + lastNote.duration) + note.duration;
+        } else {
           songData.notes.push(note);
         }
       }
     }
-
     return songData;
   } catch (error) {
     console.error('Error parsing Ultrastar file:', error);
@@ -110,29 +123,23 @@ function parseNoteLine(line) {
   try {
     const parts = line.split(' ');
     
-    console.log('🔍 Parsing line:', line, 'Parts:', parts);
-    
     const type = parts[0]; // :, *, -, F, E
     
     // Different validation for different note types
     if (type === '-') {
       // End of phrase: only needs type and startBeat (2 parts minimum)
       if (parts.length < 2) {
-        console.log('❌ End-of-phrase line too short, skipping:', line);
         return null;
       }
     } else {
       // Normal notes: need type, startBeat, duration (3 parts minimum)
       if (parts.length < 3) {
-        console.log('❌ Normal note line too short, skipping:', line);
         return null;
       }
     }
 
     const startBeat = parseInt(parts[1]) || 0;
     const duration = type === '-' ? 0 : (parseInt(parts[2]) || 0); // End-of-phrase has no duration
-    
-    console.log('📝 Basic parsing:', { type, startBeat, duration, partsLength: parts.length });
     
     // For "-" notes, ignore the second number if present (e.g., "- 100 101" -> use 100 as duration)
     let pitch = 0;
@@ -142,12 +149,10 @@ function parseNoteLine(line) {
       // End of phrase: ignore second number, no pitch, no text
       pitch = 0;
       text = '';
-      console.log('➖ End of phrase note:', { startBeat, duration, ignoredParts: parts.slice(3) });
     } else {
       // Normal notes: parse pitch and text
       pitch = parts[3] ? parseInt(parts[3]) : 0;
       text = parts.slice(4).join(' ').trim();
-      console.log('🎵 Normal note:', { startBeat, duration, pitch, text });
     }
 
     // Handle special note types
@@ -167,12 +172,12 @@ function parseNoteLine(line) {
           noteType = 'freestyle';
         } else {
           noteType = 'linebreak';
-          displayText = '~'; // Line break symbol
+          displayText = ''; // Line break symbol
         }
         break;
       case 'F':
         noteType = 'linebreak';
-        displayText = text || '~'; // Line break symbol
+        displayText = text || ''; // Line break symbol
         break;
       case 'E':
         noteType = 'end';
@@ -180,7 +185,7 @@ function parseNoteLine(line) {
         break;
     }
 
-    const note = {
+    return {
       type: type,
       noteType: noteType,
       startBeat: startBeat,
@@ -190,9 +195,6 @@ function parseNoteLine(line) {
       originalText: text,
       line: line
     };
-    
-    console.log('✅ Final note object:', note);
-    return note;
   } catch (error) {
     console.error('Error parsing note line:', line, error);
     return null;

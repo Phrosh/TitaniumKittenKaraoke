@@ -530,9 +530,6 @@ const ShowView: React.FC = () => {
         beatsPerSecond: songData.bpm / 60
       });
       
-      // Debug: Log all parsed notes
-      console.log('🎵 Parsed notes:', songData.notes.slice(0, 20)); // First 20 notes
-      console.log('🎵 Total notes count:', songData.notes.length);
     
     // Use requestAnimationFrame for smooth 60fps updates
     const updateLyrics = () => {
@@ -557,15 +554,6 @@ const ShowView: React.FC = () => {
         return currentBeat >= note.startBeat && currentBeat < note.startBeat + note.duration;
       });
       
-      // Debug: Log timing info every 2 seconds
-      if (Math.floor(currentBeat) % 8 === 0 && Math.floor(currentBeat) > 0) {
-        console.log('🎵 Timing debug:', {
-          currentBeat: Math.round(currentBeat * 100) / 100,
-          songTime: Math.round(songTime),
-          activeNotesCount: activeNotes.length,
-          nextNotes: songData.notes.filter(note => note.startBeat > currentBeat).slice(0, 3)
-        });
-      }
       
       // Update lyrics display directly in DOM
       if (activeNotes.length > 0) {
