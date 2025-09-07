@@ -740,13 +740,6 @@ const AdminDashboard: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Load songs when songs tab is active
-  useEffect(() => {
-    if (activeTab === 'songs') {
-      fetchSongs();
-      fetchInvisibleSongs();
-    }
-  }, [activeTab]);
 
   const handleUpdateRegressionValue = async () => {
     setSettingsLoading(true);
@@ -1286,7 +1279,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   // Song Management Functions
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     try {
       const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
@@ -1309,6 +1302,9 @@ const AdminDashboard: React.FC = () => {
         );
         if (existingIndex !== -1) {
           // Song exists, add server_video mode
+          if (!allSongs[existingIndex].modes) {
+            allSongs[existingIndex].modes = [];
+          }
           if (!allSongs[existingIndex].modes.includes('server_video')) {
             allSongs[existingIndex].modes.push('server_video');
           }
@@ -1326,6 +1322,9 @@ const AdminDashboard: React.FC = () => {
         );
         if (existingIndex !== -1) {
           // Song exists, add ultrastar mode
+          if (!allSongs[existingIndex].modes) {
+            allSongs[existingIndex].modes = [];
+          }
           if (!allSongs[existingIndex].modes.includes('ultrastar')) {
             allSongs[existingIndex].modes.push('ultrastar');
           }
@@ -1357,16 +1356,24 @@ const AdminDashboard: React.FC = () => {
       console.error('Error loading songs:', error);
       toast.error('Fehler beim Laden der Songliste');
     }
-  };
+  }, []);
 
-  const fetchInvisibleSongs = async () => {
+  const fetchInvisibleSongs = useCallback(async () => {
     try {
       const response = await adminAPI.getInvisibleSongs();
       setInvisibleSongs(response.data.invisibleSongs || []);
     } catch (error) {
       console.error('Error fetching invisible songs:', error);
     }
-  };
+  }, []);
+
+  // Load songs when songs tab is active
+  useEffect(() => {
+    if (activeTab === 'songs') {
+      fetchSongs();
+      fetchInvisibleSongs();
+    }
+  }, [activeTab, fetchSongs, fetchInvisibleSongs]);
 
   const handleToggleSongVisibility = async (song: any) => {
     const isInvisible = invisibleSongs.some(invisible => 
