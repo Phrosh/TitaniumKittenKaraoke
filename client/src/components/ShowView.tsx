@@ -117,6 +117,7 @@ const LyricsDisplay = styled.div<{ $visible: boolean }>`
   justify-content: center;
   opacity: ${props => props.$visible ? 1 : 0};
   transition: opacity 1.5s ease-in-out;
+  white-space: pre;
 `;
 
 const CurrentLyric = styled.div`
@@ -676,15 +677,6 @@ const ShowView: React.FC = () => {
                 
                 currentLyricRef.current.appendChild(noteSpan);
                 
-                // Add space after each note except the last one
-                if (!isLast) {
-                  const spaceSpan = document.createElement('span');
-                  spaceSpan.innerHTML = '&nbsp;'; // Use non-breaking space
-                  spaceSpan.style.color = 'white';
-                  spaceSpan.style.fontSize = 'inherit';
-                  spaceSpan.style.fontWeight = 'normal';
-                  currentLyricRef.current.appendChild(spaceSpan);
-                }
               });
             }
           } else {
@@ -711,16 +703,6 @@ const ShowView: React.FC = () => {
                 }
                 
                 currentLyricRef.current.appendChild(noteSpan);
-                
-                // Add space after each note except the last one
-                if (!isLast) {
-                  const spaceSpan = document.createElement('span');
-                  spaceSpan.innerHTML = '&nbsp;';
-                  spaceSpan.style.color = 'white';
-                  spaceSpan.style.fontSize = 'inherit';
-                  spaceSpan.style.fontWeight = 'normal';
-                  currentLyricRef.current.appendChild(spaceSpan);
-                }
               });
             }
           }
@@ -729,7 +711,7 @@ const ShowView: React.FC = () => {
         // Update next line
         if (nextLyricRef.current) {
           if (nextLine) {
-            const nextLineText = nextLine.notes.map(note => note.text).join(' ');
+            const nextLineText = nextLine.notes.map(note => note.text).join('');
             nextLyricRef.current.innerHTML = `<span style="color: white;">${nextLineText}</span>`;
           } else {
             nextLyricRef.current.textContent = '';
@@ -739,7 +721,7 @@ const ShowView: React.FC = () => {
         // Update next next line
         if (nextNextLyricRef.current) {
           if (nextNextLine) {
-            const nextNextLineText = nextNextLine.notes.map(note => note.text).join(' ');
+            const nextNextLineText = nextNextLine.notes.map(note => note.text).join('');
             nextNextLyricRef.current.innerHTML = `<span style="color: white;">${nextNextLineText}</span>`;
           } else {
             nextNextLyricRef.current.textContent = '';
@@ -753,14 +735,14 @@ const ShowView: React.FC = () => {
         
         // Show next line as current (preview)
         if (currentLyricRef.current) {
-          const lineText = nextLine.notes.map(note => note.text).join(' ');
+          const lineText = nextLine.notes.map(note => note.text).join('');
           currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
         }
         
         // Show next next line as next
         if (nextLyricRef.current) {
           if (nextNextLine) {
-            const nextLineText = nextNextLine.notes.map(note => note.text).join(' ');
+            const nextLineText = nextNextLine.notes.map(note => note.text).join('');
             nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
           } else {
             nextLyricRef.current.textContent = '';
@@ -770,7 +752,7 @@ const ShowView: React.FC = () => {
         // Show next next next line as next next
         if (nextNextLyricRef.current) {
           if (nextNextNextLine) {
-            const nextNextLineText = nextNextNextLine.notes.map(note => note.text).join(' ');
+            const nextNextLineText = nextNextNextLine.notes.map(note => note.text).join('');
             nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
           } else {
             nextNextLyricRef.current.textContent = '';
@@ -784,14 +766,14 @@ const ShowView: React.FC = () => {
         
         // Show first line as current (preview)
         if (currentLyricRef.current) {
-          const lineText = firstLine.notes.map(note => note.text).join(' ');
+          const lineText = firstLine.notes.map(note => note.text).join('');
           currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
         }
         
         // Show second line as next
         if (nextLyricRef.current) {
           if (secondLine) {
-            const nextLineText = secondLine.notes.map(note => note.text).join(' ');
+            const nextLineText = secondLine.notes.map(note => note.text).join('');
             nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
           } else {
             nextLyricRef.current.textContent = '';
@@ -801,7 +783,7 @@ const ShowView: React.FC = () => {
         // Show third line as next next
         if (nextNextLyricRef.current) {
           if (thirdLine) {
-            const nextNextLineText = thirdLine.notes.map(note => note.text).join(' ');
+            const nextNextLineText = thirdLine.notes.map(note => note.text).join('');
             nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
           } else {
             nextNextLyricRef.current.textContent = '';
@@ -862,6 +844,16 @@ const ShowView: React.FC = () => {
         audioUrl: songData.audioUrl
       });
       
+      // Log first few notes to see parsing results
+      console.log('🎵 First 30 parsed notes:', songData.notes.slice(0, 30).map(note => ({
+        type: note.type,
+        startBeat: note.startBeat,
+        duration: note.duration,
+        pitch: note.pitch,
+        text: note.text,
+        displayText: note.displayText
+      })));
+      
       
       // Start timing if audio is available
       if (songData.audioUrl) {
@@ -881,14 +873,14 @@ const ShowView: React.FC = () => {
       
       // Show first line as current (preview)
       if (currentLyricRef.current) {
-        const lineText = firstLine.notes.map(note => note.text).join(' ');
+        const lineText = firstLine.notes.map(note => note.text).join('');
         currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
       }
       
       // Show second line as next
       if (nextLyricRef.current) {
         if (secondLine) {
-          const nextLineText = secondLine.notes.map(note => note.text).join(' ');
+          const nextLineText = secondLine.notes.map(note => note.text).join('');
           nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
         } else {
           nextLyricRef.current.textContent = '';
@@ -898,7 +890,7 @@ const ShowView: React.FC = () => {
       // Show third line as next next
       if (nextNextLyricRef.current) {
         if (thirdLine) {
-          const nextNextLineText = thirdLine.notes.map(note => note.text).join(' ');
+          const nextNextLineText = thirdLine.notes.map(note => note.text).join('');
           nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
         } else {
           nextNextLyricRef.current.textContent = '';
@@ -1104,12 +1096,19 @@ const ShowView: React.FC = () => {
                 controls
                 autoPlay
                 onLoadStart={() => {
-                  console.log('🎵 Ultrastar audio started:', { 
+                  console.log('🎵 Ultrastar audio loaded:', { 
                     songId: currentSong?.id, 
                     title: currentSong?.title,
                     audioUrl: ultrastarData.audioUrl,
                     mode: currentSong?.mode,
                     bpm: ultrastarData.bpm,
+                    gap: ultrastarData.gap
+                  });
+                }}
+                onPlay={() => {
+                  console.log('🎵 Ultrastar audio started playing:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title,
                     gap: ultrastarData.gap
                   });
                   

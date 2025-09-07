@@ -125,7 +125,13 @@ function parseUltrastarFile(filePath) {
  */
 function parseNoteLine(line) {
   try {
-    const parts = line.split(' ');
+    // Use regex to extract parameters while preserving spaces
+    const matches = [...line.matchAll(/(?:^| )([ ]*[^ ]+)/g)];
+    const parts = matches.map(match => match[1]);
+    
+    if (parts.length === 0) {
+      return null;
+    }
     
     const type = parts[0]; // :, *, -, F, E
     
@@ -156,7 +162,7 @@ function parseNoteLine(line) {
     } else {
       // Normal notes: parse pitch and text
       pitch = parts[3] ? parseInt(parts[3]) : 0;
-      text = parts.slice(4).join(' ').trim();
+      text = parts[4];
     }
 
     // Handle special note types
