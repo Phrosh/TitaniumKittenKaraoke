@@ -406,6 +406,65 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
     const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
     const { parseUltrastarFile, findAudioFile } = require('../utils/ultrastarParser');
     
+    /**
+     * Findet Video-Datei mit Priorität: .mp4 > .webm > andere
+     * @param {string} folderPath - Pfad zum Ultrastar-Ordner
+     * @param {string} specifiedVideo - In .txt angegebener Video-Dateiname
+     * @returns {string|null} Dateiname der besten Video-Datei oder null
+     */
+    function findVideoFile(folderPath, specifiedVideo) {
+      try {
+        if (!fs.existsSync(folderPath)) {
+          return null;
+        }
+
+        const files = fs.readdirSync(folderPath);
+        const videoExtensions = ['.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv', '.flv'];
+        
+        // Sammle alle Video-Dateien
+        const videoFiles = files.filter(file => {
+          const ext = path.extname(file).toLowerCase();
+          return videoExtensions.includes(ext);
+        });
+
+        if (videoFiles.length === 0) {
+          return null;
+        }
+
+        // Priorität: .mp4 > .webm > andere
+        const mp4Files = videoFiles.filter(file => file.toLowerCase().endsWith('.mp4'));
+        const webmFiles = videoFiles.filter(file => file.toLowerCase().endsWith('.webm'));
+        const otherFiles = videoFiles.filter(file => 
+          !file.toLowerCase().endsWith('.mp4') && !file.toLowerCase().endsWith('.webm')
+        );
+
+        // Wenn spezifische Datei angegeben ist, prüfe ob sie existiert
+        if (specifiedVideo) {
+          const specifiedPath = path.join(folderPath, specifiedVideo);
+          if (fs.existsSync(specifiedPath)) {
+            const ext = path.extname(specifiedVideo).toLowerCase();
+            if (ext === '.mp4' || ext === '.webm') {
+              return specifiedVideo; // Verwende spezifizierte Datei wenn sie .mp4 oder .webm ist
+            }
+          }
+        }
+
+        // Prioritätslogik
+        if (mp4Files.length > 0) {
+          return mp4Files[0]; // Erste .mp4 Datei
+        } else if (webmFiles.length > 0) {
+          return webmFiles[0]; // Erste .webm Datei
+        } else if (otherFiles.length > 0) {
+          return otherFiles[0]; // Erste andere Video-Datei
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error finding video file:', error);
+        return null;
+      }
+    }
+    
     const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
     
     console.log('🔍 Ultrastar data request:', {
@@ -441,11 +500,45 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
       songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
     }
     
-    // Find video file if specified in .txt file
-    if (songData.video) {
-      const videoPath = path.join(folderPath, songData.video);
-      if (fs.existsSync(videoPath)) {
-        songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(songData.video)}`;
+    // Find video file with priority: .mp4 > .webm > others
+    const videoFile = findVideoFile(folderPath, songData.video);
+    if (videoFile) {
+      const videoExt = path.extname(videoFile).toLowerCase();
+      
+      // Check if video needs conversion (not .mp4 or .webm)
+      if (videoExt !== '.mp4' && videoExt !== '.webm') {
+        // Request conversion from Python server
+        try {
+          const pythonServerUrl = 'http://localhost:6000';
+          const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
+          
+          console.log('🎬 Requesting video conversion:', {
+            folderName,
+            videoFile,
+            convertUrl
+          });
+          
+          // Make async request to Python server (don't wait for completion)
+          fetch(convertUrl, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+              console.log('🎬 Video conversion response:', data);
+            })
+            .catch(error => {
+              console.error('🎬 Video conversion error:', error);
+            });
+          
+          // For now, don't set videoUrl - will be available after conversion
+          songData.videoFile = videoFile;
+          songData.needsConversion = true;
+        } catch (error) {
+          console.error('Error requesting video conversion:', error);
+          songData.videoFile = videoFile;
+        }
+      } else {
+        // Video is already in preferred format
+        songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+        songData.videoFile = videoFile;
       }
     }
     
