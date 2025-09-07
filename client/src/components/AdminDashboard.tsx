@@ -2389,6 +2389,18 @@ const AdminDashboard: React.FC = () => {
                                       🔵 Datei
                                     </span>
                                   )}
+                                  {song.modes?.includes('ultrastar') && (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      color: '#8e44ad',
+                                      background: '#e8d5f2',
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontWeight: '500'
+                                    }}>
+                                      ⭐ Ultrastar
+                                    </span>
+                                  )}
                                   {song.mode === 'youtube' && (
                                     <span style={{ 
                                       fontSize: '12px', 
