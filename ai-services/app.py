@@ -61,33 +61,33 @@ def convert_video(folder_name):
         
         logger.info(f"Converting {input_file} to {output_filename}")
         
-        # Strategy 1: Try to remux to MP4 first (fast, no re-encoding)
-        mp4_filename = os.path.splitext(input_file)[0] + '.mp4'
-        mp4_path = os.path.join(folder_path, mp4_filename)
+        # # Strategy 1: Try to remux to MP4 first (fast, no re-encoding)
+        # mp4_filename = os.path.splitext(input_file)[0] + '.mp4'
+        # mp4_path = os.path.join(folder_path, mp4_filename)
         
-        logger.info(f"Attempting fast remux to MP4: {mp4_filename}")
+        # logger.info(f"Attempting fast remux to MP4: {mp4_filename}")
         
-        # Try remuxing first (copy streams without re-encoding)
-        remux_cmd = [
-            'ffmpeg',
-            '-i', input_path,
-            '-c', 'copy',  # Copy streams without re-encoding
-            '-an',  # Remove audio
-            '-y',  # Overwrite output file
-            mp4_path
-        ]
+        # # Try remuxing first (copy streams without re-encoding)
+        # remux_cmd = [
+        #     'ffmpeg',
+        #     '-i', input_path,
+        #     '-c', 'copy',  # Copy streams without re-encoding
+        #     '-an',  # Remove audio
+        #     '-y',  # Overwrite output file
+        #     mp4_path
+        # ]
         
-        remux_result = subprocess.run(remux_cmd, capture_output=True, text=True)
+        # remux_result = subprocess.run(remux_cmd, capture_output=True, text=True)
         
-        if remux_result.returncode == 0:
-            logger.info(f"Successfully remuxed {input_file} to {mp4_filename}")
-            return jsonify({
-                'message': 'Video remuxed successfully to MP4',
-                'input_file': input_file,
-                'output_file': mp4_filename,
-                'method': 'remux',
-                'status': 'success'
-            })
+        # if remux_result.returncode == 0:
+        #     logger.info(f"Successfully remuxed {input_file} to {mp4_filename}")
+        #     return jsonify({
+        #         'message': 'Video remuxed successfully to MP4',
+        #         'input_file': input_file,
+        #         'output_file': mp4_filename,
+        #         'method': 'remux',
+        #         'status': 'success'
+        #     })
         
         # Strategy 2: If remuxing fails, transcode to WebM
         logger.info(f"Remuxing failed, falling back to WebM transcoding")

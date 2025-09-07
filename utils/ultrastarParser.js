@@ -238,13 +238,37 @@ function findAudioFile(folderPath) {
     }
 
     const files = fs.readdirSync(folderPath);
-    const audioExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac'];
+    const audioExtensions = ['.mp3', '.ogg', '.flac', '.wav', '.m4a', '.aac'];
     
-    for (const file of files) {
+    // Sammle alle Audio-Dateien
+    const audioFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase();
-      if (audioExtensions.includes(ext)) {
-        return path.join(folderPath, file);
-      }
+      return audioExtensions.includes(ext);
+    });
+
+    if (audioFiles.length === 0) {
+      return null;
+    }
+
+    // Priorität: .mp3 > .ogg > .flac > andere
+    const mp3Files = audioFiles.filter(file => file.toLowerCase().endsWith('.mp3'));
+    const oggFiles = audioFiles.filter(file => file.toLowerCase().endsWith('.ogg'));
+    const flacFiles = audioFiles.filter(file => file.toLowerCase().endsWith('.flac'));
+    const otherFiles = audioFiles.filter(file => 
+      !file.toLowerCase().endsWith('.mp3') && 
+      !file.toLowerCase().endsWith('.ogg') && 
+      !file.toLowerCase().endsWith('.flac')
+    );
+
+    // Prioritätslogik
+    if (mp3Files.length > 0) {
+      return path.join(folderPath, mp3Files[0]); // Erste .mp3 Datei
+    } else if (oggFiles.length > 0) {
+      return path.join(folderPath, oggFiles[0]); // Erste .ogg Datei
+    } else if (flacFiles.length > 0) {
+      return path.join(folderPath, flacFiles[0]); // Erste .flac Datei
+    } else if (otherFiles.length > 0) {
+      return path.join(folderPath, otherFiles[0]); // Erste andere Audio-Datei
     }
     
     return null;
