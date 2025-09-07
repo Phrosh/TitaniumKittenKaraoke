@@ -589,7 +589,39 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
      * @param {string} specifiedVideo - In .txt angegebener Video-Dateiname (wird ignoriert)
      * @returns {string|null} Dateiname der besten Video-Datei oder null
      */
-    function findVideoFile(folderPath, specifiedVideo) {
+    function findBackgroundImageFile(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    
+    // Priority order: .jpg, .jpeg, .png, .webp
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    
+    for (const ext of imageExtensions) {
+      const imageFile = files.find(file => 
+        file.toLowerCase().endsWith(ext) && 
+        !file.toLowerCase().includes('cover') && // Exclude cover images
+        !file.toLowerCase().includes('thumbnail') // Exclude thumbnails
+      );
+      
+      if (imageFile) {
+        console.log('🖼️ Found background image:', {
+          folderPath,
+          imageFile,
+          extension: ext
+        });
+        return path.join(folderPath, imageFile);
+      }
+    }
+    
+    console.log('🖼️ No background image found in:', folderPath);
+    return null;
+  } catch (error) {
+    console.error('Error finding background image:', error);
+    return null;
+  }
+}
+
+function findVideoFile(folderPath, specifiedVideo) {
       try {
         if (!fs.existsSync(folderPath)) {
           return null;
@@ -773,6 +805,19 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
       }
     }
     
+    // Find background image file
+    const backgroundImageFile = findBackgroundImageFile(folderPath);
+    if (backgroundImageFile) {
+      const imageFilename = path.basename(backgroundImageFile);
+      songData.backgroundImageUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+      
+      console.log('🖼️ Background image URL added:', {
+        folderName,
+        imageFilename,
+        backgroundImageUrl: songData.backgroundImageUrl
+      });
+    }
+    
     res.json({ songData });
   } catch (error) {
     console.error('Error getting ultrastar song data:', error);
@@ -827,6 +872,9 @@ router.get('/ultrastar/:folderName/:filename', (req, res) => {
         break;
       case '.png':
         contentType = 'image/png';
+        break;
+      case '.webp':
+        contentType = 'image/webp';
         break;
       case '.txt':
         contentType = 'text/plain';

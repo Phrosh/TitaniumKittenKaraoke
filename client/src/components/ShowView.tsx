@@ -58,6 +58,7 @@ interface UltrastarSongData {
   version: string;
   audioUrl?: string;
   videoUrl?: string;
+  backgroundImageUrl?: string;
 }
 
 const ShowContainer = styled.div`
@@ -109,6 +110,21 @@ const BackgroundVideo = styled.video`
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 1;
+`;
+
+const BackgroundImage = styled.div<{ $imageUrl: string }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url(${props => props.$imageUrl});
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(8px);
+  transform: scale(1.1);
   z-index: 1;
 `;
 
@@ -1047,17 +1063,20 @@ const ShowView: React.FC = () => {
   const isUltrastar = currentSong?.mode === 'ultrastar';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
-  // Check if both audio and video are ready for autoplay
+  // Check if both audio and video/background are ready for autoplay
   const checkMediaReady = useCallback(() => {
     if (isUltrastar && ultrastarData) {
       const audioReady = audioLoaded;
       const videoReady = ultrastarData.videoUrl ? videoLoaded : true; // No video = ready
+      const backgroundReady = ultrastarData.backgroundImageUrl ? true : true; // Images load instantly
       
-      if (audioReady && videoReady && !canAutoPlay) {
-        console.log('🎵 Both audio and video are ready for autoplay:', {
+      if (audioReady && videoReady && backgroundReady && !canAutoPlay) {
+        console.log('🎵 Audio and background media are ready for autoplay:', {
           audioReady,
           videoReady,
+          backgroundReady,
           hasVideo: !!ultrastarData.videoUrl,
+          hasBackgroundImage: !!ultrastarData.backgroundImageUrl,
           title: currentSong?.title
         });
         setCanAutoPlay(true);
@@ -1134,7 +1153,7 @@ const ShowView: React.FC = () => {
             />
           ) : isUltrastar && ultrastarData?.audioUrl ? (
             <>
-              {ultrastarData.videoUrl && (
+              {ultrastarData.videoUrl ? (
                 <BackgroundVideo
                   ref={videoRef}
                   src={ultrastarData.videoUrl}
@@ -1157,7 +1176,11 @@ const ShowView: React.FC = () => {
                     setVideoLoaded(true);
                   }}
                 />
-              )}
+              ) : ultrastarData.backgroundImageUrl ? (
+                <BackgroundImage
+                  $imageUrl={ultrastarData.backgroundImageUrl}
+                />
+              ) : null}
               <AudioElement
                 key={currentSong?.id}
                 ref={audioRef}
