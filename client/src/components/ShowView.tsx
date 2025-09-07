@@ -511,6 +511,10 @@ const ShowView: React.FC = () => {
   const LYRICS_FADE_DURATION = '4s';
   const [showLyrics, setShowLyrics] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [audioLoaded, setAudioLoaded] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [canAutoPlay, setCanAutoPlay] = useState(false);
+
 
   // Using constant values for display settings
 
@@ -1043,6 +1047,56 @@ const ShowView: React.FC = () => {
   const isUltrastar = currentSong?.mode === 'ultrastar';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
+  // Check if both audio and video are ready for autoplay
+  const checkMediaReady = useCallback(() => {
+    if (isUltrastar && ultrastarData) {
+      const audioReady = audioLoaded;
+      const videoReady = ultrastarData.videoUrl ? videoLoaded : true; // No video = ready
+      
+      if (audioReady && videoReady && !canAutoPlay) {
+        console.log('🎵 Both audio and video are ready for autoplay:', {
+          audioReady,
+          videoReady,
+          hasVideo: !!ultrastarData.videoUrl,
+          title: currentSong?.title
+        });
+        setCanAutoPlay(true);
+      }
+    }
+  }, [isUltrastar, ultrastarData, audioLoaded, videoLoaded, canAutoPlay, currentSong?.title]);
+
+  // Check media readiness whenever loading states change
+  useEffect(() => {
+    checkMediaReady();
+  }, [checkMediaReady]);
+
+  // Start autoplay when both media are ready
+  useEffect(() => {
+    if (canAutoPlay && audioRef.current && audioRef.current.paused) {
+      console.log('🎵 Starting autoplay for Ultrastar song:', {
+        songId: currentSong?.id,
+        title: currentSong?.title,
+        audioLoaded,
+        videoLoaded,
+        hasVideo: !!ultrastarData?.videoUrl
+      });
+      
+      audioRef.current.play().catch(error => {
+        console.error('🎵 Autoplay failed:', error);
+      });
+    }
+  }, [canAutoPlay, currentSong?.id, currentSong?.title, audioLoaded, videoLoaded, ultrastarData?.videoUrl]);
+
+  // Reset loading states when song changes
+  useEffect(() => {
+    if (currentSong?.id !== lastSongId) {
+      setAudioLoaded(false);
+      setVideoLoaded(false);
+      setCanAutoPlay(false);
+      setShowLyrics(false);
+    }
+  }, [currentSong?.id, lastSongId]);
+
   return (
     <ShowContainer>
       {/* Fullscreen Video */}
@@ -1087,6 +1141,21 @@ const ShowView: React.FC = () => {
                   muted
                   loop
                   playsInline
+                  onLoadedData={() => {
+                    console.log('🎬 Ultrastar video loaded:', {
+                      songId: currentSong?.id,
+                      title: currentSong?.title,
+                      videoUrl: ultrastarData.videoUrl
+                    });
+                    setVideoLoaded(true);
+                  }}
+                  onCanPlay={() => {
+                    console.log('🎬 Ultrastar video can play:', {
+                      songId: currentSong?.id,
+                      title: currentSong?.title
+                    });
+                    setVideoLoaded(true);
+                  }}
                 />
               )}
               <AudioElement
@@ -1094,9 +1163,9 @@ const ShowView: React.FC = () => {
                 ref={audioRef}
                 src={ultrastarData.audioUrl}
                 controls
-                autoPlay
+                autoPlay={canAutoPlay}
                 onLoadStart={() => {
-                  console.log('🎵 Ultrastar audio loaded:', { 
+                  console.log('🎵 Ultrastar audio loading started:', { 
                     songId: currentSong?.id, 
                     title: currentSong?.title,
                     audioUrl: ultrastarData.audioUrl,
@@ -1104,6 +1173,21 @@ const ShowView: React.FC = () => {
                     bpm: ultrastarData.bpm,
                     gap: ultrastarData.gap
                   });
+                }}
+                onLoadedData={() => {
+                  console.log('🎵 Ultrastar audio loaded:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title,
+                    audioUrl: ultrastarData.audioUrl
+                  });
+                  setAudioLoaded(true);
+                }}
+                onCanPlay={() => {
+                  console.log('🎵 Ultrastar audio can play:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title
+                  });
+                  setAudioLoaded(true);
                 }}
                 onPlay={() => {
                   console.log('🎵 Ultrastar audio started playing:', { 

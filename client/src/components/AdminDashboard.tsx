@@ -1552,16 +1552,10 @@ const AdminDashboard: React.FC = () => {
             🎵 Playlist ({filteredPlaylist.length} Songs)
           </TabButton>
           <TabButton 
-            $active={activeTab === 'settings'} 
-            onClick={() => setActiveTab('settings')}
+            $active={activeTab === 'songs'} 
+            onClick={() => setActiveTab('songs')}
           >
-            ⚙️ Einstellungen
-          </TabButton>
-          <TabButton 
-            $active={activeTab === 'users'} 
-            onClick={() => setActiveTab('users')}
-          >
-            👥 Nutzerverwaltung
+            📁 Songverwaltung
           </TabButton>
           <TabButton 
             $active={activeTab === 'banlist'} 
@@ -1570,10 +1564,16 @@ const AdminDashboard: React.FC = () => {
             🚫 Banlist
           </TabButton>
           <TabButton 
-            $active={activeTab === 'songs'} 
-            onClick={() => setActiveTab('songs')}
+            $active={activeTab === 'users'} 
+            onClick={() => setActiveTab('users')}
           >
-            🎵 Songverwaltung
+            👥 Nutzerverwaltung
+          </TabButton>
+          <TabButton 
+            $active={activeTab === 'settings'} 
+            onClick={() => setActiveTab('settings')}
+          >
+            ⚙️ Einstellungen
           </TabButton>
         </TabHeader>
         
