@@ -604,15 +604,6 @@ const ShowView: React.FC = () => {
         }
       }
       
-      // Special case: Show first line early (considering GAP)
-      if (songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
-        const firstLine = songData.lines[0];
-        const timeUntilFirstLine = (firstLine.startBeat - currentBeat) * beatDuration;
-        // Show first line 3 seconds before it starts (accounting for GAP)
-        if (timeUntilFirstLine <= 3000) {
-          shouldShowLyrics = true;
-        }
-      }
       
       // Update lyrics visibility
       setShowLyrics(shouldShowLyrics);
@@ -871,6 +862,7 @@ const ShowView: React.FC = () => {
         audioUrl: songData.audioUrl
       });
       
+      
       // Start timing if audio is available
       if (songData.audioUrl) {
         startUltrastarTiming(songData);
@@ -879,6 +871,41 @@ const ShowView: React.FC = () => {
       console.error('Error loading Ultrastar data:', error);
     }
   }, [startUltrastarTiming]);
+
+  // Show lyrics immediately when ultrastar data is loaded
+  useEffect(() => {
+    if (ultrastarData && ultrastarData.lines && ultrastarData.lines.length > 0) {
+      const firstLine = ultrastarData.lines[0];
+      const secondLine = ultrastarData.lines[1];
+      const thirdLine = ultrastarData.lines[2];
+      
+      // Show first line as current (preview)
+      if (currentLyricRef.current) {
+        const lineText = firstLine.notes.map(note => note.text).join(' ');
+        currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
+      }
+      
+      // Show second line as next
+      if (nextLyricRef.current) {
+        if (secondLine) {
+          const nextLineText = secondLine.notes.map(note => note.text).join(' ');
+          nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
+        } else {
+          nextLyricRef.current.textContent = '';
+        }
+      }
+      
+      // Show third line as next next
+      if (nextNextLyricRef.current) {
+        if (thirdLine) {
+          const nextNextLineText = thirdLine.notes.map(note => note.text).join(' ');
+          nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
+        } else {
+          nextNextLyricRef.current.textContent = '';
+        }
+      }
+    }
+  }, [ultrastarData]);
 
   const fetchCurrentSong = async () => {
     try {
@@ -1085,6 +1112,26 @@ const ShowView: React.FC = () => {
                     bpm: ultrastarData.bpm,
                     gap: ultrastarData.gap
                   });
+                  
+                  // Set timeout to show lyrics 10 seconds before first line
+                  if (ultrastarData.gap > 10000) {
+                    const showTime = ultrastarData.gap - 10000;
+                    setTimeout(() => {
+                      console.log('🎵 10 Sekunden vor der ersten Zeile! Text wird jetzt eingeblendet!', {
+                        gap: ultrastarData.gap,
+                        showTime,
+                        title: currentSong?.title
+                      });
+                      setShowLyrics(true);
+                    }, showTime);
+                  } else {
+                    // Gap ist kleiner als 10 Sekunden - sofort einblenden ohne Fade
+                    console.log('🎵 Gap < 10s - Text wird sofort eingeblendet!', {
+                      gap: ultrastarData.gap,
+                      title: currentSong?.title
+                    });
+                    setShowLyrics(true);
+                  }
                 }}
                 onEnded={() => {
                   console.log('🎵 Ultrastar audio ended:', { 

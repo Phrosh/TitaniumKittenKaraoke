@@ -216,7 +216,7 @@ function beatToMilliseconds(beat, bpm, gap) {
   if (bpm <= 0) return 0;
   
   // 1 Beat = 60.000 / BPM Millisekunden
-  const beatDuration = 60000 / bpm;
+  const beatDuration = (60000 / bpm) / 4;
   return gap + (beat * beatDuration);
 }
 
