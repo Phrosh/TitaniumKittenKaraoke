@@ -230,6 +230,93 @@ router.post('/request', [
           mode = 'ultrastar';
           youtubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
           console.log(`Found ultrastar song: ${ultrastarSong.folderName}`);
+          
+          // Trigger video conversion for ultrastar song
+          try {
+            const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+            const folderPath = path.join(ULTRASTAR_DIR, ultrastarSong.folderName);
+            
+            // Check if folder exists and find video files
+            if (fs.existsSync(folderPath)) {
+              const files = fs.readdirSync(folderPath);
+              const videoFiles = files.filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm'].includes(ext);
+              });
+              
+              if (videoFiles.length > 0) {
+                const videoFile = videoFiles[0]; // Use first video file found
+                const videoExt = path.extname(videoFile).toLowerCase();
+                
+                // Check if video needs conversion (not .mp4 or .webm)
+                if (videoExt !== '.mp4' && videoExt !== '.webm') {
+                  const pythonServerUrl = 'http://localhost:6000';
+                  const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
+                  
+                  console.log('🎬 Triggering video conversion on song request:', {
+                    folderName: ultrastarSong.folderName,
+                    videoFile,
+                    convertUrl,
+                    timestamp: new Date().toISOString()
+                  });
+                  
+                  // Make async request to Python server (don't wait for completion)
+                  const https = require('http');
+                  const url = require('url');
+                  
+                  const parsedUrl = url.parse(convertUrl);
+                  const options = {
+                    hostname: parsedUrl.hostname,
+                    port: parsedUrl.port,
+                    path: parsedUrl.path,
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    }
+                  };
+                  
+                  const req = https.request(options, (res) => {
+                    console.log('🎬 Python server response received:', {
+                      statusCode: res.statusCode,
+                      statusMessage: res.statusMessage,
+                      timestamp: new Date().toISOString()
+                    });
+                    
+                    let data = '';
+                    res.on('data', (chunk) => {
+                      data += chunk;
+                    });
+                    res.on('end', () => {
+                      try {
+                        const responseData = JSON.parse(data);
+                        console.log('🎬 Video conversion response:', {
+                          ...responseData,
+                          timestamp: new Date().toISOString()
+                        });
+                      } catch (error) {
+                        console.error('🎬 Video conversion response parse error:', error);
+                      }
+                    });
+                  });
+                  
+                  req.on('error', (error) => {
+                    console.error('🎬 Video conversion HTTP request error:', error);
+                  });
+                  
+                  req.setTimeout(30000);
+                  req.end();
+                } else {
+                  console.log('🎬 Video already in preferred format:', {
+                    folderName: ultrastarSong.folderName,
+                    videoFile,
+                    extension: videoExt
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('🎬 Error triggering video conversion:', error);
+          }
         }
       }
     }
@@ -407,6 +494,115 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
     const { parseUltrastarFile, findAudioFile } = require('../utils/ultrastarParser');
     
     /**
+     * Triggers video conversion for an ultrastar song
+     * @param {string} folderName - Name of the ultrastar folder
+     * @param {string} folderPath - Full path to the ultrastar folder
+     * @param {string} videoFile - Video filename
+     */
+    function triggerVideoConversion(folderName, folderPath, videoFile) {
+      try {
+        const videoExt = path.extname(videoFile).toLowerCase();
+        
+        // Check if video needs conversion (not .mp4 or .webm)
+        if (videoExt !== '.mp4' && videoExt !== '.webm') {
+          const pythonServerUrl = 'http://localhost:6000';
+          const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
+          
+          console.log('🎬 Triggering video conversion on song request:', {
+            folderName,
+            videoFile,
+            convertUrl,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Make async request to Python server (don't wait for completion)
+          const https = require('http');
+          const url = require('url');
+          
+          const parsedUrl = url.parse(convertUrl);
+          const options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.path,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          };
+          
+          console.log('🎬 Making HTTP request to Python server:', {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.path,
+            method: 'POST',
+            timestamp: new Date().toISOString()
+          });
+          
+          const req = https.request(options, (res) => {
+            console.log('🎬 Python server response received:', {
+              statusCode: res.statusCode,
+              statusMessage: res.statusMessage,
+              headers: res.headers,
+              timestamp: new Date().toISOString()
+            });
+            
+            let data = '';
+            res.on('data', (chunk) => {
+              data += chunk;
+            });
+            res.on('end', () => {
+              try {
+                const responseData = JSON.parse(data);
+                console.log('🎬 Video conversion response:', {
+                  ...responseData,
+                  timestamp: new Date().toISOString()
+                });
+              } catch (error) {
+                console.error('🎬 Video conversion response parse error:', {
+                  error: error.message,
+                  rawData: data,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            });
+          });
+          
+          req.on('error', (error) => {
+            console.error('🎬 Video conversion HTTP request error:', {
+              error: error.message,
+              code: error.code,
+              timestamp: new Date().toISOString()
+            });
+          });
+          
+          req.on('timeout', () => {
+            console.error('🎬 Video conversion request timeout:', {
+              timestamp: new Date().toISOString()
+            });
+            req.destroy();
+          });
+          
+          req.setTimeout(30000); // 30 second timeout
+          req.end();
+        } else {
+          console.log('🎬 Video already in preferred format, no conversion needed:', {
+            folderName,
+            videoFile,
+            extension: videoExt,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.error('🎬 Error triggering video conversion:', {
+          error: error.message,
+          folderName,
+          videoFile,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    /**
      * Findet Video-Datei mit Priorität: .mp4 > .webm > andere
      * @param {string} folderPath - Pfad zum Ultrastar-Ordner
      * @param {string} specifiedVideo - In .txt angegebener Video-Dateiname
@@ -515,18 +711,79 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
           console.log('🎬 Requesting video conversion:', {
             folderName,
             videoFile,
-            convertUrl
+            convertUrl,
+            timestamp: new Date().toISOString()
           });
           
           // Make async request to Python server (don't wait for completion)
-          fetch(convertUrl, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-              console.log('🎬 Video conversion response:', data);
-            })
-            .catch(error => {
-              console.error('🎬 Video conversion error:', error);
+          const https = require('http');
+          const url = require('url');
+          
+          const parsedUrl = url.parse(convertUrl);
+          const options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.path,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          };
+          
+          console.log('🎬 Making HTTP request to Python server:', {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.path,
+            method: 'POST',
+            timestamp: new Date().toISOString()
+          });
+          
+          const req = https.request(options, (res) => {
+            console.log('🎬 Python server response received:', {
+              statusCode: res.statusCode,
+              statusMessage: res.statusMessage,
+              headers: res.headers,
+              timestamp: new Date().toISOString()
             });
+            
+            let data = '';
+            res.on('data', (chunk) => {
+              data += chunk;
+            });
+            res.on('end', () => {
+              try {
+                const responseData = JSON.parse(data);
+                console.log('🎬 Video conversion response:', {
+                  ...responseData,
+                  timestamp: new Date().toISOString()
+                });
+              } catch (error) {
+                console.error('🎬 Video conversion response parse error:', {
+                  error: error.message,
+                  rawData: data,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            });
+          });
+          
+          req.on('error', (error) => {
+            console.error('🎬 Video conversion HTTP request error:', {
+              error: error.message,
+              code: error.code,
+              timestamp: new Date().toISOString()
+            });
+          });
+          
+          req.on('timeout', () => {
+            console.error('🎬 Video conversion request timeout:', {
+              timestamp: new Date().toISOString()
+            });
+            req.destroy();
+          });
+          
+          req.setTimeout(30000); // 30 second timeout
+          req.end();
           
           // For now, don't set videoUrl - will be available after conversion
           songData.videoFile = videoFile;
