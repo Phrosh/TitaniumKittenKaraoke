@@ -441,6 +441,14 @@ router.get('/ultrastar/:folderName/data', (req, res) => {
       songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
     }
     
+    // Find video file if specified in .txt file
+    if (songData.video) {
+      const videoPath = path.join(folderPath, songData.video);
+      if (fs.existsSync(videoPath)) {
+        songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(songData.video)}`;
+      }
+    }
+    
     res.json({ songData });
   } catch (error) {
     console.error('Error getting ultrastar song data:', error);

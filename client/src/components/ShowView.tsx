@@ -55,6 +55,7 @@ interface UltrastarSongData {
   notes: UltrastarNote[];
   version: string;
   audioUrl?: string;
+  videoUrl?: string;
 }
 
 const ShowContainer = styled.div`
@@ -97,6 +98,16 @@ const AudioElement = styled.audio`
   border-radius: 10px;
   padding: 10px;
   z-index: 10;
+`;
+
+const BackgroundVideo = styled.video`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
 `;
 
 const LyricsDisplay = styled.div<{ $visible: boolean }>`
@@ -514,6 +525,7 @@ const ShowView: React.FC = () => {
   const lastLoggedText = useRef<string>('');
   const [highlightColor, setHighlightColor] = useState('#87CEEB'); // Default helles Blau
   const [showLyrics, setShowLyrics] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Ultrastar functions
   const stopUltrastarTiming = useCallback(() => {
@@ -623,10 +635,10 @@ const ShowView: React.FC = () => {
         if (currentLyricRef.current) {
           if (currentSyllable && currentSyllable.text.trim()) {
             // Console log for current syllable (only if different from last logged)
-            if (currentSyllable.text !== lastLoggedText.current) {
-              console.log(`🎤 ${currentSyllable.text} (${currentSyllable.type})`);
-              lastLoggedText.current = currentSyllable.text;
-            }
+            // if (currentSyllable.text !== lastLoggedText.current) {
+            //   console.log(`🎤 ${currentSyllable.text} (${currentSyllable.type})`);
+            //   lastLoggedText.current = currentSyllable.text;
+            // }
             
             // Clear and rebuild the line with proper spacing
             if (currentLyricRef.current) {
@@ -1089,6 +1101,15 @@ const ShowView: React.FC = () => {
             />
           ) : isUltrastar && ultrastarData?.audioUrl ? (
             <>
+              {ultrastarData.videoUrl && (
+                <BackgroundVideo
+                  ref={videoRef}
+                  src={ultrastarData.videoUrl}
+                  muted
+                  loop
+                  playsInline
+                />
+              )}
               <AudioElement
                 key={currentSong?.id}
                 ref={audioRef}
@@ -1111,6 +1132,13 @@ const ShowView: React.FC = () => {
                     title: currentSong?.title,
                     gap: ultrastarData.gap
                   });
+                  
+                  // Sync video with audio
+                  if (videoRef.current && ultrastarData.videoUrl) {
+                    videoRef.current.muted = true;
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(console.error);
+                  }
                   
                   // Set timeout to show lyrics 10 seconds before first line
                   if (ultrastarData.gap > 10000) {
@@ -1137,6 +1165,13 @@ const ShowView: React.FC = () => {
                     songId: currentSong?.id, 
                     title: currentSong?.title 
                   });
+                  
+                  // Stop video when audio ends
+                  if (videoRef.current) {
+                    videoRef.current.pause();
+                    videoRef.current.currentTime = 0;
+                  }
+                  
                   stopUltrastarTiming();
                   // Automatically show QR overlay when audio ends
                   showAPI.toggleQRCodeOverlay(true).catch(error => {
