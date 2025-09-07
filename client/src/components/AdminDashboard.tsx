@@ -642,6 +642,8 @@ const AdminDashboard: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [customUrl, setCustomUrl] = useState('');
+  const [highlightColor, setHighlightColor] = useState('#87CEEB'); // Default helles Blau
+  const [displayLoading, setDisplayLoading] = useState(false);
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -732,6 +734,13 @@ const AdminDashboard: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Load highlight color when display tab is active
+  useEffect(() => {
+    if (activeTab === 'display') {
+      loadHighlightColor();
+    }
+  }, [activeTab]);
+
   // Load banlist when banlist tab is active
   useEffect(() => {
     if (activeTab === 'banlist') {
@@ -796,6 +805,29 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const loadHighlightColor = async () => {
+    try {
+      const response = await adminAPI.getHighlightColor();
+      setHighlightColor(response.data.highlightColor);
+    } catch (error) {
+      console.error('Error loading highlight color:', error);
+      // Keep default color
+    }
+  };
+
+  const handleSaveHighlightColor = async () => {
+    setDisplayLoading(true);
+    try {
+      await adminAPI.updateHighlightColor(highlightColor);
+      toast.success('Highlight-Farbe erfolgreich gespeichert!');
+    } catch (error) {
+      console.error('Error updating highlight color:', error);
+      toast.error('Fehler beim Speichern der Highlight-Farbe');
+    } finally {
+      setDisplayLoading(false);
     }
   };
 
@@ -1565,6 +1597,12 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('songs')}
           >
             🎵 Songverwaltung
+          </TabButton>
+          <TabButton 
+            $active={activeTab === 'display'} 
+            onClick={() => setActiveTab('display')}
+          >
+            🎨 Darstellung
           </TabButton>
         </TabHeader>
         
@@ -2604,6 +2642,55 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {activeTab === 'display' && (
+        <SettingsSection>
+          <SettingsTitle>🎨 Darstellungseinstellungen</SettingsTitle>
+          
+          <SettingsCard>
+            <SettingsLabel>Highlight-Farbe für Lyrics</SettingsLabel>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <input
+                type="color"
+                value={highlightColor}
+                onChange={(e) => setHighlightColor(e.target.value)}
+                style={{
+                  width: '60px',
+                  height: '40px',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              />
+              <span style={{ color: '#666', fontSize: '0.9rem' }}>
+                Aktuelle Farbe: {highlightColor}
+              </span>
+            </div>
+            <SettingsDescription>
+              Diese Farbe wird für bereits gesungene Silben und die aktuelle Silbe verwendet.
+            </SettingsDescription>
+            
+            <button
+              onClick={handleSaveHighlightColor}
+              disabled={displayLoading}
+              style={{
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '600',
+                opacity: displayLoading ? 0.7 : 1,
+                marginTop: '15px'
+              }}
+            >
+              {displayLoading ? 'Speichern...' : 'Farbe speichern'}
+            </button>
+          </SettingsCard>
+        </SettingsSection>
       )}
 
     </Container>

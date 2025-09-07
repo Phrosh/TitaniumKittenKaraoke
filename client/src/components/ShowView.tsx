@@ -99,7 +99,7 @@ const AudioElement = styled.audio`
   z-index: 10;
 `;
 
-const LyricsDisplay = styled.div`
+const LyricsDisplay = styled.div<{ $visible: boolean }>`
   position: absolute;
   top: 55%;
   left: 50%;
@@ -115,6 +115,8 @@ const LyricsDisplay = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  opacity: ${props => props.$visible ? 1 : 0};
+  transition: opacity 1.5s ease-in-out;
 `;
 
 const CurrentLyric = styled.div`
@@ -130,13 +132,28 @@ const CurrentLyric = styled.div`
   justify-content: center;
 `;
 
-const NextLyric = styled.div`
+const PreviewLyric = styled.div`
   font-size: 1.2rem;
   color: #ccc;
   text-align: center;
+  margin-bottom: 5px;
   opacity: 0.7;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
+
+const HighlightedSyllable = styled.span`
+  background: linear-gradient(45deg, #ff6b6b, #ffd700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
 
 const Header = styled.div`
   position: absolute;
@@ -492,7 +509,10 @@ const ShowView: React.FC = () => {
   const animationFrameRef = useRef<number | null>(null);
   const currentLyricRef = useRef<HTMLDivElement | null>(null);
   const nextLyricRef = useRef<HTMLDivElement | null>(null);
+  const nextNextLyricRef = useRef<HTMLDivElement | null>(null);
   const lastLoggedText = useRef<string>('');
+  const [highlightColor, setHighlightColor] = useState('#87CEEB'); // Default helles Blau
+  const [showLyrics, setShowLyrics] = useState(false);
 
   // Ultrastar functions
   const stopUltrastarTiming = useCallback(() => {
@@ -555,33 +575,257 @@ const ShowView: React.FC = () => {
       });
       
       
-      // Update lyrics display directly in DOM
-      if (activeNotes.length > 0) {
-        const currentNote = activeNotes[0];
-        if (currentNote.text.trim()) {
-          // Console log for current syllable (only if different from last logged)
-          if (currentNote.text !== lastLoggedText.current) {
-            console.log(`🎤 ${currentNote.text} (${currentNote.type})`);
-            lastLoggedText.current = currentNote.text;
+      // Find current line and update display
+      const currentLineIndex = songData.lines.findIndex(line => 
+        currentBeat >= line.startBeat && currentBeat < line.endBeat
+      );
+      
+      // Check if lyrics should be shown (5 seconds before next line starts)
+      const nextLineIndex = songData.lines.findIndex(line => 
+        currentBeat < line.startBeat
+      );
+      
+      let shouldShowLyrics = false;
+      
+      if (currentLineIndex >= 0) {
+        // Currently in a line - always show
+        shouldShowLyrics = true;
+      } else if (nextLineIndex >= 0) {
+        // Check if next line starts within 5 seconds
+        const nextLine = songData.lines[nextLineIndex];
+        const timeUntilNextLine = (nextLine.startBeat - currentBeat) * beatDuration;
+        shouldShowLyrics = timeUntilNextLine <= 5000; // 5 seconds
+      } else {
+        // No more lines - check if current line ended less than 10 seconds ago
+        const lastLine = songData.lines[songData.lines.length - 1];
+        if (lastLine) {
+          const timeSinceLastLine = (currentBeat - lastLine.endBeat) * beatDuration;
+          shouldShowLyrics = timeSinceLastLine <= 10000; // 10 seconds
+        }
+      }
+      
+      // Special case: Show first line early (considering GAP)
+      if (songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
+        const firstLine = songData.lines[0];
+        const timeUntilFirstLine = (firstLine.startBeat - currentBeat) * beatDuration;
+        // Show first line 3 seconds before it starts (accounting for GAP)
+        if (timeUntilFirstLine <= 3000) {
+          shouldShowLyrics = true;
+        }
+      }
+      
+      // Update lyrics visibility
+      setShowLyrics(shouldShowLyrics);
+      
+      if (currentLineIndex >= 0) {
+        const currentLine = songData.lines[currentLineIndex];
+        const nextLine = songData.lines[currentLineIndex + 1];
+        const nextNextLine = songData.lines[currentLineIndex + 2];
+        
+        // Find current syllable within the line
+        const currentSyllable = currentLine.notes.find(note => 
+          currentBeat >= note.startBeat && currentBeat < note.startBeat + note.duration
+        );
+        
+        // Update current line with highlighted syllable
+        if (currentLyricRef.current) {
+          if (currentSyllable && currentSyllable.text.trim()) {
+            // Console log for current syllable (only if different from last logged)
+            if (currentSyllable.text !== lastLoggedText.current) {
+              console.log(`🎤 ${currentSyllable.text} (${currentSyllable.type})`);
+              lastLoggedText.current = currentSyllable.text;
+            }
+            
+            // Clear and rebuild the line with proper spacing
+            if (currentLyricRef.current) {
+              currentLyricRef.current.innerHTML = '';
+              
+              currentLine.notes.forEach((note, index) => {
+                const isSung = note.startBeat < currentSyllable.startBeat;
+                const isCurrent = note.startBeat === currentSyllable.startBeat;
+                const isLast = index === currentLine.notes.length - 1;
+                
+                // Create note span
+                const noteSpan = document.createElement('span');
+                
+                if (isSung) {
+                  // Already sung - highlight color
+                  noteSpan.style.color = highlightColor;
+                  noteSpan.style.fontWeight = 'bold';
+                  noteSpan.textContent = note.text;
+                } else if (isCurrent) {
+                  // Currently singing - animated from left to right
+                  const progress = (currentBeat - note.startBeat) / note.duration;
+                  const width = Math.min(100, Math.max(0, progress * 100));
+                  
+                  noteSpan.style.position = 'relative';
+                  noteSpan.style.display = 'inline-block';
+                  
+                  const whiteSpan = document.createElement('span');
+                  whiteSpan.style.color = 'white';
+                  whiteSpan.textContent = note.text;
+                  
+                  const highlightSpan = document.createElement('span');
+                  highlightSpan.style.position = 'absolute';
+                  highlightSpan.style.top = '0';
+                  highlightSpan.style.left = '0';
+                  highlightSpan.style.width = `${width}%`;
+                  highlightSpan.style.overflow = 'hidden';
+                  highlightSpan.style.color = highlightColor;
+                  highlightSpan.style.fontWeight = 'bold';
+                  highlightSpan.textContent = note.text;
+                  
+                  noteSpan.appendChild(whiteSpan);
+                  noteSpan.appendChild(highlightSpan);
+                } else {
+                  // Not yet sung - white
+                  noteSpan.style.color = 'white';
+                  noteSpan.textContent = note.text;
+                }
+                
+                currentLyricRef.current.appendChild(noteSpan);
+                
+                // Add space after each note except the last one
+                if (!isLast) {
+                  const spaceSpan = document.createElement('span');
+                  spaceSpan.innerHTML = '&nbsp;'; // Use non-breaking space
+                  spaceSpan.style.color = 'white';
+                  spaceSpan.style.fontSize = 'inherit';
+                  spaceSpan.style.fontWeight = 'normal';
+                  currentLyricRef.current.appendChild(spaceSpan);
+                }
+              });
+            }
+          } else {
+            // No active syllable, but show already sung syllables in highlight color
+            if (currentLyricRef.current) {
+              currentLyricRef.current.innerHTML = '';
+              
+              currentLine.notes.forEach((note, index) => {
+                const isSung = note.startBeat < currentBeat;
+                const isLast = index === currentLine.notes.length - 1;
+                
+                // Create note span
+                const noteSpan = document.createElement('span');
+                
+                if (isSung) {
+                  // Already sung - highlight color
+                  noteSpan.style.color = highlightColor;
+                  noteSpan.style.fontWeight = 'bold';
+                  noteSpan.textContent = note.text;
+                } else {
+                  // Not yet sung - white
+                  noteSpan.style.color = 'white';
+                  noteSpan.textContent = note.text;
+                }
+                
+                currentLyricRef.current.appendChild(noteSpan);
+                
+                // Add space after each note except the last one
+                if (!isLast) {
+                  const spaceSpan = document.createElement('span');
+                  spaceSpan.innerHTML = '&nbsp;';
+                  spaceSpan.style.color = 'white';
+                  spaceSpan.style.fontSize = 'inherit';
+                  spaceSpan.style.fontWeight = 'normal';
+                  currentLyricRef.current.appendChild(spaceSpan);
+                }
+              });
+            }
           }
-          
-          // Direct DOM manipulation for performance
-          if (currentLyricRef.current) {
-            currentLyricRef.current.textContent = currentNote.text;
+        }
+        
+        // Update next line
+        if (nextLyricRef.current) {
+          if (nextLine) {
+            const nextLineText = nextLine.notes.map(note => note.text).join(' ');
+            nextLyricRef.current.innerHTML = `<span style="color: white;">${nextLineText}</span>`;
+          } else {
+            nextLyricRef.current.textContent = '';
           }
-          
-          // Find next note
-          const nextNote = songData.notes.find(note => 
-            note.startBeat > currentNote.startBeat && note.text.trim()
-          );
-          if (nextLyricRef.current) {
-            nextLyricRef.current.textContent = nextNote ? nextNote.text : '';
+        }
+        
+        // Update next next line
+        if (nextNextLyricRef.current) {
+          if (nextNextLine) {
+            const nextNextLineText = nextNextLine.notes.map(note => note.text).join(' ');
+            nextNextLyricRef.current.innerHTML = `<span style="color: white;">${nextNextLineText}</span>`;
+          } else {
+            nextNextLyricRef.current.textContent = '';
+          }
+        }
+      } else if (shouldShowLyrics && nextLineIndex >= 0) {
+        // Show preview of upcoming line (5 seconds before it starts)
+        const nextLine = songData.lines[nextLineIndex];
+        const nextNextLine = songData.lines[nextLineIndex + 1];
+        const nextNextNextLine = songData.lines[nextLineIndex + 2];
+        
+        // Show next line as current (preview)
+        if (currentLyricRef.current) {
+          const lineText = nextLine.notes.map(note => note.text).join(' ');
+          currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
+        }
+        
+        // Show next next line as next
+        if (nextLyricRef.current) {
+          if (nextNextLine) {
+            const nextLineText = nextNextLine.notes.map(note => note.text).join(' ');
+            nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
+          } else {
+            nextLyricRef.current.textContent = '';
+          }
+        }
+        
+        // Show next next next line as next next
+        if (nextNextLyricRef.current) {
+          if (nextNextNextLine) {
+            const nextNextLineText = nextNextNextLine.notes.map(note => note.text).join(' ');
+            nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
+          } else {
+            nextNextLyricRef.current.textContent = '';
+          }
+        }
+      } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
+        // Show preview of first line (before song starts, accounting for GAP)
+        const firstLine = songData.lines[0];
+        const secondLine = songData.lines[1];
+        const thirdLine = songData.lines[2];
+        
+        // Show first line as current (preview)
+        if (currentLyricRef.current) {
+          const lineText = firstLine.notes.map(note => note.text).join(' ');
+          currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
+        }
+        
+        // Show second line as next
+        if (nextLyricRef.current) {
+          if (secondLine) {
+            const nextLineText = secondLine.notes.map(note => note.text).join(' ');
+            nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
+          } else {
+            nextLyricRef.current.textContent = '';
+          }
+        }
+        
+        // Show third line as next next
+        if (nextNextLyricRef.current) {
+          if (thirdLine) {
+            const nextNextLineText = thirdLine.notes.map(note => note.text).join(' ');
+            nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
+          } else {
+            nextNextLyricRef.current.textContent = '';
           }
         }
       } else {
-        // No active notes, clear current lyric
+        // No active line and shouldn't show lyrics - clear all
         if (currentLyricRef.current) {
           currentLyricRef.current.textContent = '';
+        }
+        if (nextLyricRef.current) {
+          nextLyricRef.current.textContent = '';
+        }
+        if (nextNextLyricRef.current) {
+          nextNextLyricRef.current.textContent = '';
         }
         // Reset last logged text when no active notes
         lastLoggedText.current = '';
@@ -594,6 +838,16 @@ const ShowView: React.FC = () => {
     // Start the animation loop
     animationFrameRef.current = requestAnimationFrame(updateLyrics);
   }, [stopUltrastarTiming]);
+
+  const loadHighlightColor = useCallback(async () => {
+    try {
+      const response = await songAPI.getHighlightColor();
+      setHighlightColor(response.data.highlightColor);
+    } catch (error) {
+      console.error('Error loading highlight color:', error);
+      // Keep default color
+    }
+  }, []);
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
     try {
@@ -697,6 +951,7 @@ const ShowView: React.FC = () => {
 
   useEffect(() => {
     fetchCurrentSong();
+    loadHighlightColor();
     
     // Refresh every 2 seconds to catch song changes
     const interval = setInterval(fetchCurrentSong, 2000);
@@ -705,7 +960,7 @@ const ShowView: React.FC = () => {
       clearInterval(interval);
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
-  }, [lastSongId]);
+  }, [lastSongId, loadHighlightColor]);
 
   // Timer effect
   useEffect(() => {
@@ -843,9 +1098,10 @@ const ShowView: React.FC = () => {
                   });
                 }}
               />
-              <LyricsDisplay>
+              <LyricsDisplay $visible={showLyrics}>
+                <PreviewLyric ref={nextNextLyricRef}></PreviewLyric>
+                <PreviewLyric ref={nextLyricRef}></PreviewLyric>
                 <CurrentLyric ref={currentLyricRef}></CurrentLyric>
-                <NextLyric ref={nextLyricRef}></NextLyric>
               </LyricsDisplay>
             </>
           ) : embedUrl ? (

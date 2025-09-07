@@ -107,6 +107,10 @@ function parseUltrastarFile(filePath) {
         }
       }
     }
+    
+    // Group notes into lines (separated by end-of-phrase notes)
+    songData.lines = groupNotesIntoLines(songData.notes);
+    
     return songData;
   } catch (error) {
     console.error('Error parsing Ultrastar file:', error);
@@ -242,6 +246,44 @@ function findAudioFile(folderPath) {
     console.error('Error finding audio file:', error);
     return null;
   }
+}
+
+/**
+ * Groups notes into lines separated by end-of-phrase notes
+ * @param {Array} notes - Array of parsed notes
+ * @returns {Array} Array of lines, each containing notes for that line
+ */
+function groupNotesIntoLines(notes) {
+  const lines = [];
+  let currentLine = [];
+  
+  for (const note of notes) {
+    if (note.type === '-' || note.type === 'F' || note.type === 'E') {
+      // End of phrase/line - finish current line
+      if (currentLine.length > 0) {
+        lines.push({
+          notes: currentLine,
+          startBeat: currentLine[0].startBeat,
+          endBeat: currentLine[currentLine.length - 1].startBeat + currentLine[currentLine.length - 1].duration
+        });
+        currentLine = [];
+      }
+    } else {
+      // Regular note - add to current line
+      currentLine.push(note);
+    }
+  }
+  
+  // Add remaining notes as last line if any
+  if (currentLine.length > 0) {
+    lines.push({
+      notes: currentLine,
+      startBeat: currentLine[0].startBeat,
+      endBeat: currentLine[currentLine.length - 1].startBeat + currentLine[currentLine.length - 1].duration
+    });
+  }
+  
+  return lines;
 }
 
 module.exports = {

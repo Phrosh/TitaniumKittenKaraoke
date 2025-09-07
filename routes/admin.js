@@ -304,6 +304,59 @@ router.put('/settings/youtube-enabled', [
   }
 });
 
+// Update highlight color setting
+router.put('/settings/highlight-color', [
+  body('highlightColor').isHexColor().withMessage('Highlight-Farbe muss eine gültige Hex-Farbe sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { highlightColor } = req.body;
+
+    // Store highlight color setting in settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['highlight_color', highlightColor],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Highlight-Farbe erfolgreich aktualisiert', highlightColor });
+  } catch (error) {
+    console.error('Error updating highlight color:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get highlight color setting
+router.get('/settings/highlight-color', async (req, res) => {
+  try {
+    const result = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['highlight_color'],
+        function(err, row) {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const highlightColor = result ? result.value : '#87CEEB'; // Default helles Blau
+    res.json({ highlightColor });
+  } catch (error) {
+    console.error('Error getting highlight color:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update regression value
 router.put('/settings/regression', [
   body('value').isFloat({ min: 0, max: 1 }).withMessage('Regression value must be between 0 and 1')

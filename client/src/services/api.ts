@@ -50,6 +50,9 @@ export const songAPI = {
   getUltrastarSongs: (search?: string) =>
     api.get('/songs/ultrastar-songs', { params: search ? { search } : {} }),
   
+  getHighlightColor: () =>
+    api.get('/songs/highlight-color'),
+  
   getUltrastarSongData: (folderName: string) =>
     api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/data`),
   
@@ -122,6 +125,9 @@ export const adminAPI = {
 
   updateYouTubeEnabled: (youtubeEnabled: boolean) =>
     api.put('/admin/settings/youtube-enabled', { youtubeEnabled }),
+  
+  updateHighlightColor: (highlightColor: string) =>
+    api.put('/admin/settings/highlight-color', { highlightColor }),
   
   // File Songs Management
   getFileSongsFolder: () =>
