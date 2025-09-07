@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { showAPI, songAPI } from '../services/api';
 
+// Constants
+const LYRICS_FADE_DURATION = '3s'; // Duration for lyrics fade-in/fade-out transitions
+const unsungColor = '#ffffff';
+const currentLineOpacity = 1;
+const nextLineOpacity = 0.6;
+const nextNextLineOpacity = 0.4;
+
 interface CurrentSong {
   id: number;
   user_name: string;
@@ -88,16 +95,16 @@ const VideoElement = styled.video`
 
 const AudioElement = styled.audio`
   position: absolute;
-  top: 45%;
+  top: 50px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   width: 80%;
   max-width: 600px;
   height: 60px;
   background: rgba(0, 0, 0, 0.8);
   border-radius: 10px;
   padding: 10px;
-  z-index: 10;
+  z-index: 33;
 `;
 
 const BackgroundVideo = styled.video`
@@ -113,45 +120,47 @@ const BackgroundVideo = styled.video`
 const LyricsDisplay = styled.div<{ $visible: boolean }>`
   position: absolute;
   top: 55%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80%;
-  max-width: 600px;
-  min-height: 80px;
-  background: rgba(0, 0, 0, 0.9);
-  border-radius: 10px;
-  padding: 20px;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  width: 100%;
+  min-height: 150px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 0;
+  padding: 40px 20px;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: ${props => props.$visible ? 1 : 0};
-  transition: opacity 1.5s ease-in-out;
+  transition: opacity ${LYRICS_FADE_DURATION} ease-in-out, 
+              height 1s ease-in-out, 
+              min-height 1s ease-in-out, 
+              padding 1s ease-in-out;
   white-space: pre;
 `;
 
 const CurrentLyric = styled.div`
-  font-size: 2rem;
+  font-size: 5rem;
   font-weight: bold;
-  color: #ffd700;
+  color: ${unsungColor};
   text-align: center;
   margin-bottom: 10px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  min-height: 2.5rem;
+  min-height: 5.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
 `;
 
 const PreviewLyric = styled.div`
-  font-size: 1.2rem;
-  color: #ccc;
+  font-size: 3rem;
+  color: ${unsungColor};
   text-align: center;
   margin-bottom: 5px;
-  opacity: 0.7;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  min-height: 1.5rem;
+  min-height: 3.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -164,6 +173,14 @@ const HighlightedSyllable = styled.span`
   background-clip: text;
   font-weight: 900;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+`;
+
+const CurrentSyllable = styled.span`
+  color: ${unsungColor};
+  font-weight: bold;
+  transform: scale(1.1);
+  transition: transform 0.2s ease-in-out;
+  display: inline-block;
 `;
 
 
@@ -320,7 +337,7 @@ const NextSongInfo = styled.div`
 const NextSinger = styled.div`
   font-size: 2.5rem;
   font-weight: 700;
-  color: #ffd700;
+  color: ${unsungColor};
   margin-bottom: 15px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 `;
@@ -527,6 +544,42 @@ const ShowView: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  // Helper functions for lyrics display
+  const getLineText = (line: any) => {
+    return line.notes.map((note: any) => note.text).join('');
+  };
+
+  const setLyricContent = (ref: React.RefObject<HTMLDivElement>, line: any, color: string, opacity: number) => {
+    if (ref.current) {
+      if (line) {
+        const lineText = getLineText(line);
+        ref.current.innerHTML = `<span style="color: ${color}; opacity: ${opacity};">${lineText}</span>`;
+      } else {
+        ref.current.textContent = '';
+      }
+    }
+  };
+
+  const clearAllLyrics = () => {
+    if (currentLyricRef.current) currentLyricRef.current.textContent = '';
+    if (nextLyricRef.current) nextLyricRef.current.textContent = '';
+    if (nextNextLyricRef.current) nextNextLyricRef.current.textContent = '';
+  };
+
+  const updateLyricsDisplay = (currentLine: any, nextLine: any, nextNextLine: any, isActive: boolean = false) => {
+    if (isActive) {
+      // Active line - current line gets full opacity, others get reduced
+      setLyricContent(currentLyricRef, currentLine, '#ffd700', currentLineOpacity);
+      setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
+      setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
+    } else {
+      // Preview mode - all lines get unsung color with different opacities
+      setLyricContent(currentLyricRef, currentLine, unsungColor, currentLineOpacity);
+      setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
+      setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
+    }
+  };
+
   // Ultrastar functions
   const stopUltrastarTiming = useCallback(() => {
     if (timingIntervalRef.current) {
@@ -640,7 +693,7 @@ const ShowView: React.FC = () => {
             //   lastLoggedText.current = currentSyllable.text;
             // }
             
-            // Clear and rebuild the line with proper spacing
+            // Clear and rebuild the line wie, soth proper spacing
             if (currentLyricRef.current) {
               currentLyricRef.current.innerHTML = '';
               
@@ -658,12 +711,19 @@ const ShowView: React.FC = () => {
                   noteSpan.style.fontWeight = 'bold';
                   noteSpan.textContent = note.text;
                 } else if (isCurrent) {
-                  // Currently singing - animated from left to right
+                  // Currently singing - animated from left to right with scaling
                   const progress = (currentBeat - note.startBeat) / note.duration;
                   const width = Math.min(100, Math.max(0, progress * 100));
                   
                   noteSpan.style.position = 'relative';
                   noteSpan.style.display = 'inline-block';
+                  noteSpan.style.transform = 'scale(1.0)';
+                  noteSpan.style.transition = 'transform 0.5s ease-in-out';
+                  
+                  // Apply scaling after DOM is ready
+                  setTimeout(() => {
+                    noteSpan.style.transform = 'scale(1.1)';
+                  }, 0);
                   
                   const whiteSpan = document.createElement('span');
                   whiteSpan.style.color = 'white';
@@ -720,98 +780,28 @@ const ShowView: React.FC = () => {
           }
         }
         
-        // Update next line
-        if (nextLyricRef.current) {
-          if (nextLine) {
-            const nextLineText = nextLine.notes.map(note => note.text).join('');
-            nextLyricRef.current.innerHTML = `<span style="color: white;">${nextLineText}</span>`;
-          } else {
-            nextLyricRef.current.textContent = '';
-          }
-        }
-        
-        // Update next next line
-        if (nextNextLyricRef.current) {
-          if (nextNextLine) {
-            const nextNextLineText = nextNextLine.notes.map(note => note.text).join('');
-            nextNextLyricRef.current.innerHTML = `<span style="color: white;">${nextNextLineText}</span>`;
-          } else {
-            nextNextLyricRef.current.textContent = '';
-          }
-        }
+        // Update next lines using helper function (but keep current line with syllable logic)
+        setLyricContent(nextLyricRef, nextLine, unsungColor, nextLineOpacity);
+        setLyricContent(nextNextLyricRef, nextNextLine, unsungColor, nextNextLineOpacity);
       } else if (shouldShowLyrics && nextLineIndex >= 0) {
         // Show preview of upcoming line (5 seconds before it starts)
         const nextLine = songData.lines[nextLineIndex];
         const nextNextLine = songData.lines[nextLineIndex + 1];
         const nextNextNextLine = songData.lines[nextLineIndex + 2];
         
-        // Show next line as current (preview)
-        if (currentLyricRef.current) {
-          const lineText = nextLine.notes.map(note => note.text).join('');
-          currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
-        }
-        
-        // Show next next line as next
-        if (nextLyricRef.current) {
-          if (nextNextLine) {
-            const nextLineText = nextNextLine.notes.map(note => note.text).join('');
-            nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
-          } else {
-            nextLyricRef.current.textContent = '';
-          }
-        }
-        
-        // Show next next next line as next next
-        if (nextNextLyricRef.current) {
-          if (nextNextNextLine) {
-            const nextNextLineText = nextNextNextLine.notes.map(note => note.text).join('');
-            nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
-          } else {
-            nextNextLyricRef.current.textContent = '';
-          }
-        }
+        // Show preview of upcoming lines
+        updateLyricsDisplay(nextLine, nextNextLine, nextNextNextLine, false);
       } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
         // Show preview of first line (before song starts, accounting for GAP)
         const firstLine = songData.lines[0];
         const secondLine = songData.lines[1];
         const thirdLine = songData.lines[2];
         
-        // Show first line as current (preview)
-        if (currentLyricRef.current) {
-          const lineText = firstLine.notes.map(note => note.text).join('');
-          currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
-        }
-        
-        // Show second line as next
-        if (nextLyricRef.current) {
-          if (secondLine) {
-            const nextLineText = secondLine.notes.map(note => note.text).join('');
-            nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
-          } else {
-            nextLyricRef.current.textContent = '';
-          }
-        }
-        
-        // Show third line as next next
-        if (nextNextLyricRef.current) {
-          if (thirdLine) {
-            const nextNextLineText = thirdLine.notes.map(note => note.text).join('');
-            nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
-          } else {
-            nextNextLyricRef.current.textContent = '';
-          }
-        }
+        // Show preview of first lines
+        updateLyricsDisplay(firstLine, secondLine, thirdLine, false);
       } else {
         // No active line and shouldn't show lyrics - clear all
-        if (currentLyricRef.current) {
-          currentLyricRef.current.textContent = '';
-        }
-        if (nextLyricRef.current) {
-          nextLyricRef.current.textContent = '';
-        }
-        if (nextNextLyricRef.current) {
-          nextNextLyricRef.current.textContent = '';
-        }
+        clearAllLyrics();
         // Reset last logged text when no active notes
         lastLoggedText.current = '';
       }
@@ -857,7 +847,7 @@ const ShowView: React.FC = () => {
       });
       
       // Log first few notes to see parsing results
-      console.log('🎵 First 30 parsed notes:', songData.notes.slice(0, 30).map(note => ({
+      console.log('🎵 parsed notes:', songData.notes.map(note => ({
         type: note.type,
         startBeat: note.startBeat,
         duration: note.duration,
@@ -883,31 +873,8 @@ const ShowView: React.FC = () => {
       const secondLine = ultrastarData.lines[1];
       const thirdLine = ultrastarData.lines[2];
       
-      // Show first line as current (preview)
-      if (currentLyricRef.current) {
-        const lineText = firstLine.notes.map(note => note.text).join('');
-        currentLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.7;">${lineText}</span>`;
-      }
-      
-      // Show second line as next
-      if (nextLyricRef.current) {
-        if (secondLine) {
-          const nextLineText = secondLine.notes.map(note => note.text).join('');
-          nextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.5;">${nextLineText}</span>`;
-        } else {
-          nextLyricRef.current.textContent = '';
-        }
-      }
-      
-      // Show third line as next next
-      if (nextNextLyricRef.current) {
-        if (thirdLine) {
-          const nextNextLineText = thirdLine.notes.map(note => note.text).join('');
-          nextNextLyricRef.current.innerHTML = `<span style="color: white; opacity: 0.3;">${nextNextLineText}</span>`;
-        } else {
-          nextNextLyricRef.current.textContent = '';
-        }
-      }
+      // Show preview of first lines
+      updateLyricsDisplay(firstLine, secondLine, thirdLine, false);
     }
   }, [ultrastarData]);
 
@@ -1160,6 +1127,17 @@ const ShowView: React.FC = () => {
                     setShowLyrics(true);
                   }
                 }}
+                onPause={() => {
+                  console.log('🎵 Ultrastar audio paused:', { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title 
+                  });
+                  
+                  // Pause video when audio is paused
+                  if (videoRef.current && ultrastarData.videoUrl) {
+                    videoRef.current.pause();
+                  }
+                }}
                 onEnded={() => {
                   console.log('🎵 Ultrastar audio ended:', { 
                     songId: currentSong?.id, 
@@ -1180,9 +1158,9 @@ const ShowView: React.FC = () => {
                 }}
               />
               <LyricsDisplay $visible={showLyrics}>
-                <PreviewLyric ref={nextNextLyricRef}></PreviewLyric>
-                <PreviewLyric ref={nextLyricRef}></PreviewLyric>
                 <CurrentLyric ref={currentLyricRef}></CurrentLyric>
+                <PreviewLyric ref={nextLyricRef}></PreviewLyric>
+                <PreviewLyric ref={nextNextLyricRef}></PreviewLyric>
               </LyricsDisplay>
             </>
           ) : embedUrl ? (
