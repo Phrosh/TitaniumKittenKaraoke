@@ -239,6 +239,7 @@ const SongRequest: React.FC = () => {
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
+  const [withBackgroundVocals, setWithBackgroundVocals] = useState(false);
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -306,15 +307,21 @@ const SongRequest: React.FC = () => {
     setMessage(null);
 
     try {
-      const response = await songAPI.requestSong(formData);
+      const requestData = {
+        ...formData,
+        withBackgroundVocals: isUltrastarSong() ? withBackgroundVocals : undefined
+      };
+      
+      const response = await songAPI.requestSong(requestData);
       
       setMessage({
         type: 'success',
         text: `Song "${response.data.song.title}" wurde erfolgreich zur Playlist hinzugefügt!`
       });
       
-      // Reset form - keep name, clear only song input
+      // Reset form - keep name, clear only song input and background vocals
       setFormData(prev => ({ ...prev, songInput: '' }));
+      setWithBackgroundVocals(false);
     } catch (error: any) {
       setMessage({
         type: 'error',
@@ -411,7 +418,16 @@ const SongRequest: React.FC = () => {
   const handleSelectSong = (video: any) => {
     const songInput = `${video.artist} - ${video.title}`;
     setFormData(prev => ({ ...prev, songInput }));
+    setWithBackgroundVocals(false); // Reset checkbox when selecting new song
     handleCloseSongList();
+  };
+
+  // Check if the selected song is an Ultrastar song
+  const isUltrastarSong = () => {
+    if (!formData.songInput) return false;
+    return ultrastarSongs.some(song => 
+      `${song.artist} - ${song.title}` === formData.songInput
+    );
   };
 
   const filteredVideos = serverVideos.filter(video =>
@@ -511,6 +527,24 @@ const SongRequest: React.FC = () => {
               🎵 Songliste öffnen
             </LocalSongsButton>
           </LocalSongsSection>
+
+          {/* Background Vocals Checkbox - only show for Ultrastar songs */}
+          {isUltrastarSong() && (
+            <FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  id="withBackgroundVocals"
+                  checked={withBackgroundVocals}
+                  onChange={(e) => setWithBackgroundVocals(e.target.checked)}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                <Label htmlFor="withBackgroundVocals" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                  Mit Background-Gesang
+                </Label>
+              </div>
+            </FormGroup>
+          )}
 
           {message && (
             <Alert type={message.type}>

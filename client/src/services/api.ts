@@ -32,7 +32,7 @@ api.interceptors.response.use(
 );
 
 export const songAPI = {
-  requestSong: (data: { name: string; songInput: string; deviceId?: string }) =>
+  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean }) =>
     api.post('/songs/request', data),
   
   getPlaylist: () =>
@@ -51,8 +51,10 @@ export const songAPI = {
     api.get('/songs/ultrastar-songs', { params: search ? { search } : {} }),
   
   
-  getUltrastarSongData: (folderName: string) =>
-    api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/data`),
+  getUltrastarSongData: (folderName: string, withBackgroundVocals?: string) =>
+    api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/data`, { 
+      params: withBackgroundVocals ? { withBackgroundVocals } : {} 
+    }),
   
   getFileSongs: () =>
     api.get('/songs/file-songs'), // Public endpoint for file songs

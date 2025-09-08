@@ -101,6 +101,15 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add with_background_vocals column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN with_background_vocals INTEGER DEFAULT 0
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Invisible songs table
   db.run(`
     CREATE TABLE IF NOT EXISTS invisible_songs (

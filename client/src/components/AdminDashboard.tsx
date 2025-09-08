@@ -411,6 +411,19 @@ const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ult
   text-align: center;
 `;
 
+const HP5Badge = styled.div`
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 8px;
+  background: #ff6b35;
+  color: white;
+  min-width: 40px;
+  text-align: center;
+`;
+
 const SongTitle = styled.div<{ $isCurrent?: boolean }>`
   flex: 1;
   font-size: 0.95rem;
@@ -1676,18 +1689,28 @@ const AdminDashboard: React.FC = () => {
                           {song.artist ? `${song.artist} - ${song.title}` : song.title}
                           {song.modes ? (
                             song.modes.map((mode, index) => (
-                              <ModeBadge key={index} $mode={mode}>
-                                {mode === 'server_video' ? '🟢 Server' : 
-                                 mode === 'file' ? '🔵 Datei' : 
-                                 mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
-                              </ModeBadge>
+                              <React.Fragment key={index}>
+                                {mode === 'ultrastar' && song.with_background_vocals && (
+                                  <HP5Badge>🎤 HP5</HP5Badge>
+                                )}
+                                <ModeBadge $mode={mode}>
+                                  {mode === 'server_video' ? '🟢 Server' : 
+                                   mode === 'file' ? '🔵 Datei' : 
+                                   mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                                </ModeBadge>
+                              </React.Fragment>
                             ))
                           ) : (
-                            <ModeBadge $mode={song.mode || 'youtube'}>
-                              {song.mode === 'server_video' ? '🟢 Server' : 
-                               song.mode === 'file' ? '🔵 Datei' : 
-                               song.mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
-                            </ModeBadge>
+                            <>
+                              {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
+                                <HP5Badge>🎤 HP5</HP5Badge>
+                              )}
+                              <ModeBadge $mode={song.mode || 'youtube'}>
+                                {song.mode === 'server_video' ? '🟢 Server' : 
+                                 song.mode === 'file' ? '🔵 Datei' : 
+                                 song.mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                              </ModeBadge>
+                            </>
                           )}
                         </SongTitle>
                         {(song.mode || 'youtube') === 'youtube' && (

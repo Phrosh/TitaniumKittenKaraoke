@@ -84,7 +84,8 @@ router.get('/file-songs', async (req, res) => {
 router.post('/request', [
   body('name').notEmpty().trim().isLength({ min: 1, max: 100 }),
   body('songInput').notEmpty().trim().isLength({ min: 1, max: 500 }),
-  body('deviceId').optional().isLength({ min: 3, max: 3 })
+  body('deviceId').optional().isLength({ min: 3, max: 3 }),
+  body('withBackgroundVocals').optional().isBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -92,7 +93,7 @@ router.post('/request', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, songInput, deviceId } = req.body;
+    const { name, songInput, deviceId, withBackgroundVocals } = req.body;
 
     // Check if YouTube is enabled
     const db = require('../config/database');
@@ -383,8 +384,8 @@ router.post('/request', [
       }
     }
 
-    // Create song with priority, duration and mode
-    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode);
+    // Create song with priority, duration, mode and background vocals preference
+    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode, withBackgroundVocals || false);
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);
@@ -538,10 +539,61 @@ router.get('/ultrastar-songs', (req, res) => {
   }
 });
 
+// Helper function to find audio file with HP2/HP5 preference
+function findAudioFileWithPreference(folderPath, preferBackgroundVocals = false) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    const files = fs.readdirSync(folderPath);
+    
+    // Look for HP2/HP5 files first
+    const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
+    const hp2File = files.find(file => file.toLowerCase().includes('.hp2.mp3'));
+    
+    console.log('🎵 File search debug:', {
+      folderPath,
+      preferBackgroundVocals,
+      hp5File,
+      hp2File,
+      allFiles: files.filter(f => f.toLowerCase().includes('.mp3')),
+      timestamp: new Date().toISOString()
+    });
+    
+    if (preferBackgroundVocals && hp5File) {
+      // User wants background vocals (HP5)
+      console.log('🎵 Selected HP5 (background vocals):', hp5File);
+      return path.join(folderPath, hp5File);
+    } else if (!preferBackgroundVocals && hp2File) {
+      // User wants no background vocals (HP2)
+      console.log('🎵 Selected HP2 (no background vocals):', hp2File);
+      return path.join(folderPath, hp2File);
+    } else if (hp5File) {
+      // Fallback to HP5 if HP2 not available
+      console.log('🎵 Fallback to HP5:', hp5File);
+      return path.join(folderPath, hp5File);
+    } else if (hp2File) {
+      // Fallback to HP2 if HP5 not available
+      console.log('🎵 Fallback to HP2:', hp2File);
+      return path.join(folderPath, hp2File);
+    }
+    
+    // If no HP2/HP5 files, fall back to original audio file
+    const { findAudioFile } = require('../utils/ultrastarParser');
+    const originalFile = findAudioFile(folderPath);
+    console.log('🎵 Fallback to original audio file:', originalFile);
+    return originalFile;
+  } catch (error) {
+    console.error('Error finding audio file with preference:', error);
+    return null;
+  }
+}
+
 // Get ultrastar song data (parsed .txt file) - MUST be before /:filename route
 router.get('/ultrastar/:folderName/data', (req, res) => {
   try {
     const { folderName } = req.params;
+    const { withBackgroundVocals } = req.query; // Optional query parameter
     const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
     const { parseUltrastarFile, findAudioFile } = require('../utils/ultrastarParser');
     
@@ -762,11 +814,26 @@ function findVideoFile(folderPath, specifiedVideo) {
       return res.status(500).json({ message: 'Error parsing Ultrastar file' });
     }
     
-    // Find audio file
-    const audioFile = findAudioFile(folderPath);
+    // Find audio file with HP2/HP5 preference
+    const preferBackgroundVocals = withBackgroundVocals === 'true';
+    console.log('🎵 Audio preference debug:', {
+      folderName,
+      withBackgroundVocals,
+      preferBackgroundVocals,
+      timestamp: new Date().toISOString()
+    });
+    
+    const audioFile = findAudioFileWithPreference(folderPath, preferBackgroundVocals);
     if (audioFile) {
       const audioFilename = path.basename(audioFile);
       songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+      
+      console.log('🎵 Selected audio file:', {
+        folderName,
+        audioFilename,
+        preferBackgroundVocals,
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Find video file with priority: .webm > .mp4 > others

@@ -862,7 +862,9 @@ const ShowView: React.FC = () => {
       const folderName = decodeURIComponent(encodedFolderName);
       console.log('🎵 Loading Ultrastar data for:', folderName);
       
-      const response = await songAPI.getUltrastarSongData(folderName);
+      // Pass withBackgroundVocals preference as query parameter
+      const withBackgroundVocals = song.with_background_vocals ? 'true' : 'false';
+      const response = await songAPI.getUltrastarSongData(folderName, withBackgroundVocals);
       const songData = response.data.songData;
       
       setUltrastarData(songData);
