@@ -294,9 +294,80 @@ router.post('/request', [
                   });
                 }
               }
+              
+              // Check if HP2/HP5 instrumental files exist and trigger audio separation if needed
+              const hp2File = files.find(file => file.toLowerCase().includes('.hp2.mp3'));
+              const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
+              
+              if (!hp2File || !hp5File) {
+                const pythonServerUrl = 'http://localhost:6000';
+                const separateUrl = `${pythonServerUrl}/separate_audio/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
+                
+                console.log('🎵 Triggering audio separation on song request:', {
+                  folderName: ultrastarSong.folderName,
+                  missingFiles: {
+                    hp2: !hp2File,
+                    hp5: !hp5File
+                  },
+                  separateUrl,
+                  timestamp: new Date().toISOString()
+                });
+                
+                // Make async request to Python server (don't wait for completion)
+                const https = require('http');
+                const url = require('url');
+                
+                const parsedUrl = url.parse(separateUrl);
+                const options = {
+                  hostname: parsedUrl.hostname,
+                  port: parsedUrl.port,
+                  path: parsedUrl.path,
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                };
+                
+                const req = https.request(options, (res) => {
+                  console.log('🎵 Python server response received:', {
+                    statusCode: res.statusCode,
+                    statusMessage: res.statusMessage,
+                    timestamp: new Date().toISOString()
+                  });
+                  
+                  let data = '';
+                  res.on('data', (chunk) => {
+                    data += chunk;
+                  });
+                  res.on('end', () => {
+                    try {
+                      const responseData = JSON.parse(data);
+                      console.log('🎵 Audio separation response:', {
+                        ...responseData,
+                        timestamp: new Date().toISOString()
+                      });
+                    } catch (error) {
+                      console.error('🎵 Audio separation response parse error:', error);
+                    }
+                  });
+                });
+                
+                req.on('error', (error) => {
+                  console.error('🎵 Audio separation HTTP request error:', error);
+                });
+                
+                req.setTimeout(30000);
+                req.end();
+              } else {
+                console.log('🎵 HP2/HP5 instrumental files already exist:', {
+                  folderName: ultrastarSong.folderName,
+                  hp2File,
+                  hp5File
+                });
+              }
             }
           } catch (error) {
-            console.error('🎬 Error triggering video conversion:', error);
+            console.error('🎬🎵 Error triggering video conversion or audio separation:', error);
           }
         }
       }
@@ -707,103 +778,15 @@ function findVideoFile(folderPath, specifiedVideo) {
       songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
       songData.videoFile = videoFile;
       
-      // Check if video needs conversion (not .webm or .mp4)
-      if (videoExt !== '.webm' && videoExt !== '.mp4') {
-        // Request conversion from Python server
-        try {
-          const pythonServerUrl = 'http://localhost:6000';
-          const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
-          
-          console.log('🎬 Requesting video conversion:', {
-            folderName,
-            videoFile,
-            convertUrl,
-            timestamp: new Date().toISOString()
-          });
-          
-          // Make async request to Python server (don't wait for completion)
-          const https = require('http');
-          const url = require('url');
-          
-          const parsedUrl = url.parse(convertUrl);
-          const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port,
-            path: parsedUrl.path,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          };
-          
-          console.log('🎬 Making HTTP request to Python server:', {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port,
-            path: parsedUrl.path,
-            method: 'POST',
-            timestamp: new Date().toISOString()
-          });
-          
-          const req = https.request(options, (res) => {
-            console.log('🎬 Python server response received:', {
-              statusCode: res.statusCode,
-              statusMessage: res.statusMessage,
-              headers: res.headers,
-              timestamp: new Date().toISOString()
-            });
-            
-            let data = '';
-            res.on('data', (chunk) => {
-              data += chunk;
-            });
-            res.on('end', () => {
-              try {
-                const responseData = JSON.parse(data);
-                console.log('🎬 Video conversion response:', {
-                  ...responseData,
-                  timestamp: new Date().toISOString()
-                });
-              } catch (error) {
-                console.error('🎬 Video conversion response parse error:', {
-                  error: error.message,
-                  rawData: data,
-                  timestamp: new Date().toISOString()
-                });
-              }
-            });
-          });
-          
-          req.on('error', (error) => {
-            console.error('🎬 Video conversion HTTP request error:', {
-              error: error.message,
-              code: error.code,
-              timestamp: new Date().toISOString()
-            });
-          });
-          
-          req.on('timeout', () => {
-            console.error('🎬 Video conversion request timeout:', {
-              timestamp: new Date().toISOString()
-            });
-            req.destroy();
-          });
-          
-          req.setTimeout(30000); // 30 second timeout
-          req.end();
-          
-          songData.needsConversion = true;
-        } catch (error) {
-          console.error('Error requesting video conversion:', error);
-        }
-      } else {
-        console.log('🎬 Video already in preferred format:', {
-          folderName,
-          videoFile,
-          extension: videoExt,
-          timestamp: new Date().toISOString()
-        });
-      }
+      // Note: Video conversion is handled in the song request route, not here
+      console.log('🎬 Video file found:', {
+        folderName,
+        videoFile,
+        extension: videoExt,
+        timestamp: new Date().toISOString()
+      });
     }
+    
     
     // Find background image file
     const backgroundImageFile = findBackgroundImageFile(folderPath);
