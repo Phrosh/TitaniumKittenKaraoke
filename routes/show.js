@@ -123,7 +123,8 @@ router.get('/', async (req, res) => {
         youtube_url: youtubeUrl,
         mode: currentSong.mode || 'youtube',
         position: currentSong.position,
-        duration_seconds: currentSong.duration_seconds
+        duration_seconds: currentSong.duration_seconds,
+        with_background_vocals: currentSong.with_background_vocals || false
       } : null,
       nextSongs,
       showQRCodeOverlay,

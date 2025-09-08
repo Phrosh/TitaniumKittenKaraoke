@@ -13,6 +13,7 @@ interface CurrentSong {
   mode: 'youtube' | 'server_video' | 'file' | 'ultrastar';
   position: number;
   duration_seconds?: number;
+  with_background_vocals?: boolean;
 }
 
 interface ShowData {
@@ -880,15 +881,6 @@ const ShowView: React.FC = () => {
         audioUrl: songData.audioUrl
       });
       
-      // Log first few notes to see parsing results
-      console.log('🎵 parsed notes:', songData.notes.map(note => ({
-        type: note.type,
-        startBeat: note.startBeat,
-        duration: note.duration,
-        pitch: note.pitch,
-        text: note.text,
-        displayText: note.displayText
-      })));
       
       
       // Start timing if audio is available
