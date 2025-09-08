@@ -1,5 +1,2 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c82076c137f0e06f287f2157abd5196f3aa5dded3333380854b24396241a3100
-size 173
 ai-services/assets/uvr5_weights/*.pth filter=lfs diff=lfs merge=lfs -text
 ff*.exe filter=lfs diff=lfs merge=lfs -text
