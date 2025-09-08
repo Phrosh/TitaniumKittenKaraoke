@@ -679,6 +679,7 @@ const AdminDashboard: React.FC = () => {
   const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
   const [songSearchTerm, setSongSearchTerm] = useState('');
   const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
+  const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -1294,15 +1295,25 @@ const AdminDashboard: React.FC = () => {
   // Song Management Functions
   const fetchSongs = useCallback(async () => {
     try {
-      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
+      const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse] = await Promise.all([
         songAPI.getServerVideos(),
         songAPI.getUltrastarSongs(),
-        songAPI.getFileSongs()
+        songAPI.getFileSongs(),
+        adminAPI.getUltrastarAudioSettings()
       ]);
       
       const serverVideos = localResponse.data.videos || [];
       const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
+      const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
+      
+      // Convert audio settings to a lookup object
+      const audioSettingsMap: Record<string, string> = {};
+      audioSettings.forEach((setting: any) => {
+        const key = `${setting.artist}-${setting.title}`;
+        audioSettingsMap[key] = setting.audio_preference;
+      });
+      setUltrastarAudioSettings(audioSettingsMap);
       
       // Combine and deduplicate songs, preserving all modes
       const allSongs = [...fileSongs];
@@ -1425,6 +1436,38 @@ const AdminDashboard: React.FC = () => {
       } finally {
         setActionLoading(false);
       }
+    }
+  };
+
+  const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
+    setActionLoading(true);
+    try {
+      const songKey = `${song.artist}-${song.title}`;
+      
+      if (audioPreference === 'choice') {
+        // Remove setting (default to choice)
+        await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
+        setUltrastarAudioSettings(prev => {
+          const newSettings = { ...prev };
+          delete newSettings[songKey];
+          return newSettings;
+        });
+        toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "Auswahl" gesetzt`);
+      } else {
+        // Set specific preference
+        await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
+        setUltrastarAudioSettings(prev => ({
+          ...prev,
+          [songKey]: audioPreference
+        }));
+        const preferenceText = audioPreference === 'hp2' ? 'Ohne Background Vocals' : 'Mit Background Vocals';
+        toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "${preferenceText}" gesetzt`);
+      }
+    } catch (error: any) {
+      console.error('Error updating ultrastar audio setting:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Aktualisieren der Audio-Einstellung');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -2382,62 +2425,109 @@ const AdminDashboard: React.FC = () => {
                                 flexShrink: 0
                               }}
                             />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
-                                  {song.artist} - {song.title}
-                                </div>
-                                <div style={{ display: 'flex', gap: '4px' }}>
-                                  {song.modes?.includes('server_video') && (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#28a745',
-                                      background: '#d4edda',
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '500'
-                                    }}>
-                                      🟢 Server
-                                    </span>
-                                  )}
-                                  {song.modes?.includes('file') && (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#007bff',
-                                      background: '#cce7ff',
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '500'
-                                    }}>
-                                      🔵 Datei
-                                    </span>
-                                  )}
-                                  {song.modes?.includes('ultrastar') && (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#8e44ad',
-                                      background: '#e8d5f2',
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '500'
-                                    }}>
-                                      ⭐ Ultrastar
-                                    </span>
-                                  )}
-                                  {song.mode === 'youtube' && (
-                                    <span style={{ 
-                                      fontSize: '12px', 
-                                      color: '#dc3545',
-                                      background: '#f8d7da',
-                                      padding: '2px 6px', 
-                                      borderRadius: '4px',
-                                      fontWeight: '500'
-                                    }}>
-                                      🔴 YouTube
-                                    </span>
-                                  )}
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '20px' }}>
+                              {/* Left side: Song info */}
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                  <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
+                                    {song.artist} - {song.title}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '4px' }}>
+                                    {song.modes?.includes('server_video') && (
+                                      <span style={{ 
+                                        fontSize: '12px', 
+                                        color: '#28a745',
+                                        background: '#d4edda',
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                      }}>
+                                        🟢 Server
+                                      </span>
+                                    )}
+                                    {song.modes?.includes('file') && (
+                                      <span style={{ 
+                                        fontSize: '12px', 
+                                        color: '#007bff',
+                                        background: '#cce7ff',
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                      }}>
+                                        🔵 Datei
+                                      </span>
+                                    )}
+                                    {song.modes?.includes('ultrastar') && (
+                                      <span style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8e44ad',
+                                        background: '#e8d5f2',
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                      }}>
+                                        ⭐ Ultrastar
+                                      </span>
+                                    )}
+                                    {song.mode === 'youtube' && (
+                                      <span style={{ 
+                                        fontSize: '12px', 
+                                        color: '#dc3545',
+                                        background: '#f8d7da',
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                      }}>
+                                        🔴 YouTube
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
+                              
+                              {/* Right side: Audio settings for Ultrastar songs */}
+                              {song.modes?.includes('ultrastar') && (
+                                <div style={{ flex: 1, padding: '8px', background: '#f8f9fa', borderRadius: '4px' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#495057' }}>
+                                    Audio-Einstellung:
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                                      <input
+                                        type="radio"
+                                        name={`audio-${song.artist}-${song.title}`}
+                                        value="hp2"
+                                        checked={ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'hp2'}
+                                        onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
+                                        disabled={actionLoading}
+                                      />
+                                      Ohne Background Gesang
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                                      <input
+                                        type="radio"
+                                        name={`audio-${song.artist}-${song.title}`}
+                                        value="hp5"
+                                        checked={ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'hp5'}
+                                        onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
+                                        disabled={actionLoading}
+                                      />
+                                      Mit Background Gesang
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                                      <input
+                                        type="radio"
+                                        name={`audio-${song.artist}-${song.title}`}
+                                        value="choice"
+                                        checked={!ultrastarAudioSettings[`${song.artist}-${song.title}`] || ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'choice'}
+                                        onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
+                                        disabled={actionLoading}
+                                      />
+                                      Auswahl
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );

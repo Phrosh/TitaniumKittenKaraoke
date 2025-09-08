@@ -121,6 +121,20 @@ function initializeDatabase() {
       FOREIGN KEY (created_by) REFERENCES admin_users (id)
     )
   `);
+
+  // Ultrastar audio settings table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ultrastar_audio_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      artist TEXT NOT NULL,
+      title TEXT NOT NULL,
+      audio_preference TEXT CHECK(audio_preference IN ('hp2', 'hp5', 'choice')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES admin_users (id),
+      UNIQUE(artist, title)
+    )
+  `);
   });
 }
 

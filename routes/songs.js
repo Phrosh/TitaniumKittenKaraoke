@@ -539,6 +539,27 @@ router.get('/ultrastar-songs', (req, res) => {
   }
 });
 
+// Helper function to get saved audio preference from database
+async function getSavedAudioPreference(artist, title) {
+  const db = require('../config/database');
+  try {
+    const setting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT audio_preference FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
+        [artist, title],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    return setting ? setting.audio_preference : null;
+  } catch (error) {
+    console.error('Error getting saved audio preference:', error);
+    return null;
+  }
+}
+
 // Helper function to find audio file with HP2/HP5 preference
 function findAudioFileWithPreference(folderPath, preferBackgroundVocals = false) {
   const fs = require('fs');
@@ -576,7 +597,7 @@ function findAudioFileWithPreference(folderPath, preferBackgroundVocals = false)
 }
 
 // Get ultrastar song data (parsed .txt file) - MUST be before /:filename route
-router.get('/ultrastar/:folderName/data', (req, res) => {
+router.get('/ultrastar/:folderName/data', async (req, res) => {
   try {
     const { folderName } = req.params;
     const { withBackgroundVocals } = req.query; // Optional query parameter
@@ -801,7 +822,21 @@ function findVideoFile(folderPath, specifiedVideo) {
     }
     
     // Find audio file with HP2/HP5 preference
-    const preferBackgroundVocals = withBackgroundVocals === 'true';
+    // First check if there's a saved preference in the database
+    const savedPreference = await getSavedAudioPreference(songData.artist, songData.title);
+    
+    let preferBackgroundVocals = false;
+    
+    if (savedPreference === 'hp5') {
+      // Saved preference: use HP5 (with background vocals)
+      preferBackgroundVocals = true;
+    } else if (savedPreference === 'hp2') {
+      // Saved preference: use HP2 (without background vocals)
+      preferBackgroundVocals = false;
+    } else {
+      // No saved preference or "choice" - use user's selection from query parameter
+      preferBackgroundVocals = withBackgroundVocals === 'true';
+    }
     
     const audioFile = findAudioFileWithPreference(folderPath, preferBackgroundVocals);
     if (audioFile) {
@@ -964,6 +999,24 @@ router.get('/invisible-songs', async (req, res) => {
     res.json({ invisibleSongs });
   } catch (error) {
     console.error('Error getting invisible songs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Public endpoint to get ultrastar audio settings (for filtering in /new)
+router.get('/ultrastar-audio-settings', async (req, res) => {
+  try {
+    const db = require('../config/database');
+    const audioSettings = await new Promise((resolve, reject) => {
+      db.all('SELECT artist, title, audio_preference FROM ultrastar_audio_settings', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    res.json({ ultrastarAudioSettings: audioSettings });
+  } catch (error) {
+    console.error('Error getting ultrastar audio settings:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

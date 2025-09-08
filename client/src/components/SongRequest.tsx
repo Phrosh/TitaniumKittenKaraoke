@@ -240,6 +240,7 @@ const SongRequest: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [withBackgroundVocals, setWithBackgroundVocals] = useState(false);
+  const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -278,6 +279,28 @@ const SongRequest: React.FC = () => {
     };
 
     loadYouTubeSetting();
+  }, []);
+
+  useEffect(() => {
+    // Load Ultrastar audio settings
+    const loadUltrastarAudioSettings = async () => {
+      try {
+        const response = await songAPI.getUltrastarAudioSettings();
+        const audioSettings = response.data.ultrastarAudioSettings || [];
+        
+        // Convert to lookup object
+        const audioSettingsMap: Record<string, string> = {};
+        audioSettings.forEach((setting: any) => {
+          const key = `${setting.artist}-${setting.title}`;
+          audioSettingsMap[key] = setting.audio_preference;
+        });
+        setUltrastarAudioSettings(audioSettingsMap);
+      } catch (error) {
+        console.error('Error loading ultrastar audio settings:', error);
+      }
+    };
+
+    loadUltrastarAudioSettings();
   }, []);
 
   const generateQRCode = async () => {
@@ -528,8 +551,12 @@ const SongRequest: React.FC = () => {
             </LocalSongsButton>
           </LocalSongsSection>
 
-          {/* Background Vocals Checkbox - only show for Ultrastar songs */}
-          {isUltrastarSong() && (
+          {/* Background Vocals Checkbox - only show for Ultrastar songs with "choice" setting */}
+          {isUltrastarSong() && (() => {
+            const songKey = `${formData.songInput.split(' - ')[0]}-${formData.songInput.split(' - ').slice(1).join(' - ')}`;
+            const audioPreference = ultrastarAudioSettings[songKey];
+            return !audioPreference || audioPreference === 'choice';
+          })() && (
             <FormGroup>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input

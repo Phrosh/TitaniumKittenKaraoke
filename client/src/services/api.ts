@@ -61,6 +61,7 @@ export const songAPI = {
   
   getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
+  getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings
 };
 
 export const playlistAPI = {
@@ -157,6 +158,13 @@ export const adminAPI = {
     api.post('/admin/invisible-songs', { artist, title }),
   removeFromInvisibleSongs: (id: number) =>
     api.delete(`/admin/invisible-songs/${id}`),
+
+  // Ultrastar Audio Settings Management
+  getUltrastarAudioSettings: () => api.get('/admin/ultrastar-audio-settings'),
+  setUltrastarAudioSetting: (artist: string, title: string, audioPreference: string) =>
+    api.post('/admin/ultrastar-audio-settings', { artist, title, audioPreference }),
+  removeUltrastarAudioSetting: (artist: string, title: string) =>
+    api.delete('/admin/ultrastar-audio-settings', { data: { artist, title } }),
 };
 
 export const showAPI = {
