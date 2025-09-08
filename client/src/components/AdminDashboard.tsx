@@ -677,6 +677,7 @@ const AdminDashboard: React.FC = () => {
   // Song Management
   const [songs, setSongs] = useState<any[]>([]);
   const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
+  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
   const [songSearchTerm, setSongSearchTerm] = useState('');
   const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
@@ -1439,6 +1440,26 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Check if Ultrastar song has missing files
+  const hasMissingFiles = (song: any) => {
+    if (!song.modes?.includes('ultrastar')) return false;
+    
+    // Check if video files are missing
+    const hasVideo = song.hasVideo || false;
+    const hasPreferredVideo = song.hasPreferredVideo || false;
+    
+    // Check if HP2/HP5 files are missing
+    const hasHp2Hp5 = song.hasHp2Hp5 || false;
+    
+    // If no video at all, only check HP2/HP5
+    if (!hasVideo) {
+      return !hasHp2Hp5;
+    }
+    
+    // If video exists but not in preferred format, or HP2/HP5 missing
+    return !hasPreferredVideo || !hasHp2Hp5;
+  };
+
   const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
     setActionLoading(true);
     try {
@@ -1469,6 +1490,52 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleStartProcessing = async (song: any) => {
+    const songKey = `${song.artist}-${song.title}`;
+    
+    // Mark song as processing
+    setProcessingSongs(prev => new Set(prev).add(songKey));
+    
+    try {
+      const folderName = song.folderName || `${song.artist} - ${song.title}`;
+      const response = await songAPI.processUltrastarSong(folderName);
+      
+      if (response.data.status === 'no_processing_needed') {
+        toast.info('Keine Verarbeitung erforderlich - alle Dateien sind bereits vorhanden');
+        // Remove from processing state since no processing was needed
+        setProcessingSongs(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(songKey);
+          return newSet;
+        });
+      } else {
+        toast.success(`Verarbeitung für ${song.artist} - ${song.title} gestartet`);
+        console.log('Processing started:', response.data);
+        // Keep in processing state - will be removed later when job completes
+      }
+    } catch (error: any) {
+      console.error('Error starting processing:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Starten der Verarbeitung');
+      // Remove from processing state on error
+      setProcessingSongs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(songKey);
+        return newSet;
+      });
+    }
+  };
+
+  // Helper function to mark processing as completed (for future polling implementation)
+  const markProcessingCompleted = (song: any) => {
+    const songKey = `${song.artist}-${song.title}`;
+    setProcessingSongs(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(songKey);
+      return newSet;
+    });
+    toast.success(`Verarbeitung für ${song.artist} - ${song.title} abgeschlossen`);
   };
 
   const handleCreateAdminUser = async () => {
@@ -1734,7 +1801,7 @@ const AdminDashboard: React.FC = () => {
                             song.modes.map((mode, index) => (
                               <React.Fragment key={index}>
                                 {mode === 'ultrastar' && song.with_background_vocals && (
-                                  <HP5Badge>🎤 HP5</HP5Badge>
+                                  <HP5Badge>🎤 BG Vocals</HP5Badge>
                                 )}
                                 <ModeBadge $mode={mode}>
                                   {mode === 'server_video' ? '🟢 Server' : 
@@ -1746,7 +1813,7 @@ const AdminDashboard: React.FC = () => {
                           ) : (
                             <>
                               {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
-                                <HP5Badge>🎤 HP5</HP5Badge>
+                                <HP5Badge>🎤 BG Vocals</HP5Badge>
                               )}
                               <ModeBadge $mode={song.mode || 'youtube'}>
                                 {song.mode === 'server_video' ? '🟢 Server' : 
@@ -2429,7 +2496,17 @@ const AdminDashboard: React.FC = () => {
                               {/* Left side: Song info */}
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                  <div style={{ fontWeight: '600', fontSize: '16px', color: '#333' }}>
+                                  <div 
+                                    style={{ 
+                                      fontWeight: '600', 
+                                      fontSize: '16px', 
+                                      color: '#333',
+                                      cursor: 'pointer',
+                                      userSelect: 'none'
+                                    }}
+                                    onClick={() => handleToggleSongVisibility(song)}
+                                    title="Klicken zum Umschalten der Sichtbarkeit"
+                                  >
                                     {song.artist} - {song.title}
                                   </div>
                                   <div style={{ display: 'flex', gap: '4px' }}>
@@ -2481,9 +2558,61 @@ const AdminDashboard: React.FC = () => {
                                         🔴 YouTube
                                       </span>
                                     )}
+                                    {hasMissingFiles(song) && (
+                                      <span 
+                                        style={{ 
+                                          fontSize: '12px', 
+                                          color: '#ff6b35',
+                                          background: '#ffe6e0',
+                                          padding: '2px 6px', 
+                                          borderRadius: '4px',
+                                          fontWeight: '500',
+                                          cursor: 'help'
+                                        }}
+                                        title="Dieses Ultrastar-Video benötigt nach dem ersten Songwunsch länger für die Verarbeitung, da wichtige Dateien fehlen (Video-Datei oder HP2/HP5-Audio-Dateien)."
+                                      >
+                                        ⚠️ Verarbeitung
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
+                              
+                              {/* Processing button for songs with missing files */}
+                              {hasMissingFiles(song) && (
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => handleStartProcessing(song)}
+                                    disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`)}
+                                    style={{
+                                      fontSize: '12px',
+                                      padding: '6px 12px',
+                                      backgroundColor: processingSongs.has(`${song.artist}-${song.title}`) ? '#6c757d' : '#28a745',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: (actionLoading || processingSongs.has(`${song.artist}-${song.title}`)) ? 'not-allowed' : 'pointer',
+                                      fontWeight: '500',
+                                      opacity: (actionLoading || processingSongs.has(`${song.artist}-${song.title}`)) ? 0.6 : 1,
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!actionLoading && !processingSongs.has(`${song.artist}-${song.title}`)) {
+                                        e.currentTarget.style.backgroundColor = '#218838';
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!actionLoading && !processingSongs.has(`${song.artist}-${song.title}`)) {
+                                        e.currentTarget.style.backgroundColor = '#28a745';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                      }
+                                    }}
+                                  >
+                                    {processingSongs.has(`${song.artist}-${song.title}`) ? '⏳ Verarbeitung läuft...' : '🔧 Verarbeitung starten'}
+                                  </button>
+                                </div>
+                              )}
                               
                               {/* Right side: Audio settings for Ultrastar songs */}
                               {song.modes?.includes('ultrastar') && (

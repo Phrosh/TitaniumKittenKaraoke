@@ -232,61 +232,14 @@ router.post('/request', [
                 
                 // Check if video needs conversion (not .webm or .mp4)
                 if (videoExt !== '.webm' && videoExt !== '.mp4') {
-                  const pythonServerUrl = 'http://localhost:6000';
-                  const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
-                  
                   console.log('🎬 Triggering video conversion on song request:', {
                     folderName: ultrastarSong.folderName,
                     videoFile,
-                    convertUrl,
                     timestamp: new Date().toISOString()
                   });
                   
-                  // Make async request to Python server (don't wait for completion)
-                  const https = require('http');
-                  const url = require('url');
-                  
-                  const parsedUrl = url.parse(convertUrl);
-                  const options = {
-                    hostname: parsedUrl.hostname,
-                    port: parsedUrl.port,
-                    path: parsedUrl.path,
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    }
-                  };
-                  
-                  const req = https.request(options, (res) => {
-                    console.log('🎬 Python server response received:', {
-                      statusCode: res.statusCode,
-                      statusMessage: res.statusMessage,
-                      timestamp: new Date().toISOString()
-                    });
-                    
-                    let data = '';
-                    res.on('data', (chunk) => {
-                      data += chunk;
-                    });
-                    res.on('end', () => {
-                      try {
-                        const responseData = JSON.parse(data);
-                        console.log('🎬 Video conversion response:', {
-                          ...responseData,
-                          timestamp: new Date().toISOString()
-                        });
-                      } catch (error) {
-                        console.error('🎬 Video conversion response parse error:', error);
-                      }
-                    });
-                  });
-                  
-                  req.on('error', (error) => {
-                    console.error('🎬 Video conversion HTTP request error:', error);
-                  });
-                  
-                  req.setTimeout(30000);
-                  req.end();
+                  // Use internal proxy endpoint instead of direct call
+                  triggerVideoConversionViaProxy(ultrastarSong.folderName);
                 } else {
                   console.log('🎬 Video already in preferred format:', {
                     folderName: ultrastarSong.folderName,
@@ -301,64 +254,17 @@ router.post('/request', [
               const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
               
               if (!hp2File || !hp5File) {
-                const pythonServerUrl = 'http://localhost:6000';
-                const separateUrl = `${pythonServerUrl}/separate_audio/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
-                
                 console.log('🎵 Triggering audio separation on song request:', {
                   folderName: ultrastarSong.folderName,
                   missingFiles: {
                     hp2: !hp2File,
                     hp5: !hp5File
                   },
-                  separateUrl,
                   timestamp: new Date().toISOString()
                 });
                 
-                // Make async request to Python server (don't wait for completion)
-                const https = require('http');
-                const url = require('url');
-                
-                const parsedUrl = url.parse(separateUrl);
-                const options = {
-                  hostname: parsedUrl.hostname,
-                  port: parsedUrl.port,
-                  path: parsedUrl.path,
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  }
-                };
-                
-                const req = https.request(options, (res) => {
-                  console.log('🎵 Python server response received:', {
-                    statusCode: res.statusCode,
-                    statusMessage: res.statusMessage,
-                    timestamp: new Date().toISOString()
-                  });
-                  
-                  let data = '';
-                  res.on('data', (chunk) => {
-                    data += chunk;
-                  });
-                  res.on('end', () => {
-                    try {
-                      const responseData = JSON.parse(data);
-                      console.log('🎵 Audio separation response:', {
-                        ...responseData,
-                        timestamp: new Date().toISOString()
-                      });
-                    } catch (error) {
-                      console.error('🎵 Audio separation response parse error:', error);
-                    }
-                  });
-                });
-                
-                req.on('error', (error) => {
-                  console.error('🎵 Audio separation HTTP request error:', error);
-                });
-                
-                req.setTimeout(30000);
-                req.end();
+                // Use internal proxy endpoint instead of direct call
+                triggerAudioSeparationViaProxy(ultrastarSong.folderName);
               } else {
                 console.log('🎵 HP2/HP5 instrumental files already exist:', {
                   folderName: ultrastarSong.folderName,
@@ -539,6 +445,267 @@ router.get('/ultrastar-songs', (req, res) => {
   }
 });
 
+// Proxy endpoints for AI services
+router.post('/ai-services/convert_video/ultrastar/:folderName', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const pythonServerUrl = 'http://localhost:6000';
+    const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
+    
+    console.log('🎬 Proxying video conversion request:', {
+      folderName,
+      convertUrl,
+      timestamp: new Date().toISOString()
+    });
+    
+    const https = require('http');
+    const url = require('url');
+    
+    const parsedUrl = url.parse(convertUrl);
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const proxyReq = https.request(options, (proxyRes) => {
+      let data = '';
+      
+      proxyRes.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      proxyRes.on('end', () => {
+        try {
+          const responseData = JSON.parse(data);
+          console.log('🎬 AI service response:', {
+            statusCode: proxyRes.statusCode,
+            responseData,
+            timestamp: new Date().toISOString()
+          });
+          
+          res.status(proxyRes.statusCode).json(responseData);
+        } catch (error) {
+          console.error('🎬 Error parsing AI service response:', error);
+          res.status(500).json({ error: 'Invalid response from AI service' });
+        }
+      });
+    });
+    
+    proxyReq.on('error', (error) => {
+      console.error('🎬 Error proxying to AI service:', error);
+      res.status(500).json({ error: 'AI service unavailable' });
+    });
+    
+    proxyReq.setTimeout(30000);
+    proxyReq.end();
+  } catch (error) {
+    console.error('Error proxying video conversion:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/ai-services/separate_audio/ultrastar/:folderName', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const pythonServerUrl = 'http://localhost:6000';
+    const separateUrl = `${pythonServerUrl}/separate_audio/ultrastar/${encodeURIComponent(folderName)}`;
+    
+    console.log('🎵 Proxying audio separation request:', {
+      folderName,
+      separateUrl,
+      timestamp: new Date().toISOString()
+    });
+    
+    const https = require('http');
+    const url = require('url');
+    
+    const parsedUrl = url.parse(separateUrl);
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const proxyReq = https.request(options, (proxyRes) => {
+      let data = '';
+      
+      proxyRes.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      proxyRes.on('end', () => {
+        try {
+          const responseData = JSON.parse(data);
+          console.log('🎵 AI service response:', {
+            statusCode: proxyRes.statusCode,
+            responseData,
+            timestamp: new Date().toISOString()
+          });
+          
+          res.status(proxyRes.statusCode).json(responseData);
+        } catch (error) {
+          console.error('🎵 Error parsing AI service response:', error);
+          res.status(500).json({ error: 'Invalid response from AI service' });
+        }
+      });
+    });
+    
+    proxyReq.on('error', (error) => {
+      console.error('🎵 Error proxying to AI service:', error);
+      res.status(500).json({ error: 'AI service unavailable' });
+    });
+    
+    proxyReq.setTimeout(30000);
+    proxyReq.end();
+  } catch (error) {
+    console.error('Error proxying audio separation:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/ai-services/health', async (req, res) => {
+  try {
+    const pythonServerUrl = 'http://localhost:6000';
+    const healthUrl = `${pythonServerUrl}/health`;
+    
+    const https = require('http');
+    const url = require('url');
+    
+    const parsedUrl = url.parse(healthUrl);
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      path: parsedUrl.path,
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const proxyReq = https.request(options, (proxyRes) => {
+      let data = '';
+      
+      proxyRes.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      proxyRes.on('end', () => {
+        try {
+          const responseData = JSON.parse(data);
+          res.status(proxyRes.statusCode).json(responseData);
+        } catch (error) {
+          console.error('Error parsing AI service health response:', error);
+          res.status(500).json({ error: 'Invalid response from AI service' });
+        }
+      });
+    });
+    
+    proxyReq.on('error', (error) => {
+      console.error('Error proxying to AI service health:', error);
+      res.status(500).json({ error: 'AI service unavailable' });
+    });
+    
+    proxyReq.setTimeout(5000);
+    proxyReq.end();
+  } catch (error) {
+    console.error('Error proxying AI service health check:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Manual processing endpoint for ultrastar songs
+router.post('/ultrastar/:folderName/process', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    
+    console.log('🔧 Manual processing request:', {
+      folderName: decodeURIComponent(folderName),
+      folderPath,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Ultrastar folder not found' });
+    }
+    
+    const files = fs.readdirSync(folderPath);
+    
+    // Check what needs processing
+    const hp2File = files.find(file => file.toLowerCase().includes('.hp2.mp3'));
+    const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
+    const videoFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'].includes(ext);
+    });
+    const preferredVideoFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.webm', '.mp4'].includes(ext);
+    });
+    
+    const needsAudioSeparation = !hp2File || !hp5File;
+    const needsVideoConversion = videoFiles.length > 0 && preferredVideoFiles.length === 0;
+    
+    console.log('🔧 Processing analysis:', {
+      folderName: decodeURIComponent(folderName),
+      needsAudioSeparation,
+      needsVideoConversion,
+      hasVideoFiles: videoFiles.length > 0,
+      hasPreferredVideo: preferredVideoFiles.length > 0,
+      hasHp2: !!hp2File,
+      hasHp5: !!hp5File,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Start processing tasks
+    const processingTasks = [];
+    
+    if (needsAudioSeparation) {
+      console.log('🎵 Starting audio separation...');
+      processingTasks.push('audio_separation');
+      triggerAudioSeparationViaProxy(folderName);
+    }
+    
+    if (needsVideoConversion) {
+      console.log('🎬 Starting video conversion...');
+      processingTasks.push('video_conversion');
+      triggerVideoConversionViaProxy(folderName);
+    }
+    
+    if (processingTasks.length === 0) {
+      return res.json({ 
+        message: 'No processing needed',
+        status: 'no_processing_needed',
+        tasks: []
+      });
+    }
+    
+    res.json({
+      message: 'Processing started',
+      status: 'processing_started',
+      tasks: processingTasks,
+      folderName: decodeURIComponent(folderName)
+    });
+    
+  } catch (error) {
+    console.error('Error in manual processing:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Helper function to get saved audio preference from database
 async function getSavedAudioPreference(artist, title) {
   const db = require('../config/database');
@@ -616,85 +783,14 @@ router.get('/ultrastar/:folderName/data', async (req, res) => {
         
         // Check if video needs conversion (not .mp4 or .webm)
         if (videoExt !== '.mp4' && videoExt !== '.webm') {
-          const pythonServerUrl = 'http://localhost:6000';
-          const convertUrl = `${pythonServerUrl}/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
-          
           console.log('🎬 Triggering video conversion on song request:', {
             folderName,
             videoFile,
-            convertUrl,
             timestamp: new Date().toISOString()
           });
           
-          // Make async request to Python server (don't wait for completion)
-          const https = require('http');
-          const url = require('url');
-          
-          const parsedUrl = url.parse(convertUrl);
-          const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port,
-            path: parsedUrl.path,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          };
-          
-          console.log('🎬 Making HTTP request to Python server:', {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port,
-            path: parsedUrl.path,
-            method: 'POST',
-            timestamp: new Date().toISOString()
-          });
-          
-          const req = https.request(options, (res) => {
-            console.log('🎬 Python server response received:', {
-              statusCode: res.statusCode,
-              statusMessage: res.statusMessage,
-              headers: res.headers,
-              timestamp: new Date().toISOString()
-            });
-            
-            let data = '';
-            res.on('data', (chunk) => {
-              data += chunk;
-            });
-            res.on('end', () => {
-              try {
-                const responseData = JSON.parse(data);
-                console.log('🎬 Video conversion response:', {
-                  ...responseData,
-                  timestamp: new Date().toISOString()
-                });
-              } catch (error) {
-                console.error('🎬 Video conversion response parse error:', {
-                  error: error.message,
-                  rawData: data,
-                  timestamp: new Date().toISOString()
-                });
-              }
-            });
-          });
-          
-          req.on('error', (error) => {
-            console.error('🎬 Video conversion HTTP request error:', {
-              error: error.message,
-              code: error.code,
-              timestamp: new Date().toISOString()
-            });
-          });
-          
-          req.on('timeout', () => {
-            console.error('🎬 Video conversion request timeout:', {
-              timestamp: new Date().toISOString()
-            });
-            req.destroy();
-          });
-          
-          req.setTimeout(30000); // 30 second timeout
-          req.end();
+          // Use internal proxy endpoint instead of direct call
+          triggerVideoConversionViaProxy(folderName);
         } else {
           console.log('🎬 Video already in preferred format, no conversion needed:', {
             folderName,
@@ -1020,5 +1116,71 @@ router.get('/ultrastar-audio-settings', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// Helper function to trigger video conversion via internal proxy
+function triggerVideoConversionViaProxy(folderName) {
+  try {
+    const axios = require('axios');
+    const proxyUrl = `http://localhost:5000/api/songs/ai-services/convert_video/ultrastar/${encodeURIComponent(folderName)}`;
+    
+    console.log('🎬 Triggering video conversion via proxy:', {
+      folderName,
+      proxyUrl,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Make async request to internal proxy (don't wait for completion)
+    axios.post(proxyUrl, {}, { timeout: 30000 })
+      .then(response => {
+        console.log('🎬 Video conversion proxy response:', {
+          status: response.status,
+          data: response.data,
+          timestamp: new Date().toISOString()
+        });
+      })
+      .catch(error => {
+        console.error('🎬 Video conversion proxy error:', {
+          message: error.message,
+          code: error.code,
+          timestamp: new Date().toISOString()
+        });
+      });
+  } catch (error) {
+    console.error('🎬 Error in triggerVideoConversionViaProxy:', error);
+  }
+}
+
+// Helper function to trigger audio separation via internal proxy
+function triggerAudioSeparationViaProxy(folderName) {
+  try {
+    const axios = require('axios');
+    const proxyUrl = `http://localhost:5000/api/songs/ai-services/separate_audio/ultrastar/${encodeURIComponent(folderName)}`;
+    
+    console.log('🎵 Triggering audio separation via proxy:', {
+      folderName,
+      proxyUrl,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Make async request to internal proxy (don't wait for completion)
+    axios.post(proxyUrl, {}, { timeout: 30000 })
+      .then(response => {
+        console.log('🎵 Audio separation proxy response:', {
+          status: response.status,
+          data: response.data,
+          timestamp: new Date().toISOString()
+        });
+      })
+      .catch(error => {
+        console.error('🎵 Audio separation proxy error:', {
+          message: error.message,
+          code: error.code,
+          timestamp: new Date().toISOString()
+        });
+      });
+  } catch (error) {
+    console.error('🎵 Error in triggerAudioSeparationViaProxy:', error);
+  }
+}
 
 module.exports = router;

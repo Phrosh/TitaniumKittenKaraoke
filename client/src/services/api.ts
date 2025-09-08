@@ -62,6 +62,10 @@ export const songAPI = {
   getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
   getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings
+  
+  // Manual processing for ultrastar songs
+  processUltrastarSong: (folderName: string) =>
+    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/process`)
 };
 
 export const playlistAPI = {

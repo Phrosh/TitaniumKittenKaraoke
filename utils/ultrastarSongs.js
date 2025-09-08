@@ -5,7 +5,7 @@ const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
 
 /**
  * Scannt den ultrastar Ordner und gibt alle verfügbaren Ultrastar-Songs zurück
- * @returns {Array} Array von Song-Objekten mit {folderName, artist, title, fullPath}
+ * @returns {Array} Array von Song-Objekten mit {folderName, artist, title, fullPath, hasVideo, hasHp2Hp5}
  */
 function scanUltrastarSongs() {
   try {
@@ -33,11 +33,21 @@ function scanUltrastarSongs() {
         const artist = parts[0].trim();
         const title = parts.slice(1).join(' - ').trim(); // Falls der Titel selbst " - " enthält
         
+        // Check for video files
+        const hasVideo = checkForVideoFiles(fullPath);
+        const hasPreferredVideo = checkForPreferredVideoFiles(fullPath);
+        
+        // Check for HP2/HP5 files
+        const hasHp2Hp5 = checkForHp2Hp5Files(fullPath);
+        
         songs.push({
           folderName: folder,
           artist: artist,
           title: title,
-          fullPath: fullPath
+          fullPath: fullPath,
+          hasVideo: hasVideo,
+          hasPreferredVideo: hasPreferredVideo,
+          hasHp2Hp5: hasHp2Hp5
         });
       }
     });
@@ -53,6 +63,65 @@ function scanUltrastarSongs() {
   } catch (error) {
     console.error('Error scanning ultrastar songs:', error);
     return [];
+  }
+}
+
+/**
+ * Prüft ob Video-Dateien (webm oder mp4) im Ordner vorhanden sind
+ * @param {string} folderPath - Pfad zum Song-Ordner
+ * @returns {boolean} true wenn Video-Dateien vorhanden sind
+ */
+function checkForVideoFiles(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    const videoExtensions = ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'];
+    
+    return files.some(file => {
+      const ext = path.extname(file).toLowerCase();
+      return videoExtensions.includes(ext);
+    });
+  } catch (error) {
+    console.error('Error checking for video files:', error);
+    return false;
+  }
+}
+
+/**
+ * Prüft ob bevorzugte Video-Dateien (webm oder mp4) im Ordner vorhanden sind
+ * @param {string} folderPath - Pfad zum Song-Ordner
+ * @returns {boolean} true wenn bevorzugte Video-Dateien vorhanden sind
+ */
+function checkForPreferredVideoFiles(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    const preferredVideoExtensions = ['.webm', '.mp4'];
+    
+    return files.some(file => {
+      const ext = path.extname(file).toLowerCase();
+      return preferredVideoExtensions.includes(ext);
+    });
+  } catch (error) {
+    console.error('Error checking for preferred video files:', error);
+    return false;
+  }
+}
+
+/**
+ * Prüft ob HP2/HP5 Audio-Dateien im Ordner vorhanden sind
+ * @param {string} folderPath - Pfad zum Song-Ordner
+ * @returns {boolean} true wenn HP2 oder HP5 Dateien vorhanden sind
+ */
+function checkForHp2Hp5Files(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    
+    return files.some(file => {
+      const fileName = file.toLowerCase();
+      return fileName.includes('.hp2.mp3') || fileName.includes('.hp5.mp3');
+    });
+  } catch (error) {
+    console.error('Error checking for HP2/HP5 files:', error);
+    return false;
   }
 }
 
@@ -91,5 +160,8 @@ module.exports = {
   scanUltrastarSongs,
   findUltrastarSong,
   searchUltrastarSongs,
+  checkForVideoFiles,
+  checkForPreferredVideoFiles,
+  checkForHp2Hp5Files,
   ULTRASTAR_DIR
 };
