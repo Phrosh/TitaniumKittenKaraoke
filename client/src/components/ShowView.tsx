@@ -724,6 +724,7 @@ const ShowView: React.FC = () => {
         if (lastLine) {
           const timeSinceLastLine = (currentBeat - lastLine.endBeat) * beatDuration;
           shouldShowLyrics = timeSinceLastLine <= 10000; // 10 seconds
+          
         }
       }
       
@@ -896,6 +897,31 @@ const ShowView: React.FC = () => {
         } else {
           // No fade-out line in first lines - normal mode
           updateLyricsDisplay(firstLine, secondLine, thirdLine, false);
+        }
+      } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat > songData.lines[songData.lines.length - 1].endBeat) {
+        // All lines are sung - hide entire lyrics container
+        const lastLine = songData.lines[songData.lines.length - 1];
+        const timeSinceLastLine = (currentBeat - lastLine.endBeat) * beatDuration;
+        
+        if (timeSinceLastLine <= 3000) {
+          // Show last line for 3 seconds with fade-out styling
+          console.log('🎵 Alle Zeilen gesungen - zeige letzte Zeile für 3 Sekunden');
+          
+          if (currentLyricRef.current) {
+            currentLyricRef.current.innerHTML = '';
+            currentLyricRef.current.style.color = HIGHLIGHT_COLOR;
+            currentLyricRef.current.style.fontWeight = 'bold';
+            currentLyricRef.current.style.opacity = '1';
+            currentLyricRef.current.textContent = getLineText(lastLine);
+          }
+          
+          // Hide next lines
+          setLyricContent(nextLyricRef, null, UNSUNG_COLOR, NEXT_LINE_OPACITY);
+          setLyricContent(nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
+        } else {
+          // After 3 seconds - hide entire lyrics container
+          console.log('🎵 Alle Zeilen gesungen - verstecke gesamten Lyrics-Container');
+          setShowLyrics(false);
         }
       } else {
         // No active line and shouldn't show lyrics - clear all
