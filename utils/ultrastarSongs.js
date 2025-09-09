@@ -40,6 +40,9 @@ function scanUltrastarSongs() {
         // Check for HP2/HP5 files
         const hasHp2Hp5 = checkForHp2Hp5Files(fullPath);
         
+        // Check for audio files
+        const hasAudio = checkForAudioFiles(fullPath);
+        
         songs.push({
           folderName: folder,
           artist: artist,
@@ -47,7 +50,8 @@ function scanUltrastarSongs() {
           fullPath: fullPath,
           hasVideo: hasVideo,
           hasPreferredVideo: hasPreferredVideo,
-          hasHp2Hp5: hasHp2Hp5
+          hasHp2Hp5: hasHp2Hp5,
+          hasAudio: hasAudio
         });
       }
     });
@@ -126,6 +130,31 @@ function checkForHp2Hp5Files(folderPath) {
 }
 
 /**
+ * Prüft ob Audio-Dateien (nicht HP2/HP5) im Ordner vorhanden sind
+ * @param {string} folderPath - Pfad zum Song-Ordner
+ * @returns {boolean} true wenn Audio-Dateien vorhanden sind
+ */
+function checkForAudioFiles(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    const audioExtensions = ['.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac'];
+    
+    return files.some(file => {
+      const ext = path.extname(file).toLowerCase();
+      const name = path.basename(file, ext).toLowerCase();
+      
+      return audioExtensions.includes(ext) &&
+             !name.includes('hp2') && !name.includes('hp5') && 
+             !name.includes('vocals') && !name.includes('instrumental') &&
+             !name.includes('extracted');
+    });
+  } catch (error) {
+    console.error('Error checking for audio files:', error);
+    return false;
+  }
+}
+
+/**
  * Sucht nach einem Ultrastar-Song basierend auf Artist und Title
  * @param {string} artist - Der Künstlername
  * @param {string} title - Der Songtitel
@@ -163,5 +192,6 @@ module.exports = {
   checkForVideoFiles,
   checkForPreferredVideoFiles,
   checkForHp2Hp5Files,
+  checkForAudioFiles,
   ULTRASTAR_DIR
 };

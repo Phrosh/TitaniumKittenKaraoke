@@ -65,7 +65,15 @@ export const songAPI = {
   
   // Manual processing for ultrastar songs
   processUltrastarSong: (folderName: string) =>
-    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/process`)
+    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/process`),
+  
+  // Check if video download is needed
+  checkNeedsVideo: (folderName: string) =>
+    api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/needs-video`),
+  
+  // Download YouTube video
+  downloadYouTubeVideo: (folderName: string, youtubeUrl: string) =>
+    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/download-youtube`, { youtubeUrl })
 };
 
 export const playlistAPI = {

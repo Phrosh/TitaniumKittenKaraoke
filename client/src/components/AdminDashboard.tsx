@@ -681,6 +681,13 @@ const AdminDashboard: React.FC = () => {
   const [songSearchTerm, setSongSearchTerm] = useState('');
   const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+  
+  // YouTube Download Dialog
+  const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
+  const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [downloadingVideo, setDownloadingVideo] = useState(false);
+  
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -1451,6 +1458,14 @@ const AdminDashboard: React.FC = () => {
     // Check if HP2/HP5 files are missing
     const hasHp2Hp5 = song.hasHp2Hp5 || false;
     
+    // Check if audio files are missing
+    const hasAudio = song.hasAudio || false;
+    
+    // If no video AND no audio, show button for YouTube download
+    if (!hasVideo && !hasAudio) {
+      return true;
+    }
+    
     // If no video at all, only check HP2/HP5
     if (!hasVideo) {
       return !hasHp2Hp5;
@@ -1495,15 +1510,38 @@ const AdminDashboard: React.FC = () => {
   const handleStartProcessing = async (song: any) => {
     const songKey = `${song.artist}-${song.title}`;
     
+    try {
+      const folderName = song.folderName || `${song.artist} - ${song.title}`;
+      
+      // First check if video is needed
+      const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
+      
+      if (videoCheckResponse.data.needsVideo) {
+        // Show YouTube dialog
+        setSelectedSongForDownload(song);
+        setYoutubeUrl('');
+        setShowYouTubeDialog(true);
+        return;
+      }
+      
+      // If video exists, proceed with normal processing
+      await startNormalProcessing(song, songKey, folderName);
+      
+    } catch (error: any) {
+      console.error('Error checking video needs:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
+    }
+  };
+
+  const startNormalProcessing = async (song: any, songKey: string, folderName: string) => {
     // Mark song as processing
     setProcessingSongs(prev => new Set(prev).add(songKey));
     
     try {
-      const folderName = song.folderName || `${song.artist} - ${song.title}`;
       const response = await songAPI.processUltrastarSong(folderName);
       
       if (response.data.status === 'no_processing_needed') {
-        toast.info('Keine Verarbeitung erforderlich - alle Dateien sind bereits vorhanden');
+        toast('Keine Verarbeitung erforderlich - alle Dateien sind bereits vorhanden', { icon: 'ℹ️' });
         // Remove from processing state since no processing was needed
         setProcessingSongs(prev => {
           const newSet = new Set(prev);
@@ -1525,6 +1563,57 @@ const AdminDashboard: React.FC = () => {
         return newSet;
       });
     }
+  };
+
+  const handleYouTubeDownload = async () => {
+    if (!youtubeUrl.trim()) {
+      toast.error('Bitte gib eine YouTube-URL ein');
+      return;
+    }
+    
+    if (!selectedSongForDownload) {
+      toast.error('Kein Song für Download ausgewählt');
+      return;
+    }
+    
+    setDownloadingVideo(true);
+    
+    try {
+      const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
+      
+      toast('YouTube-Video wird heruntergeladen...', { icon: '📥' });
+      
+      const response = await songAPI.downloadYouTubeVideo(folderName, youtubeUrl);
+      
+      if (response.data.status === 'success') {
+        toast.success(`Video erfolgreich heruntergeladen: ${response.data.downloadedFile}`);
+        
+        // Close dialog
+        setShowYouTubeDialog(false);
+        setSelectedSongForDownload(null);
+        setYoutubeUrl('');
+        
+        // Start normal processing after download
+        const songKey = `${selectedSongForDownload.artist}-${selectedSongForDownload.title}`;
+        await startNormalProcessing(selectedSongForDownload, songKey, folderName);
+        
+      } else {
+        toast.error('Download fehlgeschlagen');
+      }
+      
+    } catch (error: any) {
+      console.error('Error downloading YouTube video:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Herunterladen des YouTube-Videos');
+    } finally {
+      setDownloadingVideo(false);
+    }
+  };
+
+  const handleCloseYouTubeDialog = () => {
+    setShowYouTubeDialog(false);
+    setSelectedSongForDownload(null);
+    setYoutubeUrl('');
+    setDownloadingVideo(false);
   };
 
   // Helper function to mark processing as completed (for future polling implementation)
@@ -2869,6 +2958,147 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
           )}
+
+      {/* YouTube Download Dialog */}
+      {showYouTubeDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              color: '#333',
+              fontSize: '20px',
+              fontWeight: '600'
+            }}>
+              📥 YouTube-Video herunterladen
+            </h3>
+            
+            <p style={{
+              margin: '0 0 20px 0',
+              color: '#666',
+              fontSize: '14px',
+              lineHeight: '1.5'
+            }}>
+              Für <strong>{selectedSongForDownload?.artist} - {selectedSongForDownload?.title}</strong> wurde kein Video gefunden.
+              Bitte gib eine YouTube-URL ein, um das Video herunterzuladen.
+            </p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                YouTube-URL:
+              </label>
+              <input
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+                disabled={downloadingVideo}
+              />
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={handleCloseYouTubeDialog}
+                disabled={downloadingVideo}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#666',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: downloadingVideo ? 'not-allowed' : 'pointer',
+                  opacity: downloadingVideo ? 0.6 : 1,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!downloadingVideo) {
+                    e.currentTarget.style.borderColor = '#ccc';
+                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!downloadingVideo) {
+                    e.currentTarget.style.borderColor = '#e1e5e9';
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }
+                }}
+              >
+                Abbrechen
+              </button>
+              
+              <button
+                onClick={handleYouTubeDownload}
+                disabled={downloadingVideo || !youtubeUrl.trim()}
+                style={{
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: downloadingVideo || !youtubeUrl.trim() ? '#ccc' : '#667eea',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: downloadingVideo || !youtubeUrl.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!downloadingVideo && youtubeUrl.trim()) {
+                    e.currentTarget.style.backgroundColor = '#5a6fd8';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!downloadingVideo && youtubeUrl.trim()) {
+                    e.currentTarget.style.backgroundColor = '#667eea';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {downloadingVideo ? '⏳ Download läuft...' : '📥 Herunterladen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </Container>
   );

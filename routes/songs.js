@@ -744,6 +744,111 @@ router.post('/ultrastar/:folderName/process', async (req, res) => {
   }
 });
 
+// New endpoint to check if video download is needed
+router.get('/ultrastar/:folderName/needs-video', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Ultrastar folder not found' });
+    }
+    
+    const files = fs.readdirSync(folderPath);
+    
+    // Check for video files
+    const videoFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'].includes(ext);
+    });
+    
+    const needsVideo = videoFiles.length === 0;
+    
+    res.json({
+      needsVideo,
+      hasVideo: videoFiles.length > 0,
+      videoCount: videoFiles.length
+    });
+    
+  } catch (error) {
+    console.error('Error checking video needs:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// New endpoint to download YouTube video via AI services
+router.post('/ultrastar/:folderName/download-youtube', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { youtubeUrl } = req.body;
+    const pythonServerUrl = 'http://localhost:6000';
+    const downloadUrl = `${pythonServerUrl}/download_youtube/ultrastar/${encodeURIComponent(folderName)}`;
+    
+    console.log('📥 Proxying YouTube download request:', {
+      folderName,
+      youtubeUrl,
+      downloadUrl,
+      timestamp: new Date().toISOString()
+    });
+    
+    const https = require('http');
+    const url = require('url');
+    
+    const parsedUrl = url.parse(downloadUrl);
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    const proxyReq = https.request(options, (proxyRes) => {
+      let data = '';
+      
+      proxyRes.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      proxyRes.on('end', () => {
+        try {
+          const responseData = JSON.parse(data);
+          console.log('📥 AI service YouTube download response:', {
+            statusCode: proxyRes.statusCode,
+            responseData,
+            timestamp: new Date().toISOString()
+          });
+          
+          res.status(proxyRes.statusCode).json(responseData);
+        } catch (error) {
+          console.error('📥 Error parsing AI service YouTube download response:', error);
+          res.status(500).json({ error: 'Invalid response from AI service' });
+        }
+      });
+    });
+    
+    proxyReq.on('error', (error) => {
+      console.error('📥 Error proxying to AI service for YouTube download:', error);
+      res.status(500).json({ error: 'AI service unavailable' });
+    });
+    
+    // Send the YouTube URL in the request body
+    proxyReq.write(JSON.stringify({ youtubeUrl }));
+    proxyReq.setTimeout(120000); // 2 minutes timeout for downloads
+    proxyReq.end();
+    
+  } catch (error) {
+    console.error('Error proxying YouTube download:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Helper function to get saved audio preference from database
 async function getSavedAudioPreference(artist, title) {
   const db = require('../config/database');
