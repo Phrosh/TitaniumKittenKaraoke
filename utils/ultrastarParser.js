@@ -68,14 +68,14 @@ function parseUltrastarFile(filePath) {
             songData.video = value;
             break;
           case 'VIDEOGAP':
-            songData.videogap = parseInt(value) || 0;
+            const videogapValue = value.replace(',', '.');
+            songData.videogap = parseFloat(videogapValue) || 0;
             break;
           case 'BPM':
             songData.bpm = parseFloat(value) || 0;
             break;
           case 'GAP':
-            // GAP can be in format "19544,12" - we take the first part
-            const gapValue = value.split(',')[0];
+            const gapValue = value.replace(',', '.');
             songData.gap = parseFloat(gapValue) || 0;
             break;
           case 'BACKGROUND':
@@ -85,7 +85,7 @@ function parseUltrastarFile(filePath) {
             songData.version = value;
             break;
         }
-      } else if (line.match(/^[:*\-FE]\s+\d+/)) {
+      } else if (line.match(/^[:*\-FERG]\s+\d+/)) {
         // Parse note lines - starts with note type followed by space and number
         const note = parseNoteLine(line);
         let merge = false;
@@ -133,11 +133,11 @@ function parseNoteLine(line) {
       return null;
     }
     
-    const type = parts[0]; // :, *, -, F, E
+    const type = parts[0]; // :, *, -, F, E, R, G
     
     // Different validation for different note types
-    if (type === '-') {
-      // End of phrase: only needs type and startBeat (2 parts minimum)
+    if (type === '-' || type === 'E') {
+      // End of phrase or end of song: only needs type and startBeat (2 parts minimum)
       if (parts.length < 2) {
         return null;
       }
@@ -149,14 +149,14 @@ function parseNoteLine(line) {
     }
 
     const startBeat = parseInt(parts[1]) || 0;
-    const duration = type === '-' ? 0 : (parseInt(parts[2]) || 0); // End-of-phrase has no duration
+    const duration = (type === '-' || type === 'E') ? 0 : (parseInt(parts[2]) || 0); // End-of-phrase and end-of-song have no duration
     
     // For "-" notes, ignore the second number if present (e.g., "- 100 101" -> use 100 as duration)
     let pitch = 0;
     let text = '';
     
-    if (type === '-') {
-      // End of phrase: ignore second number, no pitch, no text
+    if (type === '-' || type === 'E') {
+      // End of phrase or end of song: ignore second number, no pitch, no text
       pitch = 0;
       text = '';
     } else {
@@ -186,12 +186,20 @@ function parseNoteLine(line) {
         }
         break;
       case 'F':
-        noteType = 'linebreak';
-        displayText = text || ''; // Line break symbol
+        noteType = 'freestyle';
+        displayText = text || ''; // Freestyle note with text
         break;
       case 'E':
         noteType = 'end';
         displayText = text || 'END';
+        break;
+      case 'R':
+        noteType = 'rap';
+        displayText = text || ''; // Rap note with text
+        break;
+      case 'G':
+        noteType = 'golden_rap';
+        displayText = text || ''; // Golden rap note with text
         break;
     }
 
@@ -288,8 +296,8 @@ function groupNotesIntoLines(notes) {
   let currentLine = [];
   
   for (const note of notes) {
-    if (note.type === '-' || note.type === 'F' || note.type === 'E') {
-      // End of phrase/line - finish current line
+    if (note.type === '-' && !note.text.trim()) {
+      // End of phrase (dash without text) - finish current line
       if (currentLine.length > 0) {
         lines.push({
           notes: currentLine,
@@ -298,8 +306,19 @@ function groupNotesIntoLines(notes) {
         });
         currentLine = [];
       }
+    } else if (note.type === 'E') {
+      // End of song - finish current line without adding the E note
+      if (currentLine.length > 0) {
+        lines.push({
+          notes: currentLine,
+          startBeat: currentLine[0].startBeat,
+          endBeat: currentLine[currentLine.length - 1].startBeat + currentLine[currentLine.length - 1].duration
+        });
+        currentLine = [];
+      }
+      // Don't add E note to any line - it's just a marker
     } else {
-      // Regular note - add to current line
+      // Regular note (including F, R, G, and - with text) - add to current line
       currentLine.push(note);
     }
   }

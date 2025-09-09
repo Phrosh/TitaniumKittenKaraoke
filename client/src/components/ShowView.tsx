@@ -4,6 +4,8 @@ import { showAPI, songAPI } from '../services/api';
 
 // Constants will be moved inside component to use dynamic settings
 
+let globalUltrastarData: UltrastarSongData | null = null;
+
 interface CurrentSong {
   id: number;
   user_name: string;
@@ -513,7 +515,7 @@ const ShowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
-  const [showTransition, setShowTransition] = useState(false);
+  // const [showTransition, setShowTransition] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -550,6 +552,7 @@ const ShowView: React.FC = () => {
   const [isFadeOutMode, setIsFadeOutMode] = useState(false);
   const [fadeOutLineIndex, setFadeOutLineIndex] = useState<number | null>(null);
   const [fadeOutLineIndices, setFadeOutLineIndices] = useState<Set<number>>(new Set());
+  const [lyricsScale, setLyricsScale] = useState<number>(1);
 
   // CSS styles using constants
   const lyricsDisplayStyle = {
@@ -557,20 +560,21 @@ const ShowView: React.FC = () => {
     top: '55%',
     left: 0,
     right: 0,
-    transform: 'translateY(-50%)',
+    transform: `translateY(-50%) scale(${lyricsScale})`,
     width: '100%',
-    minHeight: '150px',
+    height: `334px`,
     background: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 0,
     padding: '40px 20px',
     zIndex: 10,
-    display: 'flex',
+    display: 'flex', //lyricsDisplay,
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
     opacity: showLyrics ? 1 : 0,
     transition: `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out`,
-    whiteSpace: 'pre' as const
+    whiteSpace: 'pre' as const,
+    overflow: 'hidden' as const
   };
 
   const currentLyricStyle = {
@@ -661,7 +665,8 @@ const ShowView: React.FC = () => {
       bpm: songData.bpm,
       gap: songData.gap,
       notesCount: songData.notes.length,
-      fadeOutIndices: Array.from(fadeOutIndices)
+      fadeOutIndices: Array.from(fadeOutIndices),
+      songDataId: songData.id || 'no-id'
     });
     
     // Calculate beat duration in milliseconds
@@ -713,18 +718,30 @@ const ShowView: React.FC = () => {
       if (currentLineIndex >= 0) {
         // Currently in a line - always show
         shouldShowLyrics = true;
+        // console.log('🎵 Currently in line - showing lyrics');
       } else if (nextLineIndex >= 0) {
-        // Check if next line starts within FADE_IN_THRESHOLD_MS
+        // Check if next line starts within 10 seconds
         const nextLine = songData.lines[nextLineIndex];
         const timeUntilNextLine = (nextLine.startBeat - currentBeat) * beatDuration;
-        shouldShowLyrics = timeUntilNextLine <= FADE_IN_THRESHOLD_MS;
+
+        // Show lyrics within 10 seconds of any line
+        if (timeUntilNextLine <= 10000) {
+          shouldShowLyrics = true;
+          // console.log('🎵 Within 10 seconds of next line - showing lyrics');
+        } else {
+          shouldShowLyrics = false;
+          // console.log('🎵 Too far from next line - hiding lyrics');
+        }
       } else {
         // No more lines - check if current line ended less than 10 seconds ago
         const lastLine = songData.lines[songData.lines.length - 1];
         if (lastLine) {
           const timeSinceLastLine = (currentBeat - lastLine.endBeat) * beatDuration;
           shouldShowLyrics = timeSinceLastLine <= 10000; // 10 seconds
-          
+          console.log('🎵 After last line:', {
+            timeSinceLastLine: Math.round(timeSinceLastLine),
+            shouldShowLyrics
+          });
         }
       }
       
@@ -745,12 +762,6 @@ const ShowView: React.FC = () => {
         // Update current line with highlighted syllable
         if (currentLyricRef.current) {
           if (currentSyllable && currentSyllable.text.trim()) {
-            // Console log for current syllable (only if different from last logged)
-            // if (currentSyllable.text !== lastLoggedText.current) {
-            //   console.log(`🎤 ${currentSyllable.text} (${currentSyllable.type})`);
-            //   lastLoggedText.current = currentSyllable.text;
-            // }
-            
             // Clear and rebuild the line wie, soth proper spacing
             if (currentLyricRef.current) {
               currentLyricRef.current.innerHTML = '';
@@ -855,8 +866,8 @@ const ShowView: React.FC = () => {
           setLyricContent(nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
         } else {
           // No fade-out line - show all lines
-          setLyricContent(nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
-          setLyricContent(nextNextLyricRef, nextNextLine, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
+        setLyricContent(nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
+        setLyricContent(nextNextLyricRef, nextNextLine, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
         }
       } else if (shouldShowLyrics && nextLineIndex >= 0) {
         // Show preview of upcoming line (FADE_IN_THRESHOLD_MS before it starts)
@@ -875,7 +886,7 @@ const ShowView: React.FC = () => {
           updateLyricsDisplay(nextLine, null, null, false);
         } else {
           // No fade-out line in preview - normal mode
-          updateLyricsDisplay(nextLine, nextNextLine, nextNextNextLine, false);
+        updateLyricsDisplay(nextLine, nextNextLine, nextNextNextLine, false);
         }
       } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
         // Show preview of first line (before song starts, accounting for GAP)
@@ -896,7 +907,7 @@ const ShowView: React.FC = () => {
           updateLyricsDisplay(firstLine, null, null, false);
         } else {
           // No fade-out line in first lines - normal mode
-          updateLyricsDisplay(firstLine, secondLine, thirdLine, false);
+        updateLyricsDisplay(firstLine, secondLine, thirdLine, false);
         }
       } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat > songData.lines[songData.lines.length - 1].endBeat) {
         // All lines are sung - hide entire lyrics container
@@ -984,14 +995,6 @@ const ShowView: React.FC = () => {
       return new Set();
     }
     
-    // Also log all lines for reference
-    console.log('🎵 Alle Zeilen im Song:');
-    songData.lines.forEach((line, index) => {
-      const lineText = getLineText(line);
-      const startTime = Math.round((line.startBeat * beatDuration) / 1000);
-      const endTime = Math.round((line.endBeat * beatDuration) / 1000);
-      console.log(`🎵 Zeile ${index + 1}: "${lineText}" (${startTime}s - ${endTime}s)`);
-    });
   }, [getLineText]);
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
@@ -1008,7 +1011,11 @@ const ShowView: React.FC = () => {
       
       setUltrastarData(songData);
       setCurrentNoteIndex(0);
+      
+      // Disable transition before hiding lyrics container
       setShowLyrics(false); // Reset lyrics visibility for new song
+      setLyricsScale(0);
+    
       setIsFadeOutMode(false); // Reset fade-out mode for new song
       setFadeOutLineIndex(null); // Reset fade-out line index for new song
       setFadeOutLineIndices(new Set()); // Reset fade-out line indices for new song
@@ -1089,7 +1096,10 @@ const ShowView: React.FC = () => {
         } else {
           // Clear ultrastar data for non-ultrastar songs
           setUltrastarData(null);
+          
           setShowLyrics(false); // Hide lyrics when switching away from ultrastar
+          setLyricsScale(0);
+        
           setIsFadeOutMode(false); // Reset fade-out mode when switching away from ultrastar
           setFadeOutLineIndex(null); // Reset fade-out line index when switching away from ultrastar
           setFadeOutLineIndices(new Set()); // Reset fade-out line indices when switching away from ultrastar
@@ -1100,10 +1110,6 @@ const ShowView: React.FC = () => {
         if (newSong && newSong.duration_seconds) {
           setVideoStartTime(Date.now());
           setTimeRemaining(newSong.duration_seconds);
-          console.log('⏱️ Timer started:', { 
-            duration: newSong.duration_seconds,
-            startTime: Date.now() 
-          });
         } else {
           setVideoStartTime(null);
           setTimeRemaining(null);
@@ -1142,17 +1148,9 @@ const ShowView: React.FC = () => {
       const remaining = Math.max(0, timeRemaining - elapsed);
       
       setTimeRemaining(remaining);
-      
-      console.log('⏱️ Timer update:', { 
-        elapsed, 
-        remaining, 
-        duration: currentSong?.duration_seconds 
-      });
-      
+    
       // Video ended - show transition
       if (remaining <= 0) {
-        console.log('🎬 Video ended - showing transition overlay');
-        setShowTransition(true);
         setVideoStartTime(null);
         setTimeRemaining(null);
       }
@@ -1160,24 +1158,6 @@ const ShowView: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
-
-
-  // Show transition overlay when no current song
-  useEffect(() => {
-    console.log('🎬 Video transition check:', { 
-      loading, 
-      currentSong: currentSong?.id, 
-      showTransition: !loading && !currentSong 
-    });
-    
-    if (!loading && !currentSong) {
-      console.log('🎤 Showing transition overlay - no current song');
-      setShowTransition(true);
-    } else {
-      console.log('🎵 Hiding transition overlay - song is playing');
-      setShowTransition(false);
-    }
-  }, [loading, currentSong]);
 
   const getYouTubeEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -1204,22 +1184,129 @@ const ShowView: React.FC = () => {
   const isUltrastar = currentSong?.mode === 'ultrastar';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
+
+  useEffect(() => {
+    globalUltrastarData = ultrastarData;
+  }, [ultrastarData]);
+  // Define useCallback hooks outside of conditional rendering
+  const handleAudioLoadStart = useCallback(() => {
+    console.log('🎵 handleAudioLoadStart called - Ultrastar audio loading started:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title,
+      audioUrl: ultrastarData?.audioUrl,
+      mode: currentSong?.mode,
+      bpm: ultrastarData?.bpm,
+      gap: ultrastarData?.gap
+    });
+  }, [ultrastarData, currentSong?.id, currentSong?.title]);
+
+  const handleAudioLoadedData = useCallback(() => {
+    console.log('🎵 handleAudioLoadedData called - Ultrastar audio loaded:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title,
+      audioUrl: ultrastarData?.audioUrl
+    });
+    setAudioLoaded(true);
+  }, [ultrastarData, currentSong?.id, currentSong?.title]);
+
+  const handleAudioCanPlay = useCallback(() => {
+    console.log('🎵 handleAudioCanPlay called - Ultrastar audio can play:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title
+    });
+    setAudioLoaded(true);
+  }, [currentSong?.id, currentSong?.title]);
+
+  const [songChanged, setSongChanged] = useState(true);
+  useEffect(() => {
+    setSongChanged(true);
+  }, [ultrastarData?.gap]);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!songChanged || !playing || !ultrastarData?.gap) return;
+    if (ultrastarData && ultrastarData?.lines && ultrastarData?.lines.length > 0) {
+      const firstLine = ultrastarData.lines[0];
+      const beatDuration = (60000 / ultrastarData.bpm) / 4; // Beat duration in milliseconds
+      const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
+      const fadeInDuration = 4000; // 4 seconds
+      const showTime = Math.max(0, firstLineStartTime - 10000); // 10 seconds before first line
+      
+      if (showTime <= fadeInDuration) {
+        // Show immediately if not enough time for fade-in
+        console.log('🎵 Not enough time for fade-in - showing lyrics immediately');
+        setLyricsScale(1);
+        setShowLyrics(true);
+      } else {
+        setTimeout(() => {
+          setLyricsScale(1);
+          setShowLyrics(true);
+        }, showTime);
+      }
+    }
+    setSongChanged(false);
+  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics]);
+
+  const handleAudioPlay = useCallback(async () => {
+    console.log('🎵 handleAudioPlay called - Ultrastar audio started playing:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title,
+      gap: globalUltrastarData?.gap,
+      ultrastarDataId: globalUltrastarData?.id || 'no-id'
+    });
+    
+    // Reset lyrics container height to 0 at video start
+    setLyricsScale(0);
+    setShowLyrics(false);
+    setPlaying(true);
+    
+    // Sync video with audio
+    if (videoRef.current && ultrastarData?.videoUrl) {
+      videoRef.current.muted = true;
+      videoRef.current.currentTime = ultrastarData.videogap;
+      videoRef.current.play().catch(console.error);
+    }
+  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics]);
+
+  const handleAudioPause = useCallback(() => {
+    setPlaying(false);
+    console.log('🎵 Ultrastar audio paused:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title 
+    });
+    
+    // Pause video when audio is paused
+    if (videoRef.current && ultrastarData?.videoUrl) {
+      videoRef.current.pause();
+    }
+  }, [ultrastarData, currentSong?.id, currentSong?.title]);
+
+  const handleAudioEnded = useCallback(() => {
+    console.log('🎵 Ultrastar audio ended:', { 
+      songId: currentSong?.id, 
+      title: currentSong?.title 
+    });
+    
+    // Stop video when audio ends
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+    
+    stopUltrastarTiming();
+    // Automatically show QR overlay when audio ends
+    showAPI.toggleQRCodeOverlay(true).catch(error => {
+      console.error('Error showing overlay:', error);
+    });
+  }, [currentSong?.id, currentSong?.title, stopUltrastarTiming]);
+
   // Handle click on screen to toggle play/pause
   const handleScreenClick = useCallback(() => {
     if (isUltrastar && audioRef.current) {
       if (audioRef.current.paused) {
-        console.log('🎵 Screen clicked - resuming playback:', {
-          songId: currentSong?.id,
-          title: currentSong?.title
-        });
         audioRef.current.play().catch(error => {
           console.error('🎵 Error resuming playback:', error);
         });
       } else {
-        console.log('🎵 Screen clicked - pausing playback:', {
-          songId: currentSong?.id,
-          title: currentSong?.title
-        });
         audioRef.current.pause();
       }
     }
@@ -1326,18 +1413,9 @@ const ShowView: React.FC = () => {
                   loop
                   playsInline
                   onLoadedData={() => {
-                    console.log('🎬 Ultrastar video loaded:', {
-                      songId: currentSong?.id,
-                      title: currentSong?.title,
-                      videoUrl: ultrastarData.videoUrl
-                    });
                     setVideoLoaded(true);
                   }}
                   onCanPlay={() => {
-                    console.log('🎬 Ultrastar video can play:', {
-                      songId: currentSong?.id,
-                      title: currentSong?.title
-                    });
                     setVideoLoaded(true);
                   }}
                 />
@@ -1353,94 +1431,12 @@ const ShowView: React.FC = () => {
                 autoPlay={canAutoPlay}
                 onClick={(e) => e.stopPropagation()}
                 style={{ display: 'none' }}
-                onLoadStart={() => {
-                  console.log('🎵 Ultrastar audio loading started:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title,
-                    audioUrl: ultrastarData.audioUrl,
-                    mode: currentSong?.mode,
-                    bpm: ultrastarData.bpm,
-                    gap: ultrastarData.gap
-                  });
-                }}
-                onLoadedData={() => {
-                  console.log('🎵 Ultrastar audio loaded:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title,
-                    audioUrl: ultrastarData.audioUrl
-                  });
-                  setAudioLoaded(true);
-                }}
-                onCanPlay={() => {
-                  console.log('🎵 Ultrastar audio can play:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title
-                  });
-                  setAudioLoaded(true);
-                }}
-                onPlay={() => {
-                  console.log('🎵 Ultrastar audio started playing:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title,
-                    gap: ultrastarData.gap
-                  });
-                  
-                  // Sync video with audio
-                  if (videoRef.current && ultrastarData.videoUrl) {
-                    videoRef.current.muted = true;
-                    videoRef.current.currentTime = 0;
-                    videoRef.current.play().catch(console.error);
-                  }
-                  
-                  // Set timeout to show lyrics 10 seconds before first line
-                  if (ultrastarData.gap > 10000) {
-                    const showTime = ultrastarData.gap - 10000;
-                    setTimeout(() => {
-                      console.log('🎵 10 Sekunden vor der ersten Zeile! Text wird jetzt eingeblendet!', {
-                        gap: ultrastarData.gap,
-                        showTime,
-                        title: currentSong?.title
-                      });
-                      setShowLyrics(true);
-                    }, showTime);
-                  } else {
-                    // Gap ist kleiner als 10 Sekunden - sofort einblenden ohne Fade
-                    console.log('🎵 Gap < 10s - Text wird sofort eingeblendet!', {
-                      gap: ultrastarData.gap,
-                      title: currentSong?.title
-                    });
-                    setShowLyrics(true);
-                  }
-                }}
-                onPause={() => {
-                  console.log('🎵 Ultrastar audio paused:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title 
-                  });
-                  
-                  // Pause video when audio is paused
-                  if (videoRef.current && ultrastarData.videoUrl) {
-                    videoRef.current.pause();
-                  }
-                }}
-                onEnded={() => {
-                  console.log('🎵 Ultrastar audio ended:', { 
-                    songId: currentSong?.id, 
-                    title: currentSong?.title 
-                  });
-                  
-                  // Stop video when audio ends
-                  if (videoRef.current) {
-                    videoRef.current.pause();
-                    videoRef.current.currentTime = 0;
-                  }
-                  
-                  stopUltrastarTiming();
-                  // Automatically show QR overlay when audio ends
-                  showAPI.toggleQRCodeOverlay(true).catch(error => {
-                    console.error('Error showing overlay:', error);
-                  });
-                }}
+                onLoadStart={handleAudioLoadStart}
+                onLoadedData={handleAudioLoadedData}
+                onCanPlay={handleAudioCanPlay}
+                onPlay={handleAudioPlay}
+                onPause={handleAudioPause}
+                onEnded={handleAudioEnded}
               />
               <div style={lyricsDisplayStyle} onClick={(e) => e.stopPropagation()}>
                 <div ref={currentLyricRef} style={currentLyricStyle}></div>
@@ -1477,45 +1473,6 @@ const ShowView: React.FC = () => {
           </NoVideoMessage>
         </VideoWrapper>
       )}
-
-      {/* Transition Overlay */}
-      <TransitionOverlay $isVisible={showTransition}>
-        <TransitionContent>
-          <TransitionTitle>🎤 Nächster Song</TransitionTitle>
-          
-          {nextSongs.length > 0 ? (
-            <NextSongInfo>
-              <NextSinger>🎵 {nextSongs[0].user_name}</NextSinger>
-              <NextSong>
-                {nextSongs[0].artist ? `${nextSongs[0].artist} - ${nextSongs[0].title}` : nextSongs[0].title}
-              </NextSong>
-            </NextSongInfo>
-          ) : (
-            <NextSongInfo>
-              <NextSinger>🎵 Kein Song in der Warteschlange</NextSinger>
-              <NextSong>Warte auf neue Songwünsche...</NextSong>
-            </NextSongInfo>
-          )}
-
-          <QRCodeContainer>
-            <QRCodeImage 
-              src={qrCodeUrl} 
-              alt="QR Code für Songwünsche"
-              onError={(e) => {
-                console.error('❌ QR Code failed to load');
-                e.currentTarget.style.display = 'none';
-              }}
-              onLoad={() => {
-                console.log('📱 QR Code loaded successfully');
-              }}
-            />
-            <QRCodeText>
-              📱 QR-Code scannen für Songwünsche<br/>
-              Oder besuche: {window.location.origin}/new
-            </QRCodeText>
-          </QRCodeContainer>
-        </TransitionContent>
-      </TransitionOverlay>
 
       {/* Header Overlay */}
       <Header>
