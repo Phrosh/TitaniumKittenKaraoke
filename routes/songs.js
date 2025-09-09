@@ -744,6 +744,27 @@ router.post('/ultrastar/:folderName/process', async (req, res) => {
   }
 });
 
+// New endpoint to organize loose TXT files
+router.post('/ultrastar/organize-loose-files', async (req, res) => {
+  try {
+    const { organizeLooseTxtFiles } = require('../utils/ultrastarSongs');
+    
+    console.log('📁 Manual organization of loose TXT files requested');
+    
+    const organizedCount = organizeLooseTxtFiles();
+    
+    res.json({
+      message: 'Loose TXT files organization completed',
+      organizedCount,
+      status: 'success'
+    });
+    
+  } catch (error) {
+    console.error('Error organizing loose TXT files:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // New endpoint to check if video download is needed
 router.get('/ultrastar/:folderName/needs-video', async (req, res) => {
   try {

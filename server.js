@@ -137,4 +137,15 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Organize loose TXT files on server startup
+  try {
+    const { organizeLooseTxtFiles } = require('./utils/ultrastarSongs');
+    const organizedCount = organizeLooseTxtFiles();
+    if (organizedCount > 0) {
+      console.log(`📁 Server startup: Organized ${organizedCount} loose TXT files`);
+    }
+  } catch (error) {
+    console.error('Error organizing loose TXT files on startup:', error);
+  }
 });

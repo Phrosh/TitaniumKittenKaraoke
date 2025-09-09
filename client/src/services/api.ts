@@ -73,7 +73,11 @@ export const songAPI = {
   
   // Download YouTube video
   downloadYouTubeVideo: (folderName: string, youtubeUrl: string) =>
-    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/download-youtube`, { youtubeUrl })
+    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/download-youtube`, { youtubeUrl }),
+  
+  // Organize loose TXT files
+  organizeLooseFiles: () =>
+    api.post('/songs/ultrastar/organize-loose-files')
 };
 
 export const playlistAPI = {

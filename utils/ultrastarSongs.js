@@ -4,6 +4,85 @@ const path = require('path');
 const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
 
 /**
+ * Organisiert lose TXT-Dateien im Ultrastar-Ordner in entsprechende Unterordner
+ * @returns {number} Anzahl der organisierten Dateien
+ */
+function organizeLooseTxtFiles() {
+  try {
+    if (!fs.existsSync(ULTRASTAR_DIR)) {
+      console.log('Ultrastar directory does not exist:', ULTRASTAR_DIR);
+      return 0;
+    }
+
+    const files = fs.readdirSync(ULTRASTAR_DIR);
+    let organizedCount = 0;
+
+    files.forEach(file => {
+      // Nur TXT-Dateien verarbeiten
+      if (!file.toLowerCase().endsWith('.txt')) return;
+      
+      // Versteckte Dateien ignorieren
+      if (file.startsWith('.')) return;
+
+      const filePath = path.join(ULTRASTAR_DIR, file);
+      const stat = fs.statSync(filePath);
+      
+      // Nur Dateien, keine Ordner
+      if (!stat.isFile()) return;
+
+      // Generiere Ordnername aus Dateiname (ohne .txt Extension)
+      const folderName = path.basename(file, '.txt');
+      const folderPath = path.join(ULTRASTAR_DIR, folderName);
+
+      // Prüfe ob Ordner bereits existiert
+      if (fs.existsSync(folderPath)) {
+        console.log(`📁 Folder already exists for ${file}, checking if TXT already exists`);
+        
+        // Prüfe ob TXT-Datei bereits im Ordner existiert
+        const existingTxtPath = path.join(folderPath, file);
+        if (fs.existsSync(existingTxtPath)) {
+          console.log(`📄 TXT file already exists in folder, removing loose file: ${file}`);
+          fs.unlinkSync(filePath); // Lösche die lose Datei
+          organizedCount++;
+          return;
+        } else {
+          console.log(`📁 Moving ${file} to existing folder: ${folderName}`);
+          // Verschiebe TXT-Datei in existierenden Ordner
+          fs.renameSync(filePath, existingTxtPath);
+          console.log(`📄 Moved ${file} to existing folder ${folderName}/`);
+          organizedCount++;
+          return;
+        }
+      }
+
+      try {
+        // Erstelle neuen Ordner
+        fs.mkdirSync(folderPath);
+        console.log(`📁 Created folder: ${folderName}`);
+
+        // Verschiebe TXT-Datei in den Ordner
+        const newFilePath = path.join(folderPath, file);
+        fs.renameSync(filePath, newFilePath);
+        console.log(`📄 Moved ${file} to ${folderName}/`);
+
+        organizedCount++;
+      } catch (error) {
+        console.error(`Error organizing file ${file}:`, error);
+      }
+    });
+
+    if (organizedCount > 0) {
+      console.log(`📁 Organized ${organizedCount} loose TXT files into folders`);
+    }
+
+    return organizedCount;
+  } catch (error) {
+    console.error('Error organizing loose TXT files:', error);
+    return 0;
+  }
+}
+
+/**
  * Scannt den ultrastar Ordner und gibt alle verfügbaren Ultrastar-Songs zurück
  * @returns {Array} Array von Song-Objekten mit {folderName, artist, title, fullPath, hasVideo, hasHp2Hp5}
  */
@@ -12,6 +91,12 @@ function scanUltrastarSongs() {
     if (!fs.existsSync(ULTRASTAR_DIR)) {
       console.log('Ultrastar directory does not exist:', ULTRASTAR_DIR);
       return [];
+    }
+
+    // Zuerst lose TXT-Dateien organisieren
+    const organizedCount = organizeLooseTxtFiles();
+    if (organizedCount > 0) {
+      console.log(`📁 Organized ${organizedCount} loose TXT files before scanning`);
     }
 
     const folders = fs.readdirSync(ULTRASTAR_DIR);
@@ -193,5 +278,6 @@ module.exports = {
   checkForPreferredVideoFiles,
   checkForHp2Hp5Files,
   checkForAudioFiles,
+  organizeLooseTxtFiles,
   ULTRASTAR_DIR
 };
