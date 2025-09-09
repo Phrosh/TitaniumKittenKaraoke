@@ -13,7 +13,7 @@ function parseUltrastarFile(filePath) {
     }
 
     const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const lines = content.split('\n').map(line => line.replace(/^[\r\n]+|[\r\n]+$/g, "")).filter(line => line.length > 0);
 
     const songData = {
       title: '',
@@ -91,7 +91,7 @@ function parseUltrastarFile(filePath) {
         let merge = false;
         let lastNote = null;
         if (note) {
-          if (note.text === '~') {
+          if (note.text.trim() === '~') {
             lastNote = songData.notes[songData.notes.length - 1];
             if (lastNote) {
               if (lastNote.type !== '-') {
@@ -126,7 +126,8 @@ function parseUltrastarFile(filePath) {
 function parseNoteLine(line) {
   try {
     // Use regex to extract parameters while preserving spaces
-    const matches = [...line.matchAll(/(?:^| )([ ]*[^ ]+)/g)];
+    // console.log("line", "-" + line + "-");
+    const matches = [...line.matchAll(/(?:^| )( *[^ ]+(?: (?=$))?)/gm)];
     const parts = matches.map(match => match[1]);
     
     if (parts.length === 0) {
@@ -163,6 +164,9 @@ function parseNoteLine(line) {
       // Normal notes: parse pitch and text
       pitch = parts[3] ? parseInt(parts[3]) : 0;
       text = parts[4];
+      if (text.length > 1) {
+        text = text.replace("~", "");
+      }
     }
 
     // Handle special note types
