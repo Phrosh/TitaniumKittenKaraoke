@@ -244,22 +244,14 @@ def convert_to_mp3(input_wav, output_mp3):
 def separate_audio_with_uvr5_correct(folder_path, model_type='HP2'):
     """Hauptfunktion für die Audio-Separation mit korrekter UVR5-Implementierung."""
     try:
-        # Finde die Haupt-Audio-Datei
-        audio_extensions = ['.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac']
-        audio_file = None
+        # Verwende die erweiterte find_audio_file Funktion aus audio_separator
+        from audio_separator import find_audio_file
         
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
-            if os.path.isfile(file_path):
-                name, ext = os.path.splitext(file)
-                if ext.lower() in audio_extensions:
-                    # Prüfe, ob es nicht bereits eine getrennte Datei ist
-                    if not any(suffix in name.lower() for suffix in ['hp2', 'hp5', 'vocals', 'instrumental']):
-                        audio_file = file_path
-                        break
+        # Finde die Haupt-Audio-Datei (kann auch aus Video extrahiert werden)
+        audio_file = find_audio_file(folder_path)
         
         if not audio_file:
-            raise ValueError("Keine geeignete Audio-Datei gefunden")
+            raise ValueError("Keine geeignete Audio-Datei gefunden und keine Video-Datei zum Extrahieren verfügbar")
         
         logger.info(f"Gefundene Audio-Datei: {audio_file}")
         

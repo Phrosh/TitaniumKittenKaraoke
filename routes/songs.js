@@ -221,9 +221,20 @@ router.post('/request', [
             // Check if folder exists and find video files
             if (fs.existsSync(folderPath)) {
               const files = fs.readdirSync(folderPath);
+              
+              // Check for audio sources (audio files or video files)
+              const audioFiles = files.filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                const name = path.basename(file, ext).toLowerCase();
+                return ['.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac'].includes(ext) &&
+                       !name.includes('hp2') && !name.includes('hp5') && 
+                       !name.includes('vocals') && !name.includes('instrumental') &&
+                       !name.includes('extracted');
+              });
+              
               const videoFiles = files.filter(file => {
                 const ext = path.extname(file).toLowerCase();
-                return ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm'].includes(ext);
+                return ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'].includes(ext);
               });
               
               if (videoFiles.length > 0) {
@@ -253,23 +264,35 @@ router.post('/request', [
               const hp2File = files.find(file => file.toLowerCase().includes('.hp2.mp3'));
               const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
               
-              if (!hp2File || !hp5File) {
+              const hasAudioSource = audioFiles.length > 0 || videoFiles.length > 0;
+              
+              if ((!hp2File || !hp5File) && hasAudioSource) {
                 console.log('🎵 Triggering audio separation on song request:', {
                   folderName: ultrastarSong.folderName,
                   missingFiles: {
                     hp2: !hp2File,
                     hp5: !hp5File
                   },
+                  hasAudioFiles: audioFiles.length > 0,
+                  hasVideoFiles: videoFiles.length > 0,
+                  hasAudioSource,
                   timestamp: new Date().toISOString()
                 });
                 
                 // Use internal proxy endpoint instead of direct call
                 triggerAudioSeparationViaProxy(ultrastarSong.folderName);
-              } else {
+              } else if (hp2File && hp5File) {
                 console.log('🎵 HP2/HP5 instrumental files already exist:', {
                   folderName: ultrastarSong.folderName,
                   hp2File,
                   hp5File
+                });
+              } else {
+                console.log('🎵 No audio source available for separation:', {
+                  folderName: ultrastarSong.folderName,
+                  hasAudioFiles: audioFiles.length > 0,
+                  hasVideoFiles: videoFiles.length > 0,
+                  hasAudioSource
                 });
               }
             }
@@ -656,7 +679,20 @@ router.post('/ultrastar/:folderName/process', async (req, res) => {
       return ['.webm', '.mp4'].includes(ext);
     });
     
-    const needsAudioSeparation = !hp2File || !hp5File;
+    // Check for existing audio files (not HP2/HP5/extracted)
+    const audioFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      const name = path.basename(file, ext).toLowerCase();
+      return ['.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac'].includes(ext) &&
+             !name.includes('hp2') && !name.includes('hp5') && 
+             !name.includes('vocals') && !name.includes('instrumental') &&
+             !name.includes('extracted');
+    });
+    
+    // Audio separation is needed if HP2/HP5 files are missing AND 
+    // there are either audio files OR video files to extract audio from
+    const hasAudioSource = audioFiles.length > 0 || videoFiles.length > 0;
+    const needsAudioSeparation = (!hp2File || !hp5File) && hasAudioSource;
     const needsVideoConversion = videoFiles.length > 0 && preferredVideoFiles.length === 0;
     
     console.log('🔧 Processing analysis:', {
@@ -665,6 +701,8 @@ router.post('/ultrastar/:folderName/process', async (req, res) => {
       needsVideoConversion,
       hasVideoFiles: videoFiles.length > 0,
       hasPreferredVideo: preferredVideoFiles.length > 0,
+      hasAudioFiles: audioFiles.length > 0,
+      hasAudioSource,
       hasHp2: !!hp2File,
       hasHp5: !!hp5File,
       timestamp: new Date().toISOString()
