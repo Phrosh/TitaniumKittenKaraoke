@@ -546,10 +546,6 @@ const ShowView: React.FC = () => {
   const [fadeOutLineIndex, setFadeOutLineIndex] = useState<number | null>(null);
   const [fadeOutLineIndices, setFadeOutLineIndices] = useState<Set<number>>(new Set());
 
-  // Using constant values for display settings
-
-  // Styled components are now replaced with inline styles for dynamic settings
-
   // CSS styles using constants
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
@@ -862,22 +858,17 @@ const ShowView: React.FC = () => {
         const nextNextLine = songData.lines[nextLineIndex + 1];
         const nextNextNextLine = songData.lines[nextLineIndex + 2];
         
-        console.log('🎵 PREVIEW: Zeile', nextLineIndex, 'fadeOutIndices:', Array.from(fadeOutIndices), 'fadeOutIndices.size:', fadeOutIndices.size, 'isFadeOutMode:', isFadeOutMode, 'fadeOutLineIndex:', fadeOutLineIndex);
-        
         // Check if any of the preview lines is a fade-out line
         if (fadeOutIndices.has(nextLineIndex + 1)) {
           // Next line (Preview-Zeile 1) is a fade-out line - show next line, hide line after fade-out
-          console.log('🎵 Fade-out-Zeile in Preview-Zeile 1 (Index', nextLineIndex + 1, ') - zeige nächste Zeile, verstecke Zeile danach');
           setIsFadeOutMode(true);
           setFadeOutLineIndex(nextLineIndex + 1);
           updateLyricsDisplay(nextLine, nextNextLine, null, false);
         } else if (fadeOutIndices.has(nextLineIndex)) {
           // Current preview line is a fade-out line - show only this line
-          console.log('🎵 Fade-out-Zeile ist aktuelle Preview-Zeile (Index', nextLineIndex, ') - zeige nur diese Zeile');
           updateLyricsDisplay(nextLine, null, null, false);
         } else {
           // No fade-out line in preview - normal mode
-          console.log('🎵 Keine Fade-out-Zeile in Preview - normaler Modus');
           updateLyricsDisplay(nextLine, nextNextLine, nextNextNextLine, false);
         }
       } else if (shouldShowLyrics && songData.lines.length > 0 && currentBeat < songData.lines[0].startBeat) {
@@ -920,16 +911,12 @@ const ShowView: React.FC = () => {
 
   const analyzeFadeOutLines = useCallback((songData: UltrastarSongData): Set<number> => {
     if (!songData.lines || songData.lines.length === 0) {
-      console.log('🎵 ANALYSE: Keine Zeilen zum Analysieren gefunden');
       return new Set();
     }
 
     const beatDuration = (60000 / songData.bpm) / 4; // Beat duration in milliseconds
     const fadeOutLines: Array<{index: number, text: string, timeUntilNext: number}> = [];
     
-    console.log('🎵 ANALYSE: Analysiere Fade-out-Zeilen für:', songData.title);
-    console.log('🎵 ANALYSE: BPM:', songData.bpm, 'Beat-Duration:', Math.round(beatDuration), 'ms');
-    console.log('🎵 ANALYSE: Anzahl Zeilen:', songData.lines.length);
     
     for (let i = 0; i < songData.lines.length - 1; i++) {
       const currentLine = songData.lines[i];
@@ -939,12 +926,10 @@ const ShowView: React.FC = () => {
         // Calculate pause between end of current line and start of next line
         const pauseBetweenLines = (nextLine.startBeat - currentLine.endBeat) * beatDuration;
         
-        console.log(`🎵 ANALYSE: Zeile ${i}: pauseBetweenLines = ${Math.round(pauseBetweenLines)}ms (Threshold: ${FADE_OUT_THRESHOLD_MS}ms)`);
         
         // If there's more than FADE_OUT_THRESHOLD_MS gap, this is a fade-out line
         if (pauseBetweenLines > FADE_OUT_THRESHOLD_MS) {
           const lineText = getLineText(currentLine);
-          console.log(`🎵 ANALYSE: FADE-OUT-ZEILE GEFUNDEN! Zeile ${i}: "${lineText}" (${Math.round(pauseBetweenLines/1000)}s Pause)`);
           fadeOutLines.push({
             index: i,
             text: lineText,
@@ -959,13 +944,7 @@ const ShowView: React.FC = () => {
       const fadeOutIndices = new Set<number>();
       fadeOutLines.forEach((fadeOutLine, index) => {
         fadeOutIndices.add(fadeOutLine.index);
-        console.log(`🎵 Fade-out-Zeile ${index + 1}:`, {
-          zeile: fadeOutLine.index + 1,
-          text: `"${fadeOutLine.text}"`,
-          pause: `${Math.round(fadeOutLine.timeUntilNext / 1000)}s`
-        });
       });
-      console.log('🎵 ANALYSE: Setze fadeOutLineIndices:', Array.from(fadeOutIndices));
       setFadeOutLineIndices(fadeOutIndices);
       return fadeOutIndices;
     } else {
@@ -1013,7 +992,6 @@ const ShowView: React.FC = () => {
       });
       
       // Analyze and log all fade-out lines
-      console.log('🎵 ANALYSE: Rufe analyzeFadeOutLines auf');
       const fadeOutIndices = analyzeFadeOutLines(songData);
       
       
