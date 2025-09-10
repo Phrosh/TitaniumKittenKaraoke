@@ -2846,7 +2846,16 @@ const AdminDashboard: React.FC = () => {
                       </button>
                     </div>
                     <SettingsDescription>
-                      Lade Songs direkt von der UltraStar Database (usdb.animux.de) herunter. 
+                      Lade Songs direkt von der UltraStar Database (
+                      <a 
+                        href="https://usdb.animux.de" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: '#007bff', textDecoration: 'underline' }}
+                      >
+                        usdb.animux.de
+                      </a>
+                      ) herunter. 
                       Stelle sicher, dass du zuerst deine USDB-Zugangsdaten in den Einstellungen eingetragen hast.
                     </SettingsDescription>
                   </SettingsCard>
