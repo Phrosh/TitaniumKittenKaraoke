@@ -150,7 +150,7 @@ const SongListContent = styled.div`
   padding: 20px;
   max-width: 600px;
   width: 90%;
-  max-height: 80vh;
+  max-height: 100vh;
   overflow-y: auto;
 `;
 
@@ -613,7 +613,7 @@ const SongRequest: React.FC = () => {
             <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
           </div>
           
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             {filteredVideos.length > 0 ? (
               sortedGroups.map((letter) => (
                 <div key={letter}>

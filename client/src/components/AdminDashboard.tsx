@@ -3225,7 +3225,7 @@ const AdminDashboard: React.FC = () => {
             padding: '20px',
             maxWidth: '600px',
             width: '90%',
-            maxHeight: '80vh',
+            maxHeight: '95vh',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
