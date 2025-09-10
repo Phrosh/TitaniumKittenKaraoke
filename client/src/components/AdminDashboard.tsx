@@ -918,6 +918,7 @@ const AdminDashboard: React.FC = () => {
   const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
   const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
   const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'completed' | 'error', message?: string}>>([]);
+  const [usdbBatchCurrentDownloading, setUsdbBatchCurrentDownloading] = useState<number | null>(null);
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1774,6 +1775,7 @@ const AdminDashboard: React.FC = () => {
     setUsdbBatchDownloading(false);
     setUsdbBatchProgress({ current: 0, total: 0 });
     setUsdbBatchResults([]);
+    setUsdbBatchCurrentDownloading(null);
     
     // Rescan song list after closing USDB dialog
     try {
@@ -1841,6 +1843,10 @@ const AdminDashboard: React.FC = () => {
       for (let i = 0; i < validUrls.length; i++) {
         const url = validUrls[i];
         
+        // Find the index in the original array
+        const originalIndex = usdbBatchUrls.findIndex(u => u === url);
+        setUsdbBatchCurrentDownloading(originalIndex);
+        
         // Update current status to downloading
         setUsdbBatchResults(prev => prev.map((result, index) => 
           index === i ? { ...result, status: 'downloading' } : result
@@ -1899,6 +1905,7 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Batch-Download');
     } finally {
       setUsdbBatchDownloading(false);
+      setUsdbBatchCurrentDownloading(null);
     }
   };
 
@@ -3565,7 +3572,7 @@ const AdminDashboard: React.FC = () => {
                   {usdbBatchUrls.length > 1 && (
                     <button
                       onClick={() => handleRemoveBatchUrlField(index)}
-                      disabled={usdbBatchDownloading}
+                      disabled={usdbBatchCurrentDownloading === index}
                       style={{
                         width: '32px',
                         height: '32px',
@@ -3606,7 +3613,7 @@ const AdminDashboard: React.FC = () => {
                       value={url}
                       onChange={(e) => handleBatchUrlChange(index, e.target.value)}
                       placeholder=""
-                      disabled={usdbBatchDownloading}
+                      disabled={usdbBatchCurrentDownloading === index}
                       style={{
                         width: '100%',
                         padding: '12px',
@@ -3647,34 +3654,6 @@ const AdminDashboard: React.FC = () => {
               ))}
             </div>
             
-            {/* Add Field Button */}
-            {!usdbBatchDownloading && (
-              <button
-                onClick={handleAddBatchUrlField}
-                style={{
-                  padding: '8px 16px',
-                  border: '2px dashed #6f42c1',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent',
-                  color: '#6f42c1',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  marginBottom: '20px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8f9fa';
-                  e.currentTarget.style.borderColor = '#5a2d91';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = '#6f42c1';
-                }}
-              >
-                + Weitere URL hinzufügen
-              </button>
-            )}
             
             <div style={{
               display: 'flex',
