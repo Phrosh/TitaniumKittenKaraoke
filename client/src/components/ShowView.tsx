@@ -553,7 +553,8 @@ const ShowView: React.FC = () => {
   const [fadeOutLineIndex, setFadeOutLineIndex] = useState<number | null>(null);
   const [fadeOutLineIndices, setFadeOutLineIndices] = useState<Set<number>>(new Set());
   const [lyricsScale, setLyricsScale] = useState<number>(1);
-
+  const [lyricsTransitionEnabled, setLyricsTransitionEnabled] = useState(false);
+  
   // CSS styles using constants
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
@@ -572,7 +573,7 @@ const ShowView: React.FC = () => {
     alignItems: 'center',
     justifyContent: 'center',
     opacity: showLyrics ? 1 : 0,
-    transition: `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out`,
+    transition: `${lyricsTransitionEnabled ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
     whiteSpace: 'pre' as const,
     overflow: 'hidden' as const
   };
@@ -1234,9 +1235,11 @@ const ShowView: React.FC = () => {
       if (showTime <= fadeInDuration) {
         // Show immediately if not enough time for fade-in
         console.log('🎵 Not enough time for fade-in - showing lyrics immediately');
+        setLyricsTransitionEnabled(false);
         setLyricsScale(1);
         setShowLyrics(true);
       } else {
+        setLyricsTransitionEnabled(true);
         setTimeout(() => {
           setLyricsScale(1);
           setShowLyrics(true);
@@ -1244,7 +1247,11 @@ const ShowView: React.FC = () => {
       }
     }
     setSongChanged(false);
-  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics]);
+  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled]);
+
+  // console.log('🎵 lyricsTransitionEnabled', lyricsTransitionEnabled);
+  // console.log('🎵 lyricsScale', lyricsScale);
+  // console.log('🎵 showLyrics', showLyrics);
 
   const handleAudioPlay = useCallback(async () => {
     console.log('🎵 handleAudioPlay called - Ultrastar audio started playing:', { 
