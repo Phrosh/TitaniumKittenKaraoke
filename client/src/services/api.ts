@@ -121,6 +121,9 @@ export const adminAPI = {
   updateSong: (songId: number, data: { title: string; artist?: string; youtubeUrl?: string }) =>
     api.put(`/admin/song/${songId}`, data),
   
+  refreshSongClassification: (songId: number) =>
+    api.put(`/admin/song/${songId}/refresh-classification`),
+  
   getUsers: () =>
     api.get('/admin/users'),
   

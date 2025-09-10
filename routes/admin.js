@@ -1134,6 +1134,91 @@ router.get('/usdb-song/:songId', async (req, res) => {
   }
 });
 
+// Refresh song classification - check if song is now available locally
+router.put('/song/:songId/refresh-classification', async (req, res) => {
+  try {
+    const { songId } = req.params;
+    
+    const song = await Song.getById(songId);
+    if (!song) {
+      return res.status(404).json({ message: 'Song not found' });
+    }
+
+    const { artist, title } = song;
+    let newMode = 'youtube';
+    let newYoutubeUrl = song.youtube_url;
+    let updated = false;
+
+    // Check for songs in priority order: file > server_video > ultrastar > youtube
+    // First check file songs (highest priority)
+    const db = require('../config/database');
+    const fileFolderSetting = await new Promise((resolve, reject) => {
+      db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    if (fileFolderSetting && fileFolderSetting.value) {
+      const fileSong = findFileSong(fileFolderSetting.value, artist, title);
+      if (fileSong) {
+        newMode = 'file';
+        newYoutubeUrl = fileSong.filename;
+        updated = true;
+        console.log(`🔄 Song classification updated: ${artist} - ${title} -> file (${fileSong.filename})`);
+      }
+    }
+    
+    // If no file song found, check server videos
+    if (!updated) {
+      const { findLocalVideo } = require('../utils/localVideos');
+      const localVideo = findLocalVideo(artist, title);
+      if (localVideo) {
+        newMode = 'server_video';
+        newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+        updated = true;
+        console.log(`🔄 Song classification updated: ${artist} - ${title} -> server_video (${localVideo.filename})`);
+      }
+    }
+    
+    // If no server video found, check ultrastar songs
+    if (!updated) {
+      const { findUltrastarSong } = require('../utils/ultrastarSongs');
+      const ultrastarSong = findUltrastarSong(artist, title);
+      if (ultrastarSong) {
+        newMode = 'ultrastar';
+        newYoutubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
+        updated = true;
+        console.log(`🔄 Song classification updated: ${artist} - ${title} -> ultrastar (${ultrastarSong.folderName})`);
+      }
+    }
+
+    // Update song in database if classification changed
+    if (updated) {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE songs SET youtube_url = ?, mode = ? WHERE id = ?',
+          [newYoutubeUrl, newMode, songId],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
+
+    res.json({ 
+      message: updated ? 'Song classification updated successfully' : 'No local files found, song remains as YouTube',
+      updated,
+      newMode: updated ? newMode : song.mode,
+      newYoutubeUrl: updated ? newYoutubeUrl : song.youtube_url
+    });
+  } catch (error) {
+    console.error('Refresh song classification error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Helper function to start audio separation
 function startAudioSeparation(songDir, songName) {
   try {

@@ -1076,6 +1076,31 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleRefreshClassification = async (songId: number) => {
+    setActionLoading(true);
+    try {
+      const response = await adminAPI.refreshSongClassification(songId);
+      
+      if (response.data.updated) {
+        toast.success(`Song-Klassifizierung aktualisiert! Neuer Modus: ${response.data.newMode}`);
+        await fetchDashboardData(); // Refresh the dashboard data
+      } else {
+        toast('Keine lokalen Dateien gefunden. Song bleibt als YouTube.', {
+          icon: 'ℹ️',
+          style: {
+            background: '#3498db',
+            color: '#fff',
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing song classification:', error);
+      toast.error('Fehler beim Aktualisieren der Song-Klassifizierung');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const openModal = (song: Song, type: 'edit' | 'youtube') => {
     setSelectedSong(song);
     setModalType(type);
@@ -2225,6 +2250,18 @@ const AdminDashboard: React.FC = () => {
                         disabled={actionLoading}
                       >
                         ✏️
+                      </Button>
+                      
+                      <Button 
+                        variant="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRefreshClassification(song.id);
+                        }}
+                        disabled={actionLoading}
+                        title="Song-Klassifizierung aktualisieren (prüft auf lokale Dateien)"
+                      >
+                        🔄
                       </Button>
                       
                       <Button 
