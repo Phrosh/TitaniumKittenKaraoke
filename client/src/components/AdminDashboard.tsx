@@ -742,6 +742,7 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchUSDBCredentials();
     // Refresh every 10 seconds
     const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
@@ -902,6 +903,15 @@ const AdminDashboard: React.FC = () => {
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [localServerPort, setLocalServerPort] = useState(4000);
   const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python'>('python');
+  
+  // USDB Management
+  const [usdbCredentials, setUsdbCredentials] = useState<{username: string, password: string} | null>(null);
+  const [usdbUsername, setUsdbUsername] = useState('');
+  const [usdbPassword, setUsdbPassword] = useState('');
+  const [usdbLoading, setUsdbLoading] = useState(false);
+  const [showUsdbDialog, setShowUsdbDialog] = useState(false);
+  const [usdbUrl, setUsdbUrl] = useState('');
+  const [usdbDownloading, setUsdbDownloading] = useState(false);
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1672,6 +1682,120 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // USDB Management Handlers
+  const fetchUSDBCredentials = async () => {
+    try {
+      const response = await adminAPI.getUSDBCredentials();
+      setUsdbCredentials(response.data.credentials);
+    } catch (error) {
+      console.error('Error fetching USDB credentials:', error);
+    }
+  };
+
+  const handleSaveUSDBCredentials = async () => {
+    if (!usdbUsername.trim() || !usdbPassword.trim()) {
+      toast.error('Bitte Username und Passwort eingeben');
+      return;
+    }
+
+    setUsdbLoading(true);
+    try {
+      await adminAPI.saveUSDBCredentials(usdbUsername, usdbPassword);
+      toast.success('USDB-Zugangsdaten erfolgreich gespeichert!');
+      setUsdbUsername('');
+      setUsdbPassword('');
+      await fetchUSDBCredentials();
+    } catch (error: any) {
+      console.error('Error saving USDB credentials:', error);
+      const message = error.response?.data?.message || 'Fehler beim Speichern der USDB-Zugangsdaten';
+      toast.error(message);
+    } finally {
+      setUsdbLoading(false);
+    }
+  };
+
+  const handleDeleteUSDBCredentials = async () => {
+    if (!window.confirm('USDB-Zugangsdaten wirklich löschen?')) {
+      return;
+    }
+
+    setUsdbLoading(true);
+    try {
+      await adminAPI.deleteUSDBCredentials();
+      toast.success('USDB-Zugangsdaten erfolgreich gelöscht!');
+      setUsdbCredentials(null);
+    } catch (error: any) {
+      console.error('Error deleting USDB credentials:', error);
+      const message = error.response?.data?.message || 'Fehler beim Löschen der USDB-Zugangsdaten';
+      toast.error(message);
+    } finally {
+      setUsdbLoading(false);
+    }
+  };
+
+  const handleOpenUsdbDialog = () => {
+    if (!usdbCredentials) {
+      toast.error('Bitte zuerst USDB-Zugangsdaten in den Einstellungen eingeben');
+      return;
+    }
+    setShowUsdbDialog(true);
+  };
+
+  const handleCloseUsdbDialog = async () => {
+    setShowUsdbDialog(false);
+    setUsdbUrl('');
+    
+    // Rescan song list after closing USDB dialog
+    try {
+      // First rescan file system songs (includes USDB downloads)
+      await adminAPI.rescanFileSongs();
+      
+      // Then fetch all songs to update the UI
+      await fetchSongs();
+      
+      toast.success('Songliste wurde aktualisiert');
+    } catch (error) {
+      console.error('Error refreshing song list:', error);
+      // Don't show error toast as this is a background operation
+    }
+  };
+
+  const handleDownloadFromUSDB = async () => {
+    if (!usdbUrl.trim()) {
+      toast.error('Bitte USDB-URL eingeben');
+      return;
+    }
+
+    setUsdbDownloading(true);
+    try {
+      const response = await adminAPI.downloadFromUSDB(usdbUrl);
+      
+      if (response.data.message) {
+        toast.success(response.data.message);
+        
+        // Automatically rescan song list after successful download
+        try {
+          await adminAPI.rescanFileSongs();
+          await fetchSongs();
+        } catch (rescanError) {
+          console.error('Error rescanning after download:', rescanError);
+          // Don't show error toast as download was successful
+        }
+      }
+      
+      setShowUsdbDialog(false);
+      setUsdbUrl('');
+      // Refresh dashboard data
+      await fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error downloading from USDB:', error);
+      const message = error.response?.data?.message || 'Fehler beim Herunterladen von USDB';
+      toast.error(message);
+    } finally {
+      setUsdbDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Container>
@@ -2073,6 +2197,64 @@ const AdminDashboard: React.FC = () => {
               </SettingsCard>
               
               <SettingsCard>
+                <SettingsLabel>USDB-Zugangsdaten:</SettingsLabel>
+                {usdbCredentials ? (
+                  <div style={{ marginBottom: '15px' }}>
+                    <div style={{ 
+                      padding: '10px', 
+                      background: '#d4edda', 
+                      border: '1px solid #c3e6cb', 
+                      borderRadius: '4px',
+                      marginBottom: '10px'
+                    }}>
+                      <div style={{ fontWeight: '600', color: '#155724', marginBottom: '5px' }}>
+                        ✅ USDB-Zugangsdaten gespeichert
+                      </div>
+                      <div style={{ color: '#155724', fontSize: '14px' }}>
+                        Username: {usdbCredentials.username}
+                      </div>
+                    </div>
+                    <SettingsButton 
+                      onClick={handleDeleteUSDBCredentials}
+                      disabled={usdbLoading}
+                      style={{ backgroundColor: '#dc3545' }}
+                    >
+                      {usdbLoading ? 'Löscht...' : 'Zugangsdaten löschen'}
+                    </SettingsButton>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '15px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                      <SettingsInput
+                        type="text"
+                        placeholder="USDB Username"
+                        value={usdbUsername}
+                        onChange={(e) => setUsdbUsername(e.target.value)}
+                        style={{ minWidth: '200px' }}
+                      />
+                      <SettingsInput
+                        type="password"
+                        placeholder="USDB Passwort"
+                        value={usdbPassword}
+                        onChange={(e) => setUsdbPassword(e.target.value)}
+                        style={{ minWidth: '200px' }}
+                      />
+                      <SettingsButton 
+                        onClick={handleSaveUSDBCredentials}
+                        disabled={usdbLoading}
+                      >
+                        {usdbLoading ? 'Speichert...' : 'Speichern'}
+                      </SettingsButton>
+                    </div>
+                  </div>
+                )}
+                <SettingsDescription>
+                  Zugangsdaten für die UltraStar Database (usdb.animux.de). 
+                  Diese werden benötigt, um Songs von USDB herunterzuladen.
+                </SettingsDescription>
+              </SettingsCard>
+              
+              <SettingsCard>
                 <SettingsLabel>Lokaler Song-Ordner:</SettingsLabel>
                 <SettingsInput
                   type="text"
@@ -2404,81 +2586,130 @@ const AdminDashboard: React.FC = () => {
             <SettingsSection>
               <SettingsTitle>🎵 Songverwaltung</SettingsTitle>
               
-              {/* Song Tabs */}
-              <SettingsCard>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                  <button
-                    onClick={() => setSongTab('all')}
-                    style={{
-                      padding: '10px 20px',
-                      border: '2px solid',
-                      borderColor: songTab === 'all' ? '#667eea' : '#e1e5e9',
-                      background: songTab === 'all' ? '#667eea' : 'white',
-                      color: songTab === 'all' ? 'white' : '#333',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    Alle Songs ({songs.length})
-                  </button>
-                  <button
-                    onClick={() => setSongTab('visible')}
-                    style={{
-                      padding: '10px 20px',
-                      border: '2px solid',
-                      borderColor: songTab === 'visible' ? '#28a745' : '#e1e5e9',
-                      background: songTab === 'visible' ? '#28a745' : 'white',
-                      color: songTab === 'visible' ? 'white' : '#333',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    Eingeblendete ({songs.filter(song => !invisibleSongs.some(invisible => 
-                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-                      invisible.title.toLowerCase() === song.title.toLowerCase()
-                    )).length})
-                  </button>
-                  <button
-                    onClick={() => setSongTab('invisible')}
-                    style={{
-                      padding: '10px 20px',
-                      border: '2px solid',
-                      borderColor: songTab === 'invisible' ? '#dc3545' : '#e1e5e9',
-                      background: songTab === 'invisible' ? '#dc3545' : 'white',
-                      color: songTab === 'invisible' ? 'white' : '#333',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    Ausgeblendete ({songs.filter(song => invisibleSongs.some(invisible => 
-                      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-                      invisible.title.toLowerCase() === song.title.toLowerCase()
-                    )).length})
-                  </button>
+              {/* Two-column layout */}
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                {/* Left column: Song management buttons and search */}
+                <div style={{ flex: '1', minWidth: '0' }}>
+                  {/* Song Tabs */}
+                  <SettingsCard>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <button
+                        onClick={() => setSongTab('all')}
+                        style={{
+                          padding: '10px 20px',
+                          border: '2px solid',
+                          borderColor: songTab === 'all' ? '#667eea' : '#e1e5e9',
+                          background: songTab === 'all' ? '#667eea' : 'white',
+                          color: songTab === 'all' ? 'white' : '#333',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        Alle Songs ({songs.length})
+                      </button>
+                      <button
+                        onClick={() => setSongTab('visible')}
+                        style={{
+                          padding: '10px 20px',
+                          border: '2px solid',
+                          borderColor: songTab === 'visible' ? '#28a745' : '#e1e5e9',
+                          background: songTab === 'visible' ? '#28a745' : 'white',
+                          color: songTab === 'visible' ? 'white' : '#333',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        Eingeblendete ({songs.filter(song => !invisibleSongs.some(invisible => 
+                          invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                          invisible.title.toLowerCase() === song.title.toLowerCase()
+                        )).length})
+                      </button>
+                      <button
+                        onClick={() => setSongTab('invisible')}
+                        style={{
+                          padding: '10px 20px',
+                          border: '2px solid',
+                          borderColor: songTab === 'invisible' ? '#dc3545' : '#e1e5e9',
+                          background: songTab === 'invisible' ? '#dc3545' : 'white',
+                          color: songTab === 'invisible' ? 'white' : '#333',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        Ausgeblendete ({songs.filter(song => invisibleSongs.some(invisible => 
+                          invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                          invisible.title.toLowerCase() === song.title.toLowerCase()
+                        )).length})
+                      </button>
+                    </div>
+                    
+                    {/* Search songs */}
+                    <SettingsLabel>Songs durchsuchen:</SettingsLabel>
+                    <SettingsInput
+                      type="text"
+                      placeholder="Nach Song oder Interpret suchen..."
+                      value={songSearchTerm}
+                      onChange={(e) => setSongSearchTerm(e.target.value)}
+                      style={{ marginBottom: '15px', width: '100%', maxWidth: '600px' }}
+                    />
+                    <SettingsDescription>
+                      Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.
+                    </SettingsDescription>
+                  </SettingsCard>
                 </div>
                 
-                {/* Search songs */}
-                <SettingsLabel>Songs durchsuchen:</SettingsLabel>
-                <SettingsInput
-                  type="text"
-                  placeholder="Nach Song oder Interpret suchen..."
-                  value={songSearchTerm}
-                  onChange={(e) => setSongSearchTerm(e.target.value)}
-                  style={{ marginBottom: '15px', width: '100%', maxWidth: '600px' }}
-                />
-                <SettingsDescription>
-                  Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.
-                </SettingsDescription>
-              </SettingsCard>
+                {/* Right column: USDB Download */}
+                <div style={{ flex: '0 0 350px', minWidth: '350px' }}>
+                  <SettingsCard>
+                    <SettingsLabel>USDB Song herunterladen:</SettingsLabel>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={handleOpenUsdbDialog}
+                        style={{
+                          background: '#6f42c1',
+                          color: 'white',
+                          border: 'none',
+                          padding: '12px 20px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          justifyContent: 'center'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#5a2d91';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#6f42c1';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        🌐 USDB Song laden
+                      </button>
+                    </div>
+                    <SettingsDescription>
+                      Lade Songs direkt von der UltraStar Database (usdb.animux.de) herunter. 
+                      Stelle sicher, dass du zuerst deine USDB-Zugangsdaten in den Einstellungen eingetragen hast.
+                    </SettingsDescription>
+                  </SettingsCard>
+                </div>
+              </div>
               
               {/* Songs list */}
               <SettingsCard>
@@ -3094,6 +3325,147 @@ const AdminDashboard: React.FC = () => {
                 }}
               >
                 {downloadingVideo ? '⏳ Download läuft...' : '📥 Herunterladen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* USDB Download Dialog */}
+      {showUsdbDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              color: '#333',
+              fontSize: '20px',
+              fontWeight: '600'
+            }}>
+              🌐 USDB Song herunterladen
+            </h3>
+            
+            <p style={{
+              margin: '0 0 20px 0',
+              color: '#666',
+              fontSize: '14px',
+              lineHeight: '1.5'
+            }}>
+              Gib eine USDB-URL ein, um den Song herunterzuladen. 
+              Beispiel: https://usdb.animux.de/index.php?link=detail&id=11408
+            </p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                USDB-URL:
+              </label>
+              <input
+                type="url"
+                value={usdbUrl}
+                onChange={(e) => setUsdbUrl(e.target.value)}
+                placeholder="https://usdb.animux.de/index.php?link=detail&id=..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#6f42c1'}
+                onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
+                disabled={usdbDownloading}
+              />
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={handleCloseUsdbDialog}
+                disabled={usdbDownloading}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#666',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: usdbDownloading ? 'not-allowed' : 'pointer',
+                  opacity: usdbDownloading ? 0.6 : 1,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!usdbDownloading) {
+                    e.currentTarget.style.borderColor = '#ccc';
+                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!usdbDownloading) {
+                    e.currentTarget.style.borderColor = '#e1e5e9';
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }
+                }}
+              >
+                Abbrechen
+              </button>
+              
+              <button
+                onClick={handleDownloadFromUSDB}
+                disabled={usdbDownloading || !usdbUrl.trim()}
+                style={{
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: usdbDownloading || !usdbUrl.trim() ? '#ccc' : '#6f42c1',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: usdbDownloading || !usdbUrl.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!usdbDownloading && usdbUrl.trim()) {
+                    e.currentTarget.style.backgroundColor = '#5a2d91';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!usdbDownloading && usdbUrl.trim()) {
+                    e.currentTarget.style.backgroundColor = '#6f42c1';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {usdbDownloading ? '⏳ Download läuft...' : '🌐 Herunterladen'}
               </button>
             </div>
           </div>

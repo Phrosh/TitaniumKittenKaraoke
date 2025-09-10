@@ -181,6 +181,18 @@ export const adminAPI = {
     api.post('/admin/ultrastar-audio-settings', { artist, title, audioPreference }),
   removeUltrastarAudioSetting: (artist: string, title: string) =>
     api.delete('/admin/ultrastar-audio-settings', { data: { artist, title } }),
+
+  // USDB Management
+  getUSDBCredentials: () => api.get('/admin/usdb-credentials'),
+  saveUSDBCredentials: (username: string, password: string) =>
+    api.post('/admin/usdb-credentials', { username, password }),
+  deleteUSDBCredentials: () => api.delete('/admin/usdb-credentials'),
+  downloadFromUSDB: (usdbUrl: string) =>
+    api.post('/admin/usdb-download', { usdbUrl }),
+  searchUSDB: (query: string, limit?: number) =>
+    api.post('/admin/usdb-search', { query, limit }),
+  getUSDBSongInfo: (songId: string) =>
+    api.get(`/admin/usdb-song/${songId}`),
 };
 
 export const showAPI = {

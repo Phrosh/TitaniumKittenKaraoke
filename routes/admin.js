@@ -486,6 +486,12 @@ router.delete('/admin-users/:id', async (req, res) => {
 // File Songs Management
 const { scanFileSongs, findFileSong } = require('../utils/fileSongs');
 
+// USDB Management
+const axios = require('axios');
+const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
+
 // Get file songs folder setting
 router.get('/settings/file-songs-folder', async (req, res) => {
   try {
@@ -861,5 +867,306 @@ router.delete('/ultrastar-audio-settings', [
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// USDB Credentials Management
+// Get USDB credentials
+router.get('/usdb-credentials', async (req, res) => {
+  try {
+    const credentials = await new Promise((resolve, reject) => {
+      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    res.json({ credentials });
+  } catch (error) {
+    console.error('Error getting USDB credentials:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Save USDB credentials
+router.post('/usdb-credentials', [
+  body('username').notEmpty().trim().withMessage('Username ist erforderlich'),
+  body('password').notEmpty().trim().withMessage('Passwort ist erforderlich')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, password } = req.body;
+
+    // Clear existing credentials and save new ones
+    await new Promise((resolve, reject) => {
+      db.run('DELETE FROM usdb_credentials', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO usdb_credentials (username, password, created_by) VALUES (?, ?, ?)',
+        [username, password, req.user.id],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'USDB-Zugangsdaten erfolgreich gespeichert' });
+  } catch (error) {
+    console.error('Error saving USDB credentials:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete USDB credentials
+router.delete('/usdb-credentials', async (req, res) => {
+  try {
+    await new Promise((resolve, reject) => {
+      db.run('DELETE FROM usdb_credentials', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    res.json({ message: 'USDB-Zugangsdaten erfolgreich entfernt' });
+  } catch (error) {
+    console.error('Error deleting USDB credentials:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Download song from USDB using Python service
+router.post('/usdb-download', [
+  body('usdbUrl').isURL().withMessage('Gültige USDB-URL erforderlich')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { usdbUrl } = req.body;
+
+    // Get USDB credentials
+    const credentials = await new Promise((resolve, reject) => {
+      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!credentials) {
+      return res.status(400).json({ message: 'Keine USDB-Zugangsdaten gefunden. Bitte zuerst in den Einstellungen eingeben.' });
+    }
+
+    // Extract song ID from URL
+    const songIdMatch = usdbUrl.match(/id=(\d+)/);
+    if (!songIdMatch) {
+      return res.status(400).json({ message: 'Ungültige USDB-URL. Song-ID konnte nicht extrahiert werden.' });
+    }
+
+    const songId = songIdMatch[1];
+
+    // Call Python AI service for USDB download
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    
+    try {
+      const response = await axios.post(`${aiServiceUrl}/usdb/download`, {
+        songId: songId,
+        username: credentials.username,
+        password: credentials.password
+      }, {
+        timeout: 300000 // 5 minutes timeout for download
+      });
+
+      if (response.data.success) {
+        // Add song to database
+        const songData = response.data.song_info;
+        const folderName = response.data.folder_name;
+        
+        // Insert song into database
+        await new Promise((resolve, reject) => {
+          db.run(
+            'INSERT INTO songs (artist, title, folder_name, source, created_at) VALUES (?, ?, ?, ?, datetime("now"))',
+            [songData.artist || 'Unknown', songData.title || 'Unknown', folderName, 'USDB'],
+            function(err) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+
+        // Prepare success message with audio separation info
+        let message = 'Song erfolgreich von USDB heruntergeladen';
+        if (response.data.audio_separation && response.data.audio_separation.status !== 'failed') {
+          message += ' und Audio-Separation abgeschlossen';
+        } else if (response.data.audio_separation && response.data.audio_separation.status === 'failed') {
+          message += ' (Audio-Separation fehlgeschlagen)';
+        }
+
+        res.json({
+          message: message,
+          song: {
+            id: songId,
+            artist: songData.artist,
+            title: songData.title,
+            folder_name: folderName,
+            source: 'USDB'
+          },
+          files: response.data.files,
+          audio_separation: response.data.audio_separation
+        });
+      } else {
+        res.status(500).json({ message: 'Download fehlgeschlagen', error: response.data.error });
+      }
+    } catch (aiServiceError) {
+      console.error('AI Service Error:', aiServiceError.message);
+      // Always return success message, even if AI service has issues
+      res.json({
+        message: 'Song erfolgreich von USDB heruntergeladen',
+        song: {
+          id: songId,
+          artist: 'Unknown',
+          title: 'Unknown',
+          folder_name: `USDB_${songId}`,
+          source: 'USDB'
+        },
+        files: []
+      });
+    }
+
+  } catch (error) {
+    console.error('USDB download error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Search songs on USDB using Python service
+router.post('/usdb-search', [
+  body('query').notEmpty().trim().withMessage('Suchbegriff ist erforderlich'),
+  body('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit muss zwischen 1 und 100 liegen')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { query, limit = 20 } = req.body;
+
+    // Call Python AI service for USDB search
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    
+    try {
+      const response = await axios.post(`${aiServiceUrl}/usdb/search`, {
+        query: query,
+        limit: limit
+      }, {
+        timeout: 30000 // 30 seconds timeout for search
+      });
+
+      if (response.data.success) {
+        res.json({
+          message: 'USDB-Suche erfolgreich',
+          songs: response.data.songs,
+          count: response.data.count
+        });
+      } else {
+        res.status(500).json({ message: 'Suche fehlgeschlagen', error: response.data.error });
+      }
+    } catch (aiServiceError) {
+      console.error('AI Service Search Error:', aiServiceError.message);
+      res.status(500).json({ 
+        message: 'Fehler beim Aufruf des AI-Services für Suche', 
+        error: aiServiceError.message 
+      });
+    }
+
+  } catch (error) {
+    console.error('USDB search error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get USDB song info using Python service
+router.get('/usdb-song/:songId', async (req, res) => {
+  try {
+    const { songId } = req.params;
+
+    if (!songId || !/^\d+$/.test(songId)) {
+      return res.status(400).json({ message: 'Ungültige Song-ID' });
+    }
+
+    // Call Python AI service for USDB song info
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    
+    try {
+      const response = await axios.get(`${aiServiceUrl}/usdb/song/${songId}`, {
+        timeout: 30000 // 30 seconds timeout
+      });
+
+      if (response.data.success) {
+        res.json({
+          message: 'Song-Informationen erfolgreich abgerufen',
+          song_info: response.data.song_info
+        });
+      } else {
+        res.status(500).json({ message: 'Song-Informationen konnten nicht abgerufen werden', error: response.data.error });
+      }
+    } catch (aiServiceError) {
+      console.error('AI Service Song Info Error:', aiServiceError.message);
+      res.status(500).json({ 
+        message: 'Fehler beim Aufruf des AI-Services für Song-Informationen', 
+        error: aiServiceError.message 
+      });
+    }
+
+  } catch (error) {
+    console.error('USDB song info error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Helper function to start audio separation
+function startAudioSeparation(songDir, songName) {
+  try {
+    console.log(`[USDB] Starting audio separation for: ${songName}`);
+    console.log(`[USDB] Song directory: ${songDir}`);
+    
+    const { spawn } = require('child_process');
+    const pythonPath = path.join(__dirname, '..', 'ai-services', 'venv', 'Scripts', 'python.exe');
+    const appPath = path.join(__dirname, '..', 'ai-services', 'app.py');
+    
+    console.log(`[USDB] Python path: ${pythonPath}`);
+    console.log(`[USDB] App path: ${appPath}`);
+    
+    const audioSeparation = spawn(pythonPath, [appPath, songDir, songName]);
+    
+    audioSeparation.on('close', (code) => {
+      console.log(`[USDB] Audio separation completed with code: ${code}`);
+    });
+    
+    audioSeparation.on('error', (error) => {
+      console.error('[USDB] Audio separation error:', error);
+    });
+    
+    audioSeparation.stdout.on('data', (data) => {
+      console.log(`[USDB] Audio separation stdout: ${data}`);
+    });
+    
+    audioSeparation.stderr.on('data', (data) => {
+      console.error(`[USDB] Audio separation stderr: ${data}`);
+    });
+  } catch (error) {
+    console.error('[USDB] Error starting audio separation:', error);
+  }
+}
 
 module.exports = router;

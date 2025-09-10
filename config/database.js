@@ -135,6 +135,18 @@ function initializeDatabase() {
       UNIQUE(artist, title)
     )
   `);
+
+  // USDB credentials table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS usdb_credentials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by INTEGER,
+      FOREIGN KEY (created_by) REFERENCES admin_users (id)
+    )
+  `);
   });
 }
 
