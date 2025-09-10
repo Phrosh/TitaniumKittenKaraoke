@@ -1,7 +1,7 @@
 {
-  "name": "karaoke-system",
+  "name": "titanium-kitten-karaoke",
   "version": "1.0.0",
-  "description": "Karaoke Song Request System",
+  "description": "Titanium Kitten Karaoke - Song Request System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -36,7 +36,8 @@
     "karaoke",
     "music",
     "playlist",
-    "requests"
+    "requests",
+    "titanium-kitten"
   ],
   "author": "",
   "license": "MIT"

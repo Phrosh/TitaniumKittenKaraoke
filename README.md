@@ -1,4 +1,4 @@
-# 🎤 Karaoke Song Request System
+# 🎤 Titanium Kitten Karaoke
 
 Ein vollständiges Web-basiertes Karaoke-System mit automatischer Playlist-Verwaltung und Fairness-Algorithmus.
 
