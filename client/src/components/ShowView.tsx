@@ -71,6 +71,8 @@ interface UltrastarSongData {
   backgroundImageUrl?: string;
 }
 
+const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
+
 const ShowContainer = styled.div`
   position: relative;
   width: 100vw;
@@ -486,6 +488,36 @@ const QRCodeCloseButton = styled.button`
   }
 `;
 
+const ProgressOverlay = styled.div<{ $isVisible: boolean }>`
+  position: absolute;
+  top: calc(50vh - 200px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+`;
+
+const ProgressBarContainer = styled.div`
+  width: 50vw;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+  border: 5px solid ${HIGHLIGHT_COLOR};
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 1);
+`;
+
+const ProgressBarFill = styled.div<{ $progress: number }>`
+  width: ${props => props.$progress}%;
+  height: 100%;
+  background: ${HIGHLIGHT_COLOR};
+  border-radius: 0px;
+  transition: width 0.1s ease-out;
+  box-shadow: 0 0 10px rgba(78, 145, 201, 0.5);
+`;
+
 const NoVideoMessage = styled.div`
   display: flex;
   align-items: center;
@@ -534,12 +566,14 @@ const ShowView: React.FC = () => {
   const nextNextLyricRef = useRef<HTMLDivElement | null>(null);
   const lastLoggedText = useRef<string>('');
   // Constants for display settings
-  const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
   const UNSUNG_COLOR = '#ffffff';
   const CURRENT_LINE_OPACITY = 1;
   const NEXT_LINE_OPACITY = 0.7;
   const NEXT_NEXT_LINE_OPACITY = 0.3;
   const LYRICS_FADE_DURATION = '4s';
+  const COUNTDOWN_SECONDS = 3;
+  const FADE_IN_ATTACK_SECONDS = 10;
+  const FADE_IN_DURATION_SECONDS = 4;
   
   // Constants for fade-out/fade-in timing
   const FADE_OUT_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-out if pause > 5s
@@ -554,6 +588,11 @@ const ShowView: React.FC = () => {
   const [fadeOutLineIndices, setFadeOutLineIndices] = useState<Set<number>>(new Set());
   const [lyricsScale, setLyricsScale] = useState<number>(1);
   const [lyricsTransitionEnabled, setLyricsTransitionEnabled] = useState(false);
+  
+  // Progress bar state
+  const [progressVisible, setProgressVisible] = useState(false);
+  const [progressValue, setProgressValue] = useState(0);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // CSS styles using constants
   const lyricsDisplayStyle = {
@@ -641,6 +680,48 @@ const ShowView: React.FC = () => {
     }
   };
 
+  // Progress bar functions
+  const stopProgress = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    setProgressVisible(false);
+    setProgressValue(0);
+  }, []);
+
+  const startProgress = useCallback((secondsUntilNextLine: number) => {
+    // Only start progress if there's enough time (at least 3 seconds)
+    if (secondsUntilNextLine < COUNTDOWN_SECONDS) {
+      return;
+    }
+
+    console.log('🎵 Starting progress bar:', { secondsUntilNextLine });
+    
+    // Clear any existing progress
+    stopProgress();
+    
+    setProgressValue(100); // Start at 100%
+    setProgressVisible(true);
+    
+    // Start progress animation: full → empty
+    const startTime = Date.now();
+    const totalDuration = COUNTDOWN_SECONDS * 1000; // 3 seconds total
+    
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = elapsed / totalDuration;
+      
+      // Full → empty (100% → 0%)
+      const emptyProgress = (1 - progress) * 100;
+      setProgressValue(emptyProgress);
+      
+      if (progress >= 1) {
+        stopProgress();
+      }
+    }, 50); // Update every 50ms for smooth animation
+  }, [stopProgress]);
+
   // Ultrastar functions
   const stopUltrastarTiming = useCallback(() => {
     if (timingIntervalRef.current) {
@@ -651,7 +732,9 @@ const ShowView: React.FC = () => {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-  }, []);
+    // Also stop progress when stopping ultrastar timing
+    stopProgress();
+  }, [stopProgress]);
 
   const startUltrastarTiming = useCallback((songData: UltrastarSongData, fadeOutIndices: Set<number>) => {
     // Clear existing interval
@@ -666,8 +749,7 @@ const ShowView: React.FC = () => {
       bpm: songData.bpm,
       gap: songData.gap,
       notesCount: songData.notes.length,
-      fadeOutIndices: Array.from(fadeOutIndices),
-      songDataId: songData.id || 'no-id'
+      fadeOutIndices: Array.from(fadeOutIndices)
     });
     
     // Calculate beat duration in milliseconds
@@ -751,6 +833,9 @@ const ShowView: React.FC = () => {
       setShowLyrics(shouldShowLyrics);
       
       if (currentLineIndex >= 0) {
+        // Stop progress when we're actively singing a line
+        stopProgress();
+        
         const currentLine = songData.lines[currentLineIndex];
         const nextLine = songData.lines[currentLineIndex + 1];
         const nextNextLine = songData.lines[currentLineIndex + 2];
@@ -876,6 +961,15 @@ const ShowView: React.FC = () => {
         const nextNextLine = songData.lines[nextLineIndex + 1];
         const nextNextNextLine = songData.lines[nextLineIndex + 2];
         
+        // Calculate time until next line starts
+        const timeUntilNextLine = (nextLine.startBeat - currentBeat) * beatDuration;
+        const secondsUntilNextLine = timeUntilNextLine / 1000;
+        
+        // Start progress if we're showing lyrics and there's exactly 3 seconds left
+        if (secondsUntilNextLine >= COUNTDOWN_SECONDS && secondsUntilNextLine <= COUNTDOWN_SECONDS + 0.5) {
+          startProgress(secondsUntilNextLine);
+        }
+        
         // Check if any of the preview lines is a fade-out line
         if (fadeOutIndices.has(nextLineIndex + 1)) {
           // Next line (Preview-Zeile 1) is a fade-out line - show next line, hide line after fade-out
@@ -894,6 +988,15 @@ const ShowView: React.FC = () => {
         const firstLine = songData.lines[0];
         const secondLine = songData.lines[1];
         const thirdLine = songData.lines[2];
+        
+        // Calculate time until first line starts
+        const timeUntilFirstLine = (firstLine.startBeat - currentBeat) * beatDuration;
+        const secondsUntilFirstLine = timeUntilFirstLine / 1000;
+        
+        // Start progress if we're showing lyrics and there's exactly 3 seconds left
+        if (secondsUntilFirstLine >= COUNTDOWN_SECONDS && secondsUntilFirstLine <= COUNTDOWN_SECONDS + 0.5) {
+          startProgress(secondsUntilFirstLine);
+        }
         
         // Check if any of the first lines is a fade-out line
         if (fadeOutIndices.has(1)) {
@@ -1021,6 +1124,9 @@ const ShowView: React.FC = () => {
       setFadeOutLineIndex(null); // Reset fade-out line index for new song
       setFadeOutLineIndices(new Set()); // Reset fade-out line indices for new song
       
+      // Reset progress for new song
+      stopProgress();
+      
       console.log('🎵 Ultrastar data loaded:', {
         title: songData.title,
         artist: songData.artist,
@@ -1042,7 +1148,7 @@ const ShowView: React.FC = () => {
     } catch (error) {
       console.error('Error loading Ultrastar data:', error);
     }
-  }, [startUltrastarTiming]);
+  }, [startUltrastarTiming, stopProgress]);
 
   // Show lyrics immediately when ultrastar data is loaded
   useEffect(() => {
@@ -1105,6 +1211,7 @@ const ShowView: React.FC = () => {
           setFadeOutLineIndex(null); // Reset fade-out line index when switching away from ultrastar
           setFadeOutLineIndices(new Set()); // Reset fade-out line indices when switching away from ultrastar
           stopUltrastarTiming();
+          stopProgress(); // Reset progress when switching away from ultrastar
         }
         
         // Start timer for new song
@@ -1219,19 +1326,26 @@ const ShowView: React.FC = () => {
   }, [currentSong?.id, currentSong?.title]);
 
   const [songChanged, setSongChanged] = useState(true);
+
   useEffect(() => {
     setSongChanged(true);
   }, [ultrastarData?.gap]);
+
   const [playing, setPlaying] = useState(false);
+
   useEffect(() => {
     if (!songChanged || !playing || !ultrastarData?.gap) return;
     if (ultrastarData && ultrastarData?.lines && ultrastarData?.lines.length > 0) {
       const firstLine = ultrastarData.lines[0];
       const beatDuration = (60000 / ultrastarData.bpm) / 4; // Beat duration in milliseconds
       const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
-      const fadeInDuration = 4000; // 4 seconds
-      const showTime = Math.max(0, firstLineStartTime - 10000); // 10 seconds before first line
+      const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS; // 4 seconds
+      const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS); // 10 seconds before first line
       
+      // Calculate time until first line starts (for progress bar)
+      const timeUntilFirstLine = firstLineStartTime;
+      const secondsUntilFirstLine = timeUntilFirstLine / 1000;
+        
       if (showTime <= fadeInDuration) {
         // Show immediately if not enough time for fade-in
         console.log('🎵 Not enough time for fade-in - showing lyrics immediately');
@@ -1243,11 +1357,17 @@ const ShowView: React.FC = () => {
         setTimeout(() => {
           setLyricsScale(1);
           setShowLyrics(true);
+          
+          // Start progress bar for first lyrics if there's enough time
+          setTimeout(() => {
+            console.log('🎵 Starting progress bar for first lyrics:', { secondsUntilFirstLine });
+            startProgress(secondsUntilFirstLine);
+          }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
         }, showTime);
       }
     }
     setSongChanged(false);
-  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled]);
+  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled, startProgress]);
 
   // console.log('🎵 lyricsTransitionEnabled', lyricsTransitionEnabled);
   // console.log('🎵 lyricsScale', lyricsScale);
@@ -1257,8 +1377,7 @@ const ShowView: React.FC = () => {
     console.log('🎵 handleAudioPlay called - Ultrastar audio started playing:', { 
       songId: currentSong?.id, 
       title: currentSong?.title,
-      gap: globalUltrastarData?.gap,
-      ultrastarDataId: globalUltrastarData?.id || 'no-id'
+      gap: globalUltrastarData?.gap
     });
     
     // Reset lyrics container height to 0 at video start
@@ -1372,8 +1491,9 @@ const ShowView: React.FC = () => {
       setIsFadeOutMode(false); // Reset fade-out mode for new song
       setFadeOutLineIndex(null); // Reset fade-out line index for new song
       setFadeOutLineIndices(new Set()); // Reset fade-out line indices for new song
+      stopProgress(); // Reset progress for new song
     }
-  }, [currentSong?.id, lastSongId]);
+  }, [currentSong?.id, lastSongId, stopProgress]);
 
   return (
     <ShowContainer onClick={handleScreenClick}>
@@ -1527,6 +1647,13 @@ const ShowView: React.FC = () => {
           </NextSongsList>
         </FooterContent>
       </Footer>
+
+      {/* Progress Bar Overlay */}
+      <ProgressOverlay $isVisible={progressVisible}>
+        <ProgressBarContainer>
+          <ProgressBarFill $progress={progressValue} />
+        </ProgressBarContainer>
+      </ProgressOverlay>
 
       {/* QR Code Overlay */}
       <QRCodeOverlay $isVisible={showQRCodeOverlay}>
