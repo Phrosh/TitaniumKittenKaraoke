@@ -1118,6 +1118,7 @@ const ShowView: React.FC = () => {
       
       // Disable transition before hiding lyrics container
       setShowLyrics(false); // Reset lyrics visibility for new song
+      console.log('lyrics scale from loadUltrastarData');
       setLyricsScale(0);
     
       setIsFadeOutMode(false); // Reset fade-out mode for new song
@@ -1205,6 +1206,7 @@ const ShowView: React.FC = () => {
           setUltrastarData(null);
           
           setShowLyrics(false); // Hide lyrics when switching away from ultrastar
+          console.log('lyrics scale from fetch current song');
           setLyricsScale(0);
         
           setIsFadeOutMode(false); // Reset fade-out mode when switching away from ultrastar
@@ -1350,11 +1352,14 @@ const ShowView: React.FC = () => {
         // Show immediately if not enough time for fade-in
         console.log('🎵 Not enough time for fade-in - showing lyrics immediately');
         setLyricsTransitionEnabled(false);
+        console.log('lyrics scale from useEffect');
         setLyricsScale(1);
         setShowLyrics(true);
+        console.log('🎵 Showing lyrics immediately');
       } else {
         setLyricsTransitionEnabled(true);
         setTimeout(() => {
+          console.log('lyrics scale from timeout');
           setLyricsScale(1);
           setShowLyrics(true);
           
@@ -1369,6 +1374,10 @@ const ShowView: React.FC = () => {
     setSongChanged(false);
   }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled, startProgress]);
 
+  console.log('show lyrics', showLyrics);
+  console.log('lyrics scale', lyricsScale);
+  console.log('lyrics container style', lyricsDisplayStyle);
+
   // console.log('🎵 lyricsTransitionEnabled', lyricsTransitionEnabled);
   // console.log('🎵 lyricsScale', lyricsScale);
   // console.log('🎵 showLyrics', showLyrics);
@@ -1381,7 +1390,8 @@ const ShowView: React.FC = () => {
     });
     
     // Reset lyrics container height to 0 at video start
-    setLyricsScale(0);
+    // console.log('lyrics scale from handleAudioPlay');
+    // setLyricsScale(0);
     setShowLyrics(false);
     setPlaying(true);
     
