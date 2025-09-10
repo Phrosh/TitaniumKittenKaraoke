@@ -1369,16 +1369,28 @@ const AdminDashboard: React.FC = () => {
           song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
         );
         if (existingIndex !== -1) {
-          // Song exists, add ultrastar mode
+          // Song exists, add ultrastar mode and file status
           if (!allSongs[existingIndex].modes) {
             allSongs[existingIndex].modes = [];
           }
           if (!allSongs[existingIndex].modes.includes('ultrastar')) {
             allSongs[existingIndex].modes.push('ultrastar');
           }
+          // Update file status from ultrastar song
+          allSongs[existingIndex].hasVideo = ultrastarSong.hasVideo;
+          allSongs[existingIndex].hasPreferredVideo = ultrastarSong.hasPreferredVideo;
+          allSongs[existingIndex].hasHp2Hp5 = ultrastarSong.hasHp2Hp5;
+          allSongs[existingIndex].hasAudio = ultrastarSong.hasAudio;
         } else {
-          // Song doesn't exist, add as ultrastar only
-          allSongs.push({ ...ultrastarSong, modes: ['ultrastar'] });
+          // Song doesn't exist, add as ultrastar only with file status
+          allSongs.push({ 
+            ...ultrastarSong, 
+            modes: ['ultrastar'],
+            hasVideo: ultrastarSong.hasVideo,
+            hasPreferredVideo: ultrastarSong.hasPreferredVideo,
+            hasHp2Hp5: ultrastarSong.hasHp2Hp5,
+            hasAudio: ultrastarSong.hasAudio
+          });
         }
       });
       
@@ -1463,32 +1475,38 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Check if Ultrastar song has missing files
+  // Check if Ultrastar song has all required files for processing
+  const hasAllRequiredFiles = (song: any) => {
+    if (!song.modes?.includes('ultrastar')) return false;
+    
+    // Check if video files are present (mp4 or webm)
+    const hasVideo = song.hasVideo || false;
+    
+    // Check if HP2/HP5 files are present
+    const hasHp2Hp5 = song.hasHp2Hp5 || false;
+    
+    // Show processing button only if BOTH video AND HP2/HP5 files are present
+    return hasVideo && hasHp2Hp5;
+  };
+
+  // Check if Ultrastar song has missing files (for warning display)
   const hasMissingFiles = (song: any) => {
     if (!song.modes?.includes('ultrastar')) return false;
     
-    // Check if video files are missing
-    const hasVideo = song.hasVideo || false;
-    const hasPreferredVideo = song.hasPreferredVideo || false;
-    
-    // Check if HP2/HP5 files are missing
-    const hasHp2Hp5 = song.hasHp2Hp5 || false;
-    
-    // Check if audio files are missing
-    const hasAudio = song.hasAudio || false;
-    
-    // If no video AND no audio, show button for YouTube download
-    if (!hasVideo && !hasAudio) {
-      return true;
+    // If the properties are undefined, we can't determine if files are missing
+    // So we assume they are complete (don't show button/warning)
+    if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
+      return false;
     }
     
-    // If no video at all, only check HP2/HP5
-    if (!hasVideo) {
-      return !hasHp2Hp5;
-    }
+    // Check if video files are present (mp4 or webm)
+    const hasVideo = song.hasVideo === true;
     
-    // If video exists but not in preferred format, or HP2/HP5 missing
-    return !hasPreferredVideo || !hasHp2Hp5;
+    // Check if HP2/HP5 files are present
+    const hasHp2Hp5 = song.hasHp2Hp5 === true;
+    
+    // Show warning if video OR HP2/HP5 files are missing
+    return !hasVideo || !hasHp2Hp5;
   };
 
   const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
@@ -3022,7 +3040,7 @@ const AdminDashboard: React.FC = () => {
                                 </div>
                               </div>
                               
-                              {/* Processing button for songs with missing files */}
+                              {/* Processing button for songs with all required files */}
                               {hasMissingFiles(song) && (
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
                                   <button
