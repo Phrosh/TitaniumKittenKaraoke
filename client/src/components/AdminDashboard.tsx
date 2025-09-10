@@ -912,6 +912,12 @@ const AdminDashboard: React.FC = () => {
   const [showUsdbDialog, setShowUsdbDialog] = useState(false);
   const [usdbUrl, setUsdbUrl] = useState('');
   const [usdbDownloading, setUsdbDownloading] = useState(false);
+  
+  // Batch USDB Management
+  const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
+  const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
+  const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
+  const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'completed' | 'error', message?: string}>>([]);
 
   const handleDragStart = (e: React.DragEvent, songId: number) => {
     setDraggedItem(songId);
@@ -1745,6 +1751,12 @@ const AdminDashboard: React.FC = () => {
     setShowUsdbDialog(false);
     setUsdbUrl('');
     
+    // Reset batch states
+    setUsdbBatchUrls(['']);
+    setUsdbBatchDownloading(false);
+    setUsdbBatchProgress({ current: 0, total: 0 });
+    setUsdbBatchResults([]);
+    
     // Rescan song list after closing USDB dialog
     try {
       // First rescan file system songs (includes USDB downloads)
@@ -1757,6 +1769,118 @@ const AdminDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error refreshing song list:', error);
       // Don't show error toast as this is a background operation
+    }
+  };
+
+  // Batch USDB Functions
+  const handleAddBatchUrlField = () => {
+    setUsdbBatchUrls([...usdbBatchUrls, '']);
+  };
+
+  const handleRemoveBatchUrlField = (index: number) => {
+    if (usdbBatchUrls.length > 1) {
+      const newUrls = usdbBatchUrls.filter((_, i) => i !== index);
+      setUsdbBatchUrls(newUrls);
+      
+      // Update results array accordingly
+      const newResults = usdbBatchResults.filter((_, i) => i !== index);
+      setUsdbBatchResults(newResults);
+    }
+  };
+
+  const handleBatchUrlChange = (index: number, value: string) => {
+    const newUrls = [...usdbBatchUrls];
+    newUrls[index] = value;
+    setUsdbBatchUrls(newUrls);
+    
+    // Auto-add new field if current field has content and it's the last field
+    if (value.trim() && index === usdbBatchUrls.length - 1) {
+      setUsdbBatchUrls([...newUrls, '']);
+    }
+  };
+
+  const handleBatchDownloadFromUSDB = async () => {
+    // Filter out empty URLs
+    const validUrls = usdbBatchUrls.filter(url => url.trim());
+    
+    if (validUrls.length === 0) {
+      toast.error('Bitte mindestens eine USDB-URL eingeben');
+      return;
+    }
+
+    setUsdbBatchDownloading(true);
+    setUsdbBatchProgress({ current: 0, total: validUrls.length });
+    
+    // Initialize results
+    const initialResults = validUrls.map(url => ({
+      url,
+      status: 'pending' as const,
+      message: ''
+    }));
+    setUsdbBatchResults(initialResults);
+
+    try {
+      for (let i = 0; i < validUrls.length; i++) {
+        const url = validUrls[i];
+        
+        // Update current status to downloading
+        setUsdbBatchResults(prev => prev.map((result, index) => 
+          index === i ? { ...result, status: 'downloading' } : result
+        ));
+        
+        try {
+          const response = await adminAPI.downloadFromUSDB(url);
+          
+          // Mark as completed
+          setUsdbBatchResults(prev => prev.map((result, index) => 
+            index === i ? { 
+              ...result, 
+              status: 'completed', 
+              message: response.data.message || 'Download erfolgreich'
+            } : result
+          ));
+          
+          // Update progress
+          setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
+          
+        } catch (error: any) {
+          // Mark as error
+          const errorMessage = error.response?.data?.message || 'Fehler beim Download';
+          setUsdbBatchResults(prev => prev.map((result, index) => 
+            index === i ? { 
+              ...result, 
+              status: 'error', 
+              message: errorMessage
+            } : result
+          ));
+          
+          // Update progress even on error
+          setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
+        }
+      }
+      
+      // All downloads completed
+      toast.success(`Batch-Download abgeschlossen: ${validUrls.length} Songs verarbeitet`);
+      
+      // Rescan song list
+      try {
+        await adminAPI.rescanFileSongs();
+        await fetchSongs();
+      } catch (rescanError) {
+        console.error('Error rescanning after batch download:', rescanError);
+      }
+      
+      // Close modal after successful completion
+      setShowUsdbDialog(false);
+      setUsdbBatchUrls(['']);
+      setUsdbBatchProgress({ current: 0, total: 0 });
+      setUsdbBatchResults([]);
+      
+    } catch (error) {
+      console.error('Error in batch download:', error);
+      toast.error('Fehler beim Batch-Download');
+    } finally {
+      setUsdbBatchDownloading(false);
     }
   };
 
@@ -3331,7 +3455,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* USDB Download Dialog */}
+      {/* USDB Batch Download Dialog */}
       {showUsdbDialog && (
         <div style={{
           position: 'fixed',
@@ -3349,8 +3473,10 @@ const AdminDashboard: React.FC = () => {
             backgroundColor: 'white',
             borderRadius: '12px',
             padding: '30px',
-            maxWidth: '500px',
+            maxWidth: '600px',
             width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
           }}>
             <h3 style={{
@@ -3359,48 +3485,169 @@ const AdminDashboard: React.FC = () => {
               fontSize: '20px',
               fontWeight: '600'
             }}>
-              🌐 USDB Song herunterladen
+              🌐 USDB Batch-Download
             </h3>
             
-            <p style={{
-              margin: '0 0 20px 0',
-              color: '#666',
-              fontSize: '14px',
-              lineHeight: '1.5'
-            }}>
-              Gib eine USDB-URL ein, um den Song herunterzuladen. 
-              Beispiel: https://usdb.animux.de/index.php?link=detail&id=11408
-            </p>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                USDB-URL:
-              </label>
-              <input
-                type="url"
-                value={usdbUrl}
-                onChange={(e) => setUsdbUrl(e.target.value)}
-                placeholder="https://usdb.animux.de/index.php?link=detail&id=..."
-                style={{
+            {/* Progress Bar */}
+            {usdbBatchDownloading && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
+                    Fortschritt:
+                  </span>
+                  <span style={{ fontSize: '14px', color: '#666' }}>
+                    {usdbBatchProgress.current} / {usdbBatchProgress.total} Downloads
+                  </span>
+                </div>
+                <div style={{
                   width: '100%',
-                  padding: '12px',
-                  border: '2px solid #e1e5e9',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#6f42c1'}
-                onBlur={(e) => e.target.style.borderColor = '#e1e5e9'}
-                disabled={usdbDownloading}
-              />
+                  height: '8px',
+                  backgroundColor: '#e1e5e9',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${(usdbBatchProgress.current / usdbBatchProgress.total) * 100}%`,
+                    height: '100%',
+                    backgroundColor: '#6f42c1',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+            )}
+            
+            {/* Batch URL Fields */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: '#333' }}>
+                USDB-URLs (füge beliebig viele hinzu):
+              </label>
+              
+              {usdbBatchUrls.map((url, index) => (
+                <div key={index} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  marginBottom: '10px' 
+                }}>
+                  {/* X Button */}
+                  {usdbBatchUrls.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveBatchUrlField(index)}
+                      disabled={usdbBatchDownloading}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        backgroundColor: usdbBatchDownloading ? '#f8f9fa' : '#dc3545',
+                        color: usdbBatchDownloading ? '#ccc' : 'white',
+                        cursor: usdbBatchDownloading ? 'not-allowed' : 'pointer',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!usdbBatchDownloading) {
+                          e.currentTarget.style.backgroundColor = '#c82333';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!usdbBatchDownloading) {
+                          e.currentTarget.style.backgroundColor = '#dc3545';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                  
+                  {/* URL Input */}
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => handleBatchUrlChange(index, e.target.value)}
+                      placeholder=""
+                      disabled={usdbBatchDownloading}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #e1e5e9',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        transition: 'border-color 0.2s ease',
+                        backgroundColor: usdbBatchDownloading ? '#f8f9fa' : 'white',
+                        color: usdbBatchDownloading ? '#666' : '#333'
+                      }}
+                      onFocus={(e) => {
+                        if (!usdbBatchDownloading) {
+                          e.target.style.borderColor = '#667eea';
+                        }
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#e1e5e9';
+                      }}
+                    />
+                    
+                    {/* Status Indicator */}
+                    {usdbBatchResults[index] && (
+                      <div style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '18px'
+                      }}>
+                        {usdbBatchResults[index].status === 'pending' && '⏳'}
+                        {usdbBatchResults[index].status === 'downloading' && '🔄'}
+                        {usdbBatchResults[index].status === 'completed' && '✅'}
+                        {usdbBatchResults[index].status === 'error' && '❌'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
+            
+            {/* Add Field Button */}
+            {!usdbBatchDownloading && (
+              <button
+                onClick={handleAddBatchUrlField}
+                style={{
+                  padding: '8px 16px',
+                  border: '2px dashed #6f42c1',
+                  borderRadius: '8px',
+                  backgroundColor: 'transparent',
+                  color: '#6f42c1',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '20px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8f9fa';
+                  e.currentTarget.style.borderColor = '#5a2d91';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#6f42c1';
+                }}
+              >
+                + Weitere URL hinzufügen
+              </button>
+            )}
             
             <div style={{
               display: 'flex',
@@ -3409,27 +3656,26 @@ const AdminDashboard: React.FC = () => {
             }}>
               <button
                 onClick={handleCloseUsdbDialog}
-                disabled={usdbDownloading}
+                disabled={usdbBatchDownloading}
                 style={{
                   padding: '12px 24px',
                   border: '2px solid #e1e5e9',
                   borderRadius: '8px',
-                  backgroundColor: 'white',
-                  color: '#666',
+                  backgroundColor: usdbBatchDownloading ? '#f8f9fa' : 'white',
+                  color: usdbBatchDownloading ? '#ccc' : '#666',
                   fontSize: '14px',
                   fontWeight: '500',
-                  cursor: usdbDownloading ? 'not-allowed' : 'pointer',
-                  opacity: usdbDownloading ? 0.6 : 1,
+                  cursor: usdbBatchDownloading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (!usdbDownloading) {
+                  if (!usdbBatchDownloading) {
                     e.currentTarget.style.borderColor = '#ccc';
                     e.currentTarget.style.backgroundColor = '#f8f9fa';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!usdbDownloading) {
+                  if (!usdbBatchDownloading) {
                     e.currentTarget.style.borderColor = '#e1e5e9';
                     e.currentTarget.style.backgroundColor = 'white';
                   }
@@ -3439,33 +3685,33 @@ const AdminDashboard: React.FC = () => {
               </button>
               
               <button
-                onClick={handleDownloadFromUSDB}
-                disabled={usdbDownloading || !usdbUrl.trim()}
+                onClick={handleBatchDownloadFromUSDB}
+                disabled={usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0}
                 style={{
                   padding: '12px 24px',
                   border: 'none',
                   borderRadius: '8px',
-                  backgroundColor: usdbDownloading || !usdbUrl.trim() ? '#ccc' : '#6f42c1',
+                  backgroundColor: usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0 ? '#ccc' : '#6f42c1',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '500',
-                  cursor: usdbDownloading || !usdbUrl.trim() ? 'not-allowed' : 'pointer',
+                  cursor: usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0 ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (!usdbDownloading && usdbUrl.trim()) {
+                  if (!usdbBatchDownloading && usdbBatchUrls.filter(url => url.trim()).length > 0) {
                     e.currentTarget.style.backgroundColor = '#5a2d91';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!usdbDownloading && usdbUrl.trim()) {
+                  if (!usdbBatchDownloading && usdbBatchUrls.filter(url => url.trim()).length > 0) {
                     e.currentTarget.style.backgroundColor = '#6f42c1';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }
                 }}
               >
-                {usdbDownloading ? '⏳ Download läuft...' : '🌐 Herunterladen'}
+                {usdbBatchDownloading ? '⏳ Downloads laufen...' : '🌐 Batch-Download starten'}
               </button>
             </div>
           </div>
