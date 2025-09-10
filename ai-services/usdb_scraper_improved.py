@@ -351,7 +351,8 @@ class USDBScraperImproved:
             
             # Remove empty lines (lines that are just whitespace)
             # Also remove \r characters that might be present
-            non_empty_lines = [line.rstrip('\r').strip() for line in lines if line.strip()]
+            # IMPORTANT: Only remove \r characters, preserve trailing spaces for UltraStar formatting
+            non_empty_lines = [line.rstrip('\r') for line in lines if line.strip()]
             cleaned_song_text = '\n'.join(non_empty_lines)
             
             logger.info(f"Text cleaning: {len(lines)} original lines -> {len(non_empty_lines)} cleaned lines")
