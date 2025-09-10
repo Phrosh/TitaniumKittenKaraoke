@@ -73,12 +73,12 @@ interface UltrastarSongData {
 
 const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
 
-const ShowContainer = styled.div`
+const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
   position: relative;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  cursor: none;
+  cursor: ${props => props.$cursorVisible ? 'default' : 'none'};
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -553,6 +553,10 @@ const ShowView: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  
+  // Cursor visibility state
+  const [cursorVisible, setCursorVisible] = useState(true);
+  const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Ultrastar-specific state
   const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
@@ -1448,6 +1452,25 @@ const ShowView: React.FC = () => {
     }
   }, [isUltrastar, currentSong?.id, currentSong?.title]);
 
+  // Cursor management functions
+  const hideCursor = useCallback(() => {
+    setCursorVisible(false);
+  }, []);
+
+  const showCursor = useCallback(() => {
+    setCursorVisible(true);
+    // Clear existing timeout
+    if (cursorTimeoutRef.current) {
+      clearTimeout(cursorTimeoutRef.current);
+    }
+    // Set new timeout to hide cursor after 3 seconds
+    cursorTimeoutRef.current = setTimeout(hideCursor, 3000);
+  }, [hideCursor]);
+
+  const handleMouseMove = useCallback(() => {
+    showCursor();
+  }, [showCursor]);
+
   // Check if both audio and video/background are ready for autoplay
   const checkMediaReady = useCallback(() => {
     if (isUltrastar && ultrastarData) {
@@ -1505,8 +1528,25 @@ const ShowView: React.FC = () => {
     }
   }, [currentSong?.id, lastSongId, stopProgress]);
 
+  // Initialize cursor timer on component mount
+  useEffect(() => {
+    // Start the cursor timer when component mounts
+    showCursor();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (cursorTimeoutRef.current) {
+        clearTimeout(cursorTimeoutRef.current);
+      }
+    };
+  }, [showCursor]);
+
   return (
-    <ShowContainer onClick={handleScreenClick}>
+    <ShowContainer 
+      onClick={handleScreenClick}
+      onMouseMove={handleMouseMove}
+      $cursorVisible={cursorVisible}
+    >
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
@@ -1514,7 +1554,6 @@ const ShowView: React.FC = () => {
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
               src={currentSong.youtube_url}
-              title={`${currentSong?.user_name} - ${currentSong?.title}`}
               controls
               autoPlay
               onLoadStart={() => {
@@ -1585,7 +1624,6 @@ const ShowView: React.FC = () => {
             <VideoIframe
               key={currentSong?.id} // Force re-render only when song changes
               src={embedUrl}
-              title={`${currentSong?.user_name} - ${currentSong?.title}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               onLoad={() => {
