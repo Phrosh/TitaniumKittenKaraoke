@@ -93,7 +93,8 @@ router.post('/request', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, songInput, deviceId, withBackgroundVocals } = req.body;
+    const { name, songInput, deviceId } = req.body;
+    let { withBackgroundVocals } = req.body;
 
     // Check if YouTube is enabled
     const db = require('../config/database');
@@ -212,6 +213,24 @@ router.post('/request', [
           mode = 'ultrastar';
           youtubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
           console.log(`Found ultrastar song: ${ultrastarSong.folderName}`);
+          
+          // For automatically detected ultrastar songs, set withBackgroundVocals based on available files
+          if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
+            const folderPath = path.join(require('../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
+            if (fs.existsSync(folderPath)) {
+              const files = fs.readdirSync(folderPath);
+              const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
+              const hasHp2File = files.some(file => file.toLowerCase().includes('.hp2.mp3'));
+              
+              // Default to HP5 (with background vocals) if available, otherwise HP2
+              withBackgroundVocals = hasHp5File || !hasHp2File;
+              console.log(`Auto-detected ultrastar song background vocals preference: ${withBackgroundVocals} (HP5 available: ${hasHp5File}, HP2 available: ${hasHp2File})`);
+            } else {
+              // If folder doesn't exist, default to false
+              withBackgroundVocals = false;
+              console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
+            }
+          }
           
           // Trigger video conversion for ultrastar song
           try {

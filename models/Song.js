@@ -28,7 +28,12 @@ class Song {
         if (err) {
           reject(err);
         } else {
-          resolve(rows);
+          // Convert with_background_vocals from integer to boolean
+          const processedRows = rows.map(row => ({
+            ...row,
+            with_background_vocals: Boolean(row.with_background_vocals)
+          }));
+          resolve(processedRows);
         }
       });
     });
@@ -46,7 +51,12 @@ class Song {
         if (err) {
           reject(err);
         } else {
-          resolve(rows);
+          // Convert with_background_vocals from integer to boolean
+          const processedRows = rows.map(row => ({
+            ...row,
+            with_background_vocals: Boolean(row.with_background_vocals)
+          }));
+          resolve(processedRows);
         }
       });
     });
@@ -155,6 +165,10 @@ class Song {
         if (err) {
           reject(err);
         } else {
+          if (row) {
+            // Convert with_background_vocals from integer to boolean
+            row.with_background_vocals = Boolean(row.with_background_vocals);
+          }
           resolve(row);
         }
       });
@@ -217,6 +231,10 @@ class Song {
         if (err) {
           reject(err);
         } else {
+          if (row) {
+            // Convert with_background_vocals from integer to boolean
+            row.with_background_vocals = Boolean(row.with_background_vocals);
+          }
           resolve(row);
         }
       });
@@ -235,6 +253,10 @@ class Song {
         if (err) {
           reject(err);
         } else {
+          if (row) {
+            // Convert with_background_vocals from integer to boolean
+            row.with_background_vocals = Boolean(row.with_background_vocals);
+          }
           resolve(row);
         }
       });
