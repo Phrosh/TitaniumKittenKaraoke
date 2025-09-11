@@ -1003,12 +1003,18 @@ router.post('/usdb-download', [
           );
         });
 
-        // Prepare success message with audio separation info
+        // Prepare success message with audio separation and video remux info
         let message = 'Song erfolgreich von USDB heruntergeladen';
         if (response.data.audio_separation && response.data.audio_separation.status !== 'failed') {
           message += ' und Audio-Separation abgeschlossen';
         } else if (response.data.audio_separation && response.data.audio_separation.status === 'failed') {
           message += ' (Audio-Separation fehlgeschlagen)';
+        }
+        
+        if (response.data.video_remux && response.data.video_remux.status === 'success') {
+          message += ' und Audio aus Video entfernt';
+        } else if (response.data.video_remux && response.data.video_remux.status === 'failed') {
+          message += ' (Video-Remux fehlgeschlagen)';
         }
 
         res.json({
@@ -1021,7 +1027,8 @@ router.post('/usdb-download', [
             source: 'USDB'
           },
           files: response.data.files,
-          audio_separation: response.data.audio_separation
+          audio_separation: response.data.audio_separation,
+          video_remux: response.data.video_remux
         });
       } else {
         res.status(500).json({ message: 'Download fehlgeschlagen', error: response.data.error });

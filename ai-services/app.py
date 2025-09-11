@@ -131,6 +131,70 @@ def convert_video(folder_name):
         logger.error(f"Error converting video: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+def remove_audio_from_video(folder_path):
+    """
+    Remove audio track from video file using ffmpeg
+    """
+    try:
+        # Find video files in the folder
+        video_files = []
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv', '.flv')):
+                video_files.append(file)
+        
+        if not video_files:
+            logger.warning(f"No video files found in {folder_path}")
+            return None
+        
+        # Use the first video file found
+        input_file = video_files[0]
+        input_path = os.path.join(folder_path, input_file)
+        
+        # Create output filename (keep original extension)
+        base_name = os.path.splitext(input_file)[0]
+        extension = os.path.splitext(input_file)[1]
+        output_file = f"{base_name}_no_audio{extension}"
+        output_path = os.path.join(folder_path, output_file)
+        
+        logger.info(f"Removing audio from video: {input_path} -> {output_path}")
+        
+        # Use ffmpeg to remove audio track
+        cmd = [
+            'ffmpeg',
+            '-i', input_path,
+            '-c:v', 'copy',  # Copy video stream without re-encoding
+            '-an',           # Remove audio stream
+            '-y',            # Overwrite output file if it exists
+            output_path
+        ]
+        
+        logger.info(f"Running ffmpeg command: {' '.join(cmd)}")
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.returncode == 0:
+            logger.info(f"Successfully removed audio from video: {output_path}")
+            
+            # Replace original video with the one without audio
+            try:
+                os.replace(output_path, input_path)
+                logger.info(f"Replaced original video with audio-free version: {input_path}")
+                return input_path
+            except Exception as e:
+                logger.error(f"Error replacing original video: {e}")
+                return output_path
+        else:
+            logger.error(f"ffmpeg failed with return code {result.returncode}")
+            logger.error(f"ffmpeg stderr: {result.stderr}")
+            return None
+            
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg command timed out")
+        return None
+    except Exception as e:
+        logger.error(f"Error removing audio from video: {e}")
+        return None
+
 @app.route('/separate_audio/ultrastar/<folder_name>', methods=['POST'])
 def separate_audio(folder_name):
     """
@@ -190,14 +254,74 @@ def separate_audio(folder_name):
                 'error': str(e)
             })
         
+        # After audio separation, remove audio from video
+        video_remux_result = None
+        try:
+            logger.info("Starting video remux to remove audio track...")
+            video_result = remove_audio_from_video(folder_path)
+            
+            if video_result:
+                logger.info("Successfully removed audio from video")
+                video_remux_result = {
+                    'status': 'success',
+                    'message': 'Audio track removed from video',
+                    'video_file': os.path.basename(video_result)
+                }
+            else:
+                logger.warning("Failed to remove audio from video")
+                video_remux_result = {
+                    'status': 'failed',
+                    'message': 'Failed to remove audio from video'
+                }
+                
+        except Exception as e:
+            logger.warning(f"Could not remove audio from video: {str(e)}")
+            video_remux_result = {
+                'status': 'failed',
+                'message': f'Video remux failed: {str(e)}'
+            }
+        
         return jsonify({
             'message': 'Audio separation completed',
             'input_file': os.path.basename(audio_file),
-            'results': results
+            'results': results,
+            'video_remux': video_remux_result
         })
         
     except Exception as e:
         logger.error(f"Error separating audio: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/remove_audio_from_video/ultrastar/<folder_name>', methods=['POST'])
+def remove_audio_from_video_endpoint(folder_name):
+    """
+    Remove audio track from video file in the specified folder
+    """
+    try:
+        # Decode folder name
+        folder_name = folder_name.replace('%20', ' ')
+        folder_path = os.path.join(ULTRASTAR_DIR, folder_name)
+        
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        
+        # Remove audio from video
+        video_result = remove_audio_from_video(folder_path)
+        
+        if video_result:
+            return jsonify({
+                'message': 'Audio track successfully removed from video',
+                'video_file': os.path.basename(video_result),
+                'status': 'success'
+            })
+        else:
+            return jsonify({
+                'error': 'Failed to remove audio from video',
+                'status': 'failed'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error removing audio from video: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/song/ultrastar/<folder_name>/video_info', methods=['GET'])
@@ -433,6 +557,35 @@ def download_usdb_song():
                 except Exception as e:
                     logger.warning(f"Could not separate audio: {str(e)}")
                     response_data['audio_separation'] = {'status': 'failed', 'message': f'Audio separation failed: {str(e)}'}
+                
+                # After audio separation, remove audio from video (separate try-catch)
+                try:
+                    logger.info("Starting video remux to remove audio track...")
+                    
+                    # Remove audio from video
+                    folder_path = os.path.join(ULTRASTAR_DIR, result['folder_name'])
+                    video_result = remove_audio_from_video(folder_path)
+                    
+                    if video_result:
+                        logger.info("Successfully removed audio from video")
+                        response_data['video_remux'] = {
+                            'status': 'success',
+                            'message': 'Audio track removed from video',
+                            'video_file': os.path.basename(video_result)
+                        }
+                    else:
+                        logger.warning("Failed to remove audio from video")
+                        response_data['video_remux'] = {
+                            'status': 'failed',
+                            'message': 'Failed to remove audio from video'
+                        }
+                        
+                except Exception as e:
+                    logger.warning(f"Could not remove audio from video: {str(e)}")
+                    response_data['video_remux'] = {
+                        'status': 'failed',
+                        'message': f'Video remux failed: {str(e)}'
+                    }
         
         return jsonify(response_data)
         
