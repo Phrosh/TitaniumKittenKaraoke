@@ -991,17 +991,14 @@ router.post('/usdb-download', [
         const songData = response.data.song_info;
         const folderName = response.data.folder_name;
         
-        // Insert song into database
-        await new Promise((resolve, reject) => {
-          db.run(
-            'INSERT INTO songs (artist, title, folder_name, source, created_at) VALUES (?, ?, ?, ?, datetime("now"))',
-            [songData.artist || 'Unknown', songData.title || 'Unknown', folderName, 'USDB'],
-            function(err) {
-              if (err) reject(err);
-              else resolve();
-            }
-          );
-        });
+        // Insert song into database using the Song model
+        const Song = require('../models/Song');
+        await Song.createFromUSDB(
+          songData.artist || 'Unknown', 
+          songData.title || 'Unknown', 
+          folderName, 
+          'USDB'
+        );
 
         // Prepare success message with audio separation and video remux info
         let message = 'Song erfolgreich von USDB heruntergeladen';

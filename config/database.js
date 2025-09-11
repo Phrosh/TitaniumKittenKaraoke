@@ -110,6 +110,24 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add folder_name column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN folder_name TEXT
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  // Migration: Add source column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN source TEXT DEFAULT 'youtube'
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Invisible songs table
   db.run(`
     CREATE TABLE IF NOT EXISTS invisible_songs (

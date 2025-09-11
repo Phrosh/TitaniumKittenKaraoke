@@ -17,6 +17,22 @@ class Song {
     });
   }
 
+  static createFromUSDB(artist, title, folderName, source = 'USDB') {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO songs (artist, title, folder_name, source, mode, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [artist, title, folderName, source, 'ultrastar', 'ready'],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: this.lastID, artist, title, folder_name: folderName, source, mode: 'ultrastar', status: 'ready' });
+          }
+        }
+      );
+    });
+  }
+
   static getAll() {
     return new Promise((resolve, reject) => {
       db.all(`
