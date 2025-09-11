@@ -1,213 +1,130 @@
-# 🎤 Titanium Kitten Karaoke
+<div align="center">
 
-Ein vollständiges Web-basiertes Karaoke-System mit automatischer Playlist-Verwaltung und Fairness-Algorithmus.
+# 🎤 Titanium Kitten Karaoke (TKK)
+
+<img src="assets/tkk-logo.png" alt="Titanium Kitten Karaoke Logo" width="200" height="200">
+
+**Das ultimative Web-basierte Karaoke-System für Veranstalter**
+
+</div>
+
+Titanium Kitten Karaoke ist ein professionelles Karaoke-Management-System, das speziell für Veranstalter von Karaoke-Events in Bars, Clubs oder auf Parties entwickelt wurde. Es übernimmt die komplette Verwaltung der Songs, Playlists und bietet eine intuitive Benutzeroberfläche für sowohl Veranstalter als auch Teilnehmer.
+
+## 🎯 Was ist Titanium Kitten Karaoke?
+
+Titanium Kitten Karaoke ist ein vollständiges Karaoke-System, das über einen Web-Browser zugänglich ist. Es funktioniert am besten auf einem Webserver mit statischer IP oder eigener Domain, kann aber auch per ngrok von zu Hause aus betrieben werden. Sowohl die Verwaltung als auch die Live-Videos sind über jeden modernen Web-Browser erreichbar.
+
+**💡 Tipp:** Verwende einen Webserver mit eigener Domain oder einen leistungsstarken Desktop-PC mit ngrok als Server. Während der Live-Karaoke-Show greifst du dann mit einem Laptop über den Browser darauf zu.
 
 ## ✨ Features
 
-### Für Nutzer:
-- **QR-Code Zugang**: Einfacher Zugang über QR-Code zu `/new`
-- **Song-Wünsche**: Eingabe als "Interpret - Songtitel" oder YouTube-Link
-- **Geräte-ID**: Automatische 3-stellige ID zur Identifikation
-- **Live Playlist**: Echtzeit-Anzeige der aktuellen Playlist
+### 🎵 Song-Management
+- **Multi-Format Support**: YouTube-Videos, lokale Videos vom Live-PC und UltraStar Songs
+- **USDB Integration**: Direkter Download von Songs aus der größten UltraStar-Datenbank
+- **KI-gestützte Konvertierung**: Automatische Erstellung von Instrumental-Versionen ohne Gesang
+- **Umfangreiche Song-Verwaltung**: Vollständige Kontrolle über die Musikbibliothek
 
-### Für Admins:
-- **Admin Dashboard**: Vollständige Playlist-Verwaltung
-- **Fairness-Algorithmus**: Automatische faire Reihenfolge der Songs
-- **YouTube Integration**: Links hinzufügen und verwalten
-- **Song-Management**: Bearbeiten, löschen, neu anordnen
-- **Live Controls**: Aktuellen Song setzen, "Weiter"-Button
+### 👥 Benutzerfreundlichkeit
+- **QR-Code Songwünsche**: Teilnehmer scannen einfach einen QR-Code und geben ihre Songwünsche ein
+- **Fairness-Algorithmus**: Intelligente Playlist-Verwaltung, die sicherstellt, dass jeder Teilnehmer fair behandelt wird
+- **Live-Playlist**: Echtzeit-Anzeige der aktuellen Songreihenfolge
+- **Responsive Design**: Funktioniert auf allen Geräten - Desktop, Tablet, Smartphone
 
-### Technische Features:
-- **Fairness-Algorithmus**: Verhindert, dass ein Nutzer mehrere Songs hintereinander singt
-- **Einstellbare Verzögerung**: Max. Verschiebungen pro Song (Standard: 15)
-- **Responsive Design**: Funktioniert auf allen Geräten
-- **Real-time Updates**: Automatische Aktualisierung der Playlist
+### 🛠️ Admin-Features
+- **Vollständiges Admin-Dashboard**: Komplette Kontrolle über Playlist und Einstellungen
+- **Nutzerverwaltung**: Ban-Lists und Benutzer-Management
+- **Live-Controls**: Direkte Steuerung der aktuellen Karaoke-Session
+- **Einstellbare Parameter**: Anpassung des Fairness-Algorithmus und anderer Systemeinstellungen
+
+### 🎬 Live-Features
+- **Live-Video-Stream**: Direkte Übertragung der aktuellen Karaoke-Session
+- **Multi-Browser-Support**: Verschiedene Browser-Fenster für verschiedene Funktionen
+- **Beamer-Integration**: Optimiert für die Übertragung auf große Bildschirme
+
+## 🔧 Voraussetzungen
+
+### Server-Anforderungen
+- **Node.js** (Version 18 oder höher) mit npm
+- **Python 3.10** oder höher (für KI-Features)
+- **CUDA** (für Hardwarebeschleunigung bei KI-Features)
+- **Freie Ports**: 3000, 5000, 6000, 4000 (für lokale Dateien)
+
+### Live-PC Anforderungen
+- **Internetfähiger Browser** (Chrome, Firefox, Safari, Edge)
+- **Stabile Internetverbindung** (für Remote-Zugriff)
 
 ## 🚀 Installation
 
-### Voraussetzungen
-- Node.js (Version 16 oder höher)
-- npm oder yarn
-
-### Setup
-
+### Automatische Installation
 1. **Repository klonen oder Dateien herunterladen**
+2. **`install.bat` ausführen** - Das Skript erledigt alles automatisch
 
-2. **Dependencies installieren:**
+### Manuelle Installation (falls nötig)
 ```bash
+# Backend-Dependencies installieren
 npm install
+
+# Frontend-Dependencies installieren
 cd client
 npm install
 cd ..
-```
 
-3. **Umgebungsvariablen konfigurieren:**
-Erstelle eine `.env` Datei im Root-Verzeichnis:
-```env
-NODE_ENV=development
-PORT=5000
-CLIENT_URL=http://localhost:3000
-JWT_SECRET=dein-super-geheimer-jwt-schluessel
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-MAX_SONG_DELAY=15
-```
-
-4. **System starten:**
-
-### 🚀 Entwicklung (empfohlen):
-```bash
-npm run dev
-```
-- **Startet:** Backend (Port 5000) + React Dev Server (Port 3000)
-- **Hot Reload:** Änderungen werden automatisch übernommen
-- **Kein Build nötig:** React läuft im Development-Modus
-- **Ideal für:** Entwicklung und lokales Testen
-
-### 🏭 Produktion (für ngrok/Remote-Zugriff):
-```bash
-npm run server
-```
-- **Startet:** Nur Backend (Port 5000) mit gebauten React-Dateien
-- **Build nötig:** Bei jeder Code-Änderung `npm run build` ausführen
-- **Ideal für:** ngrok-Tunnel, Remote-Zugriff, Produktions-Tests
-
-### 📝 Wann welchen Modus verwenden:
-
-**`npm run dev` verwenden wenn:**
-- ✅ Du entwickelst oder Code änderst
-- ✅ Du lokal testest
-- ✅ Du keine ngrok benötigst
-- ✅ Du Hot Reload willst (kein Build nötig)
-
-**`npm run server` verwenden wenn:**
-- ✅ Du ngrok oder Remote-Zugriff brauchst
-- ✅ Du den Production-Build testest
-- ✅ Du das System anderen zur Verfügung stellst
-- ⚠️ **Achtung:** Bei Code-Änderungen musst du `npm run build` ausführen
-
-## 📱 Verwendung
-
-### Für Nutzer:
-1. QR-Code scannen oder zu `http://localhost:3000/new` gehen
-2. Namen eingeben
-3. Song-Wunsch eingeben (z.B. "Nickelback - How You Remind Me" oder YouTube-Link)
-4. Absenden - Song wird automatisch in die Playlist eingefügt
-
-### Für Admins:
-1. Zu `http://localhost:3000/admin/login` gehen
-2. Mit Standard-Credentials anmelden:
-   - **Benutzername:** admin
-   - **Passwort:** admin123
-3. Playlist verwalten:
-   - Songs bearbeiten
-   - YouTube-Links hinzufügen
-   - Reihenfolge ändern
-   - Aktuellen Song setzen
-   - Songs löschen
-
-## 🎯 URLs
-
-- **Hauptseite:** `http://localhost:3000/` - Live Playlist anzeigen
-- **Song-Wunsch:** `http://localhost:3000/new` - Song hinzufügen
-- **Admin Login:** `http://localhost:3000/admin/login` - Admin-Bereich
-- **Admin Dashboard:** `http://localhost:3000/admin` - Playlist verwalten
-
-## ⚙️ Konfiguration
-
-### Fairness-Algorithmus
-Der Algorithmus sorgt für eine faire Verteilung der Songs:
-- Nutzer mit nur einem Song werden bevorzugt
-- Songs werden automatisch eingefügt, um Stapelung zu vermeiden
-- Max. Verschiebungen pro Song einstellbar (Standard: 15)
-
-### Admin-Einstellungen
-- **Max Song Delay:** Wie oft ein Song maximal nach hinten verschoben werden kann
-- **Admin-Credentials:** Über `.env` Datei konfigurierbar
-
-## 🛠️ Technische Details
-
-### Backend (Node.js/Express):
-- **Datenbank:** SQLite (automatisch erstellt)
-- **Authentifizierung:** JWT-basiert
-- **API:** RESTful API mit Express.js
-- **Sicherheit:** Helmet, CORS, Rate Limiting
-
-### Frontend (React/TypeScript):
-- **Framework:** React 18 mit TypeScript
-- **Styling:** Styled Components
-- **Routing:** React Router DOM
-- **HTTP Client:** Axios
-- **QR-Codes:** QRCode.js
-
-### Datenbank-Schema:
-- **users:** Nutzer mit Geräte-IDs
-- **songs:** Song-Wünsche mit Positionen
-- **admin_users:** Admin-Benutzer
-- **settings:** System-Einstellungen
-
-## 🔧 Entwicklung
-
-### Scripts:
-```bash
-npm start          # Produktions-Server (wie npm run server)
-npm run dev        # Entwicklung (Backend + Frontend mit Hot Reload)
-npm run server     # Nur Backend mit gebauten React-Dateien
-npm run client     # Nur Frontend (React Dev Server)
-npm run build      # Frontend für Produktion bauen
-npm run install-all # Alle Dependencies installieren
-```
-
-### 🔄 Build-Prozess:
-```bash
-# Bei Code-Änderungen im Production-Modus:
-cd client
-npm run build
+# Python-Dependencies für KI-Features
+cd ai-services
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+# source venv/bin/activate
+pip install -r requirements.txt
 cd ..
-npm run server
 ```
 
-### API Endpoints:
-- `POST /api/songs/request` - Song-Wunsch hinzufügen
-- `GET /api/songs/playlist` - Playlist abrufen
-- `GET /api/songs/qr-data` - QR-Code Daten
-- `POST /api/auth/login` - Admin Login
-- `GET /api/admin/dashboard` - Admin Dashboard
-- `PUT /api/playlist/reorder` - Playlist neu anordnen
-- `POST /api/playlist/next` - Zum nächsten Song
+## 🎮 Benutzung
 
-## 🚀 Deployment
+### Server starten
+1. **`start.bat` ausführen** - Startet das komplette System
+2. **Optional**: ngrok auf Port 5000 starten für Remote-Zugriff
 
-### Produktion:
-1. Frontend bauen: `npm run build`
-2. Umgebungsvariablen für Produktion setzen
-3. Server starten: `npm start`
+### URLs und Zugriff
+- **`localhost:5000`** - Aktuelle Playlist anzeigen
+- **`localhost:5000/admin`** - Admin Dashboard für Playlist-Management und Einstellungen
+- **`localhost:5000/show`** - Live-Video der aktuellen Karaoke-Session
+- **`localhost:5000/new`** - QR-Code-Ziel für Songwünsche der Teilnehmer
 
-### Docker (optional):
-```dockerfile
-# Dockerfile Beispiel
-FROM node:16-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN cd client && npm install && npm run build
-EXPOSE 5000
-CMD ["npm", "start"]
-```
+### 💡 Empfohlene Setup-Anordnung
+1. **Admin-Dashboard** auf dem Laptop für den Veranstalter (dich) öffnen
+2. **Live-Session** (`/show`) in einem zweiten Browserfenster öffnen
+3. **Live-Session** per Beamer oder zweiten Bildschirm an das Publikum richten
+4. **QR-Code** für Teilnehmer bereitstellen
 
-## 📝 Lizenz
+### ⚙️ Wichtige Konfiguration
+- **Öffentliche Adresse**: Im Admin-Dashboard die öffentliche Server-Adresse angeben, damit der QR-Code funktioniert
+- **Ports freigeben**: Stellen Sie sicher, dass die benötigten Ports (3000, 5000, 6000, 4000) verfügbar sind
 
-MIT License - Siehe LICENSE Datei für Details.
+## 🧠 Fairness-Algorithmus
 
-## 🤝 Support
+Der integrierte Fairness-Algorithmus sorgt für eine gerechte Verteilung der Songs:
 
-Bei Problemen oder Fragen:
-1. Überprüfe die Konsole auf Fehlermeldungen
-2. Stelle sicher, dass alle Dependencies installiert sind
-3. Überprüfe die `.env` Konfiguration
-4. Starte das System neu
+- **Priorisierung**: Teilnehmer mit weniger Songs werden bevorzugt
+- **Verhinderung von Stapelung**: Kein Teilnehmer kann mehrere Songs hintereinander singen
+- **Intelligente Einfügung**: Neue Songs werden optimal in die bestehende Playlist eingefügt
+- **Einstellbare Parameter**: Maximale Verschiebungen pro Song konfigurierbar
 
----
+## 🎵 Unterstützte Formate
 
-**Viel Spaß beim Karaoke! 🎤🎵**
+- **YouTube-Videos**: Direkte Integration über Links
+- **Lokale Videos**: Videos vom Live-PC (direktes Streaming)
+- **Remove Videos**: Videos vom Server
+- **UltraStar Songs**: Unterstützung des UltraStar-Formats
+- **USDB-Downloads**: Automatischer Download aus der UltraStar-Datenbank
+- **KI-Konvertierung**: Automatische Erstellung von Instrumental-Versionen
+
+## 🔒 Sicherheit & Verwaltung
+
+- **JWT-basierte Authentifizierung** für Admin-Bereiche
+- **Nutzerverwaltung** mit Ban-Funktionalität
+
+**Viel Spaß mit Titanium Kitten Karaoke! 🎤🎵**
+
+*Entwickelt für professionelle Karaoke-Veranstaltungen*
