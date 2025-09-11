@@ -12,6 +12,81 @@ const fs = require('fs');
 
 const router = express.Router();
 
+// Helper function to clean up test songs when switching songs
+async function cleanupTestSongs() {
+  const db = require('../config/database');
+  
+  // Get current song to avoid deleting it
+  const currentSong = await Song.getCurrentSong();
+  const currentSongId = currentSong ? currentSong.id : null;
+  
+  // Find all test songs (songs with users that have device_id='TEST')
+  const testSongs = await new Promise((resolve, reject) => {
+    db.all(`
+      SELECT s.id, s.position, s.user_id
+      FROM songs s
+      JOIN users u ON s.user_id = u.id
+      WHERE u.device_id = 'TEST'
+    `, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+  
+  // Filter out current song if it's a test song
+  const songsToDelete = testSongs.filter(song => song.id !== currentSongId);
+  
+  if (songsToDelete.length > 0) {
+    console.log(`🧹 Cleaning up ${songsToDelete.length} test song(s) (excluding current song)`);
+    
+    // Delete test songs (except current one)
+    for (const testSong of songsToDelete) {
+      await new Promise((resolve, reject) => {
+        db.run('DELETE FROM songs WHERE id = ?', [testSong.id], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      
+      // Delete test user
+      await new Promise((resolve, reject) => {
+        db.run('DELETE FROM users WHERE id = ?', [testSong.user_id], function(err) {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+    
+    // Reorder remaining songs to fill gaps
+    await new Promise((resolve, reject) => {
+      db.all('SELECT id FROM songs ORDER BY position ASC', (err, songs) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        let position = 1;
+        const updatePromises = songs.map(song => {
+          return new Promise((resolveUpdate, rejectUpdate) => {
+            db.run(
+              'UPDATE songs SET position = ? WHERE id = ?',
+              [position++, song.id],
+              function(err) {
+                if (err) rejectUpdate(err);
+                else resolveUpdate();
+              }
+            );
+          });
+        });
+        
+        Promise.all(updatePromises)
+          .then(() => resolve())
+          .catch(reject);
+      });
+    });
+  }
+}
+
 // Get YouTube enabled setting (public)
 router.get('/youtube-enabled', async (req, res) => {
   try {
@@ -340,6 +415,9 @@ router.post('/request', [
         console.error('Failed to get duration:', error.message);
       }
     }
+
+    // Clean up any existing test songs when adding new songs
+    await cleanupTestSongs();
 
     // Create song with priority, duration, mode and background vocals preference
     const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode, withBackgroundVocals || false);
