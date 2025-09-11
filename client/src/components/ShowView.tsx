@@ -1450,7 +1450,7 @@ const ShowView: React.FC = () => {
     }
   }, [ultrastarData, currentSong?.id, currentSong?.title]);
 
-  const handleAudioEnded = useCallback(() => {
+  const handleAudioEnded = useCallback(async () => {
     console.log('🎵 Ultrastar audio ended:', { 
       songId: currentSong?.id, 
       title: currentSong?.title 
@@ -1463,6 +1463,16 @@ const ShowView: React.FC = () => {
     }
     
     stopUltrastarTiming();
+    
+    // Check if this was a test song and restore original song
+    try {
+      const { adminAPI } = await import('../services/api');
+      await adminAPI.restoreOriginalSong();
+      console.log('🎤 Test song ended - original song restored');
+    } catch (error) {
+      console.error('Error restoring original song:', error);
+    }
+    
     // Automatically show QR overlay when audio ends
     showAPI.toggleQRCodeOverlay(true).catch(error => {
       console.error('Error showing overlay:', error);
@@ -1631,12 +1641,21 @@ const ShowView: React.FC = () => {
                   mode: currentSong?.mode
                 });
               }}
-              onEnded={() => {
+              onEnded={async () => {
                 console.log(`🎬 ${isFileVideo ? 'File' : 'Server'} video ended:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
                   mode: currentSong?.mode
                 });
+                
+                // Check if this was a test song and restore original song
+                try {
+                  const { adminAPI } = await import('../services/api');
+                  await adminAPI.restoreOriginalSong();
+                  console.log('🎤 Test song ended - original song restored');
+                } catch (error) {
+                  console.error('Error restoring original song:', error);
+                }
                 
                 // Automatically show QR code overlay when non-YouTube video ends
                 if (currentSong?.mode !== 'youtube') {

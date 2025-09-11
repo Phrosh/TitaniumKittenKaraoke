@@ -69,10 +69,18 @@ function scanLocalVideos() {
 function findLocalVideo(artist, title) {
   const videos = scanLocalVideos();
   
-  return videos.find(video => 
+  const result = videos.find(video => 
     video.artist.toLowerCase() === artist.toLowerCase() &&
     video.title.toLowerCase() === title.toLowerCase()
   );
+  
+  if (result) {
+    console.log(`🎬 Found local video: ${artist} - ${title} -> ${result.filename}`);
+  } else {
+    console.log(`❌ No local video found for: ${artist} - ${title}`);
+  }
+  
+  return result;
 }
 
 /**

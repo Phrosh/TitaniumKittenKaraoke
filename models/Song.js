@@ -226,6 +226,46 @@ class Song {
     });
   }
 
+  static restoreOriginalSong() {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['test_mode_original_song_id'],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            const originalSongId = row ? parseInt(row.value) : null;
+            if (originalSongId) {
+              // Restore original song
+              this.setCurrentSong(originalSongId).then(() => {
+                // Clear the test mode setting
+                db.run(
+                  'DELETE FROM settings WHERE key = ?',
+                  ['test_mode_original_song_id'],
+                  (err) => {
+                    if (err) reject(err);
+                    else resolve(originalSongId);
+                  }
+                );
+              }).catch(reject);
+            } else {
+              // No original song to restore, just clear the setting
+              db.run(
+                'DELETE FROM settings WHERE key = ?',
+                ['test_mode_original_song_id'],
+                (err) => {
+                  if (err) reject(err);
+                  else resolve(null);
+                }
+              );
+            }
+          }
+        }
+      );
+    });
+  }
+
   static getNextSong() {
     return new Promise((resolve, reject) => {
       db.get(`

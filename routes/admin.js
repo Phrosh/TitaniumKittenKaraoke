@@ -1181,7 +1181,19 @@ router.put('/song/:songId/refresh-classification', async (req, res) => {
         newMode = 'server_video';
         newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
         updated = true;
-        console.log(`🔄 Song classification updated: ${artist} - ${title} -> server_video (${localVideo.filename})`);
+        console.log(`🔄 Song classification updated: ${artist} - ${title} -> server_video (${localVideo.filename}) -> URL: ${newYoutubeUrl}`);
+      }
+    }
+    
+    // Fix existing server_video URLs that might be missing file extension
+    if (!updated && currentSong.mode === 'server_video' && currentSong.youtube_url && !currentSong.youtube_url.includes('.')) {
+      const { findLocalVideo } = require('../utils/localVideos');
+      const localVideo = findLocalVideo(artist, title);
+      if (localVideo) {
+        newMode = 'server_video';
+        newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+        updated = true;
+        console.log(`🔧 Fixed existing server video URL: ${artist} - ${title} -> ${newYoutubeUrl}`);
       }
     }
     
@@ -1257,5 +1269,162 @@ function startAudioSeparation(songDir, songName) {
     console.error('[USDB] Error starting audio separation:', error);
   }
 }
+
+// Test a song - start it immediately as current song with admin as singer
+router.post('/song/test', async (req, res) => {
+  try {
+    const { artist, title, mode, youtubeUrl } = req.body;
+    const adminUsername = req.user.username; // Get admin username from JWT token
+    
+    if (!artist || !title) {
+      return res.status(400).json({ message: 'Artist and title are required' });
+    }
+
+    // Store the current song ID to restore later
+    const currentSong = await Song.getCurrentSong();
+    const originalCurrentSongId = currentSong ? currentSong.id : null;
+    
+    // Store original song ID in settings for restoration
+    if (originalCurrentSongId) {
+      await new Promise((resolve, reject) => {
+        const db = require('../config/database');
+        db.run(
+          'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+          ['test_mode_original_song_id', originalCurrentSongId.toString()],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    } else {
+      // Clear the setting if no original song
+      await new Promise((resolve, reject) => {
+        const db = require('../config/database');
+        db.run(
+          'DELETE FROM settings WHERE key = ?',
+          ['test_mode_original_song_id'],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
+
+    // Create a temporary test user for the admin
+    const testUser = await new Promise((resolve, reject) => {
+      const db = require('../config/database');
+      db.run(
+        'INSERT INTO users (device_id, name) VALUES (?, ?)',
+        ['TEST', adminUsername],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID });
+        }
+      );
+    });
+
+    // Create a temporary test song in the database
+    const testSong = await Song.create(
+      testUser.id, // Use the test user ID
+      title,
+      artist,
+      youtubeUrl || null,
+      1.0, // Priority
+      null, // Duration
+      mode || 'youtube',
+      false // withBackgroundVocals
+    );
+
+    // Set the test song as current song
+    await Song.setCurrentSong(testSong.id);
+
+    console.log(`🎤 Test song started: ${artist} - ${title} (Admin: ${adminUsername})`);
+    
+    res.json({ 
+      message: 'Test-Song erfolgreich gestartet',
+      song: {
+        id: testSong.id,
+        title: title,
+        artist: artist,
+        user_name: adminUsername
+      }
+    });
+  } catch (error) {
+    console.error('Test song error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Restore original song after test
+router.post('/restore-original-song', async (req, res) => {
+  try {
+    // First, delete the current test song and test user if they exist
+    const currentSong = await Song.getCurrentSong();
+    if (currentSong) {
+      // Check if this is a test song by looking at the user
+      const user = await new Promise((resolve, reject) => {
+        const db = require('../config/database');
+        db.get(
+          'SELECT * FROM users WHERE id = ?',
+          [currentSong.user_id],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+      
+      if (user && user.device_id === 'TEST') {
+        // This is a test song, delete both song and user
+        await new Promise((resolve, reject) => {
+          const db = require('../config/database');
+          db.run(
+            'DELETE FROM songs WHERE id = ?',
+            [currentSong.id],
+            function(err) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+        
+        await new Promise((resolve, reject) => {
+          const db = require('../config/database');
+          db.run(
+            'DELETE FROM users WHERE id = ?',
+            [currentSong.user_id],
+            function(err) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+        
+        console.log(`🎤 Deleted test song and user: ${currentSong.id}`);
+      }
+    }
+    
+    const originalSongId = await Song.restoreOriginalSong();
+    
+    if (originalSongId) {
+      console.log(`🎤 Restored original song: ${originalSongId}`);
+      res.json({ 
+        message: 'Ursprünglicher Song erfolgreich wiederhergestellt',
+        originalSongId 
+      });
+    } else {
+      console.log(`🎤 No original song to restore`);
+      res.json({ 
+        message: 'Kein ursprünglicher Song zu wiederherstellen',
+        originalSongId: null 
+      });
+    }
+  } catch (error) {
+    console.error('Restore original song error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 module.exports = router;

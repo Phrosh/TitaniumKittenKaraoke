@@ -201,7 +201,16 @@ router.post('/request', [
         if (localVideo) {
           mode = 'server_video';
           youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
-          console.log(`Found server video: ${localVideo.filename}`);
+          console.log(`Found server video: ${localVideo.filename} -> URL: ${youtubeUrl}`);
+        }
+      }
+      
+      // Fix existing server_video URLs that might be missing file extension
+      if (mode === 'server_video' && youtubeUrl && !youtubeUrl.includes('.')) {
+        const localVideo = findLocalVideo(artist, title);
+        if (localVideo) {
+          youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+          console.log(`🔧 Fixed server video URL: ${artist} - ${title} -> ${youtubeUrl}`);
         }
       }
       

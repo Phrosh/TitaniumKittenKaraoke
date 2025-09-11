@@ -64,6 +64,8 @@ app.get('/api/videos/:filename', (req, res) => {
     const filename = decodeURIComponent(req.params.filename);
     const videoPath = path.join(VIDEOS_DIR, filename);
     
+    console.log(`🎬 Video request: ${req.params.filename} -> ${filename} -> ${videoPath}`);
+    
     // Security check: ensure the file is within the videos directory
     if (!videoPath.startsWith(VIDEOS_DIR)) {
       return res.status(403).json({ message: 'Access denied' });

@@ -1593,6 +1593,46 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleTestSong = async (song: { artist: string; title: string; modes?: string[]; youtubeUrl?: string }) => {
+    setActionLoading(true);
+    
+    try {
+      // Determine the best mode and URL for the song
+      let mode = 'youtube';
+      let youtubeUrl = song.youtubeUrl;
+      
+      if (song.modes?.includes('ultrastar')) {
+        mode = 'ultrastar';
+        youtubeUrl = `/api/ultrastar/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
+      } else if (song.modes?.includes('file')) {
+        mode = 'file';
+        youtubeUrl = song.youtubeUrl || `${song.artist} - ${song.title}`;
+      } else if (song.modes?.includes('server_video')) {
+        mode = 'server_video';
+        youtubeUrl = song.youtubeUrl || `/api/videos/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
+      }
+      
+      const response = await adminAPI.testSong({
+        artist: song.artist,
+        title: song.title,
+        mode: mode,
+        youtubeUrl: youtubeUrl
+      });
+      
+      toast.success(`Test-Song "${song.artist} - ${song.title}" erfolgreich gestartet!`);
+      console.log('Test song started:', response.data);
+      
+      // Optionally refresh the dashboard to show updated current song
+      fetchDashboardData();
+      
+    } catch (error: any) {
+      console.error('Error testing song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Starten des Test-Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const startNormalProcessing = async (song: any, songKey: string, folderName: string) => {
     // Mark song as processing
     setProcessingSongs(prev => new Set(prev).add(songKey));
@@ -3095,7 +3135,7 @@ const AdminDashboard: React.FC = () => {
                               
                               {/* Processing button for songs with all required files */}
                               {hasMissingFiles(song) && (
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <button
                                     onClick={() => handleStartProcessing(song)}
                                     disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`)}
@@ -3125,6 +3165,38 @@ const AdminDashboard: React.FC = () => {
                                     }}
                                   >
                                     {processingSongs.has(`${song.artist}-${song.title}`) ? '⏳ Verarbeitung läuft...' : '🔧 Verarbeitung starten'}
+                                  </button>
+                                  
+                                  {/* Test button for all songs */}
+                                  <button
+                                    onClick={() => handleTestSong(song)}
+                                    disabled={actionLoading}
+                                    style={{
+                                      fontSize: '12px',
+                                      padding: '6px 12px',
+                                      backgroundColor: '#17a2b8',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                      fontWeight: '500',
+                                      opacity: actionLoading ? 0.6 : 1,
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!actionLoading) {
+                                        e.currentTarget.style.backgroundColor = '#138496';
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!actionLoading) {
+                                        e.currentTarget.style.backgroundColor = '#17a2b8';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                      }
+                                    }}
+                                  >
+                                    🎤 Testen
                                   </button>
                                 </div>
                               )}
@@ -3172,6 +3244,40 @@ const AdminDashboard: React.FC = () => {
                                   </div>
                                 </div>
                               )}
+                              
+                              {/* Test button for all songs - always on the right */}
+                              <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <button
+                                  onClick={() => handleTestSong(song)}
+                                  disabled={actionLoading}
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '6px 12px',
+                                    backgroundColor: '#17a2b8',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '500',
+                                    opacity: actionLoading ? 0.6 : 1,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#138496';
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#17a2b8';
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }
+                                  }}
+                                >
+                                  🎤 Testen
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );

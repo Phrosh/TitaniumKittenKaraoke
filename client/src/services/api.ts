@@ -196,6 +196,12 @@ export const adminAPI = {
     api.post('/admin/usdb-search', { query, limit }),
   getUSDBSongInfo: (songId: string) =>
     api.get(`/admin/usdb-song/${songId}`),
+  
+  testSong: (songData: { artist: string; title: string; mode?: string; youtubeUrl?: string }) =>
+    api.post('/admin/song/test', songData),
+  
+  restoreOriginalSong: () =>
+    api.post('/admin/restore-original-song'),
 };
 
 export const showAPI = {
