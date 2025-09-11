@@ -488,6 +488,33 @@ const QRCodeCloseButton = styled.button`
   }
 `;
 
+const FullscreenButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  z-index: 20;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 const ProgressOverlay = styled.div<{ $isVisible: boolean }>`
   position: absolute;
   top: calc(50vh - 200px);
@@ -557,6 +584,9 @@ const ShowView: React.FC = () => {
   // Cursor visibility state
   const [cursorVisible, setCursorVisible] = useState(true);
   const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Ultrastar-specific state
   const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
@@ -1471,6 +1501,38 @@ const ShowView: React.FC = () => {
     showCursor();
   }, [showCursor]);
 
+  // Fullscreen functions
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    } else {
+      // Exit fullscreen
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch((err) => {
+        console.error('Error attempting to exit fullscreen:', err);
+      });
+    }
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   // Check if both audio and video/background are ready for autoplay
   const checkMediaReady = useCallback(() => {
     if (isUltrastar && ultrastarData) {
@@ -1547,6 +1609,11 @@ const ShowView: React.FC = () => {
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
+      {/* Fullscreen Button */}
+        {isFullscreen ? '⤓' : <FullscreenButton onClick={(e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+      }}>⤢</FullscreenButton>}
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
