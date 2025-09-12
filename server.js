@@ -50,6 +50,12 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Add ngrok-skip-browser-warning header to all responses
+app.use((req, res, next) => {
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/songs', songRoutes);
@@ -115,10 +121,17 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/show', showRoutes);
 
 // Serve static files from React app (both production and development)
-app.use(express.static(path.join(__dirname, 'client/build')));
+app.use(express.static(path.join(__dirname, 'client/build'), {
+  setHeaders: (res, path) => {
+    // Add ngrok-skip-browser-warning header to all static files
+    res.setHeader('ngrok-skip-browser-warning', 'true');
+  }
+}));
 
 // Catch all handler: send back React's index.html file for any non-API routes
 app.get('*', (req, res) => {
+  // Add ngrok-skip-browser-warning header
+  res.setHeader('ngrok-skip-browser-warning', 'true');
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
 });
 

@@ -1167,22 +1167,12 @@ const AdminDashboard: React.FC = () => {
 
     setActionLoading(true);
     try {
-      // Use the same API endpoint as the /new route
-      const response = await fetch('/api/songs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: manualSongData.singerName.trim(),
-          song: manualSongData.songInput.trim(),
-          device_id: 'ADM' // Admin device ID
-        }),
+      // Use the same API function as the /new route
+      const response = await songAPI.requestSong({
+        name: manualSongData.singerName.trim(),
+        songInput: manualSongData.songInput.trim(),
+        deviceId: 'ADM' // Admin device ID
       });
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Hinzufügen des Songs');
-      }
 
       toast.success('Song erfolgreich hinzugefügt!');
       setManualSongData({ singerName: '', songInput: '' });
