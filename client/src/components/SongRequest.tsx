@@ -681,13 +681,7 @@ const SongRequest: React.FC = () => {
   return (
     <Container>
       <Card>
-        
-
-        <QRCodeContainer>
-          <h3>QR Code für andere Geräte:</h3>
-          {qrCodeDataUrl && <QRCodeImage src={qrCodeDataUrl} alt="QR Code" />}
-        </QRCodeContainer>
-
+      
         <Form onSubmit={handleSubmit}>
           <FormGroup>
             <Label htmlFor="name">Dein Name:</Label>
@@ -787,6 +781,12 @@ const SongRequest: React.FC = () => {
           <p>Du kannst mehrere Songs hinzufügen!</p>
           <p>Das System sorgt für eine faire Reihenfolge.</p>
         </div>
+        
+        <QRCodeContainer>
+          <h3>QR Code für andere Geräte:</h3>
+          {qrCodeDataUrl && <QRCodeImage src={qrCodeDataUrl} alt="QR Code" />}
+        </QRCodeContainer>
+
       </Card>
 
       {/* Song List Modal */}
