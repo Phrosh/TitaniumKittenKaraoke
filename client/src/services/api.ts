@@ -160,6 +160,9 @@ export const adminAPI = {
   
   rescanFileSongs: () =>
     api.post('/admin/settings/rescan-file-songs'),
+  
+  removeFileSongs: () =>
+    api.post('/admin/settings/remove-file-songs'),
 
   // Admin User Management
   getAdminUsers: () => api.get('/admin/admin-users'),

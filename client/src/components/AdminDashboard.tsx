@@ -867,6 +867,20 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleRemoveFileSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.removeFileSongs();
+      setFileSongs(response.data.fileSongs);
+      toast.success('Alle Songs erfolgreich aus der Liste entfernt!');
+    } catch (error) {
+      console.error('Error removing file songs:', error);
+      toast.error('Fehler beim Entfernen der Songs');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const generateLocalServerCommand = () => {
     if (!fileSongsFolder) return '';
     
@@ -2630,6 +2644,13 @@ const AdminDashboard: React.FC = () => {
                   style={{ marginLeft: '10px', backgroundColor: '#17a2b8' }}
                 >
                   {settingsLoading ? 'Scannt...' : 'Neu scannen'}
+                </SettingsButton>
+                <SettingsButton 
+                  onClick={handleRemoveFileSongs}
+                  disabled={settingsLoading}
+                  style={{ marginLeft: '10px', backgroundColor: '#dc3545' }}
+                >
+                  {settingsLoading ? 'Entfernt...' : 'Songs aus der Liste entfernen'}
                 </SettingsButton>
                 <SettingsDescription>
                   Ordner mit lokalen Karaoke-Videos im Format "Interpret - Songtitel.erweiterung". 

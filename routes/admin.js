@@ -696,6 +696,22 @@ router.post('/settings/rescan-file-songs', async (req, res) => {
   }
 });
 
+// Remove all file songs (like rescan with 0 results)
+router.post('/settings/remove-file-songs', async (req, res) => {
+  try {
+    console.log('🗑️ Removing all file songs from list...');
+    
+    // Return empty array (like rescan with 0 results)
+    res.json({ 
+      message: 'All file songs removed from list successfully',
+      fileSongs: []
+    });
+  } catch (error) {
+    console.error('Error removing file songs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Banlist Management
 // Get all banned device IDs
 router.get('/banlist', async (req, res) => {
