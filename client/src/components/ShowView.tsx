@@ -1329,23 +1329,6 @@ const ShowView: React.FC = () => {
   const isYouTubeCache = currentSong?.mode === 'youtube_cache';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar && !isYouTubeCache ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
-  // Debug logging
-  console.log('ShowView Debug:', {
-    currentSong: currentSong ? {
-      id: currentSong.id,
-      title: currentSong.title,
-      artist: currentSong.artist,
-      mode: currentSong.mode,
-      youtube_url: currentSong.youtube_url
-    } : null,
-    isServerVideo,
-    isFileVideo,
-    isUltrastar,
-    isYouTubeCache,
-    embedUrl
-  });
-
-
   useEffect(() => {
     globalUltrastarData = ultrastarData;
   }, [ultrastarData]);
@@ -1387,7 +1370,12 @@ const ShowView: React.FC = () => {
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    if (!songChanged || !playing || !ultrastarData?.gap) return;
+    console.log("hurr", {
+      songChanged,
+      playing,
+      gap: ultrastarData?.gap
+    })
+    if (!songChanged || !playing || typeof ultrastarData?.gap === 'undefined') return;
     if (ultrastarData && ultrastarData?.lines && ultrastarData?.lines.length > 0) {
       const firstLine = ultrastarData.lines[0];
       const beatDuration = (60000 / ultrastarData.bpm) / 4; // Beat duration in milliseconds
@@ -1423,7 +1411,7 @@ const ShowView: React.FC = () => {
       }
     }
     setSongChanged(false);
-  }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled, startProgress]);
+  }, [ultrastarData?.gap, songChanged, playing, setLyricsScale, setShowLyrics, setLyricsTransitionEnabled, startProgress]);
 
   // console.log('🎵 lyricsTransitionEnabled', lyricsTransitionEnabled);
   // console.log('🎵 lyricsScale', lyricsScale);
