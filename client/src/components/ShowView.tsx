@@ -681,9 +681,9 @@ const ShowView: React.FC = () => {
   };
 
   // Helper functions for lyrics display
-  const getLineText = (line: any) => {
+  const getLineText = useCallback((line: any) => {
     return line.notes.map((note: any) => note.text).join('');
-  };
+  }, []);
 
 
   const setLyricContent = (ref: React.RefObject<HTMLDivElement>, line: any, color: string, opacity: number) => {
