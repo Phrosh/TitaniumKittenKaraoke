@@ -1500,24 +1500,14 @@ const AdminDashboard: React.FC = () => {
   }, [activeTab, fetchSongs, fetchInvisibleSongs]);
 
   const handleToggleSongVisibility = async (song: any) => {
-    const isInvisible = invisibleSongs.some(invisible => 
+    // Check if song is currently in invisible_songs table
+    const isInInvisibleTable = invisibleSongs.some(invisible => 
       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
       invisible.title.toLowerCase() === song.title.toLowerCase()
-    ) || song.modes?.includes('youtube_cache');
+    );
 
-    if (isInvisible) {
-      // Check if it's a YouTube cache song
-      if (song.modes?.includes('youtube_cache')) {
-        // For YouTube cache songs, we can't remove them from invisible songs
-        // since they're not in the invisible_songs table. We just show a message.
-        toast(`${song.artist} - ${song.title} ist ein YouTube-Cache-Song und bleibt standardmäßig unsichtbar`, {
-          icon: 'ℹ️',
-          duration: 4000
-        });
-        return;
-      }
-      
-      // Remove from invisible songs
+    if (isInInvisibleTable) {
+      // Song is in invisible_songs table - remove it to make it visible
       const invisibleSong = invisibleSongs.find(invisible => 
         invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
         invisible.title.toLowerCase() === song.title.toLowerCase()
@@ -1535,7 +1525,7 @@ const AdminDashboard: React.FC = () => {
         setActionLoading(false);
       }
     } else {
-      // Add to invisible songs
+      // Song is not in invisible_songs table - add it to make it invisible
       setActionLoading(true);
       try {
         await adminAPI.addToInvisibleSongs(song.artist, song.title);
@@ -3037,12 +3027,12 @@ const AdminDashboard: React.FC = () => {
                     filteredSongs = songs.filter(song => !invisibleSongs.some(invisible => 
                       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                       invisible.title.toLowerCase() === song.title.toLowerCase()
-                    ) && !song.modes?.includes('youtube_cache'));
+                    ));
                   } else if (songTab === 'invisible') {
                     filteredSongs = songs.filter(song => invisibleSongs.some(invisible => 
                       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                       invisible.title.toLowerCase() === song.title.toLowerCase()
-                    ) || song.modes?.includes('youtube_cache'));
+                    ));
                   }
                   
                   // Apply search filter
@@ -3085,7 +3075,7 @@ const AdminDashboard: React.FC = () => {
                         const isInvisible = invisibleSongs.some(invisible => 
                           invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                           invisible.title.toLowerCase() === song.title.toLowerCase()
-                        ) || song.modes?.includes('youtube_cache');
+                        );
                         
                         return (
                           <div 
