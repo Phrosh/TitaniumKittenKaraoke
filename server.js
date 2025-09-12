@@ -116,6 +116,77 @@ app.get('/api/videos/:filename', (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Serve YouTube videos directly under /api/youtube-videos
+app.get('/api/youtube-videos/:folderName/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { YOUTUBE_DIR } = require('./utils/youtubeSongs');
+  
+  try {
+    const folderName = decodeURIComponent(req.params.folderName);
+    const filename = decodeURIComponent(req.params.filename);
+    const videoPath = path.join(YOUTUBE_DIR, folderName, filename);
+    
+    console.log(`🎬 YouTube video request: ${req.params.folderName}/${req.params.filename} -> ${folderName}/${filename} -> ${videoPath}`);
+    
+    // Security check: ensure the file is within the YouTube directory
+    if (!videoPath.startsWith(YOUTUBE_DIR)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ message: 'YouTube video not found' });
+    }
+    
+    // Set appropriate headers for video streaming
+    const stat = fs.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    // Determine content type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'video/mp4';
+    if (ext === '.webm') {
+      contentType = 'video/webm';
+    } else if (ext === '.avi') {
+      contentType = 'video/x-msvideo';
+    } else if (ext === '.mov') {
+      contentType = 'video/quicktime';
+    } else if (ext === '.mkv') {
+      contentType = 'video/x-matroska';
+    }
+    
+    if (range) {
+      // Handle range requests for video streaming
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Serve entire file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Error serving YouTube video:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/show', showRoutes);

@@ -7,6 +7,7 @@ const YouTubeMetadataService = require('../utils/youtubeMetadata');
 const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
 const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
 const { findFileSong } = require('../utils/fileSongs');
+const { scanYouTubeSongs, searchYouTubeSongs, findYouTubeSong, downloadYouTubeVideo } = require('../utils/youtubeSongs');
 const path = require('path');
 const fs = require('fs');
 
@@ -225,6 +226,34 @@ router.post('/request', [
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
         title = metadata.title;
         artist = metadata.artist || 'Unknown Artist';
+        
+        // Try to download YouTube video to songs/youtube folder
+        console.log(`📥 Attempting to download YouTube video: ${artist} - ${title}`);
+        const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
+        
+        if (downloadResult.success) {
+          console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+          
+          // Add to invisible songs list
+          try {
+            const db = require('../config/database');
+            await new Promise((resolve, reject) => {
+              db.run(
+                'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                [artist, title],
+                function(err) {
+                  if (err) reject(err);
+                  else resolve();
+                }
+              );
+            });
+            console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+          } catch (error) {
+            console.error('Error adding to invisible songs:', error);
+          }
+        } else {
+          console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+        }
       } catch (error) {
         console.error('Failed to extract YouTube metadata:', error.message);
         // Fallback to generic values
@@ -404,6 +433,16 @@ router.post('/request', [
           }
         }
       }
+      
+      // If no ultrastar song found, check YouTube cache
+      if (mode === 'youtube') {
+        const youtubeSong = findYouTubeSong(artist, title);
+        if (youtubeSong) {
+          mode = 'youtube_cache';
+          youtubeUrl = `/api/youtube-videos/${encodeURIComponent(youtubeSong.folderName)}/${encodeURIComponent(youtubeSong.videoFile)}`;
+          console.log(`Found YouTube cache: ${youtubeSong.folderName}/${youtubeSong.videoFile} -> URL: ${youtubeUrl}`);
+        }
+      }
     }
 
     // Get duration if it's a YouTube URL
@@ -571,6 +610,63 @@ router.get('/ultrastar-songs', (req, res) => {
   } catch (error) {
     console.error('Error getting ultrastar songs:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get list of YouTube songs for song selection
+router.get('/youtube-songs', (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    let songs;
+    if (search && search.trim()) {
+      songs = searchYouTubeSongs(search.trim());
+    } else {
+      songs = scanYouTubeSongs();
+    }
+    
+    res.json({ youtubeSongs: songs });
+  } catch (error) {
+    console.error('Error getting YouTube songs:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Download YouTube video to songs/youtube folder
+router.post('/download-youtube', async (req, res) => {
+  try {
+    const { youtubeUrl, artist, title } = req.body;
+    
+    if (!youtubeUrl || !artist || !title) {
+      return res.status(400).json({ 
+        error: 'YouTube URL, artist, and title are required' 
+      });
+    }
+    
+    const result = await downloadYouTubeVideo(youtubeUrl, artist, title);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        folderName: result.folderName,
+        videoFile: result.videoFile,
+        videoId: result.videoId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        message: result.message
+      });
+    }
+  } catch (error) {
+    console.error('Error downloading YouTube video:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error',
+      message: error.message 
+    });
   }
 });
 

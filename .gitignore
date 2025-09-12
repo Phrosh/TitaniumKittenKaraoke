@@ -114,4 +114,5 @@ __pycache__/
 .local/
 songs/videos/
 songs/ultrastar/
+songs/youtube/
 ai-services/venv/

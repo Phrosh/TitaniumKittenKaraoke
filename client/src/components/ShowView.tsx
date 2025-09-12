@@ -1326,7 +1326,24 @@ const ShowView: React.FC = () => {
   const isServerVideo = currentSong?.mode === 'server_video';
   const isFileVideo = currentSong?.mode === 'file';
   const isUltrastar = currentSong?.mode === 'ultrastar';
-  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+  const isYouTubeCache = currentSong?.mode === 'youtube_cache';
+  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar && !isYouTubeCache ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
+
+  // Debug logging
+  console.log('ShowView Debug:', {
+    currentSong: currentSong ? {
+      id: currentSong.id,
+      title: currentSong.title,
+      artist: currentSong.artist,
+      mode: currentSong.mode,
+      youtube_url: currentSong.youtube_url
+    } : null,
+    isServerVideo,
+    isFileVideo,
+    isUltrastar,
+    isYouTubeCache,
+    embedUrl
+  });
 
 
   useEffect(() => {
@@ -1407,10 +1424,6 @@ const ShowView: React.FC = () => {
     }
     setSongChanged(false);
   }, [ultrastarData?.gap, songChanged, playing, setShowLyrics, setLyricsTransitionEnabled, startProgress]);
-
-  console.log('show lyrics', showLyrics);
-  console.log('lyrics scale', lyricsScale);
-  console.log('lyrics container style', lyricsDisplayStyle);
 
   // console.log('🎵 lyricsTransitionEnabled', lyricsTransitionEnabled);
   // console.log('🎵 lyricsScale', lyricsScale);
@@ -1627,14 +1640,15 @@ const ShowView: React.FC = () => {
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
-          {(isServerVideo || isFileVideo) ? (
+          {(isServerVideo || isFileVideo || isYouTubeCache) ? (
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
               src={currentSong.youtube_url}
               controls
               autoPlay
               onLoadStart={() => {
-                console.log(`🎬 ${isFileVideo ? 'File' : 'Server'} video started:`, { 
+                const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
+                console.log(`🎬 ${videoType} video started:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
                   url: currentSong.youtube_url,
@@ -1642,10 +1656,12 @@ const ShowView: React.FC = () => {
                 });
               }}
               onEnded={async () => {
-                console.log(`🎬 ${isFileVideo ? 'File' : 'Server'} video ended:`, { 
+                const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
+                console.log(`🎬 ${videoType} video ended:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  mode: currentSong?.mode
+                  mode: currentSong?.mode,
+                  willShowQRCode: currentSong?.mode !== 'youtube'
                 });
                 
                 // Check if this was a test song and restore original song
@@ -1657,7 +1673,8 @@ const ShowView: React.FC = () => {
                   console.error('Error restoring original song:', error);
                 }
                 
-                // Automatically show QR code overlay when non-YouTube video ends
+                // Automatically show QR code overlay when video ends (except for embedded YouTube videos)
+                // YouTube cache videos should show the overlay since they are local videos
                 if (currentSong?.mode !== 'youtube') {
                   showAPI.toggleQRCodeOverlay(true).catch(error => {
                     console.error('Error showing overlay:', error);

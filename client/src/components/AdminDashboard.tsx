@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
-import { AdminDashboardData, Song, AdminUser } from '../types';
+import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -740,6 +740,18 @@ const AdminDashboard: React.FC = () => {
     }
   }, [navigate]);
 
+  // Check if a song exists in YouTube cache
+  const isSongInYouTubeCache = useCallback((song: Song) => {
+    if (!dashboardData?.youtubeSongs || !song.artist || !song.title) {
+      return false;
+    }
+    
+    return dashboardData.youtubeSongs.some(youtubeSong => 
+      youtubeSong.artist.toLowerCase() === song.artist?.toLowerCase() &&
+      youtubeSong.title.toLowerCase() === song.title.toLowerCase()
+    );
+  }, [dashboardData?.youtubeSongs]);
+
   useEffect(() => {
     fetchDashboardData();
     fetchUSDBCredentials();
@@ -1012,6 +1024,15 @@ const AdminDashboard: React.FC = () => {
     try {
       await adminAPI.updateYouTubeUrl(songId, value);
       toast.success('YouTube-Link aktualisiert!');
+      
+      // If it's a YouTube URL, show additional info
+      if (value && (value.includes('youtube.com') || value.includes('youtu.be'))) {
+        toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
+          icon: '⏳',
+          duration: 3000,
+        });
+      }
+      
       // Refresh data to get updated link
       fetchDashboardData();
     } catch (error) {
@@ -1119,10 +1140,23 @@ const AdminDashboard: React.FC = () => {
           youtubeUrl: formData.youtubeUrl
         });
       }
+      
+      // Show success message
+      toast.success('Song erfolgreich aktualisiert!');
+      
+      // If it's a YouTube URL, show additional info
+      if (formData.youtubeUrl && (formData.youtubeUrl.includes('youtube.com') || formData.youtubeUrl.includes('youtu.be'))) {
+        toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
+          icon: '⏳',
+          duration: 3000,
+        });
+      }
+      
       await fetchDashboardData();
       closeModal();
     } catch (error) {
       console.error('Error updating song:', error);
+      toast.error('Fehler beim Aktualisieren des Songs');
     } finally {
       setActionLoading(false);
     }
@@ -1323,16 +1357,18 @@ const AdminDashboard: React.FC = () => {
   // Song Management Functions
   const fetchSongs = useCallback(async () => {
     try {
-      const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse] = await Promise.all([
+      const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse, youtubeResponse] = await Promise.all([
         songAPI.getServerVideos(),
         songAPI.getUltrastarSongs(),
         songAPI.getFileSongs(),
-        adminAPI.getUltrastarAudioSettings()
+        adminAPI.getUltrastarAudioSettings(),
+        songAPI.getYouTubeSongs()
       ]);
       
       const serverVideos = localResponse.data.videos || [];
       const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
+      const youtubeSongs = youtubeResponse.data.youtubeSongs || [];
       const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
       
       // Convert audio settings to a lookup object
@@ -1398,6 +1434,30 @@ const AdminDashboard: React.FC = () => {
         }
       });
       
+      // Add YouTube cache songs
+      youtubeSongs.forEach(youtubeSong => {
+        const existingIndex = allSongs.findIndex(song => 
+          song.artist.toLowerCase() === youtubeSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === youtubeSong.title.toLowerCase()
+        );
+        if (existingIndex !== -1) {
+          // Song exists, add youtube_cache mode
+          if (!allSongs[existingIndex].modes) {
+            allSongs[existingIndex].modes = [];
+          }
+          if (!allSongs[existingIndex].modes.includes('youtube_cache')) {
+            allSongs[existingIndex].modes.push('youtube_cache');
+          }
+        } else {
+          // Song doesn't exist, add as youtube_cache only
+          allSongs.push({ 
+            ...youtubeSong, 
+            modes: ['youtube_cache'],
+            hasVideo: youtubeSong.hasVideo
+          });
+        }
+      });
+      
       // Add modes array to songs that don't have modes yet
       allSongs.forEach(song => {
         if (!song.modes) {
@@ -1443,9 +1503,20 @@ const AdminDashboard: React.FC = () => {
     const isInvisible = invisibleSongs.some(invisible => 
       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
       invisible.title.toLowerCase() === song.title.toLowerCase()
-    );
+    ) || song.modes?.includes('youtube_cache');
 
     if (isInvisible) {
+      // Check if it's a YouTube cache song
+      if (song.modes?.includes('youtube_cache')) {
+        // For YouTube cache songs, we can't remove them from invisible songs
+        // since they're not in the invisible_songs table. We just show a message.
+        toast(`${song.artist} - ${song.title} ist ein YouTube-Cache-Song und bleibt standardmäßig unsichtbar`, {
+          icon: 'ℹ️',
+          duration: 4000
+        });
+        return;
+      }
+      
       // Remove from invisible songs
       const invisibleSong = invisibleSongs.find(invisible => 
         invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
@@ -2211,7 +2282,8 @@ const AdminDashboard: React.FC = () => {
                                 <ModeBadge $mode={mode}>
                                   {mode === 'server_video' ? '🟢 Server' : 
                                    mode === 'file' ? '🔵 Datei' : 
-                                   mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                                   mode === 'ultrastar' ? '⭐ Ultrastar' : 
+                                   mode === 'youtube_cache' ? '🎬 YouTube Cache' : '🔴 YouTube'}
                                 </ModeBadge>
                               </React.Fragment>
                             ))
@@ -2223,12 +2295,13 @@ const AdminDashboard: React.FC = () => {
                               <ModeBadge $mode={song.mode || 'youtube'}>
                                 {song.mode === 'server_video' ? '🟢 Server' : 
                                  song.mode === 'file' ? '🔵 Datei' : 
-                                 song.mode === 'ultrastar' ? '⭐ Ultrastar' : '🔴 YouTube'}
+                                 song.mode === 'ultrastar' ? '⭐ Ultrastar' : 
+                                 song.mode === 'youtube_cache' ? '🎬 YouTube Cache' : '🔴 YouTube'}
                               </ModeBadge>
                             </>
                           )}
                         </SongTitle>
-                        {(song.mode || 'youtube') === 'youtube' && (
+                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && (
                           <YouTubeField
                             type="url"
                             placeholder="YouTube-Link hier eingeben..."
@@ -2241,6 +2314,19 @@ const AdminDashboard: React.FC = () => {
                               }
                             }}
                           />
+                        )}
+                        {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song)) || song.modes?.includes('youtube_cache') && (
+                          <div style={{ 
+                            padding: '8px 12px', 
+                            backgroundColor: '#e8f5e8', 
+                            border: '1px solid #4caf50', 
+                            borderRadius: '6px', 
+                            fontSize: '0.9rem',
+                            color: '#2e7d32',
+                            fontWeight: '500'
+                          }}>
+                            ✅ Im YouTube-Cache verfügbar
+                          </div>
                         )}
                       </SongTitleRow>
                     </SongContent>
@@ -2951,12 +3037,12 @@ const AdminDashboard: React.FC = () => {
                     filteredSongs = songs.filter(song => !invisibleSongs.some(invisible => 
                       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                       invisible.title.toLowerCase() === song.title.toLowerCase()
-                    ));
+                    ) && !song.modes?.includes('youtube_cache'));
                   } else if (songTab === 'invisible') {
                     filteredSongs = songs.filter(song => invisibleSongs.some(invisible => 
                       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                       invisible.title.toLowerCase() === song.title.toLowerCase()
-                    ));
+                    ) || song.modes?.includes('youtube_cache'));
                   }
                   
                   // Apply search filter
@@ -2999,7 +3085,7 @@ const AdminDashboard: React.FC = () => {
                         const isInvisible = invisibleSongs.some(invisible => 
                           invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                           invisible.title.toLowerCase() === song.title.toLowerCase()
-                        );
+                        ) || song.modes?.includes('youtube_cache');
                         
                         return (
                           <div 

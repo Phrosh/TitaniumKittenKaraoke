@@ -60,6 +60,9 @@ export const songAPI = {
   getFileSongs: () =>
     api.get('/songs/file-songs'), // Public endpoint for file songs
   
+  getYouTubeSongs: () =>
+    api.get('/songs/youtube-songs'), // Public endpoint for YouTube cache songs
+  
   getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
   getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings

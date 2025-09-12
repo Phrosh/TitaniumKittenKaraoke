@@ -11,7 +11,7 @@ export interface Song {
   title: string;
   artist?: string;
   youtube_url?: string;
-  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar';
+  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
   status: string;
   position: number;
   delay_count: number;
@@ -34,17 +34,28 @@ export interface PlaylistResponse {
   total: number;
 }
 
+export interface YouTubeSong {
+  artist: string;
+  title: string;
+  folderName: string;
+  videoFile: string;
+  modes: string[];
+  hasVideo: boolean;
+}
+
 export interface AdminDashboardData {
   playlist: Song[];
   pendingSongs: Song[];
   users: User[];
   currentSong: Song | null;
+  youtubeSongs: YouTubeSong[];
   stats: {
     totalSongs: number;
     pendingSongs: number;
     totalUsers: number;
     songsWithYoutube: number;
     songsWithoutYoutube: number;
+    youtubeCacheSongs: number;
   };
 }
 

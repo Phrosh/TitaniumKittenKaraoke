@@ -5,6 +5,7 @@ const Song = require('../models/Song');
 const User = require('../models/User');
 const { verifyToken } = require('./auth');
 const db = require('../config/database');
+const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../utils/youtubeSongs');
 
 const router = express.Router();
 
@@ -24,13 +25,17 @@ router.get('/dashboard', async (req, res) => {
     
     const currentSong = await Song.getCurrentSong();
     
+    // Load YouTube songs from cache
+    const youtubeSongs = scanYouTubeSongs();
+    
     // Statistics
     const stats = {
       totalSongs: playlist.length,
       pendingSongs: pendingSongs.length,
       totalUsers: users.length,
       songsWithYoutube: playlist.filter(s => s.youtube_url).length,
-      songsWithoutYoutube: playlist.filter(s => !s.youtube_url).length
+      songsWithoutYoutube: playlist.filter(s => !s.youtube_url).length,
+      youtubeCacheSongs: youtubeSongs.length
     };
 
 
@@ -39,6 +44,7 @@ router.get('/dashboard', async (req, res) => {
       pendingSongs,
       users,
       currentSong,
+      youtubeSongs,
       stats
     });
   } catch (error) {
@@ -65,7 +71,50 @@ router.put('/song/:songId/youtube', [
       return res.status(404).json({ message: 'Song not found' });
     }
 
+    // Update the YouTube URL in database
     await Song.updateYoutubeUrl(songId, youtubeUrl);
+    
+    // Check if this is a YouTube URL and try to download it
+    if (youtubeUrl && (youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
+      try {
+        console.log(`📥 Admin YouTube URL update - attempting download: ${song.artist} - ${song.title}`);
+        
+        // Check if song is already in YouTube cache
+        const existingCache = findYouTubeSong(song.artist, song.title);
+        if (existingCache) {
+          console.log(`✅ Song already in YouTube cache: ${song.artist} - ${song.title}`);
+        } else {
+          // Try to download YouTube video
+          const downloadResult = await downloadYouTubeVideo(youtubeUrl, song.artist, song.title);
+          
+          if (downloadResult.success) {
+            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+            
+            // Add to invisible songs list
+            try {
+              await new Promise((resolve, reject) => {
+                db.run(
+                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                  [song.artist, song.title],
+                  function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                  }
+                );
+              });
+              console.log(`📝 Added to invisible songs: ${song.artist} - ${song.title}`);
+            } catch (error) {
+              console.error('Error adding to invisible songs:', error);
+            }
+          } else {
+            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error downloading YouTube video from admin update:', error);
+        // Don't fail the request if download fails
+      }
+    }
     
     res.json({ message: 'YouTube URL updated successfully' });
   } catch (error) {
@@ -123,6 +172,48 @@ router.put('/song/:songId', [
         }
       );
     });
+
+    // Check if this is a YouTube URL and try to download it
+    if (youtubeUrl && (youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
+      try {
+        console.log(`📥 Admin song update - attempting YouTube download: ${artist} - ${title}`);
+        
+        // Check if song is already in YouTube cache
+        const existingCache = findYouTubeSong(artist, title);
+        if (existingCache) {
+          console.log(`✅ Song already in YouTube cache: ${artist} - ${title}`);
+        } else {
+          // Try to download YouTube video
+          const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
+          
+          if (downloadResult.success) {
+            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+            
+            // Add to invisible songs list
+            try {
+              await new Promise((resolve, reject) => {
+                db.run(
+                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                  [artist, title],
+                  function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                  }
+                );
+              });
+              console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+            } catch (error) {
+              console.error('Error adding to invisible songs:', error);
+            }
+          } else {
+            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error downloading YouTube video from admin song update:', error);
+        // Don't fail the request if download fails
+      }
+    }
 
     res.json({ message: 'Song updated successfully' });
   } catch (error) {

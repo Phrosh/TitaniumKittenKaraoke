@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Song = require('../models/Song');
 const QRCode = require('qrcode');
+const { findYouTubeSong } = require('../utils/youtubeSongs');
 
 // GET /show - Zeige aktuelles Video und nächste Songs
 router.get('/', async (req, res) => {
@@ -99,8 +100,10 @@ router.get('/', async (req, res) => {
       console.error('Error generating QR code for show:', error);
     }
 
-    // Build dynamic URL for file songs
+    // Build dynamic URL for different song types
     let youtubeUrl = currentSong?.youtube_url;
+    let songMode = currentSong?.mode || 'youtube';
+    
     if (currentSong?.mode === 'file' && currentSong?.youtube_url) {
       // Get the configured port for file songs
       const portSetting = await new Promise((resolve, reject) => {
@@ -112,6 +115,19 @@ router.get('/', async (req, res) => {
       
       const port = portSetting ? portSetting.value : '4000';
       youtubeUrl = `http://localhost:${port}/${encodeURIComponent(currentSong.youtube_url)}`;
+    } else if (currentSong?.mode === 'youtube' && currentSong?.youtube_url && currentSong?.artist && currentSong?.title) {
+      // Check if we have a local YouTube video in cache
+      const youtubeSong = findYouTubeSong(currentSong.artist, currentSong.title);
+      if (youtubeSong) {
+        songMode = 'youtube_cache';
+        // Build full URL with protocol and host
+        const protocol = req.get('x-forwarded-proto') || req.protocol;
+        const host = req.get('host');
+        youtubeUrl = `${protocol}://${host}/api/youtube-videos/${encodeURIComponent(youtubeSong.folderName)}/${encodeURIComponent(youtubeSong.videoFile)}`;
+        console.log(`🎬 Using cached YouTube video: ${youtubeSong.folderName}/${youtubeSong.videoFile} -> ${youtubeUrl}`);
+      } else {
+        console.log(`🎬 No cached YouTube video found, using original URL: ${currentSong.youtube_url}`);
+      }
     }
 
     res.json({
@@ -121,7 +137,7 @@ router.get('/', async (req, res) => {
         artist: currentSong.artist,
         title: currentSong.title,
         youtube_url: youtubeUrl,
-        mode: currentSong.mode || 'youtube',
+        mode: songMode,
         position: currentSong.position,
         duration_seconds: currentSong.duration_seconds,
         with_background_vocals: currentSong.with_background_vocals || false
