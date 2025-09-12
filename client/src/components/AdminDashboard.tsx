@@ -3288,8 +3288,8 @@ const AdminDashboard: React.FC = () => {
       </TabContainer>
 
       {showModal && selectedSong && (
-        <Modal onClick={closeModal}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
+        <Modal>
+          <ModalContent>
             <ModalTitle>
               {modalType === 'youtube' ? 'YouTube Link hinzufügen' : 'Song bearbeiten'}
             </ModalTitle>
