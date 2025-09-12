@@ -1164,17 +1164,21 @@ router.put('/song/:songId/refresh-classification', async (req, res) => {
     });
     
     if (fileFolderSetting && fileFolderSetting.value) {
+      console.log(`🔍 Searching for file song: "${artist}" - "${title}"`);
       const fileSong = findFileSong(fileFolderSetting.value, artist, title);
       if (fileSong) {
         newMode = 'file';
         newYoutubeUrl = fileSong.filename;
         updated = true;
         console.log(`🔄 Song classification updated: ${artist} - ${title} -> file (${fileSong.filename})`);
+      } else {
+        console.log(`❌ No file song found for: ${artist} - ${title}`);
       }
     }
     
     // If no file song found, check server videos
     if (!updated) {
+      console.log(`🔍 Searching for server video: "${artist}" - "${title}"`);
       const { findLocalVideo } = require('../utils/localVideos');
       const localVideo = findLocalVideo(artist, title);
       if (localVideo) {
@@ -1182,11 +1186,13 @@ router.put('/song/:songId/refresh-classification', async (req, res) => {
         newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
         updated = true;
         console.log(`🔄 Song classification updated: ${artist} - ${title} -> server_video (${localVideo.filename}) -> URL: ${newYoutubeUrl}`);
+      } else {
+        console.log(`❌ No server video found for: ${artist} - ${title}`);
       }
     }
     
     // Fix existing server_video URLs that might be missing file extension
-    if (!updated && currentSong.mode === 'server_video' && currentSong.youtube_url && !currentSong.youtube_url.includes('.')) {
+    if (!updated && song.mode === 'server_video' && song.youtube_url && !song.youtube_url.includes('.')) {
       const { findLocalVideo } = require('../utils/localVideos');
       const localVideo = findLocalVideo(artist, title);
       if (localVideo) {
@@ -1200,27 +1206,40 @@ router.put('/song/:songId/refresh-classification', async (req, res) => {
     // If no server video found, check ultrastar songs
     if (!updated) {
       const { findUltrastarSong } = require('../utils/ultrastarSongs');
+      console.log(`🔍 Searching for ultrastar song: "${artist}" - "${title}"`);
       const ultrastarSong = findUltrastarSong(artist, title);
       if (ultrastarSong) {
         newMode = 'ultrastar';
         newYoutubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
         updated = true;
         console.log(`🔄 Song classification updated: ${artist} - ${title} -> ultrastar (${ultrastarSong.folderName})`);
+      } else {
+        console.log(`❌ No ultrastar song found for: ${artist} - ${title}`);
       }
     }
 
     // Update song in database if classification changed
     if (updated) {
-      await new Promise((resolve, reject) => {
-        db.run(
-          'UPDATE songs SET youtube_url = ?, mode = ? WHERE id = ?',
-          [newYoutubeUrl, newMode, songId],
-          function(err) {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      try {
+        await new Promise((resolve, reject) => {
+          db.run(
+            'UPDATE songs SET youtube_url = ?, mode = ? WHERE id = ?',
+            [newYoutubeUrl, newMode, songId],
+            function(err) {
+              if (err) {
+                console.error('Error updating song classification:', err);
+                reject(err);
+              } else {
+                console.log(`✅ Song classification updated successfully: ${artist} - ${title} -> ${newMode}`);
+                resolve();
+              }
+            }
+          );
+        });
+      } catch (updateError) {
+        console.error('Failed to update song classification:', updateError);
+        throw updateError;
+      }
     }
 
     res.json({ 
@@ -1231,6 +1250,13 @@ router.put('/song/:songId/refresh-classification', async (req, res) => {
     });
   } catch (error) {
     console.error('Refresh song classification error:', error);
+    console.error('Error details:', {
+      songId: req.params.songId,
+      artist: song?.artist,
+      title: song?.title,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -69,10 +69,31 @@ function scanFileSongs(folderPath) {
 function findFileSong(folderPath, artist, title) {
   const videos = scanFileSongs(folderPath);
   
-  return videos.find(video => 
+  // First try exact match
+  let found = videos.find(video => 
     video.artist.toLowerCase() === artist.toLowerCase() &&
     video.title.toLowerCase() === title.toLowerCase()
   );
+  
+  if (found) return found;
+  
+  // Try more flexible matching
+  found = videos.find(video => {
+    const videoArtist = video.artist.toLowerCase().trim();
+    const videoTitle = video.title.toLowerCase().trim();
+    const searchArtist = artist.toLowerCase().trim();
+    const searchTitle = title.toLowerCase().trim();
+    
+    // Check if artist and title are contained in the video
+    return (videoArtist.includes(searchArtist) || searchArtist.includes(videoArtist)) &&
+           (videoTitle.includes(searchTitle) || searchTitle.includes(videoTitle));
+  });
+  
+  if (found) {
+    console.log(`📁 Found file song with flexible matching: "${found.artist}" - "${found.title}" for search: "${artist}" - "${title}"`);
+  }
+  
+  return found;
 }
 
 /**

@@ -69,18 +69,36 @@ function scanLocalVideos() {
 function findLocalVideo(artist, title) {
   const videos = scanLocalVideos();
   
-  const result = videos.find(video => 
+  // First try exact match
+  let found = videos.find(video => 
     video.artist.toLowerCase() === artist.toLowerCase() &&
     video.title.toLowerCase() === title.toLowerCase()
   );
   
-  if (result) {
-    console.log(`🎬 Found local video: ${artist} - ${title} -> ${result.filename}`);
+  if (found) {
+    console.log(`🎬 Found local video (exact match): ${artist} - ${title} -> ${found.filename}`);
+    return found;
+  }
+  
+  // Try more flexible matching
+  found = videos.find(video => {
+    const videoArtist = video.artist.toLowerCase().trim();
+    const videoTitle = video.title.toLowerCase().trim();
+    const searchArtist = artist.toLowerCase().trim();
+    const searchTitle = title.toLowerCase().trim();
+    
+    // Check if artist and title are contained in the video
+    return (videoArtist.includes(searchArtist) || searchArtist.includes(videoArtist)) &&
+           (videoTitle.includes(searchTitle) || searchTitle.includes(videoTitle));
+  });
+  
+  if (found) {
+    console.log(`🎬 Found local video (flexible match): "${found.artist}" - "${found.title}" for search: "${artist}" - "${title}" -> ${found.filename}`);
   } else {
     console.log(`❌ No local video found for: ${artist} - ${title}`);
   }
   
-  return result;
+  return found;
 }
 
 /**

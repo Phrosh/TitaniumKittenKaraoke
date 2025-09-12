@@ -248,10 +248,46 @@ function checkForAudioFiles(folderPath) {
 function findUltrastarSong(artist, title) {
   const songs = scanUltrastarSongs();
   
-  return songs.find(song => 
+  console.log(`🔍 Searching for ultrastar song: "${artist}" - "${title}"`);
+  console.log(`📁 Found ${songs.length} ultrastar songs total`);
+  
+  // First try exact match
+  let found = songs.find(song => 
     song.artist.toLowerCase() === artist.toLowerCase() &&
     song.title.toLowerCase() === title.toLowerCase()
   );
+  
+  if (found) {
+    console.log(`✅ Found exact match: "${found.artist}" - "${found.title}"`);
+    return found;
+  }
+  
+  // Try more flexible matching
+  found = songs.find(song => {
+    const songArtist = song.artist.toLowerCase().trim();
+    const songTitle = song.title.toLowerCase().trim();
+    const searchArtist = artist.toLowerCase().trim();
+    const searchTitle = title.toLowerCase().trim();
+    
+    // Check if artist and title are contained in the song
+    return (songArtist.includes(searchArtist) || searchArtist.includes(songArtist)) &&
+           (songTitle.includes(searchTitle) || searchTitle.includes(songTitle));
+  });
+  
+  if (found) {
+    console.log(`🎵 Found ultrastar song with flexible matching: "${found.artist}" - "${found.title}" for search: "${artist}" - "${title}"`);
+  } else {
+    console.log(`❌ No ultrastar song found for: "${artist}" - "${title}"`);
+    // Log some examples for debugging
+    if (songs.length > 0) {
+      console.log(`📋 Available songs (first 5):`);
+      songs.slice(0, 5).forEach(song => {
+        console.log(`  - "${song.artist}" - "${song.title}"`);
+      });
+    }
+  }
+  
+  return found;
 }
 
 /**
