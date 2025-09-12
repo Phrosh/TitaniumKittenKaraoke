@@ -776,11 +776,6 @@ const SongRequest: React.FC = () => {
             {loading ? 'Wird hinzugefügt...' : 'Song hinzufügen'}
           </Button>
         </Form>
-
-        <div style={{ textAlign: 'center', marginTop: '20px', color: '#666' }}>
-          <p>Du kannst mehrere Songs hinzufügen!</p>
-          <p>Das System sorgt für eine faire Reihenfolge.</p>
-        </div>
         
         <QRCodeContainer>
           <h3>QR Code für andere Geräte:</h3>
