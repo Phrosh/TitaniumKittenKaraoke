@@ -390,7 +390,7 @@ const SongTitleRow = styled.div`
   align-items: center;
 `;
 
-const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' }>`
+const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache' }>`
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.7rem;
@@ -403,6 +403,7 @@ const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ult
       case 'server_video': return '#28a745';
       case 'file': return '#667eea';
       case 'ultrastar': return '#8e44ad';
+      case 'youtube_cache': return '#dc3545';
       default: return '#ff4444';
     }
   }};
@@ -682,6 +683,14 @@ const AdminDashboard: React.FC = () => {
   const [songSearchTerm, setSongSearchTerm] = useState('');
   const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+  
+  // Rename modal state
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameSong, setRenameSong] = useState<any>(null);
+  const [renameData, setRenameData] = useState({
+    newArtist: '',
+    newTitle: ''
+  });
   
   // YouTube Download Dialog
   const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
@@ -1605,6 +1614,54 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleRenameSong = (song: any) => {
+    setRenameSong(song);
+    setRenameData({
+      newArtist: song.artist,
+      newTitle: song.title
+    });
+    setShowRenameModal(true);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!renameSong || !renameData.newArtist.trim() || !renameData.newTitle.trim()) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await adminAPI.renameYouTubeCacheSong(
+        renameSong.artist,
+        renameSong.title,
+        renameData.newArtist.trim(),
+        renameData.newTitle.trim()
+      );
+      
+      if (response.data.success) {
+        // Refresh songs list
+        await fetchSongs();
+        setShowRenameModal(false);
+        setRenameSong(null);
+        setRenameData({ newArtist: '', newTitle: '' });
+        toast.success(`Song erfolgreich umbenannt zu "${renameData.newArtist.trim()} - ${renameData.newTitle.trim()}"`);
+      } else {
+        console.error('Rename failed:', response.data.message);
+        toast.error(response.data.message || 'Fehler beim Umbenennen des Songs');
+      }
+    } catch (error: any) {
+      console.error('Error renaming song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Umbenennen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRenameCancel = () => {
+    setShowRenameModal(false);
+    setRenameSong(null);
+    setRenameData({ newArtist: '', newTitle: '' });
   };
 
   const handleStartProcessing = async (song: any) => {
@@ -3169,6 +3226,18 @@ const AdminDashboard: React.FC = () => {
                                         🔴 YouTube
                                       </span>
                                     )}
+                                    {song.modes?.includes('youtube_cache') && (
+                                      <span style={{ 
+                                        fontSize: '12px', 
+                                        color: '#dc3545',
+                                        background: '#f8d7da',
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px',
+                                        fontWeight: '500'
+                                      }}>
+                                        🎬 YouTube Cache
+                                      </span>
+                                    )}
                                     {hasMissingFiles(song) && (
                                       <span 
                                         style={{ 
@@ -3302,7 +3371,41 @@ const AdminDashboard: React.FC = () => {
                               )}
                               
                               {/* Test button for all songs - always on the right */}
-                              <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* Rename button for YouTube Cache songs */}
+                                {song.modes?.includes('youtube_cache') && (
+                                  <button
+                                    onClick={() => handleRenameSong(song)}
+                                    disabled={actionLoading}
+                                    style={{
+                                      fontSize: '12px',
+                                      padding: '6px 12px',
+                                      backgroundColor: '#ffc107',
+                                      color: '#212529',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                      fontWeight: '500',
+                                      opacity: actionLoading ? 0.6 : 1,
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!actionLoading) {
+                                        e.currentTarget.style.backgroundColor = '#e0a800';
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!actionLoading) {
+                                        e.currentTarget.style.backgroundColor = '#ffc107';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                      }
+                                    }}
+                                  >
+                                    ✏️ Umbenennen
+                                  </button>
+                                )}
+                                
                                 <button
                                   onClick={() => handleTestSong(song)}
                                   disabled={actionLoading}
@@ -3926,6 +4029,63 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Rename Modal */}
+      {showRenameModal && renameSong && (
+        <Modal>
+          <ModalContent>
+            <ModalTitle>✏️ Song umbenennen</ModalTitle>
+            
+            <FormGroup>
+              <Label>Neuer Interpret:</Label>
+              <Input
+                type="text"
+                value={renameData.newArtist}
+                onChange={(e) => setRenameData(prev => ({ ...prev, newArtist: e.target.value }))}
+                placeholder="Interpret eingeben"
+                autoFocus
+              />
+            </FormGroup>
+            
+            <FormGroup>
+              <Label>Neuer Songtitel:</Label>
+              <Input
+                type="text"
+                value={renameData.newTitle}
+                onChange={(e) => setRenameData(prev => ({ ...prev, newTitle: e.target.value }))}
+                placeholder="Songtitel eingeben"
+              />
+            </FormGroup>
+            
+            <div style={{ 
+              padding: '12px', 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: '6px', 
+              marginBottom: '20px',
+              fontSize: '14px',
+              color: '#666'
+            }}>
+              <strong>Aktueller Name:</strong> {renameSong.artist} - {renameSong.title}
+              <br />
+              <strong>Neuer Name:</strong> {renameData.newArtist} - {renameData.newTitle}
+            </div>
+            
+            <ModalButtons>
+              <Button onClick={handleRenameCancel}>Abbrechen</Button>
+              <Button 
+                onClick={handleRenameConfirm}
+                disabled={actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim()}
+                style={{
+                  backgroundColor: actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim() ? '#ccc' : '#ffc107',
+                  color: '#212529'
+                }}
+              >
+                {actionLoading ? '⏳ Wird umbenannt...' : '✏️ Umbenennen'}
+              </Button>
+            </ModalButtons>
+          </ModalContent>
+        </Modal>
       )}
 
     </Container>

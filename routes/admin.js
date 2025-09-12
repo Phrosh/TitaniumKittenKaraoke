@@ -1720,4 +1720,113 @@ router.post('/restore-original-song', async (req, res) => {
   }
 });
 
+// Rename YouTube Cache Song
+router.post('/youtube-cache/rename', [
+  body('oldArtist').notEmpty().trim(),
+  body('oldTitle').notEmpty().trim(),
+  body('newArtist').notEmpty().trim(),
+  body('newTitle').notEmpty().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validierungsfehler', 
+        errors: errors.array() 
+      });
+    }
+
+    const { oldArtist, oldTitle, newArtist, newTitle } = req.body;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Validate that the old song exists in YouTube cache
+    const youtubeSongs = scanYouTubeSongs();
+    const oldSong = youtubeSongs.find(song => 
+      song.artist.toLowerCase() === oldArtist.toLowerCase() &&
+      song.title.toLowerCase() === oldTitle.toLowerCase()
+    );
+
+    if (!oldSong) {
+      return res.status(404).json({ 
+        message: 'YouTube-Cache-Song nicht gefunden',
+        success: false
+      });
+    }
+
+    // Check if new name already exists
+    const existingSong = youtubeSongs.find(song => 
+      song.artist.toLowerCase() === newArtist.toLowerCase() &&
+      song.title.toLowerCase() === newTitle.toLowerCase()
+    );
+
+    if (existingSong) {
+      return res.status(400).json({ 
+        message: 'Ein Song mit diesem Namen existiert bereits',
+        success: false
+      });
+    }
+
+    // Construct paths
+    const youtubeDir = path.join(__dirname, '..', 'songs', 'youtube');
+    const oldFolderName = `${oldArtist} - ${oldTitle}`;
+    const newFolderName = `${newArtist} - ${newTitle}`;
+    const oldPath = path.join(youtubeDir, oldFolderName);
+    const newPath = path.join(youtubeDir, newFolderName);
+
+    // Check if old folder exists
+    if (!fs.existsSync(oldPath)) {
+      return res.status(404).json({ 
+        message: 'YouTube-Cache-Ordner nicht gefunden',
+        success: false
+      });
+    }
+
+    // Check if new folder already exists
+    if (fs.existsSync(newPath)) {
+      return res.status(400).json({ 
+        message: 'Ein Ordner mit diesem Namen existiert bereits',
+        success: false
+      });
+    }
+
+    // Rename the folder
+    fs.renameSync(oldPath, newPath);
+    console.log(`📁 Renamed YouTube cache folder: "${oldFolderName}" → "${newFolderName}"`);
+
+    // Update invisible songs database entry
+    try {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE invisible_songs SET artist = ?, title = ? WHERE artist = ? AND title = ?',
+          [newArtist, newTitle, oldArtist, oldTitle],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      console.log(`📝 Updated invisible songs entry: "${oldArtist} - ${oldTitle}" → "${newArtist} - ${newTitle}"`);
+    } catch (dbError) {
+      console.warn('Could not update invisible songs database:', dbError.message);
+      // Don't fail the operation if database update fails
+    }
+
+    res.json({ 
+      message: `Song erfolgreich umbenannt von "${oldArtist} - ${oldTitle}" zu "${newArtist} - ${newTitle}"`,
+      success: true,
+      oldName: `${oldArtist} - ${oldTitle}`,
+      newName: `${newArtist} - ${newTitle}`
+    });
+
+  } catch (error) {
+    console.error('Rename YouTube cache song error:', error);
+    res.status(500).json({ 
+      message: 'Server-Fehler beim Umbenennen des Songs', 
+      error: error.message,
+      success: false
+    });
+  }
+});
+
 module.exports = router;

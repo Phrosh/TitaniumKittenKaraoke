@@ -206,6 +206,10 @@ export const adminAPI = {
   
   restoreOriginalSong: () =>
     api.post('/admin/restore-original-song'),
+  
+  // YouTube Cache Song Management
+  renameYouTubeCacheSong: (oldArtist: string, oldTitle: string, newArtist: string, newTitle: string) =>
+    api.post('/admin/youtube-cache/rename', { oldArtist, oldTitle, newArtist, newTitle }),
 };
 
 export const showAPI = {
