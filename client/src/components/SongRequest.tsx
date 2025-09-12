@@ -222,6 +222,125 @@ const QRCodeImage = styled.img`
   border-radius: 8px;
 `;
 
+// Format-Modal styled components
+const FormatModal = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: ${props => props.$isOpen ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+`;
+
+const FormatModalContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+`;
+
+const FormatModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const FormatModalTitle = styled.h3`
+  margin: 0;
+  color: #333;
+`;
+
+const FormatModalCloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  
+  &:hover {
+    color: #333;
+  }
+`;
+
+const FormatModalBody = styled.div`
+  margin-bottom: 20px;
+`;
+
+const FormatModalText = styled.p`
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.5;
+`;
+
+const FormatModalInputs = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+`;
+
+const FormatModalRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const FormatModalInput = styled.input`
+  padding: 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+`;
+
+const FormatModalButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+`;
+
+const FormatModalButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  ${props => props.$variant === 'primary' ? `
+    background: #667eea;
+    color: white;
+    
+    &:hover {
+      background: #5a6fd8;
+    }
+    
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  ` : `
+    background: #f8f9fa;
+    color: #666;
+    border: 2px solid #e1e5e9;
+    
+    &:hover {
+      background: #e9ecef;
+    }
+  `}
+`;
+
 
 const SongRequest: React.FC = () => {
   const [formData, setFormData] = useState<SongRequestData>({
@@ -241,6 +360,13 @@ const SongRequest: React.FC = () => {
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [withBackgroundVocals, setWithBackgroundVocals] = useState(false);
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+  
+  // Modal states für Format-Korrektur
+  const [showFormatModal, setShowFormatModal] = useState(false);
+  const [formatModalArtist, setFormatModalArtist] = useState('');
+  const [formatModalTitle, setFormatModalTitle] = useState('');
+  const [pendingSongInput, setPendingSongInput] = useState('');
+  const [randomExampleSong, setRandomExampleSong] = useState({ artist: 'Queen', title: 'Bohemian Rhapsody' });
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -265,8 +391,8 @@ const SongRequest: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Load YouTube enabled setting
-    const loadYouTubeSetting = async () => {
+    // Load YouTube enabled setting and songs
+    const loadInitialData = async () => {
       try {
         const response = await songAPI.getYouTubeEnabled();
         const youtubeEnabledValue = response.data.settings.youtube_enabled;
@@ -276,9 +402,87 @@ const SongRequest: React.FC = () => {
         // Default to true if error
         setYoutubeEnabled(true);
       }
+
+      // Load songs for random examples
+      try {
+        const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
+          songAPI.getServerVideos(),
+          songAPI.getUltrastarSongs(),
+          songAPI.getFileSongs()
+        ]);
+        
+        const serverVideos = localResponse.data.videos || [];
+        const ultrastarSongs = ultrastarResponse.data.songs || [];
+        const fileSongs = fileResponse.data.fileSongs || [];
+        
+        // Try to get invisible songs, but don't fail if it doesn't work
+        let invisibleSongs = [];
+        try {
+          const invisibleResponse = await songAPI.getInvisibleSongs();
+          invisibleSongs = invisibleResponse.data.invisibleSongs || [];
+        } catch (invisibleError) {
+          console.warn('Could not load invisible songs, continuing without filter:', invisibleError);
+        }
+        
+        // Combine and deduplicate songs
+        const allSongs = [...fileSongs];
+        
+        // Add server videos
+        serverVideos.forEach((serverVideo: any) => {
+          const exists = allSongs.some(song => 
+            song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+            song.title.toLowerCase() === serverVideo.title.toLowerCase()
+          );
+          if (!exists) {
+            allSongs.push(serverVideo);
+          }
+        });
+        
+        // Add ultrastar songs
+        ultrastarSongs.forEach((ultrastarSong: any) => {
+          const exists = allSongs.some(song => 
+            song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+            song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+          );
+          if (!exists) {
+            allSongs.push(ultrastarSong);
+          }
+        });
+        
+        // Filter out invisible songs (if we have the list)
+        const visibleSongs = allSongs.filter(song => {
+          return !invisibleSongs.some((invisible: any) => 
+            invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+            invisible.title.toLowerCase() === song.title.toLowerCase()
+          );
+        });
+        
+        // Sort alphabetically by artist, then by title
+        visibleSongs.sort((a, b) => {
+          const artistA = a.artist.toLowerCase();
+          const artistB = b.artist.toLowerCase();
+          if (artistA !== artistB) {
+            return artistA.localeCompare(artistB);
+          }
+          return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        });
+        
+        setServerVideos(visibleSongs);
+        setUltrastarSongs(ultrastarSongs);
+        setFileSongs(fileSongs);
+        
+        // Set random example song
+        if (visibleSongs.length > 0) {
+          const randomIndex = Math.floor(Math.random() * visibleSongs.length);
+          const randomSong = visibleSongs[randomIndex];
+          setRandomExampleSong({ artist: randomSong.artist, title: randomSong.title });
+        }
+      } catch (error) {
+        console.error('Error loading songs for examples:', error);
+      }
     };
 
-    loadYouTubeSetting();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -303,6 +507,7 @@ const SongRequest: React.FC = () => {
     loadUltrastarAudioSettings();
   }, []);
 
+
   const generateQRCode = async () => {
     try {
       const qrData = await songAPI.getQRData();
@@ -319,6 +524,33 @@ const SongRequest: React.FC = () => {
     }
   };
 
+  // YouTube-Link-Erkennung
+  const isYouTubeLink = (input: string): boolean => {
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i;
+    return youtubeRegex.test(input.trim());
+  };
+
+  // Validierung des Songtitel-Formats
+  const isValidSongFormat = (input: string): boolean => {
+    if (!input.trim()) return false;
+    if (isYouTubeLink(input)) return true; // YouTube-Links sind immer gültig
+    
+    // Prüfe auf Format "Interpret - Songname"
+    const parts = input.split(' - ');
+    return parts.length >= 2 && parts[0].trim() !== '' && parts.slice(1).join(' - ').trim() !== '';
+  };
+
+  // Zufälligen Beispiel-Song aus verfügbaren Songs auswählen
+  const getRandomExampleSong = () => {
+    const allSongs = [...serverVideos, ...ultrastarSongs, ...fileSongs];
+    if (allSongs.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allSongs.length);
+      const randomSong = allSongs[randomIndex];
+      return { artist: randomSong.artist, title: randomSong.title };
+    }
+    return { artist: 'Queen', title: 'Bohemian Rhapsody' }; // Fallback
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -326,6 +558,24 @@ const SongRequest: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validierung des Songtitel-Formats
+    if (!isValidSongFormat(formData.songInput)) {
+      // Öffne Modal für Format-Korrektur
+      setPendingSongInput(formData.songInput);
+      
+      // Leere Felder - keine Vorausfüllung
+      setFormatModalArtist('');
+      setFormatModalTitle('');
+      
+      // Generiere neuen zufälligen Beispiel-Song
+      const exampleSong = getRandomExampleSong();
+      setRandomExampleSong(exampleSong);
+      
+      setShowFormatModal(true);
+      return;
+    }
+    
     setLoading(true);
     setMessage(null);
 
@@ -356,81 +606,8 @@ const SongRequest: React.FC = () => {
   };
 
   const handleOpenSongList = async () => {
-    try {
-      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
-        songAPI.getServerVideos(),
-        songAPI.getUltrastarSongs(),
-        songAPI.getFileSongs()
-      ]);
-      
-      const serverVideos = localResponse.data.videos || [];
-      const ultrastarSongs = ultrastarResponse.data.songs || [];
-      const fileSongs = fileResponse.data.fileSongs || [];
-      
-      // Try to get invisible songs, but don't fail if it doesn't work
-      let invisibleSongs = [];
-      try {
-        const invisibleResponse = await songAPI.getInvisibleSongs();
-        invisibleSongs = invisibleResponse.data.invisibleSongs || [];
-      } catch (invisibleError) {
-        console.warn('Could not load invisible songs, continuing without filter:', invisibleError);
-        // Continue without filtering invisible songs
-      }
-      
-      // Combine and deduplicate songs
-      const allSongs = [...fileSongs];
-      
-      // Add server videos
-      serverVideos.forEach(serverVideo => {
-        const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === serverVideo.title.toLowerCase()
-        );
-        if (!exists) {
-          allSongs.push(serverVideo);
-        }
-      });
-      
-      // Add ultrastar songs
-      ultrastarSongs.forEach(ultrastarSong => {
-        const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
-          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
-        );
-        if (!exists) {
-          allSongs.push(ultrastarSong);
-        }
-      });
-      
-      // Filter out invisible songs (if we have the list)
-      const visibleSongs = allSongs.filter(song => {
-        return !invisibleSongs.some(invisible => 
-          invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-          invisible.title.toLowerCase() === song.title.toLowerCase()
-        );
-      });
-      
-      // Sort alphabetically by artist, then by title
-      visibleSongs.sort((a, b) => {
-        const artistA = a.artist.toLowerCase();
-        const artistB = b.artist.toLowerCase();
-        if (artistA !== artistB) {
-          return artistA.localeCompare(artistB);
-        }
-        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-      });
-      
-      setServerVideos(visibleSongs);
-      setUltrastarSongs(ultrastarSongs);
-      setFileSongs(fileSongs);
-      setShowSongList(true);
-    } catch (error) {
-      console.error('Error loading songs:', error);
-      setMessage({
-        type: 'error',
-        text: 'Fehler beim Laden der Songs'
-      });
-    }
+    // Songs sind bereits geladen, öffne einfach das Modal
+    setShowSongList(true);
   };
 
   const handleCloseSongList = () => {
@@ -443,6 +620,25 @@ const SongRequest: React.FC = () => {
     setFormData(prev => ({ ...prev, songInput }));
     setWithBackgroundVocals(false); // Reset checkbox when selecting new song
     handleCloseSongList();
+  };
+
+  // Handler für Format-Modal
+  const handleFormatModalConfirm = () => {
+    if (formatModalArtist.trim() && formatModalTitle.trim()) {
+      const correctedInput = `${formatModalArtist.trim()} - ${formatModalTitle.trim()}`;
+      setFormData(prev => ({ ...prev, songInput: correctedInput }));
+      setShowFormatModal(false);
+      setFormatModalArtist('');
+      setFormatModalTitle('');
+      setPendingSongInput('');
+    }
+  };
+
+  const handleFormatModalCancel = () => {
+    setShowFormatModal(false);
+    setFormatModalArtist('');
+    setFormatModalTitle('');
+    setPendingSongInput('');
   };
 
   // Check if the selected song is an Ultrastar song
@@ -506,7 +702,7 @@ const SongRequest: React.FC = () => {
             />
           </FormGroup>
 
-          <FormGroup>
+          <FormGroup style={{ marginBottom: '-10px' }}>
             <Label htmlFor="songInput">Song Wunsch:</Label>
             {youtubeEnabled ? (
               <Input
@@ -539,7 +735,7 @@ const SongRequest: React.FC = () => {
 
           <LocalSongsSection>
             {youtubeEnabled && (
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
                 Oder nimm einen Song aus der Liste:
               </div>
             )}
@@ -646,6 +842,66 @@ const SongRequest: React.FC = () => {
           </div>
         </SongListContent>
       </SongListModal>
+
+      {/* Format-Korrektur Modal */}
+      <FormatModal $isOpen={showFormatModal}>
+        <FormatModalContent>
+          <FormatModalHeader>
+            <FormatModalTitle>🎵 Songtitel-Format korrigieren</FormatModalTitle>
+            <FormatModalCloseButton onClick={handleFormatModalCancel}>×</FormatModalCloseButton>
+          </FormatModalHeader>
+          
+          <FormatModalBody>
+            <FormatModalText>
+              Der Songtitel sollte im Format <strong>"Interpret - Songname"</strong> eingegeben werden.
+              {pendingSongInput && (
+                <>
+                  <br /><br />
+                  <strong>Eingegeben:</strong> "{pendingSongInput}"
+                </>
+              )}
+            </FormatModalText>
+            
+            <FormatModalInputs>
+              <FormatModalRow>
+                <Label htmlFor="formatModalArtist" style={{ marginBottom: 0, minWidth: '80px' }}>Interpret:</Label>
+                <FormatModalInput
+                  type="text"
+                  id="formatModalArtist"
+                  value={formatModalArtist}
+                  onChange={(e) => setFormatModalArtist(e.target.value)}
+                  placeholder={`z.B. ${randomExampleSong.artist}`}
+                  autoFocus
+                />
+              </FormatModalRow>
+              
+              <FormatModalRow>
+                <Label htmlFor="formatModalTitle" style={{ marginBottom: 0, minWidth: '80px' }}>Songtitel:</Label>
+                <FormatModalInput
+                  type="text"
+                  id="formatModalTitle"
+                  value={formatModalTitle}
+                  onChange={(e) => setFormatModalTitle(e.target.value)}
+                  placeholder={`z.B. ${randomExampleSong.title}`}
+                />
+              </FormatModalRow>
+            </FormatModalInputs>
+          </FormatModalBody>
+          
+          <FormatModalButtons>
+            <FormatModalButton onClick={handleFormatModalCancel}>
+              Abbrechen
+            </FormatModalButton>
+            <FormatModalButton 
+              $variant="primary"
+              onClick={handleFormatModalConfirm}
+              disabled={!formatModalArtist.trim() || !formatModalTitle.trim()}
+            >
+              Korrigieren
+            </FormatModalButton>
+          </FormatModalButtons>
+        </FormatModalContent>
+      </FormatModal>
     </Container>
   );
 };

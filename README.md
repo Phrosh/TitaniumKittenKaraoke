@@ -12,7 +12,7 @@ Titanium Kitten Karaoke ist ein professionelles Karaoke-Management-System, das s
 
 ## 🎯 Was ist Titanium Kitten Karaoke?
 
-Titanium Kitten Karaoke ist ein vollständiges Karaoke-System, das über einen Web-Browser zugänglich ist. Es funktioniert am besten auf einem Webserver mit statischer IP oder eigener Domain, kann aber auch per ngrok von zu Hause aus betrieben werden. Sowohl die Verwaltung als auch die Live-Videos sind über jeden modernen Web-Browser erreichbar.
+Titanium Kitten Karaoke ist ein vollständigeskonnt Karaoke-System, das über einen Web-Browser zugänglich ist. Es funktioniert am besten auf einem Webserver mit statischer IP oder eigener Domain, kann aber auch per ngrok von zu Hause aus betrieben werden. Sowohl die Verwaltung als auch die Live-Videos sind über jeden modernen Web-Browser erreichbar.
 
 **💡 Tipp:** Verwende einen Webserver mit eigener Domain oder einen leistungsstarken Desktop-PC mit ngrok als Server. Während der Live-Karaoke-Show greifst du dann mit einem Laptop über den Browser darauf zu.
 
