@@ -29,7 +29,18 @@ class YouTubeMetadataService {
   static async getMetadataFromOEmbed(videoId) {
     try {
       const oEmbedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
-      const response = await axios.get(oEmbedUrl, { timeout: 5000 });
+      const response = await axios.get(oEmbedUrl, { 
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
       
       if (response.data && response.data.title) {
         return {
@@ -41,7 +52,55 @@ class YouTubeMetadataService {
       
       return null;
     } catch (error) {
-      console.error('Error fetching YouTube oEmbed data:', error);
+      console.error('Error fetching YouTube oEmbed data:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Alternative Methode: Web-Scraping der YouTube-Seite
+   */
+  static async getMetadataFromScraping(videoId) {
+    try {
+      const url = `https://www.youtube.com/watch?v=${videoId}`;
+      const response = await axios.get(url, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+
+      const html = response.data;
+      
+      // Extrahiere Titel aus dem HTML
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : null;
+      
+      // Extrahiere Channel-Name
+      const channelMatch = html.match(/"ownerText":\s*{\s*"runs":\s*\[\s*{\s*"text":\s*"([^"]+)"/i);
+      const channel = channelMatch ? channelMatch[1] : null;
+      
+      // Extrahiere Thumbnail
+      const thumbnailMatch = html.match(/"thumbnail":\s*{\s*"thumbnails":\s*\[\s*{\s*"url":\s*"([^"]+)"/i);
+      const thumbnail = thumbnailMatch ? thumbnailMatch[1] : null;
+
+      if (title) {
+        return {
+          title: title,
+          author: channel,
+          thumbnail: thumbnail
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error scraping YouTube page:', error.message);
       return null;
     }
   }
@@ -70,7 +129,7 @@ class YouTubeMetadataService {
   static parseTitleAndArtist(youtubeTitle) {
     if (!youtubeTitle) return { title: null, artist: null };
 
-    // Entferne häufige YouTube-Suffixe
+    // Entferne häufige YouTube-Suffixe und Zusätze
     let cleanTitle = youtubeTitle
       .replace(/\s*\(Official Video\)/gi, '')
       .replace(/\s*\(Official Music Video\)/gi, '')
@@ -82,6 +141,9 @@ class YouTubeMetadataService {
       .replace(/\s*\(Audio\)/gi, '')
       .replace(/\s*\(HD\)/gi, '')
       .replace(/\s*\(4K\)/gi, '')
+      .replace(/\s*\(Live\)/gi, '')
+      .replace(/\s*\(Studio Version\)/gi, '')
+      .replace(/\s*\(Remastered\)/gi, '')
       .replace(/\s*\[Official Video\]/gi, '')
       .replace(/\s*\[Official Music Video\]/gi, '')
       .replace(/\s*\[Official\]/gi, '')
@@ -92,10 +154,19 @@ class YouTubeMetadataService {
       .replace(/\s*\[Audio\]/gi, '')
       .replace(/\s*\[HD\]/gi, '')
       .replace(/\s*\[4K\]/gi, '')
+      .replace(/\s*\[Live\]/gi, '')
+      .replace(/\s*\[Studio Version\]/gi, '')
+      .replace(/\s*\[Remastered\]/gi, '')
+      .replace(/\s*feat\.?\s*/gi, 'feat. ')
+      .replace(/\s*ft\.?\s*/gi, 'feat. ')
       .trim();
 
-    // Verschiedene Trennzeichen versuchen
-    const separators = [' - ', ' – ', ' — ', ' | ', ' :: ', ' : '];
+    // Verschiedene Trennzeichen versuchen (erweitert)
+    const separators = [
+      ' - ', ' – ', ' — ', ' | ', ' :: ', ' : ', 
+      ' • ', ' · ', ' ~ ', ' / ', ' \\ ', ' // ',
+      ' feat. ', ' featuring ', ' ft. ', ' with '
+    ];
     
     for (const separator of separators) {
       if (cleanTitle.includes(separator)) {
@@ -106,22 +177,68 @@ class YouTubeMetadataService {
           
           // Validiere dass beide Teile sinnvoll sind
           if (artist.length > 0 && title.length > 0 && 
-              artist.length < 100 && title.length < 200) {
+              artist.length < 100 && title.length < 200 &&
+              !artist.toLowerCase().includes('youtube') &&
+              !title.toLowerCase().includes('youtube')) {
             return { artist, title };
           }
         }
       }
     }
 
-    // Falls kein Trennzeichen gefunden wurde, versuche andere Patterns
-    // Pattern: "Artist: Title" oder "Artist - Title"
+    // Spezielle Patterns für häufige YouTube-Formate
+    // Pattern 1: "Artist: Title"
     const colonMatch = cleanTitle.match(/^([^:]+):\s*(.+)$/);
     if (colonMatch) {
       const artist = colonMatch[1].trim();
       const title = colonMatch[2].trim();
       if (artist.length > 0 && title.length > 0 && 
-          artist.length < 100 && title.length < 200) {
+          artist.length < 100 && title.length < 200 &&
+          !artist.toLowerCase().includes('youtube') &&
+          !title.toLowerCase().includes('youtube')) {
         return { artist, title };
+      }
+    }
+
+    // Pattern 2: "Artist - Title (feat. Other Artist)"
+    const featMatch = cleanTitle.match(/^([^-]+)\s*-\s*(.+?)(?:\s*\(feat\.?\s*[^)]+\))?$/i);
+    if (featMatch) {
+      const artist = featMatch[1].trim();
+      const title = featMatch[2].trim();
+      if (artist.length > 0 && title.length > 0 && 
+          artist.length < 100 && title.length < 200 &&
+          !artist.toLowerCase().includes('youtube') &&
+          !title.toLowerCase().includes('youtube')) {
+        return { artist, title };
+      }
+    }
+
+    // Pattern 3: "Title by Artist" oder "Title - Artist"
+    const byMatch = cleanTitle.match(/^(.+?)\s+(?:by|von)\s+(.+)$/i);
+    if (byMatch) {
+      const title = byMatch[1].trim();
+      const artist = byMatch[2].trim();
+      if (artist.length > 0 && title.length > 0 && 
+          artist.length < 100 && title.length < 200 &&
+          !artist.toLowerCase().includes('youtube') &&
+          !title.toLowerCase().includes('youtube')) {
+        return { artist, title };
+      }
+    }
+
+    // Pattern 4: Versuche das erste Wort als Artist zu nehmen wenn es großgeschrieben ist
+    const words = cleanTitle.split(/\s+/);
+    if (words.length >= 2) {
+      const firstWord = words[0];
+      // Wenn das erste Wort wie ein Artist-Name aussieht (nicht zu lang, keine Zahlen)
+      if (firstWord.length > 1 && firstWord.length < 30 && 
+          !firstWord.match(/^\d+$/) && 
+          !firstWord.toLowerCase().includes('youtube')) {
+        const artist = firstWord;
+        const title = words.slice(1).join(' ');
+        if (title.length > 0 && title.length < 200) {
+          return { artist, title };
+        }
       }
     }
 
@@ -139,25 +256,53 @@ class YouTubeMetadataService {
         throw new Error('Keine gültige YouTube-Video-ID gefunden');
       }
 
-      // Parallel beide APIs aufrufen
-      const [metadata, duration] = await Promise.all([
-        this.getMetadataFromOEmbed(videoId),
-        this.getVideoDuration(videoId)
-      ]);
+      console.log(`🎵 Attempting to get metadata for video ID: ${videoId}`);
+
+      // Versuche zuerst oEmbed API
+      let metadata = await this.getMetadataFromOEmbed(videoId);
+      
+      // Falls oEmbed fehlschlägt, versuche Web-Scraping
+      if (!metadata) {
+        console.log(`⚠️ oEmbed failed, trying web scraping...`);
+        metadata = await this.getMetadataFromScraping(videoId);
+      }
 
       if (!metadata) {
-        throw new Error('Metadaten konnten nicht abgerufen werden');
+        throw new Error('Metadaten konnten nicht abgerufen werden - beide Methoden fehlgeschlagen');
       }
+
+      console.log(`✅ Metadata retrieved: "${metadata.title}" by "${metadata.author}"`);
 
       const { artist, title } = this.parseTitleAndArtist(metadata.title);
 
+      // Debugging: Logge das Parsing-Ergebnis
+      console.log(`🎵 YouTube Parsing Debug:`);
+      console.log(`   Original Title: "${metadata.title}"`);
+      console.log(`   Parsed Artist: "${artist}"`);
+      console.log(`   Parsed Title: "${title}"`);
+
+      // Fallback: Wenn Parsing fehlschlägt, versuche bessere Fallbacks
+      let finalArtist = artist;
+      let finalTitle = title || metadata.title;
+
+      if (!finalArtist) {
+        // Versuche den Channel-Namen als Artist zu verwenden
+        if (metadata.author) {
+          finalArtist = metadata.author;
+          console.log(`   Using channel name as artist: "${finalArtist}"`);
+        } else {
+          finalArtist = 'Unknown Artist';
+          console.log(`   No artist found, using fallback: "${finalArtist}"`);
+        }
+      }
+
       return {
-        title: title || metadata.title,
-        artist: artist,
+        title: finalTitle,
+        artist: finalArtist,
         youtube_title: metadata.title,
         thumbnail: metadata.thumbnail,
         video_id: videoId,
-        duration_seconds: duration
+        duration_seconds: null // Dauer ist mit diesen Methoden nicht verfügbar
       };
 
     } catch (error) {
