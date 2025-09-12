@@ -1000,18 +1000,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleYouTubeFieldClick = async (song: Song) => {
-    const currentLink = youtubeLinks[song.id] || song.youtube_url;
-    if (currentLink) {
-      try {
-        await navigator.clipboard.writeText(currentLink);
-        toast.success('YouTube-Link in die Zwischenablage kopiert!');
-      } catch (error) {
-        console.error('Error copying YouTube link:', error);
-        toast.error('Fehler beim Kopieren des YouTube-Links');
-      }
-    }
-  };
 
   const handleYouTubeFieldChange = (songId: number, value: string) => {
     setYoutubeLinks(prev => ({
@@ -2247,9 +2235,10 @@ const AdminDashboard: React.FC = () => {
                             value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
                             onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
                             onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleYouTubeFieldClick(song);
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleYouTubeFieldBlur(song.id, e.currentTarget.value);
+                              }
                             }}
                           />
                         )}
@@ -3320,6 +3309,11 @@ const AdminDashboard: React.FC = () => {
                 type="url"
                 value={formData.youtubeUrl}
                 onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveSong();
+                  }
+                }}
                 placeholder="https://www.youtube.com/watch?v=..."
               />
             </FormGroup>
