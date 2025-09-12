@@ -161,6 +161,27 @@ class YouTubeMetadataService {
       .replace(/\s*ft\.?\s*/gi, 'feat. ')
       .trim();
 
+    // Entferne Karaoke-spezifische Strings
+    const karaokeStrings = [
+      '(Karaoke Version)', '(Karaoke)', '(Karaoke Mix)', '(Karaoke Track)',
+      '(Karaoke Instrumental)', '(Instrumental Karaoke)',
+      '[Karaoke Version]', '[Karaoke]', '[Karaoke Mix]', '[Karaoke Track]',
+      '[Karaoke Instrumental]', '[Instrumental Karaoke]',
+      '- Karaoke Version', '- Karaoke', '- Karaoke Mix', '- Karaoke Track',
+      '- Karaoke Instrumental', '- Instrumental Karaoke',
+      'Karaoke Version', 'Karaoke Mix', 'Karaoke Track',
+      'Karaoke Instrumental', 'Instrumental Karaoke'
+    ];
+
+    karaokeStrings.forEach(karaokeString => {
+      const regex = new RegExp(karaokeString.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      cleanTitle = cleanTitle.replace(regex, '').trim();
+    });
+
+    // Bereinige doppelte Leerzeichen und führende/nachfolgende Satzzeichen
+    cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
+    cleanTitle = cleanTitle.replace(/^[-\s]+|[-\s]+$/g, '').trim();
+
     // Verschiedene Trennzeichen versuchen (erweitert)
     const separators = [
       ' - ', ' – ', ' — ', ' | ', ' :: ', ' : ', 

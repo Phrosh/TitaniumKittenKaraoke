@@ -644,6 +644,7 @@ const DropZone = styled.div<{ $isVisible?: boolean }>`
 const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'edit' | 'youtube'>('edit');
