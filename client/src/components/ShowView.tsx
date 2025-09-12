@@ -12,7 +12,7 @@ interface CurrentSong {
   artist: string;
   title: string;
   youtube_url: string;
-  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar';
+  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
   position: number;
   duration_seconds?: number;
   with_background_vocals?: boolean;
@@ -599,6 +599,9 @@ const ShowView: React.FC = () => {
   const nextLyricRef = useRef<HTMLDivElement | null>(null);
   const nextNextLyricRef = useRef<HTMLDivElement | null>(null);
   const lastLoggedText = useRef<string>('');
+  const lastUpdateTime = useRef<number>(0);
+  const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions
+  
   // Constants for display settings
   const UNSUNG_COLOR = '#ffffff';
   const CURRENT_LINE_OPACITY = 1;
@@ -684,20 +687,28 @@ const ShowView: React.FC = () => {
 
 
   const setLyricContent = (ref: React.RefObject<HTMLDivElement>, line: any, color: string, opacity: number) => {
-    if (ref.current) {
-      if (line) {
-        const lineText = getLineText(line);
-        ref.current.innerHTML = `<span style="color: ${color}; opacity: ${opacity};">${lineText}</span>`;
-      } else {
-        ref.current.textContent = '';
-      }
+    const element = ref.current;
+    if (element) {
+      requestAnimationFrame(() => {
+        // Double-check ref is still valid after requestAnimationFrame
+        if (!ref.current) return;
+        
+        if (line) {
+          const lineText = getLineText(line);
+          ref.current.innerHTML = `<span style="color: ${color}; opacity: ${opacity};">${lineText}</span>`;
+        } else {
+          ref.current.textContent = '';
+        }
+      });
     }
   };
 
   const clearAllLyrics = () => {
-    if (currentLyricRef.current) currentLyricRef.current.textContent = '';
-    if (nextLyricRef.current) nextLyricRef.current.textContent = '';
-    if (nextNextLyricRef.current) nextNextLyricRef.current.textContent = '';
+    requestAnimationFrame(() => {
+      if (currentLyricRef.current) currentLyricRef.current.textContent = '';
+      if (nextLyricRef.current) nextLyricRef.current.textContent = '';
+      if (nextNextLyricRef.current) nextNextLyricRef.current.textContent = '';
+    });
   };
 
   const updateLyricsDisplay = (currentLine: any, nextLine: any, nextNextLine: any, isActive: boolean = false) => {
@@ -800,6 +811,17 @@ const ShowView: React.FC = () => {
     const updateLyrics = () => {
       if (!audioRef.current) return;
       
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastUpdateTime.current;
+      
+      // Throttle updates to prevent race conditions
+      if (timeSinceLastUpdate < UPDATE_THROTTLE_MS) {
+        animationFrameRef.current = requestAnimationFrame(updateLyrics);
+        return;
+      }
+      
+      lastUpdateTime.current = now;
+      
       const currentTime = audioRef.current.currentTime * 1000; // Convert to milliseconds
       const songTime = currentTime - songData.gap; // Subtract gap
       
@@ -879,17 +901,21 @@ const ShowView: React.FC = () => {
           currentBeat >= note.startBeat && currentBeat < note.startBeat + note.duration
         );
         
-        // Update current line with highlighted syllable
-        if (currentLyricRef.current) {
-          if (currentSyllable && currentSyllable.text.trim()) {
-            // Clear and rebuild the line wie, soth proper spacing
-            if (currentLyricRef.current) {
+        // Update current line with highlighted syllable - use requestAnimationFrame for safe DOM updates
+        const currentLyricElement = currentLyricRef.current;
+        if (currentLyricElement) {
+          // Use requestAnimationFrame to ensure DOM updates happen safely
+          requestAnimationFrame(() => {
+            // Double-check ref is still valid after requestAnimationFrame
+            if (!currentLyricRef.current) return;
+            
+            if (currentSyllable && currentSyllable.text.trim()) {
+              // Clear and rebuild the line with proper spacing
               currentLyricRef.current.innerHTML = '';
               
               currentLine.notes.forEach((note: UltrastarNote, index: number) => {
                 const isSung = note.startBeat < currentSyllable.startBeat;
                 const isCurrent = note.startBeat === currentSyllable.startBeat;
-                const isLast = index === currentLine.notes.length - 1;
                 
                 // Create note span
                 const noteSpan = document.createElement('span');
@@ -911,7 +937,9 @@ const ShowView: React.FC = () => {
                   
                   // Apply scaling after DOM is ready
                   setTimeout(() => {
-                    noteSpan.style.transform = 'scale(1.1)';
+                    if (noteSpan.parentNode) {
+                      noteSpan.style.transform = 'scale(1.1)';
+                    }
                   }, 0);
                   
                   const whiteSpan = document.createElement('span');
@@ -937,19 +965,15 @@ const ShowView: React.FC = () => {
                 }
                 
                 if (currentLyricRef.current) {
-                currentLyricRef.current.appendChild(noteSpan);
+                  currentLyricRef.current.appendChild(noteSpan);
                 }
-                
               });
-            }
-          } else {
-            // No active syllable, but show already sung syllables in highlight color
-            if (currentLyricRef.current) {
+            } else {
+              // No active syllable, but show already sung syllables in highlight color
               currentLyricRef.current.innerHTML = '';
               
               currentLine.notes.forEach((note: UltrastarNote, index: number) => {
                 const isSung = note.startBeat < currentBeat;
-                const isLast = index === currentLine.notes.length - 1;
                 
                 // Create note span
                 const noteSpan = document.createElement('span');
@@ -966,11 +990,11 @@ const ShowView: React.FC = () => {
                 }
                 
                 if (currentLyricRef.current) {
-                currentLyricRef.current.appendChild(noteSpan);
+                  currentLyricRef.current.appendChild(noteSpan);
                 }
               });
             }
-          }
+          });
         }
         
         // Update next lines using helper function (but keep current line with syllable logic)
@@ -1056,12 +1080,17 @@ const ShowView: React.FC = () => {
           // Show last line for 3 seconds with fade-out styling
           console.log('🎵 Alle Zeilen gesungen - zeige letzte Zeile für 3 Sekunden');
           
-          if (currentLyricRef.current) {
-            currentLyricRef.current.innerHTML = '';
-            currentLyricRef.current.style.color = HIGHLIGHT_COLOR;
-            currentLyricRef.current.style.fontWeight = 'bold';
-            currentLyricRef.current.style.opacity = '1';
-            currentLyricRef.current.textContent = getLineText(lastLine);
+          const currentLyricElement = currentLyricRef.current;
+          if (currentLyricElement) {
+            requestAnimationFrame(() => {
+              if (currentLyricRef.current) {
+                currentLyricRef.current.innerHTML = '';
+                currentLyricRef.current.style.color = HIGHLIGHT_COLOR;
+                currentLyricRef.current.style.fontWeight = 'bold';
+                currentLyricRef.current.style.opacity = '1';
+                currentLyricRef.current.textContent = getLineText(lastLine);
+              }
+            });
           }
           
           // Hide next lines
@@ -1150,16 +1179,12 @@ const ShowView: React.FC = () => {
       setUltrastarData(songData);
       setCurrentNoteIndex(0);
       
-      // Disable transition before hiding lyrics container
-      setShowLyrics(false); // Reset lyrics visibility for new song
-      console.log('lyrics scale from loadUltrastarData');
+      // Reset all states atomically to prevent race conditions
+      setShowLyrics(false);
       setLyricsScale(0);
-    
-      setIsFadeOutMode(false); // Reset fade-out mode for new song
-      setFadeOutLineIndex(null); // Reset fade-out line index for new song
-      setFadeOutLineIndices(new Set()); // Reset fade-out line indices for new song
-      
-      // Reset progress for new song
+      setIsFadeOutMode(false);
+      setFadeOutLineIndex(null);
+      setFadeOutLineIndices(new Set());
       stopProgress();
       
       console.log('🎵 Ultrastar data loaded:', {
@@ -1174,16 +1199,13 @@ const ShowView: React.FC = () => {
       // Analyze and log all fade-out lines
       const fadeOutIndices = analyzeFadeOutLines(songData);
       
+      // Don't start timing immediately - wait for audio to be ready
+      // Timing will be started in handleAudioCanPlay when audio is fully loaded
       
-      
-      // Start timing if audio is available
-      if (songData.audioUrl) {
-        startUltrastarTiming(songData, fadeOutIndices);
-      }
     } catch (error) {
       console.error('Error loading Ultrastar data:', error);
     }
-  }, [startUltrastarTiming, stopProgress]);
+  }, [stopProgress]);
 
   // Show lyrics immediately when ultrastar data is loaded
   useEffect(() => {
@@ -1236,18 +1258,17 @@ const ShowView: React.FC = () => {
         if (newSong && newSong.mode === 'ultrastar') {
           await loadUltrastarData(newSong);
         } else {
-          // Clear ultrastar data for non-ultrastar songs
-          setUltrastarData(null);
-          
-          setShowLyrics(false); // Hide lyrics when switching away from ultrastar
-          console.log('lyrics scale from fetch current song');
-          setLyricsScale(0);
-        
-          setIsFadeOutMode(false); // Reset fade-out mode when switching away from ultrastar
-          setFadeOutLineIndex(null); // Reset fade-out line index when switching away from ultrastar
-          setFadeOutLineIndices(new Set()); // Reset fade-out line indices when switching away from ultrastar
+          // Clear ultrastar data for non-ultrastar songs - do this atomically
           stopUltrastarTiming();
-          stopProgress(); // Reset progress when switching away from ultrastar
+          stopProgress();
+          
+          // Reset all states atomically to prevent race conditions
+          setUltrastarData(null);
+          setShowLyrics(false);
+          setLyricsScale(0);
+          setIsFadeOutMode(false);
+          setFadeOutLineIndex(null);
+          setFadeOutLineIndices(new Set());
         }
         
         // Start timer for new song
@@ -1326,7 +1347,7 @@ const ShowView: React.FC = () => {
   const isServerVideo = currentSong?.mode === 'server_video';
   const isFileVideo = currentSong?.mode === 'file';
   const isUltrastar = currentSong?.mode === 'ultrastar';
-  const isYouTubeCache = currentSong?.mode === 'youtube_cache';
+  const isYouTubeCache = (currentSong?.mode as string) === 'youtube_cache';
   const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar && !isYouTubeCache ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   useEffect(() => {
@@ -1359,7 +1380,13 @@ const ShowView: React.FC = () => {
       title: currentSong?.title
     });
     setAudioLoaded(true);
-  }, [currentSong?.id, currentSong?.title]);
+    
+    // Start timing only when audio is ready to prevent race conditions
+    if (ultrastarData && ultrastarData.audioUrl && ultrastarData.bpm > 0) {
+      const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
+      startUltrastarTiming(ultrastarData, fadeOutIndices);
+    }
+  }, [currentSong?.id, currentSong?.title, ultrastarData, startUltrastarTiming]);
 
   const [songChanged, setSongChanged] = useState(true);
 
@@ -1573,33 +1600,44 @@ const ShowView: React.FC = () => {
   // Start autoplay when both media are ready
   useEffect(() => {
     if (canAutoPlay && audioRef.current && audioRef.current.paused) {
-      console.log('🎵 Starting autoplay for Ultrastar song:', {
-        songId: currentSong?.id,
-        title: currentSong?.title,
-        audioLoaded,
-        videoLoaded,
-        hasVideo: !!ultrastarData?.videoUrl
-      });
+      // Add a small delay to ensure all DOM updates are complete
+      const playTimeout = setTimeout(() => {
+        if (audioRef.current && audioRef.current.paused) {
+          console.log('🎵 Starting autoplay for Ultrastar song:', {
+            songId: currentSong?.id,
+            title: currentSong?.title,
+            audioLoaded,
+            videoLoaded,
+            hasVideo: !!ultrastarData?.videoUrl
+          });
+          
+          audioRef.current.play().catch(error => {
+            console.error('🎵 Autoplay failed:', error);
+          });
+        }
+      }, 100); // 100ms delay to prevent race conditions
       
-      audioRef.current.play().catch(error => {
-        console.error('🎵 Autoplay failed:', error);
-      });
+      return () => clearTimeout(playTimeout);
     }
   }, [canAutoPlay, currentSong?.id, currentSong?.title, audioLoaded, videoLoaded, ultrastarData?.videoUrl]);
 
   // Reset loading states when song changes
   useEffect(() => {
     if (currentSong?.id !== lastSongId) {
+      // Stop all timing and progress first
+      stopUltrastarTiming();
+      stopProgress();
+      
+      // Reset all states atomically to prevent race conditions
       setAudioLoaded(false);
       setVideoLoaded(false);
       setCanAutoPlay(false);
       setShowLyrics(false);
-      setIsFadeOutMode(false); // Reset fade-out mode for new song
-      setFadeOutLineIndex(null); // Reset fade-out line index for new song
-      setFadeOutLineIndices(new Set()); // Reset fade-out line indices for new song
-      stopProgress(); // Reset progress for new song
+      setIsFadeOutMode(false);
+      setFadeOutLineIndex(null);
+      setFadeOutLineIndices(new Set());
     }
-  }, [currentSong?.id, lastSongId, stopProgress]);
+  }, [currentSong?.id, lastSongId, stopUltrastarTiming, stopProgress]);
 
   // Initialize cursor timer on component mount
   useEffect(() => {
