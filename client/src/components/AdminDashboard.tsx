@@ -1813,6 +1813,22 @@ const AdminDashboard: React.FC = () => {
     setDownloadingVideo(false);
   };
 
+  const handleProcessWithoutVideo = async () => {
+    if (!selectedSongForDownload) {
+      toast.error('Kein Song für Verarbeitung ausgewählt');
+      return;
+    }
+    
+    const songKey = `${selectedSongForDownload.artist}-${selectedSongForDownload.title}`;
+    const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
+    
+    // Close dialog first
+    handleCloseYouTubeDialog();
+    
+    // Start processing without video
+    await startNormalProcessing(selectedSongForDownload, songKey, folderName);
+  };
+
   // Helper function to mark processing as completed (for future polling implementation)
   const markProcessingCompleted = (song: any) => {
     const songKey = `${song.artist}-${song.title}`;
@@ -3693,7 +3709,7 @@ const AdminDashboard: React.FC = () => {
               lineHeight: '1.5'
             }}>
               Für <strong>{selectedSongForDownload?.artist} - {selectedSongForDownload?.title}</strong> wurde kein Video gefunden.
-              Bitte gib eine YouTube-URL ein, um das Video herunterzuladen.
+              Du kannst optional eine YouTube-URL eingeben, um das Video herunterzuladen, oder ohne Video fortfahren.
             </p>
             
             <div style={{ marginBottom: '20px' }}>
@@ -3704,7 +3720,7 @@ const AdminDashboard: React.FC = () => {
                 fontWeight: '500',
                 color: '#333'
               }}>
-                YouTube-URL:
+                YouTube-URL (optional):
               </label>
               <input
                 type="url"
@@ -3760,6 +3776,39 @@ const AdminDashboard: React.FC = () => {
                 }}
               >
                 Abbrechen
+              </button>
+              
+              <button
+                onClick={handleProcessWithoutVideo}
+                disabled={downloadingVideo}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #28a745',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#28a745',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: downloadingVideo ? 'not-allowed' : 'pointer',
+                  opacity: downloadingVideo ? 0.6 : 1,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!downloadingVideo) {
+                    e.currentTarget.style.backgroundColor = '#28a745';
+                    e.currentTarget.style.color = 'white';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!downloadingVideo) {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.color = '#28a745';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                ⚡ Ohne Video fortfahren
               </button>
               
               <button
