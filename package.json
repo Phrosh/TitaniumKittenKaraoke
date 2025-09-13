@@ -25,6 +25,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1",
     "sqlite3": "^5.1.6",
     "tough-cookie": "^5.1.2"
   },

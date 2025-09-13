@@ -6,6 +6,7 @@ const User = require('../models/User');
 const { verifyToken } = require('./auth');
 const db = require('../config/database');
 const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../utils/youtubeSongs');
+const { broadcastQRCodeToggle, broadcastSongChange, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
 
 const router = express.Router();
 
@@ -271,6 +272,14 @@ router.delete('/clear-all', async (req, res) => {
     // Reset current song
     await Song.setCurrentSong(0);
 
+    // Broadcast song change via WebSocket (no current song)
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastSongChange(io, null);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
+
     res.json({ message: 'All songs cleared successfully' });
   } catch (error) {
     console.error('Clear all songs error:', error);
@@ -451,6 +460,13 @@ router.put('/qr-overlay', [
         }
       );
     });
+
+    // Broadcast QR code toggle via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastQRCodeToggle(io, show);
+      await broadcastAdminUpdate(io);
+    }
 
     res.json({ message: 'QR-Code Overlay Status aktualisiert', show });
   } catch (error) {
@@ -1648,6 +1664,14 @@ router.post('/song/test', async (req, res) => {
 
     // Set the test song as current song
     await Song.setCurrentSong(testSong.id);
+
+    // Broadcast song change via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastSongChange(io, testSong);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
 
     console.log(`🎤 Test song started: ${artist} - ${title} (Admin: ${adminUsername})`);
     

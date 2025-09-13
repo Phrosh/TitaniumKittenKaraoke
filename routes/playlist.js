@@ -2,6 +2,7 @@ const express = require('express');
 const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const { verifyToken } = require('./auth');
+const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
 
 const router = express.Router();
 
@@ -79,6 +80,14 @@ router.put('/reorder', verifyToken, async (req, res) => {
     // Update the song's position
     await Song.updatePosition(songId, newPosition);
 
+    // Broadcast playlist update via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastShowUpdate(io);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
+
     res.json({ message: 'Playlist reordered successfully' });
   } catch (error) {
     console.error('Reorder playlist error:', error);
@@ -114,6 +123,14 @@ router.put('/current', verifyToken, async (req, res) => {
         }
       );
     });
+    
+    // Broadcast song change via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastSongChange(io, song);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
     
     res.json({ message: 'Current song updated', song });
   } catch (error) {
@@ -155,6 +172,14 @@ router.post('/next', verifyToken, async (req, res) => {
       );
     });
     
+    // Broadcast song change via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastSongChange(io, nextSong);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
+    
     res.json({ message: 'Moved to next song', song: nextSong });
   } catch (error) {
     console.error('Next song error:', error);
@@ -187,6 +212,14 @@ router.delete('/:songId', verifyToken, async (req, res) => {
         }
       );
     });
+
+    // Broadcast playlist update via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastShowUpdate(io);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
 
     res.json({ message: 'Song deleted successfully' });
   } catch (error) {

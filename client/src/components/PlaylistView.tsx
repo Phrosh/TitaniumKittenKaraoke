@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { songAPI } from '../services/api';
 import { PlaylistResponse } from '../types';
+import websocketService, { PlaylistUpdateData } from '../services/websocket';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -118,12 +119,46 @@ const PlaylistView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPlaylist();
-    // Refresh every 5 seconds
-    const interval = setInterval(fetchPlaylist, 5000);
-    return () => clearInterval(interval);
+  const handlePlaylistWebSocketUpdate = useCallback((data: PlaylistUpdateData) => {
+    // Update playlist data with WebSocket data
+    setPlaylistData({
+      playlist: data.playlist,
+      currentSong: data.currentSong,
+      maxDelay: data.maxDelay,
+      total: data.total
+    });
+    setError(null);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchPlaylist();
+    
+    // Connect to WebSocket
+    websocketService.connect().then(() => {
+      console.log('🔌 Connected to WebSocket for playlist updates');
+      websocketService.joinPlaylistRoom();
+    }).catch((error) => {
+      console.error('🔌 Failed to connect to WebSocket, falling back to polling:', error);
+      
+      // Fallback to polling if WebSocket fails
+      const interval = setInterval(fetchPlaylist, 5000);
+      
+      return () => {
+        clearInterval(interval);
+      };
+    });
+
+    // Set up WebSocket event listener
+    websocketService.onPlaylistUpdate(handlePlaylistWebSocketUpdate);
+
+    return () => {
+      websocketService.offPlaylistUpdate(handlePlaylistWebSocketUpdate);
+      websocketService.leavePlaylistRoom();
+      websocketService.disconnect();
+    };
+  }, [handlePlaylistWebSocketUpdate]);
 
   const fetchPlaylist = async () => {
     try {

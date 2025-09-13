@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
+import websocketService, { AdminUpdateData } from '../services/websocket';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -762,13 +763,68 @@ const AdminDashboard: React.FC = () => {
     );
   }, [dashboardData?.youtubeSongs]);
 
+  const handleAdminWebSocketUpdate = useCallback((data: AdminUpdateData) => {
+    // Update dashboard data with WebSocket data
+    setDashboardData(prevData => ({
+      ...prevData,
+      playlist: data.playlist,
+      currentSong: data.currentSong,
+      maxDelay: data.maxDelay,
+      total: data.total,
+      settings: data.settings
+    }));
+    
+    // Update local state from settings
+    if (data.settings) {
+      if (data.settings.regression_value) {
+        setRegressionValue(parseFloat(data.settings.regression_value));
+      }
+      if (data.settings.custom_url) {
+        setCustomUrl(data.settings.custom_url);
+      }
+      if (data.settings.overlay_title) {
+        setOverlayTitle(data.settings.overlay_title);
+      }
+      if (data.settings.youtube_enabled) {
+        setYoutubeEnabled(data.settings.youtube_enabled === 'true');
+      }
+      if (data.settings.show_qr_overlay) {
+        setShowQRCodeOverlay(data.settings.show_qr_overlay === 'true');
+      }
+    }
+    
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
+    // Initial fetch
     fetchDashboardData();
     fetchUSDBCredentials();
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
-  }, [fetchDashboardData]);
+    
+    // Connect to WebSocket
+    websocketService.connect().then(() => {
+      console.log('🔌 Connected to WebSocket for admin updates');
+      websocketService.joinAdminRoom();
+    }).catch((error) => {
+      console.error('🔌 Failed to connect to WebSocket, falling back to polling:', error);
+      
+      // Fallback to polling if WebSocket fails
+      const interval = setInterval(fetchDashboardData, 10000);
+      
+      return () => {
+        clearInterval(interval);
+      };
+    });
+
+    // Set up WebSocket event listener
+    websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
+
+    return () => {
+      websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
+      websocketService.leaveAdminRoom();
+      websocketService.disconnect();
+    };
+  }, [fetchDashboardData, handleAdminWebSocketUpdate]);
 
   // Load admin users when users tab is active
   useEffect(() => {

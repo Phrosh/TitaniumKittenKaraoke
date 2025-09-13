@@ -8,6 +8,7 @@ const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
 const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
 const { findFileSong } = require('../utils/fileSongs');
 const { scanYouTubeSongs, searchYouTubeSongs, findYouTubeSong, downloadYouTubeVideo } = require('../utils/youtubeSongs');
+const { broadcastQRCodeToggle, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
 const path = require('path');
 const fs = require('fs');
 
@@ -463,6 +464,14 @@ router.post('/request', [
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);
+
+    // Broadcast playlist update via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastShowUpdate(io);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
 
     res.json({
       success: true,
@@ -1439,6 +1448,13 @@ router.put('/qr-overlay', [
         }
       );
     });
+
+    // Broadcast QR code toggle via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastQRCodeToggle(io, show);
+      await broadcastAdminUpdate(io);
+    }
 
     res.json({ message: 'QR Overlay Status erfolgreich aktualisiert', show });
   } catch (error) {

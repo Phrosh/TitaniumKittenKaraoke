@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { showAPI, songAPI } from '../services/api';
+import websocketService, { ShowUpdateData } from '../services/websocket';
 
 // Constants will be moved inside component to use dynamic settings
 
@@ -1292,17 +1293,92 @@ const ShowView: React.FC = () => {
     }
   };
 
+  const handleWebSocketUpdate = useCallback((data: ShowUpdateData) => {
+    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle } = data;
+    
+    // Update QR overlay state
+    setShowQRCodeOverlay(showQRCodeOverlay);
+    if (qrCodeDataUrl) {
+      setQrCodeUrl(qrCodeDataUrl);
+    }
+    
+    // Update overlay title
+    setOverlayTitle(overlayTitle);
+    
+    // Nur State aktualisieren wenn sich der Song geändert hat
+    if (!newSong || newSong.id !== lastSongId) {
+      setCurrentSong(newSong as CurrentSong);
+      setLastSongId(newSong?.id || null);
+      setError(null);
+      
+      // Automatically hide overlay when song changes
+      if (showQRCodeOverlay) {
+        showAPI.toggleQRCodeOverlay(false).catch(error => {
+          console.error('Error hiding overlay:', error);
+        });
+      }
+      
+      // Load Ultrastar data if it's an ultrastar song
+      if (newSong && newSong.mode === 'ultrastar') {
+        loadUltrastarData(newSong as CurrentSong).catch(error => {
+          console.error('Error loading ultrastar data:', error);
+        });
+      } else {
+        // Clear ultrastar data for non-ultrastar songs - do this atomically
+        stopUltrastarTiming();
+        stopProgress();
+        
+        // Reset all states atomically to prevent race conditions
+        setUltrastarData(null);
+        setShowLyrics(false);
+        setLyricsScale(0);
+        setIsFadeOutMode(false);
+        setFadeOutLineIndex(null);
+        setFadeOutLineIndices(new Set());
+      }
+      
+      // Start timer for new song
+      if (newSong && newSong.duration_seconds) {
+        setVideoStartTime(Date.now());
+        setTimeRemaining(newSong.duration_seconds);
+      } else {
+        setVideoStartTime(null);
+        setTimeRemaining(null);
+      }
+    }
+    
+    setNextSongs(nextSongs);
+    setLoading(false);
+  }, [lastSongId, showAPI, stopUltrastarTiming, stopProgress]);
+
   useEffect(() => {
+    // Initial fetch
     fetchCurrentSong();
     
-    // Refresh every 2 seconds to catch song changes
-    const interval = setInterval(fetchCurrentSong, 2000);
-    
+    // Connect to WebSocket
+    websocketService.connect().then(() => {
+      console.log('🔌 Connected to WebSocket for real-time updates');
+    }).catch((error) => {
+      console.error('🔌 Failed to connect to WebSocket, falling back to polling:', error);
+      
+      // Fallback to polling if WebSocket fails
+      const interval = setInterval(fetchCurrentSong, 2000);
+      
+      return () => {
+        clearInterval(interval);
+        stopUltrastarTiming();
+      };
+    });
+
+    // Set up WebSocket event listener
+    websocketService.onShowUpdate(handleWebSocketUpdate);
+
     return () => {
-      clearInterval(interval);
+      websocketService.offShowUpdate(handleWebSocketUpdate);
+      websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
-  }, [lastSongId]);
+  }, [handleWebSocketUpdate]);
 
   // Timer effect
   useEffect(() => {

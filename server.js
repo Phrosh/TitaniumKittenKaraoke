@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const { router: authRoutes } = require('./routes/auth');
@@ -12,6 +14,13 @@ const adminRoutes = require('./routes/admin');
 const showRoutes = require('./routes/show');
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: true, // Allow all origins in development, restrict in production
+    credentials: true
+  }
+});
 const PORT = process.env.PORT || 5000;
 
 // Trust proxy for ngrok and other tunneling services
@@ -220,9 +229,58 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+// WebSocket connection handling
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected: ${socket.id}`);
+  
+  // Join show room for real-time updates
+  socket.on('join-show', () => {
+    socket.join('show');
+    console.log(`📺 Client ${socket.id} joined show room`);
+  });
+  
+  // Leave show room
+  socket.on('leave-show', () => {
+    socket.leave('show');
+    console.log(`📺 Client ${socket.id} left show room`);
+  });
+
+  // Join admin room for real-time updates
+  socket.on('join-admin', () => {
+    socket.join('admin');
+    console.log(`📊 Client ${socket.id} joined admin room`);
+  });
+  
+  // Leave admin room
+  socket.on('leave-admin', () => {
+    socket.leave('admin');
+    console.log(`📊 Client ${socket.id} left admin room`);
+  });
+
+  // Join playlist room for real-time updates
+  socket.on('join-playlist', () => {
+    socket.join('playlist');
+    console.log(`📋 Client ${socket.id} joined playlist room`);
+  });
+  
+  // Leave playlist room
+  socket.on('leave-playlist', () => {
+    socket.leave('playlist');
+    console.log(`📋 Client ${socket.id} left playlist room`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`🔌 Client disconnected: ${socket.id}`);
+  });
+});
+
+// Make io available to routes
+app.set('io', io);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔌 WebSocket server ready`);
   
   // Organize loose TXT files on server startup
   try {
