@@ -219,6 +219,43 @@ const RightButtons = styled.div`
   gap: 8px;
 `;
 
+const ControlButtonGroup = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const ControlButton = styled.button`
+  background: #34495e;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover:not(:disabled) {
+    background: #2c3e50;
+    transform: scale(1.05);
+  }
+
+  &:disabled {
+    background: #7f8c8d;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+`;
+
 const SmallButton = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
   background: ${props => 
     props.variant === 'success' ? '#27ae60' :
@@ -689,6 +726,7 @@ const AdminDashboard: React.FC = () => {
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
   const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
+  const [isPlaying, setIsPlaying] = useState(false);
   const [manualSongData, setManualSongData] = useState({
     singerName: '',
     songInput: ''
@@ -884,11 +922,17 @@ const AdminDashboard: React.FC = () => {
       };
     });
 
-    // Set up WebSocket event listener
+    // Set up WebSocket event listeners
     websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
+    
+    // Listen for play/pause toggle events to update isPlaying state
+    websocketService.on('toggle-play-pause', () => {
+      setIsPlaying(prev => !prev);
+    });
 
     return () => {
       websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
+      websocketService.off('toggle-play-pause');
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };
@@ -1237,6 +1281,42 @@ const AdminDashboard: React.FC = () => {
       await fetchDashboardData();
     } catch (error) {
       console.error('Error moving to next song:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePreviousSong = async () => {
+    setActionLoading(true);
+    try {
+      await playlistAPI.previousSong();
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error moving to previous song:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTogglePlayPause = async () => {
+    setActionLoading(true);
+    try {
+      await playlistAPI.togglePlayPause();
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error toggling play/pause:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRestartSong = async () => {
+    setActionLoading(true);
+    try {
+      await playlistAPI.restartSong();
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error restarting song:', error);
     } finally {
       setActionLoading(false);
     }
@@ -2342,12 +2422,6 @@ const AdminDashboard: React.FC = () => {
             value={manualSongData.songInput}
             onChange={(e) => setManualSongData(prev => ({ ...prev, songInput: e.target.value }))}
           />
-          <ManualSongButton 
-            onClick={handleManualSongSubmit}
-            disabled={actionLoading}
-          >
-            {actionLoading ? 'Hinzufügen...' : '➕ Hinzufügen'}
-          </ManualSongButton>
           <button
             type="button"
             onClick={handleOpenManualSongList}
@@ -2359,11 +2433,17 @@ const AdminDashboard: React.FC = () => {
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '1rem',
-              marginLeft: '15px'
+              marginRight: '15px'
             }}
           >
             🎵 Songliste
           </button>
+          <ManualSongButton 
+            onClick={handleManualSongSubmit}
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Hinzufügen...' : '➕ Hinzufügen'}
+          </ManualSongButton>
         </ManualSongForm>
       </ManualSongSection>
 
@@ -2414,6 +2494,32 @@ const AdminDashboard: React.FC = () => {
               >
                 📱 {showQRCodeOverlay ? 'Overlay ausblenden' : 'Overlay anzeigen'}
               </QRCodeToggleButton>
+              
+              {/* Control Buttons */}
+              <ControlButtonGroup>
+                <ControlButton 
+                  onClick={handlePreviousSong}
+                  disabled={actionLoading}
+                  title="Zurück"
+                >
+                  ⏮️
+                </ControlButton>
+                <ControlButton 
+                  onClick={handleTogglePlayPause}
+                  disabled={actionLoading}
+                  title="Pause/Play"
+                >
+                  {isPlaying ? '⏸️' : '▶️'}
+                </ControlButton>
+                <ControlButton 
+                  onClick={handleRestartSong}
+                  disabled={actionLoading}
+                  title="Song neu starten"
+                >
+                  🔄
+                </ControlButton>
+              </ControlButtonGroup>
+              
               <Button 
                 variant="success" 
                 onClick={handleNextSong}

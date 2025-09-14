@@ -2,7 +2,7 @@ const express = require('express');
 const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const { verifyToken } = require('./auth');
-const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
+const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong } = require('../utils/websocketService');
 
 const router = express.Router();
 
@@ -183,6 +183,95 @@ router.post('/next', verifyToken, async (req, res) => {
     res.json({ message: 'Moved to next song', song: nextSong });
   } catch (error) {
     console.error('Next song error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Go to previous song
+router.post('/previous', verifyToken, async (req, res) => {
+  try {
+    const currentSong = await Song.getCurrentSong();
+    let previousSong;
+    
+    if (currentSong) {
+      // Get previous song before current one
+      previousSong = await Song.getPreviousSong();
+    } else {
+      // No current song, get last song
+      previousSong = await Song.getLastSong();
+    }
+    
+    if (!previousSong) {
+      return res.status(404).json({ message: 'No previous song found' });
+    }
+
+    await Song.setCurrentSong(previousSong.id);
+    
+    // Automatically hide QR overlay when song changes
+    const db = require('../config/database');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_qr_overlay', 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+    
+    // Broadcast song change via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastSongChange(io, previousSong);
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
+    
+    res.json({ message: 'Moved to previous song', song: previousSong });
+  } catch (error) {
+    console.error('Previous song error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Toggle play/pause (placeholder - actual implementation depends on media type)
+router.post('/toggle-play-pause', verifyToken, async (req, res) => {
+  try {
+    // This is a placeholder implementation
+    // The actual play/pause logic would depend on the media type (YouTube, local video, audio, etc.)
+    // For now, we'll just broadcast a toggle event
+    
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastTogglePlayPause(io);
+    }
+    
+    res.json({ message: 'Play/pause toggled' });
+  } catch (error) {
+    console.error('Toggle play/pause error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Restart current song
+router.post('/restart', verifyToken, async (req, res) => {
+  try {
+    const currentSong = await Song.getCurrentSong();
+    
+    if (!currentSong) {
+      return res.status(404).json({ message: 'No current song to restart' });
+    }
+
+    // Broadcast restart event
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastRestartSong(io, currentSong);
+    }
+    
+    res.json({ message: 'Song restarted', song: currentSong });
+  } catch (error) {
+    console.error('Restart song error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

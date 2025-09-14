@@ -97,6 +97,15 @@ export const playlistAPI = {
   nextSong: () =>
     api.post('/playlist/next'),
   
+  previousSong: () =>
+    api.post('/playlist/previous'),
+  
+  togglePlayPause: () =>
+    api.post('/playlist/toggle-play-pause'),
+  
+  restartSong: () =>
+    api.post('/playlist/restart'),
+  
   deleteSong: (songId: number) =>
     api.delete(`/playlist/${songId}`),
   

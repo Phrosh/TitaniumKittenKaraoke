@@ -516,6 +516,42 @@ const FullscreenButton = styled.button`
   }
 `;
 
+const ControlButtonsContainer = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 80px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+`;
+
+const ControlButton = styled.button`
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
 const ProgressOverlay = styled.div<{ $isVisible: boolean }>`
   position: absolute;
   top: calc(50vh - 200px);
@@ -575,6 +611,11 @@ const ShowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+  const [youtubeCurrentTime, setYoutubeCurrentTime] = useState(0);
+  const [youtubeIsPaused, setYoutubeIsPaused] = useState(false);
   // const [showTransition, setShowTransition] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
@@ -1370,11 +1411,69 @@ const ShowView: React.FC = () => {
       };
     });
 
-    // Set up WebSocket event listener
+    // Set up WebSocket event listeners
     websocketService.onShowUpdate(handleWebSocketUpdate);
+    
+    // Listen for control events
+    const handleTogglePlayPause = () => {
+      if (isUltrastar && audioRef.current) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(error => {
+            console.error('🎵 Error resuming playback:', error);
+          });
+          setIsPlaying(true);
+        } else {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        }
+      } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+        if (videoRef.current.paused) {
+          videoRef.current.play().catch(error => {
+            console.error('🎬 Error resuming video playback:', error);
+          });
+          setIsPlaying(true);
+        } else {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        }
+      } else if (currentSong?.mode === 'youtube' && embedUrl) {
+        // For YouTube embed videos, toggle play/pause by reloading iframe
+        console.log('🎬 YouTube iframe play/pause - toggling');
+        setYoutubeIsPaused(prev => !prev);
+        setIframeKey(prev => prev + 1);
+      }
+    };
+    
+    const handleRestartSong = () => {
+      if (isUltrastar && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(error => {
+          console.error('🎵 Error restarting playback:', error);
+        });
+        setIsPlaying(true);
+      } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(error => {
+          console.error('🎬 Error restarting video playback:', error);
+        });
+        setIsPlaying(true);
+      } else if (currentSong?.mode === 'youtube' && embedUrl) {
+        // For YouTube embed videos, restart by reloading iframe with t=0
+        console.log('🎬 YouTube iframe restart - restarting from beginning');
+        setYoutubeCurrentTime(0);
+        setYoutubeIsPaused(false);
+        setIframeKey(prev => prev + 1);
+      }
+    };
+    
+    // Add event listeners
+    websocketService.on('toggle-play-pause', handleTogglePlayPause);
+    websocketService.on('restart-song', handleRestartSong);
 
     return () => {
       websocketService.offShowUpdate(handleWebSocketUpdate);
+      websocketService.off('toggle-play-pause', handleTogglePlayPause);
+      websocketService.off('restart-song', handleRestartSong);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
@@ -1400,7 +1499,7 @@ const ShowView: React.FC = () => {
     return () => clearInterval(timer);
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
 
-  const getYouTubeEmbedUrl = (url: string) => {
+  const getYouTubeEmbedUrl = (url: string, startTime?: number, autoplay: boolean = true) => {
     if (!url) return null;
     
     // Extract video ID from various YouTube URL formats
@@ -1408,7 +1507,17 @@ const ShowView: React.FC = () => {
     
     if (videoIdMatch) {
       const videoId = videoIdMatch[1];
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+      let embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+      
+      if (autoplay) {
+        embedUrl += '&autoplay=1';
+      }
+      
+      if (startTime !== undefined) {
+        embedUrl += `&start=${Math.floor(startTime)}`;
+      }
+      
+      return embedUrl;
     }
     
     return null;
@@ -1532,6 +1641,7 @@ const ShowView: React.FC = () => {
     // setLyricsScale(0);
     setShowLyrics(false);
     setPlaying(true);
+    setIsPlaying(true);
     
     // Sync video with audio
     if (videoRef.current && ultrastarData?.videoUrl) {
@@ -1543,6 +1653,7 @@ const ShowView: React.FC = () => {
 
   const handleAudioPause = useCallback(() => {
     setPlaying(false);
+    setIsPlaying(false);
     console.log('🎵 Ultrastar audio paused:', { 
       songId: currentSong?.id, 
       title: currentSong?.title 
@@ -1585,16 +1696,70 @@ const ShowView: React.FC = () => {
 
   // Handle click on screen to toggle play/pause
   const handleScreenClick = useCallback(() => {
+    // Mark that user has interacted (allows autoplay for future songs)
+    setHasUserInteracted(true);
+    
     if (isUltrastar && audioRef.current) {
       if (audioRef.current.paused) {
         audioRef.current.play().catch(error => {
           console.error('🎵 Error resuming playback:', error);
         });
+        setIsPlaying(true);
       } else {
         audioRef.current.pause();
+        setIsPlaying(false);
       }
+    } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(error => {
+          console.error('🎬 Error resuming video playback:', error);
+        });
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    } else if (currentSong?.mode === 'youtube' && embedUrl) {
+      // For YouTube embed videos, toggle play/pause by reloading iframe
+      console.log('🎬 YouTube iframe screen click - toggling play/pause');
+      setYoutubeIsPaused(prev => !prev);
+      setIframeKey(prev => prev + 1);
     }
-  }, [isUltrastar, currentSong?.id, currentSong?.title]);
+  }, [isUltrastar, isServerVideo, isFileVideo, isYouTubeCache, currentSong?.mode, embedUrl, currentSong?.id, currentSong?.title]);
+
+  // Control button handlers
+  const handlePreviousSong = useCallback(async () => {
+    try {
+      const { playlistAPI } = await import('../services/api');
+      await playlistAPI.previousSong();
+    } catch (error) {
+      console.error('Error moving to previous song:', error);
+    }
+  }, []);
+
+  const handleTogglePlayPause = useCallback(async () => {
+    // Mark that user has interacted (allows autoplay for future songs)
+    setHasUserInteracted(true);
+    
+    try {
+      const { playlistAPI } = await import('../services/api');
+      await playlistAPI.togglePlayPause();
+    } catch (error) {
+      console.error('Error toggling play/pause:', error);
+    }
+  }, []);
+
+  const handleRestartSong = useCallback(async () => {
+    // Mark that user has interacted (allows autoplay for future songs)
+    setHasUserInteracted(true);
+    
+    try {
+      const { playlistAPI } = await import('../services/api');
+      await playlistAPI.restartSong();
+    } catch (error) {
+      console.error('Error restarting song:', error);
+    }
+  }, []);
 
   // Cursor management functions
   const hideCursor = useCallback(() => {
@@ -1675,7 +1840,7 @@ const ShowView: React.FC = () => {
 
   // Start autoplay when both media are ready
   useEffect(() => {
-    if (canAutoPlay && audioRef.current && audioRef.current.paused) {
+    if (canAutoPlay && hasUserInteracted && audioRef.current && audioRef.current.paused) {
       // Add a small delay to ensure all DOM updates are complete
       const playTimeout = setTimeout(() => {
         if (audioRef.current && audioRef.current.paused) {
@@ -1695,7 +1860,7 @@ const ShowView: React.FC = () => {
       
       return () => clearTimeout(playTimeout);
     }
-  }, [canAutoPlay, currentSong?.id, currentSong?.title, audioLoaded, videoLoaded, ultrastarData?.videoUrl]);
+  }, [canAutoPlay, hasUserInteracted, currentSong?.id, currentSong?.title, audioLoaded, videoLoaded, ultrastarData?.videoUrl]);
 
   // Reset loading states when song changes
   useEffect(() => {
@@ -1712,6 +1877,10 @@ const ShowView: React.FC = () => {
       setIsFadeOutMode(false);
       setFadeOutLineIndex(null);
       setFadeOutLineIndices(new Set());
+      setIsPlaying(false);
+      setIframeKey(0); // Reset iframe key for new song
+      setYoutubeCurrentTime(0); // Reset YouTube time for new song
+      setYoutubeIsPaused(false); // Reset YouTube pause state for new song
     }
   }, [currentSong?.id, lastSongId, stopUltrastarTiming, stopProgress]);
 
@@ -1734,6 +1903,39 @@ const ShowView: React.FC = () => {
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
+      {/* Control Buttons - only show when not in fullscreen */}
+      {!isFullscreen && (
+        <ControlButtonsContainer>
+          <ControlButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePreviousSong();
+            }}
+            title="Zurück"
+          >
+            ⏮️
+          </ControlButton>
+          <ControlButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTogglePlayPause();
+            }}
+            title="Pause/Play"
+          >
+            {isPlaying ? '⏸️' : '▶️'}
+          </ControlButton>
+          <ControlButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRestartSong();
+            }}
+            title="Song neu starten"
+          >
+            🔄
+          </ControlButton>
+        </ControlButtonsContainer>
+      )}
+
       {/* Fullscreen Button */}
         {isFullscreen ? '⤓' : <FullscreenButton onClick={(e) => {
         e.stopPropagation();
@@ -1745,9 +1947,10 @@ const ShowView: React.FC = () => {
           {(isServerVideo || isFileVideo || isYouTubeCache) ? (
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
+              ref={videoRef}
               src={currentSong.youtube_url}
               controls
-              autoPlay
+              autoPlay={hasUserInteracted}
               onLoadStart={() => {
                 const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
                 console.log(`🎬 ${videoType} video started:`, { 
@@ -1756,6 +1959,18 @@ const ShowView: React.FC = () => {
                   url: currentSong.youtube_url,
                   mode: currentSong?.mode
                 });
+                // Set playing state to true when video starts loading (autoplay) - only if user has interacted
+                if (hasUserInteracted) {
+                  setIsPlaying(true);
+                }
+              }}
+              onPlay={() => {
+                setIsPlaying(true);
+                console.log('🎬 Video started playing');
+              }}
+              onPause={() => {
+                setIsPlaying(false);
+                console.log('🎬 Video paused');
               }}
               onEnded={async () => {
                 const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
@@ -1765,6 +1980,8 @@ const ShowView: React.FC = () => {
                   mode: currentSong?.mode,
                   willShowQRCode: currentSong?.mode !== 'youtube'
                 });
+                
+                setIsPlaying(false);
                 
                 // Check if this was a test song and restore original song
                 try {
@@ -1809,7 +2026,7 @@ const ShowView: React.FC = () => {
                 key={currentSong?.id}
                 ref={audioRef}
                 src={ultrastarData.audioUrl}
-                autoPlay={canAutoPlay}
+                autoPlay={canAutoPlay && hasUserInteracted}
                 onClick={(e) => e.stopPropagation()}
                 style={{ display: 'none' }}
                 onLoadStart={handleAudioLoadStart}
@@ -1827,17 +2044,24 @@ const ShowView: React.FC = () => {
             </>
           ) : embedUrl ? (
             <VideoIframe
-              key={currentSong?.id} // Force re-render only when song changes
-              src={embedUrl}
+              key={`${currentSong?.id}-${iframeKey}`} // Force re-render when song changes or iframeKey changes
+              src={getYouTubeEmbedUrl(currentSong.youtube_url, youtubeCurrentTime, hasUserInteracted && !youtubeIsPaused) || ''}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               onLoad={() => {
                 console.log('🎬 YouTube video loaded:', { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  embedUrl,
-                  mode: currentSong?.mode
+                  embedUrl: getYouTubeEmbedUrl(currentSong.youtube_url, youtubeCurrentTime, !youtubeIsPaused),
+                  mode: currentSong?.mode,
+                  iframeKey,
+                  youtubeCurrentTime,
+                  youtubeIsPaused
                 });
+                // Set playing state based on pause status - only if user has interacted
+                if (hasUserInteracted) {
+                  setIsPlaying(!youtubeIsPaused);
+                }
               }}
             />
           ) : (

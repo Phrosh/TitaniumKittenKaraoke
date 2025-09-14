@@ -248,6 +248,23 @@ class WebSocketService {
   getSocketId(): string | undefined {
     return this.socket?.id;
   }
+
+  // Generic event listener methods for control events
+  on(event: string, callback: (...args: any[]) => void): void {
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  off(event: string, callback?: (...args: any[]) => void): void {
+    if (this.socket) {
+      if (callback) {
+        this.socket.off(event, callback);
+      } else {
+        this.socket.off(event);
+      }
+    }
+  }
 }
 
 // Singleton instance

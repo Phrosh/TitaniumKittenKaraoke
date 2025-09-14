@@ -238,10 +238,41 @@ async function broadcastPlaylistUpdate(io) {
   }
 }
 
+/**
+ * Sendet Play/Pause Toggle Event
+ * @param {Object} io - Socket.IO Server Instance
+ */
+async function broadcastTogglePlayPause(io) {
+  try {
+    // Send toggle event to all clients in show room
+    io.to('show').emit('toggle-play-pause');
+    console.log(`⏯️ Broadcasted play/pause toggle to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients`);
+  } catch (error) {
+    console.error('Error broadcasting play/pause toggle:', error);
+  }
+}
+
+/**
+ * Sendet Song Restart Event
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} song - Der Song der neu gestartet werden soll
+ */
+async function broadcastRestartSong(io, song) {
+  try {
+    // Send restart event to all clients in show room
+    io.to('show').emit('restart-song', song);
+    console.log(`🔄 Broadcasted song restart: ${song?.artist} - ${song?.title} to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients`);
+  } catch (error) {
+    console.error('Error broadcasting song restart:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
   broadcastQRCodeToggle,
   broadcastAdminUpdate,
-  broadcastPlaylistUpdate
+  broadcastPlaylistUpdate,
+  broadcastTogglePlayPause,
+  broadcastRestartSong
 };

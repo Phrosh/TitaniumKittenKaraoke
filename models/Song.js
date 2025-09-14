@@ -339,6 +339,59 @@ class Song {
     });
   }
 
+  static getPreviousSong() {
+    return new Promise((resolve, reject) => {
+      db.get(`
+        SELECT s.*, u.name as user_name, u.device_id 
+        FROM songs s 
+        JOIN users u ON s.user_id = u.id 
+        WHERE s.position < (
+          SELECT COALESCE(s2.position, 0) 
+          FROM songs s2 
+          WHERE s2.id = (
+            SELECT COALESCE(CAST(value AS INTEGER), 0) 
+            FROM settings 
+            WHERE key = 'current_song_id'
+          )
+        )
+        ORDER BY s.position DESC
+        LIMIT 1
+      `, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (row) {
+            // Convert with_background_vocals from integer to boolean
+            row.with_background_vocals = Boolean(row.with_background_vocals);
+          }
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  static getLastSong() {
+    return new Promise((resolve, reject) => {
+      db.get(`
+        SELECT s.*, u.name as user_name, u.device_id 
+        FROM songs s 
+        JOIN users u ON s.user_id = u.id 
+        ORDER BY s.position DESC
+        LIMIT 1
+      `, (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (row) {
+            // Convert with_background_vocals from integer to boolean
+            row.with_background_vocals = Boolean(row.with_background_vocals);
+          }
+          resolve(row);
+        }
+      });
+    });
+  }
+
 }
 
 module.exports = Song;
