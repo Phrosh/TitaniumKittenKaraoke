@@ -94,6 +94,26 @@ class Song {
     });
   }
 
+  static updateDownloadStatus(songId, downloadStatus, downloadStartedAt = null) {
+    return new Promise((resolve, reject) => {
+      const query = downloadStartedAt 
+        ? 'UPDATE songs SET download_status = ?, download_started_at = ? WHERE id = ?'
+        : 'UPDATE songs SET download_status = ? WHERE id = ?';
+      
+      const params = downloadStartedAt 
+        ? [downloadStatus, downloadStartedAt, songId]
+        : [downloadStatus, songId];
+      
+      db.run(query, params, function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ changes: this.changes });
+        }
+      });
+    });
+  }
+
   static updatePosition(songId, position) {
     return new Promise((resolve, reject) => {
       db.run(

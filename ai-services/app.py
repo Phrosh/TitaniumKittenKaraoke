@@ -3,7 +3,9 @@ from flask_cors import CORS
 import os
 import subprocess
 import logging
+import re
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 from usdb_scraper_improved import USDBScraperImproved, download_from_usdb_improved
 
 app = Flask(__name__)
@@ -17,6 +19,118 @@ logger = logging.getLogger(__name__)
 KARAOKE_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)))
 ULTRASTAR_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'ultrastar')
 YOUTUBE_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'youtube')
+
+def sanitize_filename(filename):
+    """
+    Sanitizes a filename by removing or replacing invalid characters
+    """
+    if not filename or not isinstance(filename, str):
+        return ''
+    
+    # Characters not allowed in Windows/Linux filenames
+    invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
+    
+    # Replace invalid characters with underscores
+    sanitized = re.sub(invalid_chars, '_', filename)
+    
+    # Remove leading/trailing dots and spaces
+    sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
+    
+    # Replace multiple consecutive underscores with single underscore
+    sanitized = re.sub(r'_+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = re.sub(r'^_+|_+$', '', sanitized)
+    
+    # Ensure the filename is not empty and not too long
+    if not sanitized or len(sanitized) == 0:
+        sanitized = 'unnamed'
+    
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    
+    return sanitized
+
+def create_sanitized_folder_name(artist, title):
+    """
+    Creates a sanitized folder name for YouTube downloads
+    """
+    artist_sanitized = sanitize_filename(artist or 'Unknown Artist')
+    title_sanitized = sanitize_filename(title or 'Unknown Title')
+    
+    return f"{artist_sanitized} - {title_sanitized}"
+
+def clean_youtube_url(url):
+    """
+    Cleans a YouTube URL to contain only the video ID parameter
+    """
+    if not url or not isinstance(url, str):
+        return ''
+    
+    url = url.strip()
+    
+    # Check if it's a valid YouTube URL
+    if not is_youtube_url(url):
+        return url  # Return original if not a YouTube URL
+    
+    # Extract video ID from various YouTube URL formats
+    video_id = extract_video_id_from_url(url)
+    
+    if not video_id:
+        return url  # Return original if no video ID found
+    
+    # Return clean URL with only video ID
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+def is_youtube_url(url):
+    """
+    Checks if a URL is a YouTube URL
+    """
+    if not url or not isinstance(url, str):
+        return False
+    
+    youtube_patterns = [
+        r'^https?://(www\.)?youtube\.com',
+        r'^https?://youtu\.be',
+        r'^https?://m\.youtube\.com',
+        r'^https?://music\.youtube\.com'
+    ]
+    
+    return any(re.match(pattern, url) for pattern in youtube_patterns)
+
+def extract_video_id_from_url(url):
+    """
+    Extracts video ID from various YouTube URL formats
+    """
+    if not url or not isinstance(url, str):
+        return None
+    
+    # Pattern for youtube.com/watch?v=VIDEO_ID
+    match = re.search(r'[?&]v=([^&]+)', url)
+    if match:
+        return match.group(1)
+    
+    # Pattern for youtu.be/VIDEO_ID
+    match = re.search(r'youtu\.be/([^?&]+)', url)
+    if match:
+        return match.group(1)
+    
+    # Pattern for youtube.com/embed/VIDEO_ID
+    match = re.search(r'youtube\.com/embed/([^?&]+)', url)
+    if match:
+        return match.group(1)
+    
+    # Pattern for youtube.com/v/VIDEO_ID
+    match = re.search(r'youtube\.com/v/([^?&]+)', url)
+    if match:
+        return match.group(1)
+    
+    # Pattern for youtube.com/shorts/VIDEO_ID
+    match = re.search(r'youtube\.com/shorts/([^?&]+)', url)
+    if match:
+        return match.group(1)
+    
+    return None
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -437,7 +551,7 @@ def download_youtube_video(folder_name):
         
         # Get YouTube URL from request
         data = request.get_json()
-        youtube_url = data.get('youtubeUrl')
+        youtube_url = clean_youtube_url(data.get('youtubeUrl', ''))
         
         if not youtube_url:
             return jsonify({'error': 'YouTube URL is required'}), 400
@@ -695,18 +809,21 @@ def download_youtube_video_to_youtube_folder(folder_name):
     try:
         # Decode folder name
         folder_name = folder_name.replace('%20', ' ')
-        folder_path = os.path.join(YOUTUBE_DIR, folder_name)
+        
+        # Get YouTube URL and metadata from request
+        data = request.get_json()
+        youtube_url = clean_youtube_url(data.get('youtubeUrl', ''))
+        video_id = data.get('videoId')
+        artist = data.get('artist', 'Unknown Artist')
+        title = data.get('title', 'Unknown Title')
+        
+        # Create sanitized folder name
+        sanitized_folder_name = create_sanitized_folder_name(artist, title)
+        folder_path = os.path.join(YOUTUBE_DIR, sanitized_folder_name)
         
         # Create folder if it doesn't exist
         if not os.path.exists(folder_path):
             os.makedirs(folder_path, exist_ok=True)
-        
-        # Get YouTube URL and metadata from request
-        data = request.get_json()
-        youtube_url = data.get('youtubeUrl')
-        video_id = data.get('videoId')
-        artist = data.get('artist', 'Unknown Artist')
-        title = data.get('title', 'Unknown Title')
         
         if not youtube_url:
             return jsonify({'error': 'YouTube URL is required'}), 400
@@ -723,15 +840,15 @@ def download_youtube_video_to_youtube_folder(folder_name):
                     'message': 'Video already exists',
                     'status': 'already_exists',
                     'videoFile': video_files[0],
-                    'folderName': folder_name
+                    'folderName': sanitized_folder_name
                 })
         
         # Generate output filename using video ID
         if video_id:
             output_filename = f"{video_id}.%(ext)s"
         else:
-            # Fallback to folder name if no video ID
-            output_filename = f"{folder_name}.%(ext)s"
+            # Fallback to sanitized folder name if no video ID
+            output_filename = f"{sanitized_folder_name}.%(ext)s"
         
         output_path = os.path.join(folder_path, output_filename)
         
@@ -786,7 +903,7 @@ def download_youtube_video_to_youtube_folder(folder_name):
                         'message': 'YouTube video downloaded successfully',
                         'status': 'success',
                         'videoFile': downloaded_video,
-                        'folderName': folder_name,
+                        'folderName': sanitized_folder_name,
                         'videoId': video_id,
                         'artist': artist,
                         'title': title,

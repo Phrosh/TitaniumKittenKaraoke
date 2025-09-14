@@ -9,6 +9,7 @@ const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
 const { findFileSong } = require('../utils/fileSongs');
 const { scanYouTubeSongs, searchYouTubeSongs, findYouTubeSong, downloadYouTubeVideo } = require('../utils/youtubeSongs');
 const { broadcastQRCodeToggle, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
+const { cleanYouTubeUrl } = require('../utils/youtubeUrlCleaner');
 const path = require('path');
 const fs = require('fs');
 
@@ -211,6 +212,7 @@ router.post('/request', [
 
     // Parse song input (could be "Artist - Title" or YouTube URL)
     let title, artist, youtubeUrl = null;
+    let downloadStatus = 'none';
     
     if (songInput.includes('youtube.com') || songInput.includes('youtu.be')) {
       // Check if YouTube is enabled
@@ -220,8 +222,8 @@ router.post('/request', [
         });
       }
       
-      // It's a YouTube URL - try to extract metadata
-      youtubeUrl = songInput;
+      // It's a YouTube URL - clean it and try to extract metadata
+      youtubeUrl = cleanYouTubeUrl(songInput);
       
       try {
         const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
@@ -230,10 +232,12 @@ router.post('/request', [
         
         // Try to download YouTube video to songs/youtube folder
         console.log(`📥 Attempting to download YouTube video: ${artist} - ${title}`);
+        downloadStatus = 'downloading';
         const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
         
         if (downloadResult.success) {
           console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+          downloadStatus = 'downloaded';
           
           // Add to invisible songs list
           try {
@@ -254,6 +258,7 @@ router.post('/request', [
           }
         } else {
           console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+          downloadStatus = 'failed';
         }
       } catch (error) {
         console.error('Failed to extract YouTube metadata:', error.message);
@@ -461,6 +466,11 @@ router.post('/request', [
 
     // Create song with priority, duration, mode and background vocals preference
     const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode, withBackgroundVocals || false);
+    
+    // Update download status if this was a YouTube download
+    if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
+      await Song.updateDownloadStatus(song.id, downloadStatus);
+    }
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { createSanitizedFolderName } = require('./filenameSanitizer');
 
 // YouTube songs directory
 const YOUTUBE_DIR = path.join(__dirname, '..', 'songs', 'youtube');
@@ -86,10 +87,22 @@ function searchYouTubeSongs(query) {
  */
 function findYouTubeSong(artist, title) {
   const songs = scanYouTubeSongs();
-  return songs.find(song => 
+  
+  // First try exact match
+  let found = songs.find(song => 
     song.artist.toLowerCase() === artist.toLowerCase() &&
     song.title.toLowerCase() === title.toLowerCase()
   );
+  
+  // If not found, try with sanitized names
+  if (!found) {
+    const sanitizedFolderName = createSanitizedFolderName(artist, title);
+    found = songs.find(song => 
+      song.folderName === sanitizedFolderName
+    );
+  }
+  
+  return found;
 }
 
 /**
@@ -128,8 +141,8 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
       throw new Error('Invalid YouTube URL');
     }
 
-    // Create folder name: "Artist - Songname"
-    const folderName = `${artist} - ${title}`;
+    // Create sanitized folder name: "Artist - Songname"
+    const folderName = createSanitizedFolderName(artist, title);
     const folderPath = path.join(YOUTUBE_DIR, folderName);
 
     // Create folder if it doesn't exist

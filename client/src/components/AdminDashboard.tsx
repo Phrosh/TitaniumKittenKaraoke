@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
 import websocketService, { AdminUpdateData } from '../services/websocket';
+import { cleanYouTubeUrl } from '../utils/youtubeUrlCleaner';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -426,6 +427,30 @@ const HP5Badge = styled.div`
   text-align: center;
 `;
 
+const DownloadStatusBadge = styled.div<{ $status: 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none' }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-left: 8px;
+  min-width: 80px;
+  text-align: center;
+  background: ${props => {
+    switch (props.$status) {
+      case 'downloading': return '#ffc107';
+      case 'downloaded': return '#28a745';
+      case 'cached': return '#17a2b8';
+      case 'failed': return '#dc3545';
+      default: return '#6c757d';
+    }
+  }};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+`;
+
 const SongTitle = styled.div<{ $isCurrent?: boolean }>`
   flex: 1;
   font-size: 0.95rem;
@@ -757,10 +782,31 @@ const AdminDashboard: React.FC = () => {
       return false;
     }
     
-    return dashboardData.youtubeSongs.some(youtubeSong => 
+    // First try exact match
+    let found = dashboardData.youtubeSongs.some(youtubeSong => 
       youtubeSong.artist.toLowerCase() === song.artist?.toLowerCase() &&
       youtubeSong.title.toLowerCase() === song.title.toLowerCase()
     );
+    
+    // If not found, try with sanitized names
+    if (!found) {
+      const sanitizeFilename = (filename: string) => {
+        if (!filename) return '';
+        return filename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+                     .replace(/^[.\s]+|[.\s]+$/g, '')
+                     .replace(/_+/g, '_')
+                     .replace(/^_+|_+$/g, '') || 'unnamed';
+      };
+      
+      const sanitizedArtist = sanitizeFilename(song.artist);
+      const sanitizedTitle = sanitizeFilename(song.title);
+      
+      found = dashboardData.youtubeSongs.some(youtubeSong => 
+        youtubeSong.folderName === `${sanitizedArtist} - ${sanitizedTitle}`
+      );
+    }
+    
+    return found;
   }, [dashboardData?.youtubeSongs]);
 
   const handleAdminWebSocketUpdate = useCallback((data: AdminUpdateData) => {
@@ -1094,30 +1140,53 @@ const AdminDashboard: React.FC = () => {
 
 
   const handleYouTubeFieldChange = (songId: number, value: string) => {
+    // Clean the YouTube URL in real-time
+    const cleanedUrl = cleanYouTubeUrl(value);
+    
     setYoutubeLinks(prev => ({
       ...prev,
-      [songId]: value
+      [songId]: cleanedUrl
     }));
   };
 
   const handleYouTubeFieldBlur = async (songId: number, value: string) => {
     try {
-      await adminAPI.updateYouTubeUrl(songId, value);
-      toast.success('YouTube-Link aktualisiert!');
+      // Clean the YouTube URL
+      const cleanedUrl = cleanYouTubeUrl(value);
       
-      // If it's a YouTube URL, show additional info
-      if (value && (value.includes('youtube.com') || value.includes('youtu.be'))) {
-        toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
-          icon: '⏳',
-          duration: 3000,
-        });
+      // Find the current song to check if the URL has actually changed
+      const currentSong = dashboardData?.playlist.find(song => song.id === songId);
+      const currentUrl = currentSong?.youtube_url || '';
+      
+      // Only update if the URL has actually changed
+      if (cleanedUrl !== currentUrl) {
+        await adminAPI.updateYouTubeUrl(songId, cleanedUrl);
+        toast.success('YouTube-Link aktualisiert!');
+        
+        // If it's a YouTube URL, show additional info
+        if (cleanedUrl && (cleanedUrl.includes('youtube.com') || cleanedUrl.includes('youtu.be'))) {
+          toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
+            icon: '⏳',
+            duration: 3000,
+          });
+        }
+        
+        // Refresh data to get updated link
+        fetchDashboardData();
       }
-      
-      // Refresh data to get updated link
-      fetchDashboardData();
     } catch (error) {
       console.error('Error updating YouTube URL:', error);
       toast.error('Fehler beim Aktualisieren des YouTube-Links');
+    }
+  };
+
+  const getDownloadStatusText = (status: string | undefined) => {
+    switch (status) {
+      case 'downloading': return '📥 Lädt herunter';
+      case 'downloaded': return '✅ Heruntergeladen';
+      case 'cached': return '💾 Im Cache';
+      case 'failed': return '❌ Fehlgeschlagen';
+      default: return '';
     }
   };
 
@@ -2435,7 +2504,7 @@ const AdminDashboard: React.FC = () => {
                             </>
                           )}
                         </SongTitle>
-                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && (
+                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
                           <YouTubeField
                             type="url"
                             placeholder="YouTube-Link hier eingeben..."
@@ -2448,6 +2517,11 @@ const AdminDashboard: React.FC = () => {
                               }
                             }}
                           />
+                        )}
+                        {song.download_status && song.download_status !== 'none' && (
+                          <DownloadStatusBadge $status={song.download_status as 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none'}>
+                            {getDownloadStatusText(song.download_status)}
+                          </DownloadStatusBadge>
                         )}
                         {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song)) || song.modes?.includes('youtube_cache') && (
                           <div style={{ 

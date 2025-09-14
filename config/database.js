@@ -128,6 +128,24 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add download_status column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN download_status TEXT DEFAULT 'none'
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  // Migration: Add download_started_at column to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN download_started_at DATETIME
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Invisible songs table
   db.run(`
     CREATE TABLE IF NOT EXISTS invisible_songs (

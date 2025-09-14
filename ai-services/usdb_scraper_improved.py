@@ -14,6 +14,46 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def sanitize_filename(filename):
+    """
+    Sanitizes a filename by removing or replacing invalid characters
+    """
+    if not filename or not isinstance(filename, str):
+        return ''
+    
+    # Characters not allowed in Windows/Linux filenames
+    invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
+    
+    # Replace invalid characters with underscores
+    sanitized = re.sub(invalid_chars, '_', filename)
+    
+    # Remove leading/trailing dots and spaces
+    sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
+    
+    # Replace multiple consecutive underscores with single underscore
+    sanitized = re.sub(r'_+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = re.sub(r'^_+|_+$', '', sanitized)
+    
+    # Ensure the filename is not empty and not too long
+    if not sanitized or len(sanitized) == 0:
+        sanitized = 'unnamed'
+    
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    
+    return sanitized
+
+def create_sanitized_folder_name(artist, title):
+    """
+    Creates a sanitized folder name for YouTube downloads
+    """
+    artist_sanitized = sanitize_filename(artist or 'Unknown Artist')
+    title_sanitized = sanitize_filename(title or 'Unknown Title')
+    
+    return f"{artist_sanitized} - {title_sanitized}"
+
 class USDBScraperImproved:
     def __init__(self, username=None, password=None):
         self.username = username
@@ -376,8 +416,8 @@ class USDBScraperImproved:
             title = song_info.get('title', 'Unknown').strip()
             
             # Clean filename (remove invalid characters)
-            safe_artist = re.sub(r'[<>:"/\\|?*]', '_', artist)
-            safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
+            safe_artist = sanitize_filename(artist)
+            safe_title = sanitize_filename(title)
             
             if safe_artist and safe_title and safe_artist != 'Unknown' and safe_title != 'Unknown':
                 folder_name = f"{safe_artist} - {safe_title}"

@@ -12,12 +12,16 @@ export interface Song {
   artist?: string;
   youtube_url?: string;
   mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
+  modes?: string[];
   status: string;
+  download_status?: 'none' | 'downloading' | 'downloaded' | 'cached' | 'failed';
+  download_started_at?: string;
   position: number;
   delay_count: number;
   created_at: string;
   user_name?: string;
   device_id?: string;
+  with_background_vocals?: boolean;
 }
 
 export interface ServerVideo {
