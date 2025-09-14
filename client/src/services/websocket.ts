@@ -7,7 +7,7 @@ export interface ShowUpdateData {
     artist: string;
     title: string;
     youtube_url: string;
-    mode: string;
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     position: number;
     duration_seconds: number | null;
     with_background_vocals: boolean;
@@ -33,7 +33,7 @@ export interface AdminUpdateData {
     position: number;
     priority: number;
     duration_seconds: number | null;
-    mode: string;
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
   }>;
@@ -44,7 +44,7 @@ export interface AdminUpdateData {
     title: string;
     position: number;
     duration_seconds: number | null;
-    mode: string;
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
   } | null;
@@ -62,7 +62,7 @@ export interface PlaylistUpdateData {
     position: number;
     priority: number;
     duration_seconds: number | null;
-    mode: string;
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
   }>;
@@ -73,7 +73,7 @@ export interface PlaylistUpdateData {
     title: string;
     position: number;
     duration_seconds: number | null;
-    mode: string;
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
   } | null;

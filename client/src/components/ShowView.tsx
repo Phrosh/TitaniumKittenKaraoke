@@ -15,8 +15,8 @@ interface CurrentSong {
   youtube_url: string;
   mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
   position: number;
-  duration_seconds?: number;
-  with_background_vocals?: boolean;
+  duration_seconds: number | null;
+  with_background_vocals: boolean;
 }
 
 interface ShowData {
@@ -94,11 +94,6 @@ const VideoWrapper = styled.div`
   height: 100%;
 `;
 
-const VideoIframe = styled.iframe`
-  width: 100%;
-  height: 100%;
-  border: none;
-`;
 
 const VideoElement = styled.video`
   width: 100%;
@@ -552,7 +547,7 @@ const ControlButton = styled.button`
   }
 `;
 
-const ProgressOverlay = styled.div<{ $isVisible: boolean }>`
+const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean }>`
   position: absolute;
   top: calc(50vh - 200px);
   left: 50%;
@@ -563,7 +558,7 @@ const ProgressOverlay = styled.div<{ $isVisible: boolean }>`
   transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
 `;
 
-const ProgressBarContainer = styled.div`
+const ProgressBarContainer = styled.div<{ $isUltrastar: boolean }>`
   width: 50vw;
   height: 40px;
   background: rgba(0, 0, 0, 0.8);
@@ -571,6 +566,8 @@ const ProgressBarContainer = styled.div`
   border: 5px solid ${HIGHLIGHT_COLOR};
   overflow: hidden;
   box-shadow: 0 0 20px rgba(0, 0, 0, 1);
+  transform: ${props => props.$isUltrastar ? 'scale(1)' : 'scale(0)'};
+  transition: transform 0.3s ease-in-out;
 `;
 
 const ProgressBarFill = styled.div<{ $progress: number }>`
@@ -611,11 +608,9 @@ const ShowView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
+  const lastSongIdRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [iframeKey, setIframeKey] = useState(0);
-  const [youtubeCurrentTime, setYoutubeCurrentTime] = useState(0);
-  const [youtubeIsPaused, setYoutubeIsPaused] = useState(false);
   // const [showTransition, setShowTransition] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
@@ -1270,6 +1265,66 @@ const ShowView: React.FC = () => {
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
       const title = response.data.overlayTitle || 'Willkommen beim Karaoke';
       
+      // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
+      let normalizedSong = newSong;
+      if (newSong && newSong.youtube_url) {
+        // Extract video ID from any YouTube URL
+        let videoId: string | null = null;
+        const videoIdMatch = newSong.youtube_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        if (videoIdMatch) {
+          videoId = videoIdMatch[1];
+        }
+        
+        if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
+          // Use central cache function to find the correct file
+          const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
+          
+          if (cacheUrl) {
+            // Cache hit - use the found file
+            normalizedSong = {
+              ...newSong,
+              youtube_url: cacheUrl,
+              mode: 'server_video' // Force to server_video mode
+            };
+            
+            console.log('🌐 Cache hit - using file:', {
+              original: newSong.youtube_url,
+              cacheUrl: cacheUrl,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'server_video'
+            });
+          } else {
+            // Cache miss - keep original URL (will show 404)
+            normalizedSong = {
+              ...newSong,
+              mode: 'server_video' // Force to server_video mode
+            };
+            
+            console.log('🌐 Cache miss - keeping original URL:', {
+              original: newSong.youtube_url,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'server_video'
+            });
+          }
+        }
+      }
+      
+      console.log('🌐 API fetchCurrentSong:', {
+        newSong: normalizedSong ? {
+          id: normalizedSong.id,
+          title: normalizedSong.title,
+          mode: normalizedSong.mode,
+          youtube_url: normalizedSong.youtube_url
+        } : null,
+        lastSongId: lastSongIdRef.current,
+        songChanged: !normalizedSong || normalizedSong.id !== lastSongIdRef.current
+      });
       
       // Update overlay status from API
       setShowQRCodeOverlay(overlayStatus);
@@ -1283,9 +1338,11 @@ const ShowView: React.FC = () => {
       setOverlayTitle(title);
       
       // Nur State aktualisieren wenn sich der Song geändert hat
-      if (!newSong || newSong.id !== lastSongId) {
-        setCurrentSong(newSong);
-        setLastSongId(newSong?.id || null);
+      if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
+        console.log('🌐 Setting new song from API:', normalizedSong);
+        setCurrentSong(normalizedSong);
+        setLastSongId(normalizedSong?.id || null);
+        lastSongIdRef.current = normalizedSong?.id || null;
         setError(null);
         
         // Automatically hide overlay when song changes
@@ -1334,8 +1391,69 @@ const ShowView: React.FC = () => {
     }
   };
 
-  const handleWebSocketUpdate = useCallback((data: ShowUpdateData) => {
+  const handleWebSocketUpdate = useCallback(async (data: ShowUpdateData) => {
     const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle } = data;
+    
+    // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
+    let normalizedSong = newSong;
+    if (newSong && newSong.youtube_url) {
+      // Extract video ID from any YouTube URL
+      let videoId: string | null = null;
+      const videoIdMatch = newSong.youtube_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+      if (videoIdMatch) {
+        videoId = videoIdMatch[1];
+      }
+      
+      if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
+        // Use central cache function to find the correct file
+        const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
+        
+        if (cacheUrl) {
+          // Cache hit - use the found file
+          normalizedSong = {
+            ...newSong,
+            youtube_url: cacheUrl,
+            mode: 'server_video' // Force to server_video mode
+          };
+          
+          console.log('🔌 Cache hit - using file:', {
+            original: newSong.youtube_url,
+            cacheUrl: cacheUrl,
+            artist: newSong.artist,
+            title: newSong.title,
+            videoId: videoId,
+            originalMode: newSong.mode,
+            newMode: 'server_video'
+          });
+        } else {
+          // Cache miss - keep original URL (will show 404)
+          normalizedSong = {
+            ...newSong,
+            mode: 'server_video' // Force to server_video mode
+          };
+          
+          console.log('🔌 Cache miss - keeping original URL:', {
+            original: newSong.youtube_url,
+            artist: newSong.artist,
+            title: newSong.title,
+            videoId: videoId,
+            originalMode: newSong.mode,
+            newMode: 'server_video'
+          });
+        }
+      }
+    }
+    
+    console.log('🔌 WebSocket Update received:', {
+      newSong: normalizedSong ? {
+        id: normalizedSong.id,
+        title: normalizedSong.title,
+        mode: normalizedSong.mode,
+        youtube_url: normalizedSong.youtube_url
+      } : null,
+      lastSongId: lastSongIdRef.current,
+      songChanged: !normalizedSong || normalizedSong.id !== lastSongIdRef.current
+    });
     
     // Update QR overlay state
     setShowQRCodeOverlay(showQRCodeOverlay);
@@ -1347,9 +1465,11 @@ const ShowView: React.FC = () => {
     setOverlayTitle(overlayTitle);
     
     // Nur State aktualisieren wenn sich der Song geändert hat
-    if (!newSong || newSong.id !== lastSongId) {
-      setCurrentSong(newSong as CurrentSong);
-      setLastSongId(newSong?.id || null);
+    if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
+      console.log('🔌 Setting new song from WebSocket:', normalizedSong);
+      setCurrentSong(normalizedSong);
+      setLastSongId(normalizedSong?.id || null);
+      lastSongIdRef.current = normalizedSong?.id || null;
       setError(null);
       
       // Automatically hide overlay when song changes
@@ -1361,7 +1481,7 @@ const ShowView: React.FC = () => {
       
       // Load Ultrastar data if it's an ultrastar song
       if (newSong && newSong.mode === 'ultrastar') {
-        loadUltrastarData(newSong as CurrentSong).catch(error => {
+        loadUltrastarData(newSong).catch(error => {
           console.error('Error loading ultrastar data:', error);
         });
       } else {
@@ -1390,7 +1510,7 @@ const ShowView: React.FC = () => {
     
     setNextSongs(nextSongs);
     setLoading(false);
-  }, [lastSongId, showAPI, stopUltrastarTiming, stopProgress]);
+  }, [showAPI, stopUltrastarTiming, stopProgress]);
 
   useEffect(() => {
     // Initial fetch
@@ -1426,7 +1546,7 @@ const ShowView: React.FC = () => {
           audioRef.current.pause();
           setIsPlaying(false);
         }
-      } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+      } else if (!isUltrastar && videoRef.current) {
         if (videoRef.current.paused) {
           videoRef.current.play().catch(error => {
             console.error('🎬 Error resuming video playback:', error);
@@ -1436,11 +1556,6 @@ const ShowView: React.FC = () => {
           videoRef.current.pause();
           setIsPlaying(false);
         }
-      } else if (currentSong?.mode === 'youtube' && embedUrl) {
-        // For YouTube embed videos, toggle play/pause by reloading iframe
-        console.log('🎬 YouTube iframe play/pause - toggling');
-        setYoutubeIsPaused(prev => !prev);
-        setIframeKey(prev => prev + 1);
       }
     };
     
@@ -1451,18 +1566,12 @@ const ShowView: React.FC = () => {
           console.error('🎵 Error restarting playback:', error);
         });
         setIsPlaying(true);
-      } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+      } else if (!isUltrastar && videoRef.current) {
         videoRef.current.currentTime = 0;
         videoRef.current.play().catch(error => {
           console.error('🎬 Error restarting video playback:', error);
         });
         setIsPlaying(true);
-      } else if (currentSong?.mode === 'youtube' && embedUrl) {
-        // For YouTube embed videos, restart by reloading iframe with t=0
-        console.log('🎬 YouTube iframe restart - restarting from beginning');
-        setYoutubeCurrentTime(0);
-        setYoutubeIsPaused(false);
-        setIframeKey(prev => prev + 1);
       }
     };
     
@@ -1499,29 +1608,6 @@ const ShowView: React.FC = () => {
     return () => clearInterval(timer);
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
 
-  const getYouTubeEmbedUrl = (url: string, startTime?: number, autoplay: boolean = true) => {
-    if (!url) return null;
-    
-    // Extract video ID from various YouTube URL formats
-    const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    
-    if (videoIdMatch) {
-      const videoId = videoIdMatch[1];
-      let embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
-      
-      if (autoplay) {
-        embedUrl += '&autoplay=1';
-      }
-      
-      if (startTime !== undefined) {
-        embedUrl += `&start=${Math.floor(startTime)}`;
-      }
-      
-      return embedUrl;
-    }
-    
-    return null;
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1529,11 +1615,56 @@ const ShowView: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isServerVideo = currentSong?.mode === 'server_video';
-  const isFileVideo = currentSong?.mode === 'file';
+  // Central cache function: finds the correct cache file path or returns null for cache miss
+  const findCacheFile = async (artist: string, title: string, videoId: string): Promise<string | null> => {
+    // Clean artist and title (remove special characters, extra spaces)
+    const cleanArtist = artist.replace(/[^\w\s-]/g, '').trim();
+    const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
+    
+    // Try both cache structures:
+    // #1: "youtube/[artist] - [title]/[videoId].mp4"
+    const artistTitlePath = `${cleanArtist} - ${cleanTitle}`;
+    const artistTitleUrl = `http://localhost:5000/api/youtube-videos/${encodeURIComponent(artistTitlePath)}/${videoId}.mp4`;
+    
+    // #2: "youtube/[videoId]/[videoId].mp4" (fallback)
+    const videoIdUrl = `http://localhost:5000/api/youtube-videos/${videoId}/${videoId}.mp4`;
+    
+    console.log('🔍 Checking cache for:', {
+      artist: cleanArtist,
+      title: cleanTitle,
+      videoId: videoId,
+      artistTitleUrl: artistTitleUrl,
+      videoIdUrl: videoIdUrl
+    });
+    
+    try {
+      // Try artist-title structure first
+      const response1 = await fetch(artistTitleUrl, { method: 'HEAD' });
+      if (response1.ok) {
+        console.log('🎬 Cache hit: Artist-Title structure', artistTitleUrl);
+        return artistTitleUrl;
+      }
+    } catch (error) {
+      console.log('🎬 Cache miss: Artist-Title structure', artistTitleUrl);
+    }
+
+    try {
+      // Try YouTube-ID structure as fallback
+      const response2 = await fetch(videoIdUrl, { method: 'HEAD' });
+      if (response2.ok) {
+        console.log('🎬 Cache hit: YouTube-ID structure', videoIdUrl);
+        return videoIdUrl;
+      }
+    } catch (error) {
+      console.log('🎬 Cache miss: YouTube-ID structure', videoIdUrl);
+    }
+
+    // No cache found
+    console.log('🎬 Cache miss: No file found for', { artist: cleanArtist, title: cleanTitle, videoId });
+    return null;
+  };
+
   const isUltrastar = currentSong?.mode === 'ultrastar';
-  const isYouTubeCache = (currentSong?.mode as string) === 'youtube_cache';
-  const embedUrl = currentSong?.youtube_url && !isServerVideo && !isFileVideo && !isUltrastar && !isYouTubeCache ? getYouTubeEmbedUrl(currentSong.youtube_url) : null;
 
   useEffect(() => {
     globalUltrastarData = ultrastarData;
@@ -1709,7 +1840,7 @@ const ShowView: React.FC = () => {
         audioRef.current.pause();
         setIsPlaying(false);
       }
-    } else if ((isServerVideo || isFileVideo || isYouTubeCache) && videoRef.current) {
+    } else if (!isUltrastar && videoRef.current) {
       if (videoRef.current.paused) {
         videoRef.current.play().catch(error => {
           console.error('🎬 Error resuming video playback:', error);
@@ -1719,13 +1850,8 @@ const ShowView: React.FC = () => {
         videoRef.current.pause();
         setIsPlaying(false);
       }
-    } else if (currentSong?.mode === 'youtube' && embedUrl) {
-      // For YouTube embed videos, toggle play/pause by reloading iframe
-      console.log('🎬 YouTube iframe screen click - toggling play/pause');
-      setYoutubeIsPaused(prev => !prev);
-      setIframeKey(prev => prev + 1);
     }
-  }, [isUltrastar, isServerVideo, isFileVideo, isYouTubeCache, currentSong?.mode, embedUrl, currentSong?.id, currentSong?.title]);
+  }, [isUltrastar, currentSong?.id, currentSong?.title]);
 
   // Control button handlers
   const handlePreviousSong = useCallback(async () => {
@@ -1878,11 +2004,13 @@ const ShowView: React.FC = () => {
       setFadeOutLineIndex(null);
       setFadeOutLineIndices(new Set());
       setIsPlaying(false);
-      setIframeKey(0); // Reset iframe key for new song
-      setYoutubeCurrentTime(0); // Reset YouTube time for new song
-      setYoutubeIsPaused(false); // Reset YouTube pause state for new song
     }
   }, [currentSong?.id, lastSongId, stopUltrastarTiming, stopProgress]);
+
+  // Keep lastSongIdRef in sync with lastSongId state
+  useEffect(() => {
+    lastSongIdRef.current = lastSongId;
+  }, [lastSongId]);
 
   // Initialize cursor timer on component mount
   useEffect(() => {
@@ -1944,7 +2072,7 @@ const ShowView: React.FC = () => {
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
-          {(isServerVideo || isFileVideo || isYouTubeCache) ? (
+          {!isUltrastar ? (
             <VideoElement
               key={currentSong?.id} // Force re-render only when song changes
               ref={videoRef}
@@ -1952,12 +2080,13 @@ const ShowView: React.FC = () => {
               controls
               autoPlay={hasUserInteracted}
               onLoadStart={() => {
-                const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
-                console.log(`🎬 ${videoType} video started:`, { 
+                console.log(`🎬 Video started:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  url: currentSong.youtube_url,
-                  mode: currentSong?.mode
+                  url: currentSong?.youtube_url,
+                  mode: currentSong?.mode,
+                  isUltrastar,
+                  currentSongObject: currentSong
                 });
                 // Set playing state to true when video starts loading (autoplay) - only if user has interacted
                 if (hasUserInteracted) {
@@ -1973,12 +2102,10 @@ const ShowView: React.FC = () => {
                 console.log('🎬 Video paused');
               }}
               onEnded={async () => {
-                const videoType = isFileVideo ? 'File' : isYouTubeCache ? 'YouTube Cache' : 'Server';
-                console.log(`🎬 ${videoType} video ended:`, { 
+                console.log(`🎬 Video ended:`, { 
                   songId: currentSong?.id, 
                   title: currentSong?.title,
-                  mode: currentSong?.mode,
-                  willShowQRCode: currentSong?.mode !== 'youtube'
+                  mode: currentSong?.mode
                 });
                 
                 setIsPlaying(false);
@@ -1992,13 +2119,10 @@ const ShowView: React.FC = () => {
                   console.error('Error restoring original song:', error);
                 }
                 
-                // Automatically show QR code overlay when video ends (except for embedded YouTube videos)
-                // YouTube cache videos should show the overlay since they are local videos
-                if (currentSong?.mode !== 'youtube') {
-                  showAPI.toggleQRCodeOverlay(true).catch(error => {
-                    console.error('Error showing overlay:', error);
-                  });
-                }
+                // Automatically show QR code overlay when video ends
+                showAPI.toggleQRCodeOverlay(true).catch(error => {
+                  console.error('Error showing overlay:', error);
+                });
               }}
             />
           ) : isUltrastar && ultrastarData?.audioUrl ? (
@@ -2042,28 +2166,6 @@ const ShowView: React.FC = () => {
                 <div ref={nextNextLyricRef} style={previewLyricStyle}></div>
               </div>
             </>
-          ) : embedUrl ? (
-            <VideoIframe
-              key={`${currentSong?.id}-${iframeKey}`} // Force re-render when song changes or iframeKey changes
-              src={getYouTubeEmbedUrl(currentSong.youtube_url, youtubeCurrentTime, hasUserInteracted && !youtubeIsPaused) || ''}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onLoad={() => {
-                console.log('🎬 YouTube video loaded:', { 
-                  songId: currentSong?.id, 
-                  title: currentSong?.title,
-                  embedUrl: getYouTubeEmbedUrl(currentSong.youtube_url, youtubeCurrentTime, !youtubeIsPaused),
-                  mode: currentSong?.mode,
-                  iframeKey,
-                  youtubeCurrentTime,
-                  youtubeIsPaused
-                });
-                // Set playing state based on pause status - only if user has interacted
-                if (hasUserInteracted) {
-                  setIsPlaying(!youtubeIsPaused);
-                }
-              }}
-            />
           ) : (
             <NoVideoMessage>
               {currentSong ? '🎵 Kein Video verfügbar' : '🎤 Kein Song ausgewählt'}
@@ -2126,8 +2228,8 @@ const ShowView: React.FC = () => {
       </Footer>
 
       {/* Progress Bar Overlay */}
-      <ProgressOverlay $isVisible={progressVisible}>
-        <ProgressBarContainer>
+      <ProgressOverlay $isVisible={progressVisible} $isUltrastar={isUltrastar}>
+        <ProgressBarContainer $isUltrastar={isUltrastar}>
           <ProgressBarFill $progress={progressValue} />
         </ProgressBarContainer>
       </ProgressOverlay>
