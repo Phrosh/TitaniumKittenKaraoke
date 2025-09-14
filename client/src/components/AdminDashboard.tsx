@@ -929,10 +929,42 @@ const AdminDashboard: React.FC = () => {
     websocketService.on('toggle-play-pause', () => {
       setIsPlaying(prev => !prev);
     });
+    
+    // Listen for show actions from ShowView
+    const handleShowAction = (data: { action: string; timestamp: string; [key: string]: any }) => {
+      console.log('📡 Show action received:', data);
+      
+      switch (data.action) {
+        case 'toggle-play-pause':
+          console.log(`⏯️ ShowView ${data.isPlaying ? 'paused' : 'played'} song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+          setIsPlaying(data.isPlaying);
+          break;
+        case 'restart-song':
+          console.log(`🔄 ShowView restarted song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+          break;
+        case 'next-song':
+          console.log(`⏭️ ShowView moved to next song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+          break;
+        case 'previous-song':
+          console.log(`⏮️ ShowView moved to previous song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+          break;
+        case 'qr-overlay-changed':
+          console.log(`📱 ShowView QR overlay ${data.showQRCodeOverlay ? 'shown' : 'hidden'}: ${data.overlayTitle}`);
+          break;
+        default:
+          console.log(`📡 Unknown show action: ${data.action}`);
+      }
+      
+      // Refresh dashboard data to stay in sync
+      fetchDashboardData();
+    };
+    
+    websocketService.onShowAction(handleShowAction);
 
     return () => {
       websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
       websocketService.off('toggle-play-pause');
+      websocketService.offShowAction(handleShowAction);
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };

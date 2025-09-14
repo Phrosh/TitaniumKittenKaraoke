@@ -267,6 +267,57 @@ async function broadcastRestartSong(io, song) {
   }
 }
 
+/**
+ * Sendet Next-Song Event an alle verbundenen Clients
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} song - Der aktuelle Song
+ */
+async function broadcastNextSong(io, song) {
+  try {
+    // Send next song event to all clients in show room
+    io.to('show').emit('next-song', song);
+    console.log(`⏭️ Broadcasted next song: ${song?.artist} - ${song?.title} to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients`);
+  } catch (error) {
+    console.error('Error broadcasting next song:', error);
+  }
+}
+
+/**
+ * Sendet Previous-Song Event an alle verbundenen Clients
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} song - Der aktuelle Song
+ */
+async function broadcastPreviousSong(io, song) {
+  try {
+    // Send previous song event to all clients in show room
+    io.to('show').emit('previous-song', song);
+    console.log(`⏮️ Broadcasted previous song: ${song?.artist} - ${song?.title} to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients`);
+  } catch (error) {
+    console.error('Error broadcasting previous song:', error);
+  }
+}
+
+/**
+ * Sendet Show-Action Event an Admin-Clients
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {string} action - Die ausgeführte Aktion
+ * @param {Object} data - Zusätzliche Daten
+ */
+async function broadcastShowActionToAdmin(io, action, data = {}) {
+  try {
+    if (io) {
+      io.to('admin').emit('show-action', {
+        action,
+        timestamp: new Date().toISOString(),
+        ...data
+      });
+      console.log(`📡 Show action '${action}' broadcasted to admin clients`);
+    }
+  } catch (error) {
+    console.error('Error broadcasting show action to admin:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
@@ -274,5 +325,8 @@ module.exports = {
   broadcastAdminUpdate,
   broadcastPlaylistUpdate,
   broadcastTogglePlayPause,
-  broadcastRestartSong
+  broadcastRestartSong,
+  broadcastNextSong,
+  broadcastPreviousSong,
+  broadcastShowActionToAdmin
 };

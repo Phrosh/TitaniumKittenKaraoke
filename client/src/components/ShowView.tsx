@@ -1398,6 +1398,20 @@ const ShowView: React.FC = () => {
       // Update overlay status from API
       setShowQRCodeOverlay(overlayStatus);
       
+      // Send QR overlay change to admin dashboard
+      websocketService.emit('show-action', {
+        action: 'qr-overlay-changed',
+        timestamp: new Date().toISOString(),
+        showQRCodeOverlay: overlayStatus,
+        overlayTitle: overlayTitle,
+        currentSong: currentSong ? {
+          id: currentSong.id,
+          artist: currentSong.artist,
+          title: currentSong.title,
+          mode: currentSong.mode
+        } : null
+      });
+      
       // Update QR code if provided
       if (qrCodeDataUrl) {
         setQrCodeUrl(qrCodeDataUrl);
@@ -2028,17 +2042,46 @@ const ShowView: React.FC = () => {
 
   // Control button handlers
   const handlePreviousSong = useCallback(async () => {
+    console.log('⏮️ ShowView previous song button clicked');
+    
+    // Send action to admin dashboard
+    websocketService.emit('show-action', {
+      action: 'previous-song',
+      timestamp: new Date().toISOString(),
+      currentSong: currentSong ? {
+        id: currentSong.id,
+        artist: currentSong.artist,
+        title: currentSong.title,
+        mode: currentSong.mode
+      } : null
+    });
+    
     try {
       const { playlistAPI } = await import('../services/api');
       await playlistAPI.previousSong();
     } catch (error) {
       console.error('Error moving to previous song:', error);
     }
-  }, []);
+  }, [currentSong]);
 
   const handleTogglePlayPause = useCallback(async () => {
     // Mark that user has interacted (allows autoplay for future songs)
     setHasUserInteracted(true);
+    
+    console.log('⏯️ ShowView play/pause button clicked');
+    
+    // Send action to admin dashboard
+    websocketService.emit('show-action', {
+      action: 'toggle-play-pause',
+      timestamp: new Date().toISOString(),
+      currentSong: currentSong ? {
+        id: currentSong.id,
+        artist: currentSong.artist,
+        title: currentSong.title,
+        mode: currentSong.mode
+      } : null,
+      isPlaying: !isPlaying
+    });
     
     try {
       const { playlistAPI } = await import('../services/api');
@@ -2046,7 +2089,7 @@ const ShowView: React.FC = () => {
     } catch (error) {
       console.error('Error toggling play/pause:', error);
     }
-  }, []);
+  }, [currentSong, isPlaying]);
 
   const handleRestartSong = useCallback(async () => {
     // Mark that user has interacted (allows autoplay for future songs)
@@ -2134,6 +2177,18 @@ const ShowView: React.FC = () => {
       console.log('❌ Has ultrastarData:', !!ultrastarData);
     }
     
+    // Send action to admin dashboard
+    websocketService.emit('show-action', {
+      action: 'restart-song',
+      timestamp: new Date().toISOString(),
+      currentSong: currentSong ? {
+        id: currentSong.id,
+        artist: currentSong.artist,
+        title: currentSong.title,
+        mode: currentSong.mode
+      } : null
+    });
+    
     try {
       const { playlistAPI } = await import('../services/api');
       await playlistAPI.restartSong();
@@ -2148,13 +2203,25 @@ const ShowView: React.FC = () => {
     
     console.log('⏭️ ShowView next song button clicked');
     
+    // Send action to admin dashboard
+    websocketService.emit('show-action', {
+      action: 'next-song',
+      timestamp: new Date().toISOString(),
+      currentSong: currentSong ? {
+        id: currentSong.id,
+        artist: currentSong.artist,
+        title: currentSong.title,
+        mode: currentSong.mode
+      } : null
+    });
+    
     try {
       const { playlistAPI } = await import('../services/api');
       await playlistAPI.nextSong();
     } catch (error) {
       console.error('Error moving to next song:', error);
     }
-  }, []);
+  }, [currentSong]);
 
   // Cursor management functions
   const hideCursor = useCallback(() => {

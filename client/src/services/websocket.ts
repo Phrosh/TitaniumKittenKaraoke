@@ -265,6 +265,26 @@ class WebSocketService {
       }
     }
   }
+
+  // Show action event listener for admin dashboard
+  onShowAction(callback: (data: { action: string; timestamp: string; [key: string]: any }) => void): void {
+    if (this.socket) {
+      this.socket.on('show-action', callback);
+    }
+  }
+
+  offShowAction(callback: (data: { action: string; timestamp: string; [key: string]: any }) => void): void {
+    if (this.socket) {
+      this.socket.off('show-action', callback);
+    }
+  }
+
+  // Generic emit method for sending events
+  emit(event: string, data?: any): void {
+    if (this.socket) {
+      this.socket.emit(event, data);
+    }
+  }
 }
 
 // Singleton instance
