@@ -42,6 +42,7 @@ function scanYouTubeSongs() {
               title,
               folderName: folder,
               videoFile: videoFiles[0], // Use first video file found
+              videoFiles: videoFiles, // Store all video files for video ID matching
               modes: ['youtube'],
               hasVideo: true
             });
@@ -85,7 +86,7 @@ function searchYouTubeSongs(query) {
  * @param {string} title - Song title
  * @returns {Object|null} YouTube song object or null if not found
  */
-function findYouTubeSong(artist, title) {
+function findYouTubeSong(artist, title, youtubeUrl = null) {
   const songs = scanYouTubeSongs();
   
   // First try exact match
@@ -102,7 +103,81 @@ function findYouTubeSong(artist, title) {
     );
   }
   
+  // If still not found and we have a YouTube URL, try to find by video ID
+  if (!found && youtubeUrl) {
+    const videoId = extractYouTubeVideoId(youtubeUrl);
+    if (videoId) {
+      // First try to find in the scanned songs
+      found = songs.find(song => {
+        // Check if any video file in the folder has this video ID as filename
+        if (song.videoFiles && Array.isArray(song.videoFiles)) {
+          return song.videoFiles.some(videoFile => 
+            typeof videoFile === 'string' ? videoFile.startsWith(videoId) : 
+            videoFile.filename && videoFile.filename.startsWith(videoId)
+          );
+        }
+        // Fallback: check the main videoFile
+        return song.videoFile && song.videoFile.startsWith(videoId);
+      });
+      
+      // If still not found, do a recursive search in all subdirectories
+      if (!found) {
+        found = findYouTubeSongByVideoIdRecursive(videoId);
+      }
+    }
+  }
+  
   return found;
+}
+
+/**
+ * Recursively search for YouTube song by video ID in all subdirectories
+ * @param {string} videoId - The video ID to search for
+ * @returns {Object|null} YouTube song object or null if not found
+ */
+function findYouTubeSongByVideoIdRecursive(videoId) {
+  try {
+    // Search through all folders in YouTube directory
+    const folders = fs.readdirSync(YOUTUBE_DIR);
+    
+    for (const folder of folders) {
+      const folderPath = path.join(YOUTUBE_DIR, folder);
+      
+      if (fs.statSync(folderPath).isDirectory()) {
+        // Check if any video file in this folder starts with the video ID
+        const files = fs.readdirSync(folderPath);
+        const videoFiles = files.filter(file => {
+          const ext = path.extname(file).toLowerCase();
+          return ['.mp4', '.webm', '.avi', '.mov', '.mkv'].includes(ext);
+        });
+        
+        const matchingVideoFile = videoFiles.find(file => file.startsWith(videoId));
+        
+        if (matchingVideoFile) {
+          // Parse folder name to get artist and title
+          const parts = folder.split(' - ');
+          if (parts.length >= 2) {
+            const artist = parts[0].trim();
+            const title = parts.slice(1).join(' - ').trim();
+            
+            return {
+              artist,
+              title,
+              folderName: folder,
+              videoFile: matchingVideoFile,
+              videoFiles: videoFiles,
+              modes: ['youtube'],
+              hasVideo: true
+            };
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Error in recursive video ID search for ${videoId}:`, error);
+  }
+  
+  return null;
 }
 
 /**
@@ -204,6 +279,7 @@ module.exports = {
   scanYouTubeSongs,
   searchYouTubeSongs,
   findYouTubeSong,
+  findYouTubeSongByVideoIdRecursive,
   extractYouTubeVideoId,
   downloadYouTubeVideo
 };

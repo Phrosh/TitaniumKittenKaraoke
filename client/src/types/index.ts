@@ -43,6 +43,7 @@ export interface YouTubeSong {
   title: string;
   folderName: string;
   videoFile: string;
+  videoFiles?: string[];
   modes: string[];
   hasVideo: boolean;
 }

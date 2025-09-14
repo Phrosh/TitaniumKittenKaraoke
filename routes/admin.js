@@ -88,7 +88,7 @@ router.put('/song/:songId/youtube', [
         await Song.updateDownloadStatus(songId, 'downloading', new Date().toISOString());
         
         // Check if song is already in YouTube cache
-        const existingCache = findYouTubeSong(song.artist, song.title);
+        const existingCache = findYouTubeSong(song.artist, song.title, cleanedUrl);
         if (existingCache) {
           console.log(`✅ Song already in YouTube cache: ${song.artist} - ${song.title}`);
           await Song.updateDownloadStatus(songId, 'cached');
@@ -200,7 +200,7 @@ router.put('/song/:songId', [
         await Song.updateDownloadStatus(songId, 'downloading', new Date().toISOString());
         
         // Check if song is already in YouTube cache
-        const existingCache = findYouTubeSong(artist, title);
+        const existingCache = findYouTubeSong(artist, title, cleanedUrl);
         if (existingCache) {
           console.log(`✅ Song already in YouTube cache: ${artist} - ${title}`);
           await Song.updateDownloadStatus(songId, 'cached');

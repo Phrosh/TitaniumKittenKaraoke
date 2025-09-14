@@ -132,10 +132,107 @@ def extract_video_id_from_url(url):
     
     return None
 
+def find_youtube_song_by_video_id(video_id, youtube_dir):
+    """
+    Find YouTube song by video ID in the YouTube directory (recursive search)
+    """
+    if not video_id or not os.path.exists(youtube_dir):
+        return None
+    
+    try:
+        # Search through all folders in YouTube directory
+        for folder_name in os.listdir(youtube_dir):
+            folder_path = os.path.join(youtube_dir, folder_name)
+            
+            if os.path.isdir(folder_path):
+                # Check if any video file in this folder starts with the video ID
+                for file_name in os.listdir(folder_path):
+                    if file_name.startswith(video_id):
+                        # Parse folder name to get artist and title
+                        parts = folder_name.split(' - ')
+                        if len(parts) >= 2:
+                            artist = parts[0].strip()
+                            title = ' - '.join(parts[1:]).strip()
+                            
+                            return {
+                                'artist': artist,
+                                'title': title,
+                                'folderName': folder_name,
+                                'videoFile': file_name,
+                                'videoFiles': [f for f in os.listdir(folder_path) 
+                                             if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv'))],
+                                'modes': ['youtube'],
+                                'hasVideo': True
+                            }
+    except Exception as e:
+        logger.error(f"Error searching for video ID {video_id}: {e}")
+    
+    return None
+
+def find_youtube_song_by_video_id_recursive(video_id, youtube_dir):
+    """
+    Recursively find YouTube song by video ID in all subdirectories
+    """
+    if not video_id or not os.path.exists(youtube_dir):
+        return None
+    
+    try:
+        # Search through all folders in YouTube directory
+        for folder_name in os.listdir(youtube_dir):
+            folder_path = os.path.join(youtube_dir, folder_name)
+            
+            if os.path.isdir(folder_path):
+                # Check if any video file in this folder starts with the video ID
+                for file_name in os.listdir(folder_path):
+                    if file_name.startswith(video_id):
+                        # Parse folder name to get artist and title
+                        parts = folder_name.split(' - ')
+                        if len(parts) >= 2:
+                            artist = parts[0].strip()
+                            title = ' - '.join(parts[1:]).strip()
+                            
+                            return {
+                                'artist': artist,
+                                'title': title,
+                                'folderName': folder_name,
+                                'videoFile': file_name,
+                                'videoFiles': [f for f in os.listdir(folder_path) 
+                                             if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv'))],
+                                'modes': ['youtube'],
+                                'hasVideo': True
+                            }
+    except Exception as e:
+        logger.error(f"Error in recursive search for video ID {video_id}: {e}")
+    
+    return None
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'ai-services'})
+
+@app.route('/youtube/find-by-video-id/<video_id>', methods=['GET'])
+def find_youtube_song_by_video_id_endpoint(video_id):
+    """
+    Find YouTube song by video ID
+    """
+    try:
+        song = find_youtube_song_by_video_id(video_id, YOUTUBE_DIR)
+        
+        if song:
+            return jsonify({
+                'success': True,
+                'song': song
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Song not found'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error finding YouTube song by video ID {video_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/convert_video/ultrastar/<folder_name>', methods=['POST'])
 def convert_video(folder_name):

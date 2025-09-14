@@ -442,7 +442,7 @@ router.post('/request', [
       
       // If no ultrastar song found, check YouTube cache
       if (mode === 'youtube') {
-        const youtubeSong = findYouTubeSong(artist, title);
+        const youtubeSong = findYouTubeSong(artist, title, youtubeUrl);
         if (youtubeSong) {
           mode = 'youtube_cache';
           youtubeUrl = `/api/youtube-videos/${encodeURIComponent(youtubeSong.folderName)}/${encodeURIComponent(youtubeSong.videoFile)}`;

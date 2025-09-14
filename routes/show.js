@@ -116,8 +116,8 @@ router.get('/', async (req, res) => {
       const port = portSetting ? portSetting.value : '4000';
       youtubeUrl = `http://localhost:${port}/${encodeURIComponent(currentSong.youtube_url)}`;
     } else if (currentSong?.mode === 'youtube' && currentSong?.youtube_url && currentSong?.artist && currentSong?.title) {
-      // Check if we have a local YouTube video in cache
-      const youtubeSong = findYouTubeSong(currentSong.artist, currentSong.title);
+      // Check if we have a local YouTube video in cache (including recursive video ID search)
+      const youtubeSong = findYouTubeSong(currentSong.artist, currentSong.title, currentSong.youtube_url);
       if (youtubeSong) {
         songMode = 'youtube_cache';
         // Build full URL with protocol and host
