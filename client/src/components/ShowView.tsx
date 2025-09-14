@@ -102,6 +102,12 @@ const VideoElement = styled.video`
   background: black;
 `;
 
+const VideoIframe = styled.iframe`
+  width: 100%;
+  height: 100%;
+  border: none;
+`;
+
 const AudioElement = styled.audio`
   position: absolute;
   top: 50px;
@@ -617,6 +623,11 @@ const ShowView: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  
+  // YouTube embed state (only for cache miss fallback)
+  const [iframeKey, setIframeKey] = useState(0);
+  const [youtubeCurrentTime, setYoutubeCurrentTime] = useState(0);
+  const [youtubeIsPaused, setYoutubeIsPaused] = useState(false);
   
   // Cursor visibility state
   const [cursorVisible, setCursorVisible] = useState(true);
@@ -1297,19 +1308,19 @@ const ShowView: React.FC = () => {
               newMode: 'server_video'
             });
           } else {
-            // Cache miss - keep original URL (will show 404)
+            // Cache miss - use YouTube embed as fallback
             normalizedSong = {
               ...newSong,
-              mode: 'server_video' // Force to server_video mode
+              mode: 'youtube' // Force to youtube mode for embed
             };
             
-            console.log('🌐 Cache miss - keeping original URL:', {
+            console.log('🌐 Cache miss - using YouTube embed:', {
               original: newSong.youtube_url,
               artist: newSong.artist,
               title: newSong.title,
               videoId: videoId,
               originalMode: newSong.mode,
-              newMode: 'server_video'
+              newMode: 'youtube'
             });
           }
         }
@@ -1404,44 +1415,44 @@ const ShowView: React.FC = () => {
         videoId = videoIdMatch[1];
       }
       
-      if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
-        // Use central cache function to find the correct file
-        const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
-        
-        if (cacheUrl) {
-          // Cache hit - use the found file
-          normalizedSong = {
-            ...newSong,
-            youtube_url: cacheUrl,
-            mode: 'server_video' // Force to server_video mode
-          };
+        if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
+          // Use central cache function to find the correct file
+          const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
           
-          console.log('🔌 Cache hit - using file:', {
-            original: newSong.youtube_url,
-            cacheUrl: cacheUrl,
-            artist: newSong.artist,
-            title: newSong.title,
-            videoId: videoId,
-            originalMode: newSong.mode,
-            newMode: 'server_video'
-          });
-        } else {
-          // Cache miss - keep original URL (will show 404)
-          normalizedSong = {
-            ...newSong,
-            mode: 'server_video' // Force to server_video mode
-          };
-          
-          console.log('🔌 Cache miss - keeping original URL:', {
-            original: newSong.youtube_url,
-            artist: newSong.artist,
-            title: newSong.title,
-            videoId: videoId,
-            originalMode: newSong.mode,
-            newMode: 'server_video'
-          });
+          if (cacheUrl) {
+            // Cache hit - use the found file
+            normalizedSong = {
+              ...newSong,
+              youtube_url: cacheUrl,
+              mode: 'server_video' // Force to server_video mode
+            };
+            
+            console.log('🔌 Cache hit - using file:', {
+              original: newSong.youtube_url,
+              cacheUrl: cacheUrl,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'server_video'
+            });
+          } else {
+            // Cache miss - use YouTube embed as fallback
+            normalizedSong = {
+              ...newSong,
+              mode: 'youtube' // Force to youtube mode for embed
+            };
+            
+            console.log('🔌 Cache miss - using YouTube embed:', {
+              original: newSong.youtube_url,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'youtube'
+            });
+          }
         }
-      }
     }
     
     console.log('🔌 WebSocket Update received:', {
@@ -1546,6 +1557,9 @@ const ShowView: React.FC = () => {
           audioRef.current.pause();
           setIsPlaying(false);
         }
+      } else if (currentSong?.mode === 'youtube') {
+        // YouTube embed - toggle pause state
+        setYoutubeIsPaused(!youtubeIsPaused);
       } else if (!isUltrastar && videoRef.current) {
         if (videoRef.current.paused) {
           videoRef.current.play().catch(error => {
@@ -1566,6 +1580,11 @@ const ShowView: React.FC = () => {
           console.error('🎵 Error restarting playback:', error);
         });
         setIsPlaying(true);
+      } else if (currentSong?.mode === 'youtube') {
+        // YouTube embed - restart by reloading iframe
+        setYoutubeCurrentTime(0);
+        setIframeKey(prev => prev + 1);
+        setYoutubeIsPaused(false);
       } else if (!isUltrastar && videoRef.current) {
         videoRef.current.currentTime = 0;
         videoRef.current.play().catch(error => {
@@ -1613,6 +1632,16 @@ const ShowView: React.FC = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Function to get YouTube embed URL
+  const getYouTubeEmbedUrl = (url: string): string => {
+    const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    if (videoIdMatch) {
+      const videoId = videoIdMatch[1];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&start=${youtubeCurrentTime}`;
+    }
+    return url;
   };
 
   // Central cache function: finds the correct cache file path or returns null for cache miss
@@ -1840,6 +1869,9 @@ const ShowView: React.FC = () => {
         audioRef.current.pause();
         setIsPlaying(false);
       }
+    } else if (currentSong?.mode === 'youtube') {
+      // YouTube embed - toggle pause state
+      setYoutubeIsPaused(!youtubeIsPaused);
     } else if (!isUltrastar && videoRef.current) {
       if (videoRef.current.paused) {
         videoRef.current.play().catch(error => {
@@ -1851,7 +1883,7 @@ const ShowView: React.FC = () => {
         setIsPlaying(false);
       }
     }
-  }, [isUltrastar, currentSong?.id, currentSong?.title]);
+  }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused]);
 
   // Control button handlers
   const handlePreviousSong = useCallback(async () => {
@@ -1937,6 +1969,16 @@ const ShowView: React.FC = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // Reset YouTube embed state when song changes
+  useEffect(() => {
+    if (currentSong?.mode === 'youtube') {
+      setYoutubeCurrentTime(0);
+      setYoutubeIsPaused(false);
+      setIframeKey(prev => prev + 1);
+      console.log('🔄 Reset YouTube embed state for new song');
+    }
+  }, [currentSong?.id]);
 
   // Check if both audio and video/background are ready for autoplay
   const checkMediaReady = useCallback(() => {
@@ -2073,58 +2115,68 @@ const ShowView: React.FC = () => {
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
           {!isUltrastar ? (
-            <VideoElement
-              key={currentSong?.id} // Force re-render only when song changes
-              ref={videoRef}
-              src={currentSong.youtube_url}
-              controls
-              autoPlay={hasUserInteracted}
-              onLoadStart={() => {
-                console.log(`🎬 Video started:`, { 
-                  songId: currentSong?.id, 
-                  title: currentSong?.title,
-                  url: currentSong?.youtube_url,
-                  mode: currentSong?.mode,
-                  isUltrastar,
-                  currentSongObject: currentSong
-                });
-                // Set playing state to true when video starts loading (autoplay) - only if user has interacted
-                if (hasUserInteracted) {
+            currentSong?.mode === 'youtube' ? (
+              <VideoIframe
+                key={iframeKey}
+                src={getYouTubeEmbedUrl(currentSong.youtube_url)}
+                title={`${currentSong.artist} - ${currentSong.title}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <VideoElement
+                key={currentSong?.id} // Force re-render only when song changes
+                ref={videoRef}
+                src={currentSong.youtube_url}
+                controls
+                autoPlay={hasUserInteracted}
+                onLoadStart={() => {
+                  console.log(`🎬 Video started:`, { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title,
+                    url: currentSong?.youtube_url,
+                    mode: currentSong?.mode,
+                    isUltrastar,
+                    currentSongObject: currentSong
+                  });
+                  // Set playing state to true when video starts loading (autoplay) - only if user has interacted
+                  if (hasUserInteracted) {
+                    setIsPlaying(true);
+                  }
+                }}
+                onPlay={() => {
                   setIsPlaying(true);
-                }
-              }}
-              onPlay={() => {
-                setIsPlaying(true);
-                console.log('🎬 Video started playing');
-              }}
-              onPause={() => {
-                setIsPlaying(false);
-                console.log('🎬 Video paused');
-              }}
-              onEnded={async () => {
-                console.log(`🎬 Video ended:`, { 
-                  songId: currentSong?.id, 
-                  title: currentSong?.title,
-                  mode: currentSong?.mode
-                });
+                  console.log('🎬 Video started playing');
+                }}
+                onPause={() => {
+                  setIsPlaying(false);
+                  console.log('🎬 Video paused');
+                }}
+                onEnded={async () => {
+                  console.log(`🎬 Video ended:`, { 
+                    songId: currentSong?.id, 
+                    title: currentSong?.title,
+                    mode: currentSong?.mode
+                  });
+                  
+                  setIsPlaying(false);
                 
-                setIsPlaying(false);
-                
-                // Check if this was a test song and restore original song
-                try {
-                  const { adminAPI } = await import('../services/api');
-                  await adminAPI.restoreOriginalSong();
-                  console.log('🎤 Test song ended - original song restored');
-                } catch (error) {
-                  console.error('Error restoring original song:', error);
-                }
-                
-                // Automatically show QR code overlay when video ends
-                showAPI.toggleQRCodeOverlay(true).catch(error => {
-                  console.error('Error showing overlay:', error);
-                });
-              }}
-            />
+                  // Check if this was a test song and restore original song
+                  try {
+                    const { adminAPI } = await import('../services/api');
+                    await adminAPI.restoreOriginalSong();
+                    console.log('🎤 Test song ended - original song restored');
+                  } catch (error) {
+                    console.error('Error restoring original song:', error);
+                  }
+                  
+                  // Automatically show QR code overlay when video ends
+                  showAPI.toggleQRCodeOverlay(true).catch(error => {
+                    console.error('Error showing overlay:', error);
+                  });
+                }}
+              />
+            )
           ) : isUltrastar && ultrastarData?.audioUrl ? (
             <>
               {ultrastarData.videoUrl ? (
