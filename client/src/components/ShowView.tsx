@@ -829,6 +829,61 @@ const ShowView: React.FC = () => {
     stopProgress();
   }, [stopProgress]);
 
+  // Function to restart lyrics animation when audio resumes
+  const restartLyricsAnimation = useCallback(() => {
+    if (ultrastarData && audioRef.current && !audioRef.current.paused) {
+      console.log('🎵 Restarting lyrics animation');
+      // Clear existing animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      // Restart the animation loop
+      animationFrameRef.current = requestAnimationFrame(() => {
+        // This will restart the animation loop
+        if (ultrastarData && audioRef.current && !audioRef.current.paused) {
+          // Recalculate timing and restart the loop
+          const beatDuration = (60 / ultrastarData.bpm) * 1000; // Convert to milliseconds
+          const updateLyrics = () => {
+            if (!audioRef.current || audioRef.current.paused) return;
+            
+            const now = Date.now();
+            const timeSinceLastUpdate = now - lastUpdateTime.current;
+            
+            if (timeSinceLastUpdate < UPDATE_THROTTLE_MS) {
+              animationFrameRef.current = requestAnimationFrame(updateLyrics);
+              return;
+            }
+            
+            lastUpdateTime.current = now;
+            const currentTime = audioRef.current.currentTime * 1000;
+            const songTime = currentTime - ultrastarData.gap;
+            
+            if (songTime < 0) {
+              animationFrameRef.current = requestAnimationFrame(updateLyrics);
+              return;
+            }
+            
+            const currentBeat = songTime / beatDuration;
+            const currentLineIndex = ultrastarData.lines.findIndex((line: UltrastarLine) => 
+              currentBeat >= line.startBeat && currentBeat < line.endBeat
+            );
+            
+            if (currentLineIndex >= 0) {
+              const currentLine = ultrastarData.lines[currentLineIndex];
+              const nextLine = ultrastarData.lines[currentLineIndex + 1];
+              const nextNextLine = ultrastarData.lines[currentLineIndex + 2];
+              updateLyricsDisplay(currentLine, nextLine, nextNextLine, false);
+            }
+            
+            animationFrameRef.current = requestAnimationFrame(updateLyrics);
+          };
+          
+          animationFrameRef.current = requestAnimationFrame(updateLyrics);
+        }
+      });
+    }
+  }, [ultrastarData]);
+
   const startUltrastarTiming = useCallback((songData: UltrastarSongData, fadeOutIndices: Set<number>) => {
     // Clear existing interval
     stopUltrastarTiming();
@@ -858,6 +913,9 @@ const ShowView: React.FC = () => {
     // Use requestAnimationFrame for smooth 60fps updates
     const updateLyrics = () => {
       if (!audioRef.current) return;
+      
+      // Note: We don't check for paused here to allow initial animation start
+      // Pause handling is done in the event handlers instead
       
       const now = Date.now();
       const timeSinceLastUpdate = now - lastUpdateTime.current;
@@ -1547,20 +1605,34 @@ const ShowView: React.FC = () => {
     
     // Listen for control events
     const handleTogglePlayPause = () => {
-      if (isUltrastar && audioRef.current) {
+      console.log('🔌 WebSocket toggle-play-pause received, currentSong:', currentSong);
+      
+      if (currentSong?.mode === 'ultrastar' && audioRef.current) {
+        console.log('🎤 Ultrastar toggle-play-pause via WebSocket');
         if (audioRef.current.paused) {
           audioRef.current.play().catch(error => {
             console.error('🎵 Error resuming playback:', error);
           });
           setIsPlaying(true);
+          // Restart lyrics animation when audio resumes
+          setTimeout(() => {
+            restartLyricsAnimation();
+          }, 100); // Small delay to ensure audio is playing
         } else {
           audioRef.current.pause();
           setIsPlaying(false);
+          // Stop lyrics animation when audio is paused
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+          }
         }
       } else if (currentSong?.mode === 'youtube') {
+        console.log('📺 YouTube toggle-play-pause via WebSocket');
         // YouTube embed - toggle pause state
         setYoutubeIsPaused(!youtubeIsPaused);
-      } else if (!isUltrastar && videoRef.current) {
+      } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
+        console.log('🎬 Video toggle-play-pause via WebSocket');
         if (videoRef.current.paused) {
           videoRef.current.play().catch(error => {
             console.error('🎬 Error resuming video playback:', error);
@@ -1574,23 +1646,83 @@ const ShowView: React.FC = () => {
     };
     
     const handleRestartSong = () => {
-      if (isUltrastar && audioRef.current) {
+      console.log('🔌 WebSocket restart-song received, currentSong:', currentSong);
+      console.log('🔌 Audio ref:', audioRef.current);
+      console.log('🔌 Video ref:', videoRef.current);
+      console.log('🔌 Ultrastar data:', ultrastarData);
+      
+      if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
+        console.log('🎤 Ultrastar restart-song via WebSocket');
+        
+        // Restart audio
+        console.log('🎵 Audio currentTime before:', audioRef.current.currentTime);
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(error => {
+        console.log('🎵 Audio currentTime after:', audioRef.current.currentTime);
+        audioRef.current.play().then(() => {
+          console.log('🎵 Audio play() successful');
+        }).catch(error => {
           console.error('🎵 Error restarting playback:', error);
         });
+        
+        // Also restart video if present
+        if (videoRef.current) {
+          console.log('🎬 Ultrastar video restart-song via WebSocket');
+          console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
+          videoRef.current.currentTime = 0;
+          console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+          videoRef.current.play().then(() => {
+            console.log('🎬 Video play() successful');
+          }).catch(error => {
+            console.error('🎬 Error restarting video playback:', error);
+          });
+        } else {
+          console.log('🎬 No video ref found for Ultrastar song');
+        }
+        
         setIsPlaying(true);
+        // Restart complete Ultrastar timing and lyrics
+        setTimeout(() => {
+          console.log('🎤 Restarting complete Ultrastar timing via WebSocket');
+          startUltrastarTiming(ultrastarData, new Set());
+        }, 100); // Small delay to ensure audio is playing
       } else if (currentSong?.mode === 'youtube') {
+        console.log('📺 YouTube restart-song via WebSocket');
         // YouTube embed - restart by reloading iframe
         setYoutubeCurrentTime(0);
         setIframeKey(prev => prev + 1);
         setYoutubeIsPaused(false);
-      } else if (!isUltrastar && videoRef.current) {
+      } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
+        console.log('🎬 Video restart-song via WebSocket');
+        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
         videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(error => {
+        console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+        videoRef.current.play().then(() => {
+          console.log('🎬 Video play() successful');
+        }).catch(error => {
           console.error('🎬 Error restarting video playback:', error);
         });
         setIsPlaying(true);
+        console.log('🎬 Video play() called, isPlaying set to true');
+      } else if (currentSong?.mode === 'server_video' || currentSong?.mode === 'file' || currentSong?.mode === 'youtube_cache') {
+        console.log('🎬 Server/File/YouTube-Cache video restart-song via WebSocket');
+        if (videoRef.current) {
+          console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
+          videoRef.current.currentTime = 0;
+          console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+          videoRef.current.play().catch(error => {
+            console.error('🎬 Error restarting video playback:', error);
+          });
+          setIsPlaying(true);
+          console.log('🎬 Video play() called, isPlaying set to true');
+        } else {
+          console.log('❌ Video ref is null for server/file/youtube-cache video');
+        }
+      } else {
+        console.log('❌ No WebSocket restart logic executed - conditions not met');
+        console.log('❌ Mode:', currentSong?.mode);
+        console.log('❌ Has audioRef:', !!audioRef.current);
+        console.log('❌ Has videoRef:', !!videoRef.current);
+        console.log('❌ Has ultrastarData:', !!ultrastarData);
       }
     };
     
@@ -1605,7 +1737,7 @@ const ShowView: React.FC = () => {
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
-  }, [handleWebSocketUpdate]);
+  }, [handleWebSocketUpdate, currentSong, ultrastarData, startUltrastarTiming, youtubeIsPaused]);
 
   // Timer effect
   useEffect(() => {
@@ -1865,9 +1997,18 @@ const ShowView: React.FC = () => {
           console.error('🎵 Error resuming playback:', error);
         });
         setIsPlaying(true);
+        // Restart lyrics animation when audio resumes
+        setTimeout(() => {
+          restartLyricsAnimation();
+        }, 100); // Small delay to ensure audio is playing
       } else {
         audioRef.current.pause();
         setIsPlaying(false);
+        // Stop lyrics animation when audio is paused
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
       }
     } else if (currentSong?.mode === 'youtube') {
       // YouTube embed - toggle pause state
@@ -1883,7 +2024,7 @@ const ShowView: React.FC = () => {
         setIsPlaying(false);
       }
     }
-  }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused]);
+  }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused, restartLyricsAnimation]);
 
   // Control button handlers
   const handlePreviousSong = useCallback(async () => {
@@ -1911,13 +2052,95 @@ const ShowView: React.FC = () => {
     // Mark that user has interacted (allows autoplay for future songs)
     setHasUserInteracted(true);
     
+    console.log('🔄 ShowView restart button clicked, currentSong:', currentSong);
+    console.log('🔄 Audio ref:', audioRef.current);
+    console.log('🔄 Video ref:', videoRef.current);
+    console.log('🔄 Ultrastar data:', ultrastarData);
+    
+    // Handle local restart logic first
+    if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
+      console.log('🎤 Ultrastar restart via ShowView button');
+      
+      // Restart audio
+      console.log('🎵 Audio currentTime before:', audioRef.current.currentTime);
+      audioRef.current.currentTime = 0;
+      console.log('🎵 Audio currentTime after:', audioRef.current.currentTime);
+      audioRef.current.play().then(() => {
+        console.log('🎵 Audio play() successful');
+      }).catch(error => {
+        console.error('🎵 Error restarting playback:', error);
+      });
+      
+      // Also restart video if present
+      if (videoRef.current) {
+        console.log('🎬 Ultrastar video restart via ShowView button');
+        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
+        videoRef.current.currentTime = 0;
+        console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+        videoRef.current.play().then(() => {
+          console.log('🎬 Video play() successful');
+        }).catch(error => {
+          console.error('🎬 Error restarting video playback:', error);
+        });
+      } else {
+        console.log('🎬 No video ref found for Ultrastar song');
+      }
+      
+      setIsPlaying(true);
+      // Restart complete Ultrastar timing and lyrics
+      setTimeout(() => {
+        console.log('🎤 Restarting complete Ultrastar timing');
+        startUltrastarTiming(ultrastarData, new Set());
+      }, 100); // Small delay to ensure audio is playing
+    } else if (currentSong?.mode === 'youtube') {
+      console.log('📺 YouTube restart via ShowView button');
+      // YouTube embed - restart by reloading iframe
+      setYoutubeCurrentTime(0);
+      setIframeKey(prev => prev + 1);
+      setYoutubeIsPaused(false);
+    } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
+      console.log('🎬 Video restart via ShowView button');
+      console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
+      videoRef.current.currentTime = 0;
+      console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+      videoRef.current.play().then(() => {
+        console.log('🎬 Video play() successful');
+      }).catch(error => {
+        console.error('🎬 Error restarting video playback:', error);
+      });
+      setIsPlaying(true);
+      console.log('🎬 Video play() called, isPlaying set to true');
+    } else if (currentSong?.mode === 'server_video' || currentSong?.mode === 'file' || currentSong?.mode === 'youtube_cache') {
+      console.log('🎬 Server/File/YouTube-Cache video restart via ShowView button');
+      if (videoRef.current) {
+        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
+        videoRef.current.currentTime = 0;
+        console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
+        videoRef.current.play().then(() => {
+          console.log('🎬 Video play() successful');
+        }).catch(error => {
+          console.error('🎬 Error restarting video playback:', error);
+        });
+        setIsPlaying(true);
+        console.log('🎬 Video play() called, isPlaying set to true');
+      } else {
+        console.log('❌ Video ref is null for server/file/youtube-cache video');
+      }
+    } else {
+      console.log('❌ No restart logic executed - conditions not met');
+      console.log('❌ Mode:', currentSong?.mode);
+      console.log('❌ Has audioRef:', !!audioRef.current);
+      console.log('❌ Has videoRef:', !!videoRef.current);
+      console.log('❌ Has ultrastarData:', !!ultrastarData);
+    }
+    
     try {
       const { playlistAPI } = await import('../services/api');
       await playlistAPI.restartSong();
     } catch (error) {
       console.error('Error restarting song:', error);
     }
-  }, []);
+  }, [currentSong, ultrastarData, startUltrastarTiming]);
 
   // Cursor management functions
   const hideCursor = useCallback(() => {

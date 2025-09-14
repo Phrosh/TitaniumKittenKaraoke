@@ -235,19 +235,35 @@ router.post('/previous', verifyToken, async (req, res) => {
   }
 });
 
-// Toggle play/pause (placeholder - actual implementation depends on media type)
+// Toggle play/pause (implementation depends on media type)
 router.post('/toggle-play-pause', verifyToken, async (req, res) => {
   try {
-    // This is a placeholder implementation
-    // The actual play/pause logic would depend on the media type (YouTube, local video, audio, etc.)
-    // For now, we'll just broadcast a toggle event
+    // Get current song to determine media type
+    const currentSong = await Song.getCurrentSong();
     
     const io = req.app.get('io');
     if (io) {
-      await broadcastTogglePlayPause(io);
+      if (currentSong && currentSong.mode === 'ultrastar') {
+        // For Ultrastar songs, we need to handle audio playback
+        // The ShowView will handle the actual audio element control
+        await broadcastTogglePlayPause(io);
+        console.log(`⏯️ Ultrastar play/pause toggle for: ${currentSong.artist} - ${currentSong.title}`);
+      } else {
+        // For other media types (YouTube, server_video, file), broadcast generic toggle
+        await broadcastTogglePlayPause(io);
+        console.log(`⏯️ Generic play/pause toggle for: ${currentSong?.artist || 'unknown'} - ${currentSong?.title || 'unknown'}`);
+      }
     }
     
-    res.json({ message: 'Play/pause toggled' });
+    res.json({ 
+      message: 'Play/pause toggled',
+      currentSong: currentSong ? {
+        id: currentSong.id,
+        artist: currentSong.artist,
+        title: currentSong.title,
+        mode: currentSong.mode
+      } : null
+    });
   } catch (error) {
     console.error('Toggle play/pause error:', error);
     res.status(500).json({ message: 'Server error' });

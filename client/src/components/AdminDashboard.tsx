@@ -1301,7 +1301,14 @@ const AdminDashboard: React.FC = () => {
   const handleTogglePlayPause = async () => {
     setActionLoading(true);
     try {
-      await playlistAPI.togglePlayPause();
+      const response = await playlistAPI.togglePlayPause();
+      console.log('⏯️ Play/pause toggle response:', response.data);
+      
+      // Check if current song is Ultrastar
+      if (response.data.currentSong && response.data.currentSong.mode === 'ultrastar') {
+        console.log('🎤 Ultrastar song detected - ShowView will handle audio control');
+      }
+      
       await fetchDashboardData();
     } catch (error) {
       console.error('Error toggling play/pause:', error);
@@ -2668,9 +2675,11 @@ const AdminDashboard: React.FC = () => {
                     </SongContent>
                     
                     <SongActions>
-                      {currentSong?.id === song.id && (
-                        <Badge type="current">🎤 AKTUELL</Badge>
-                      )}
+        {currentSong?.id === song.id && (
+          <Badge type="current">
+            🎤 AKTUELL
+          </Badge>
+        )}
                       
                       <Button 
                         variant="success"
