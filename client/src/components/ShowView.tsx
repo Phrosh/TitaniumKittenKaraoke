@@ -2142,6 +2142,20 @@ const ShowView: React.FC = () => {
     }
   }, [currentSong, ultrastarData, startUltrastarTiming]);
 
+  const handleNextSong = useCallback(async () => {
+    // Mark that user has interacted (allows autoplay for future songs)
+    setHasUserInteracted(true);
+    
+    console.log('⏭️ ShowView next song button clicked');
+    
+    try {
+      const { playlistAPI } = await import('../services/api');
+      await playlistAPI.nextSong();
+    } catch (error) {
+      console.error('Error moving to next song:', error);
+    }
+  }, []);
+
   // Cursor management functions
   const hideCursor = useCallback(() => {
     setCursorVisible(false);
@@ -2325,6 +2339,15 @@ const ShowView: React.FC = () => {
             title="Song neu starten"
           >
             🔄
+          </ControlButton>
+          <ControlButton 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextSong();
+            }}
+            title="Nächster Song"
+          >
+            ⏭️
           </ControlButton>
         </ControlButtonsContainer>
       )}
