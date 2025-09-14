@@ -7,6 +7,7 @@ import re
 import os
 import zipfile
 import tempfile
+import subprocess
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import logging
@@ -522,6 +523,17 @@ class USDBScraperImproved:
                 
                 if downloaded_video:
                     logger.info(f"Downloaded video: {downloaded_video}")
+                    
+                    # Normalize audio in the downloaded video
+                    video_path = os.path.join(output_dir, downloaded_video)
+                    logger.info(f"Starting audio normalization for: {video_path}")
+                    
+                    normalized_path = self.normalize_audio_in_video(video_path)
+                    if normalized_path:
+                        logger.info(f"Audio normalization completed successfully")
+                    else:
+                        logger.warning(f"Audio normalization failed, but video download was successful")
+                    
                     return downloaded_video
                 else:
                     logger.warning(f"Video download completed but no matching file found. Files: {files}")
@@ -529,6 +541,68 @@ class USDBScraperImproved:
                     
         except Exception as e:
             logger.error(f"YouTube download failed: {str(e)}")
+            return None
+
+    def normalize_audio_in_video(self, video_path):
+        """
+        Normalize audio in video file using ffmpeg loudnorm filter
+        """
+        try:
+            if not os.path.exists(video_path):
+                logger.error(f"Video file not found: {video_path}")
+                return None
+            
+            # Create temporary output file
+            base_name = os.path.splitext(video_path)[0]
+            extension = os.path.splitext(video_path)[1]
+            temp_output = f"{base_name}_normalized_temp{extension}"
+            
+            logger.info(f"Normalizing audio in video: {video_path}")
+            
+            # Use ffmpeg with loudnorm filter for audio normalization
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-c:v', 'copy',  # Copy video stream without re-encoding
+                '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',  # Audio normalization filter
+                '-y',  # Overwrite output file if it exists
+                temp_output
+            ]
+            
+            logger.info(f"Running ffmpeg normalization command: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode == 0:
+                logger.info(f"Successfully normalized audio in video: {temp_output}")
+                
+                # Replace original video with normalized version
+                try:
+                    os.replace(temp_output, video_path)
+                    logger.info(f"Replaced original video with normalized version: {video_path}")
+                    return video_path
+                except Exception as e:
+                    logger.error(f"Error replacing original video: {e}")
+                    return temp_output
+            else:
+                logger.error(f"ffmpeg normalization failed with return code {result.returncode}")
+                logger.error(f"ffmpeg stderr: {result.stderr}")
+                # Clean up temp file if it exists
+                if os.path.exists(temp_output):
+                    os.remove(temp_output)
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error("ffmpeg normalization command timed out")
+            # Clean up temp file if it exists
+            if 'temp_output' in locals() and os.path.exists(temp_output):
+                os.remove(temp_output)
+            return None
+        except Exception as e:
+            logger.error(f"Error normalizing audio in video: {e}")
+            # Clean up temp file if it exists
+            if 'temp_output' in locals() and os.path.exists(temp_output):
+                os.remove(temp_output)
             return None
 
 

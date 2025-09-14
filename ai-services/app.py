@@ -196,6 +196,68 @@ def remove_audio_from_video(folder_path):
         logger.error(f"Error removing audio from video: {e}")
         return None
 
+def normalize_audio_in_video(video_path):
+    """
+    Normalize audio in video file using ffmpeg loudnorm filter
+    """
+    try:
+        if not os.path.exists(video_path):
+            logger.error(f"Video file not found: {video_path}")
+            return None
+        
+        # Create temporary output file
+        base_name = os.path.splitext(video_path)[0]
+        extension = os.path.splitext(video_path)[1]
+        temp_output = f"{base_name}_normalized_temp{extension}"
+        
+        logger.info(f"Normalizing audio in video: {video_path}")
+        
+        # Use ffmpeg with loudnorm filter for audio normalization
+        cmd = [
+            'ffmpeg',
+            '-i', video_path,
+            '-c:v', 'copy',  # Copy video stream without re-encoding
+            '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',  # Audio normalization filter
+            '-y',  # Overwrite output file if it exists
+            temp_output
+        ]
+        
+        logger.info(f"Running ffmpeg normalization command: {' '.join(cmd)}")
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        
+        if result.returncode == 0:
+            logger.info(f"Successfully normalized audio in video: {temp_output}")
+            
+            # Replace original video with normalized version
+            try:
+                os.replace(temp_output, video_path)
+                logger.info(f"Replaced original video with normalized version: {video_path}")
+                return video_path
+            except Exception as e:
+                logger.error(f"Error replacing original video: {e}")
+                return temp_output
+        else:
+            logger.error(f"ffmpeg normalization failed with return code {result.returncode}")
+            logger.error(f"ffmpeg stderr: {result.stderr}")
+            # Clean up temp file if it exists
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
+            return None
+            
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg normalization command timed out")
+        # Clean up temp file if it exists
+        if os.path.exists(temp_output):
+            os.remove(temp_output)
+        return None
+    except Exception as e:
+        logger.error(f"Error normalizing audio in video: {e}")
+        # Clean up temp file if it exists
+        if 'temp_output' in locals() and os.path.exists(temp_output):
+            os.remove(temp_output)
+        return None
+
 @app.route('/separate_audio/ultrastar/<folder_name>', methods=['POST'])
 def separate_audio(folder_name):
     """
@@ -426,11 +488,24 @@ def download_youtube_video(folder_name):
                         break
                 
                 if downloaded_video:
+                    # Normalize audio in the downloaded video
+                    video_path = os.path.join(folder_path, downloaded_video)
+                    logger.info(f"Starting audio normalization for: {video_path}")
+                    
+                    normalized_path = normalize_audio_in_video(video_path)
+                    if normalized_path:
+                        logger.info(f"Audio normalization completed successfully")
+                        normalization_status = 'success'
+                    else:
+                        logger.warning(f"Audio normalization failed, but video download was successful")
+                        normalization_status = 'failed'
+                    
                     return jsonify({
                         'message': 'YouTube video downloaded successfully',
                         'status': 'success',
                         'downloadedFile': downloaded_video,
-                        'folderName': folder_name
+                        'folderName': folder_name,
+                        'audioNormalization': normalization_status
                     })
                 else:
                     return jsonify({
@@ -695,6 +770,18 @@ def download_youtube_video_to_youtube_folder(folder_name):
                         break
                 
                 if downloaded_video:
+                    # Normalize audio in the downloaded video
+                    video_path = os.path.join(folder_path, downloaded_video)
+                    logger.info(f"Starting audio normalization for: {video_path}")
+                    
+                    normalized_path = normalize_audio_in_video(video_path)
+                    if normalized_path:
+                        logger.info(f"Audio normalization completed successfully")
+                        normalization_status = 'success'
+                    else:
+                        logger.warning(f"Audio normalization failed, but video download was successful")
+                        normalization_status = 'failed'
+                    
                     return jsonify({
                         'message': 'YouTube video downloaded successfully',
                         'status': 'success',
@@ -702,7 +789,8 @@ def download_youtube_video_to_youtube_folder(folder_name):
                         'folderName': folder_name,
                         'videoId': video_id,
                         'artist': artist,
-                        'title': title
+                        'title': title,
+                        'audioNormalization': normalization_status
                     })
                 else:
                     return jsonify({
