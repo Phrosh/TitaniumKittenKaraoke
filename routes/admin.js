@@ -1019,16 +1019,20 @@ router.delete('/ultrastar-audio-settings', [
 });
 
 // USDB Credentials Management
+// Helper function to get USDB credentials
+const getUSDBCredentials = async () => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
 // Get USDB credentials
 router.get('/usdb-credentials', async (req, res) => {
   try {
-    const credentials = await new Promise((resolve, reject) => {
-      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
+    const credentials = await getUSDBCredentials();
     res.json({ credentials });
   } catch (error) {
     console.error('Error getting USDB credentials:', error);
@@ -1105,12 +1109,7 @@ router.post('/usdb-download', [
     const { usdbUrl } = req.body;
 
     // Get USDB credentials
-    const credentials = await new Promise((resolve, reject) => {
-      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    const credentials = await getUSDBCredentials();
 
     if (!credentials) {
       return res.status(400).json({ message: 'Keine USDB-Zugangsdaten gefunden. Bitte zuerst in den Einstellungen eingeben.' });
@@ -1204,7 +1203,9 @@ router.post('/usdb-download', [
 
 // Search songs on USDB using Python service
 router.post('/usdb-search', [
-  body('query').notEmpty().trim().withMessage('Suchbegriff ist erforderlich'),
+  body('interpret').optional().trim(),
+  body('title').optional().trim(),
+  body('query').optional().trim(), // Legacy support
   body('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit muss zwischen 1 und 100 liegen')
 ], async (req, res) => {
   try {
@@ -1213,16 +1214,53 @@ router.post('/usdb-search', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { query, limit = 20 } = req.body;
+    const { interpret, title, query, limit = 20 } = req.body;
+
+    // Validate that at least one search parameter is provided
+    if (!interpret && !title && !query) {
+      return res.status(400).json({ 
+        message: 'Mindestens ein Suchparameter (interpret, title oder query) ist erforderlich' 
+      });
+    }
+
+    // Get USDB credentials from database
+    const credentials = await getUSDBCredentials();
+    if (!credentials) {
+      return res.status(400).json({ 
+        message: 'USDB-Zugangsdaten nicht gefunden. Bitte zuerst in den Einstellungen eingeben.' 
+      });
+    }
 
     // Call Python AI service for USDB search
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
     
     try {
-      const response = await axios.post(`${aiServiceUrl}/usdb/search`, {
-        query: query,
-        limit: limit
-      }, {
+      // First check if AI service is reachable
+      try {
+        await axios.get(`${aiServiceUrl}/health`, { timeout: 5000 });
+      } catch (healthError) {
+        console.error('AI Service health check failed:', healthError.message);
+        return res.status(500).json({ 
+          message: 'AI-Service ist nicht erreichbar. Bitte starte den AI-Service.', 
+          error: healthError.message 
+        });
+      }
+
+      const searchData = {
+        interpret: interpret || '',
+        title: title || '',
+        limit: limit,
+        username: credentials.username,
+        password: credentials.password
+      };
+
+      // Support legacy query parameter
+      if (query && !interpret && !title) {
+        searchData.query = query;
+      }
+
+      console.log('Sending search request to AI service:', { interpret, title, limit });
+      const response = await axios.post(`${aiServiceUrl}/usdb/search`, searchData, {
         timeout: 30000 // 30 seconds timeout for search
       });
 

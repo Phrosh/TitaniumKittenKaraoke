@@ -208,8 +208,8 @@ export const adminAPI = {
   deleteUSDBCredentials: () => api.delete('/admin/usdb-credentials'),
   downloadFromUSDB: (usdbUrl: string) =>
     api.post('/admin/usdb-download', { usdbUrl }),
-  searchUSDB: (query: string, limit?: number) =>
-    api.post('/admin/usdb-search', { query, limit }),
+  searchUSDB: (interpret?: string, title?: string, limit?: number) =>
+    api.post('/admin/usdb-search', { interpret, title, limit }),
   getUSDBSongInfo: (songId: string) =>
     api.get(`/admin/usdb-song/${songId}`),
   

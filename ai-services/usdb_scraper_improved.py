@@ -72,80 +72,55 @@ class USDBScraperImproved:
         })
         self.base_url = 'https://usdb.animux.de'
         self.logged_in = False
+        
+        # Enable cookie jar for better session management
+        self.session.cookies.clear()
 
     def login(self):
-        """Login to USDB with multiple strategies"""
+        """Login to USDB using the proven method from usdb_find_ids.py"""
         if not self.username or not self.password:
             raise ValueError("Username and password are required for login")
         
         logger.info(f"Attempting login for user: {self.username}")
         
-        # Strategy 1: Try to find and use login form
         try:
+            # Use the exact same method as usdb_find_ids.py
             login_url = f"{self.base_url}/index.php?link=login"
-            response = self.session.get(login_url)
+            
+            # First get the login page to establish session
+            login_page_response = self.session.get(login_url, timeout=30)
+            login_page_response.raise_for_status()
+            
+            response = self.session.post(
+                login_url,
+                data={"user": self.username, "pass": self.password, "login": "Login"},
+                headers={
+                    **self.session.headers,
+                    "Origin": self.base_url,
+                    "Referer": login_url
+                },
+                timeout=30
+            )
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.text, 'html.parser')
+            # Quick check: Profile page is only accessible when logged in
+            prof_response = self.session.get(
+                f"{self.base_url}/index.php?link=profil",
+                headers=self.session.headers,
+                timeout=30
+            )
             
-            # Look for login form
-            login_form = self._find_login_form(soup)
+            if "You are not logged in" in prof_response.text:
+                logger.error("Login verification failed - not logged in")
+                raise RuntimeError("Login fehlgeschlagen oder Session nicht aktiv.")
             
-            if login_form:
-                logger.info("Found login form, attempting form-based login")
-                if self._try_form_login(login_form, response.url):
-                    self.logged_in = True
-                    logger.info("Form-based login successful")
-                    return True
+            self.logged_in = True
+            logger.info("Login successful")
+            return True
             
         except Exception as e:
-            logger.warning(f"Form-based login failed: {str(e)}")
-        
-        # Strategy 2: Try direct POST with common field names
-        logger.info("Trying direct POST strategies")
-        strategies = [
-            {'user': self.username, 'pass': self.password, 'login': 'Login'},
-            {'user': self.username, 'pass': self.password, 'remember': '1', 'login': 'Login'},
-            {'username': self.username, 'password': self.password, 'login': 'Login'},
-            {'user': self.username, 'pass': self.password, 'submit': 'Login'},
-        ]
-        
-        for i, data in enumerate(strategies):
-            try:
-                logger.info(f"Trying direct strategy {i+1}")
-                response = self.session.post(f"{self.base_url}/index.php?&link=login", data=data)
-                response.raise_for_status()
-                
-                if self._check_login_success(response):
-                    self.logged_in = True
-                    logger.info(f"Direct strategy {i+1} successful")
-                    return True
-                    
-            except Exception as e:
-                logger.warning(f"Direct strategy {i+1} failed: {str(e)}")
-        
-        # Strategy 3: Try with different URLs
-        urls = [
-            f"{self.base_url}/index.php?link=login",
-            f"{self.base_url}/index.php?&link=login",
-            f"{self.base_url}/login.php",
-        ]
-        
-        for url in urls:
-            try:
-                logger.info(f"Trying URL: {url}")
-                response = self.session.post(url, data={'user': self.username, 'pass': self.password, 'login': 'Login'})
-                response.raise_for_status()
-                
-                if self._check_login_success(response):
-                    self.logged_in = True
-                    logger.info(f"URL strategy successful: {url}")
-                    return True
-                    
-            except Exception as e:
-                logger.warning(f"URL strategy failed for {url}: {str(e)}")
-        
-        raise Exception("All login strategies failed")
+            logger.error(f"Login failed: {str(e)}")
+            raise Exception(f"Login failed: {str(e)}")
 
     def _find_login_form(self, soup):
         """Find login form using multiple strategies"""
@@ -644,6 +619,134 @@ class USDBScraperImproved:
             if 'temp_output' in locals() and os.path.exists(temp_output):
                 os.remove(temp_output)
             return None
+
+
+    def search_songs(self, interpret="", title="", limit=20):
+        """
+        Search for songs on USDB using interpret and/or title
+        Based on the usdb_find_ids.py script functionality
+        """
+        if not self.logged_in:
+            raise RuntimeError("Must be logged in to search songs")
+        
+        logger.info(f"Searching USDB: interpret='{interpret}', title='{title}', limit={limit}")
+        
+        # Use the list page endpoint
+        list_url = f"{self.base_url}/?link=list"
+        
+        # Prepare search data
+        search_data = {
+            "interpret": interpret,
+            "title": title,
+            "limit": str(limit),
+            "start": "0"
+        }
+        
+        try:
+            response = self.session.post(
+                list_url,
+                data=search_data,
+                headers={
+                    **self.session.headers,
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": list_url
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            # Check if still logged in
+            if "You are not logged in" in response.text:
+                logger.error("Session expired during search")
+                raise RuntimeError("Session expired, not logged in")
+            
+            # Parse the results
+            songs = self._parse_search_results(response.text)
+            
+            logger.info(f"Found {len(songs)} songs")
+            return songs
+            
+        except requests.RequestException as e:
+            logger.error(f"Request error during search: {e}")
+            raise RuntimeError(f"Search request failed: {e}")
+        except Exception as e:
+            logger.error(f"Error during search: {e}")
+            raise RuntimeError(f"Search failed: {e}")
+    
+    def _parse_search_results(self, html):
+        """
+        Parse search results from HTML response
+        Based on the parse_list function from usdb_find_ids.py
+        """
+        soup = BeautifulSoup(html, 'html.parser')
+        songs = []
+        
+        # Header words to filter out
+        header_words = {"artist", "interpret", "title", "song"}
+        
+        for tr in soup.select("tr"):
+            # Skip header rows
+            if tr.find("th"):
+                continue
+            
+            # Check if there's a detail link (song exists)
+            a_detail = tr.select_one('a[href*="link=detail"][href*="id="]')
+            if not a_detail:
+                continue
+            
+            # Extract song ID
+            href = a_detail.get("href") or ""
+            m = re.search(r"id=(\d+)", href)
+            if not m:
+                continue
+            
+            song_id = int(m.group(1))
+            title = a_detail.get_text(strip=True)
+            
+            # Extract artist - try multiple strategies
+            artist = None
+            
+            # Strategy 1: Look for interpret link in the same row
+            a_interpret = None
+            for a in tr.select('a[href]'):
+                h = a.get("href") or ""
+                if "interpret=" in h:
+                    a_interpret = a
+                    break
+            
+            if a_interpret:
+                artist = a_interpret.get_text(strip=True)
+            
+            # Strategy 2: Look at cell next to title cell
+            if not artist:
+                title_td = a_detail.find_parent("td")
+                cand_td = title_td.find_previous_sibling("td") if title_td else None
+                if cand_td:
+                    # Check if there's an interpret/artist link in the cell
+                    link_in_cand = cand_td.select_one('a[href*="interpret="], a[href*="link=artist"]')
+                    if link_in_cand:
+                        artist = link_in_cand.get_text(strip=True)
+                    else:
+                        text = " ".join(cand_td.get_text(" ", strip=True).split())
+                        if text.strip().lower() not in header_words and text != title:
+                            artist = text
+            
+            # Strategy 3: Look for explicit artist link
+            if not artist:
+                a_artist = tr.select_one('a[href*="link=artist"]')
+                artist = a_artist.get_text(strip=True) if a_artist else ""
+            
+            # Create song object
+            song = {
+                "id": song_id,
+                "artist": artist or "Unknown Artist",
+                "title": title,
+                "url": f"{self.base_url}/?link=detail&id={song_id}"
+            }
+            
+            songs.append(song)
+        
+        return songs
 
 
 def download_from_usdb_improved(song_id, username, password, output_dir):
