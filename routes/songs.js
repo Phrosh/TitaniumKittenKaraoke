@@ -471,6 +471,38 @@ router.post('/request', [
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
       await Song.updateDownloadStatus(song.id, downloadStatus);
     }
+
+    // Trigger automatic USDB search and download for YouTube songs
+    console.log('🔍 Checking conditions for automatic USDB search:', {
+      mode,
+      artist,
+      title,
+      artistNotUnknown: artist !== 'Unknown Artist',
+      titleNotYouTubeSong: title !== 'YouTube Song',
+      shouldTrigger: (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song')),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Trigger automatic USDB search for songs that could benefit from it
+    const shouldTriggerUSDB = (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song'));
+    
+    console.log('🔍 USDB trigger conditions:', {
+      mode,
+      youtubeUrl,
+      artist,
+      title,
+      artistNotUnknown: artist !== 'Unknown Artist',
+      titleNotYouTubeSong: title !== 'YouTube Song',
+      shouldTrigger: shouldTriggerUSDB,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (shouldTriggerUSDB) {
+      console.log('✅ Conditions met, triggering automatic USDB search');
+      triggerAutomaticUSDBSearch(song.id, artist, title);
+    } else {
+      console.log('❌ Conditions not met for automatic USDB search');
+    }
     
     // Insert into playlist using algorithm
     const position = await PlaylistAlgorithm.insertSong(song.id);
@@ -1575,4 +1607,322 @@ function triggerAudioSeparationViaProxy(folderName) {
   }
 }
 
-module.exports = router;
+// Helper function to trigger automatic USDB search and download
+async function triggerAutomaticUSDBSearch(songId, artist, title) {
+  try {
+    console.log('🔍 Triggering automatic USDB search:', {
+      songId,
+      artist,
+      title,
+      timestamp: new Date().toISOString()
+    });
+
+    // Get USDB credentials
+    const db = require('../config/database');
+    const credentials = await new Promise((resolve, reject) => {
+      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!credentials) {
+      console.log('⚠️ No USDB credentials found, skipping automatic search');
+      return;
+    }
+
+    // Search USDB using the AI service
+    const axios = require('axios');
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    
+    try {
+      console.log('🔍 Making USDB search request to AI service:', {
+        url: `${aiServiceUrl}/usdb/search`,
+        interpret: artist,
+        title: title,
+        limit: 1,
+        timestamp: new Date().toISOString()
+      });
+
+      const searchResponse = await axios.post(`${aiServiceUrl}/usdb/search`, {
+        interpret: artist,
+        title: title,
+        limit: 1, // Only get the first result
+        username: credentials.username,
+        password: credentials.password
+      }, {
+        timeout: 30000
+      });
+
+      console.log('🔍 USDB search response received:', {
+        status: searchResponse.status,
+        success: searchResponse.data.success,
+        songsFound: searchResponse.data.songs?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+
+      if (searchResponse.data.success && searchResponse.data.songs.length > 0) {
+        const firstSong = searchResponse.data.songs[0];
+        console.log('🎵 Found USDB song, triggering download:', {
+          songId,
+          usdbId: firstSong.id,
+          artist: firstSong.artist,
+          title: firstSong.title,
+          url: firstSong.url,
+          timestamp: new Date().toISOString()
+        });
+
+        // Trigger USDB download
+        await triggerAutomaticUSDBDownload(songId, firstSong.url);
+      } else {
+        console.log('🔍 No USDB songs found for:', { 
+          artist, 
+          title,
+          response: searchResponse.data,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('🔍 USDB search error:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+  } catch (error) {
+    console.error('🔍 Error in triggerAutomaticUSDBSearch:', error);
+  }
+}
+
+// Helper function to trigger automatic USDB download
+async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
+  try {
+    console.log('📥 Triggering automatic USDB download:', {
+      songId,
+      usdbUrl,
+      timestamp: new Date().toISOString()
+    });
+
+    // Get USDB credentials
+    const db = require('../config/database');
+    const credentials = await new Promise((resolve, reject) => {
+      db.get('SELECT username, password FROM usdb_credentials ORDER BY created_at DESC LIMIT 1', (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!credentials) {
+      console.log('⚠️ No USDB credentials found, skipping automatic download');
+      return;
+    }
+
+    // Extract song ID from URL
+    const songIdMatch = usdbUrl.match(/id=(\d+)/);
+    if (!songIdMatch) {
+      console.error('❌ Could not extract song ID from USDB URL:', usdbUrl);
+      return;
+    }
+
+    const usdbSongId = songIdMatch[1];
+
+    // Trigger download via AI service
+    const axios = require('axios');
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    
+    try {
+      console.log('📥 Making USDB download request to AI service:', {
+        url: `${aiServiceUrl}/usdb/download`,
+        usdbSongId,
+        timestamp: new Date().toISOString()
+      });
+
+      const downloadResponse = await axios.post(`${aiServiceUrl}/usdb/download`, {
+        songId: usdbSongId,
+        username: credentials.username,
+        password: credentials.password
+      }, {
+        timeout: 300000 // 5 minutes timeout for download
+      });
+
+      console.log('📥 USDB download response received:', {
+        status: downloadResponse.status,
+        success: downloadResponse.data.success,
+        folderName: downloadResponse.data.folder_name,
+        songInfo: downloadResponse.data.song_info,
+        timestamp: new Date().toISOString()
+      });
+
+      if (downloadResponse.data.success) {
+        console.log('✅ USDB download completed:', {
+          songId,
+          usdbSongId,
+          folderName: downloadResponse.data.folder_name,
+          artist: downloadResponse.data.song_info?.artist,
+          title: downloadResponse.data.song_info?.title,
+          timestamp: new Date().toISOString()
+        });
+
+        // Extract data for use in both database insertion and WebSocket notification
+        const songData = downloadResponse.data.song_info;
+        const folderName = downloadResponse.data.folder_name;
+        
+        try {
+          // Add song to database (same as manual download)
+          console.log('💾 Adding downloaded song to database...');
+          const Song = require('../models/Song');
+          
+          // Create a default user for automatic downloads
+          const User = require('../models/User');
+          const defaultUser = await User.create('System', 'SYS');
+          
+          await Song.createFromUSDB(
+            songData.artist || 'Unknown', 
+            songData.title || 'Unknown', 
+            folderName, 
+            'USDB',
+            defaultUser.id
+          );
+          console.log('💾 Song added to database successfully');
+        } catch (dbError) {
+          console.error('❌ Database insertion error:', dbError);
+          // Continue with WebSocket notification even if database insertion fails
+        }
+
+        // Broadcast USDB download notification to admin dashboard
+        console.log('📡 Broadcasting USDB download notification to admin dashboard...');
+        const { broadcastUSDBDownloadNotification } = require('../utils/websocketService');
+        
+        // Get the io instance from the global server
+        const server = require('../server');
+        const io = server.io;
+        if (io) {
+          const notificationData = {
+            message: `USDB-Song automatisch heruntergeladen: ${songData.artist || 'Unknown'} - ${songData.title || 'Unknown'}`,
+            artist: songData.artist || 'Unknown',
+            title: songData.title || 'Unknown',
+            folderName: folderName,
+            timestamp: new Date().toISOString()
+          };
+          
+          console.log('📡 Notification data:', notificationData);
+          await broadcastUSDBDownloadNotification(io, notificationData);
+          console.log('📡 USDB download notification broadcasted successfully');
+        } else {
+          console.log('⚠️ No WebSocket IO instance available for notification');
+        }
+
+        // Trigger playlist upgrade check after successful download
+        setTimeout(() => {
+          triggerPlaylistUpgradeCheck();
+        }, 2000); // Wait 2 seconds for file system to settle
+
+        // Trigger automatic song classification for all YouTube songs
+        setTimeout(async () => {
+          try {
+            const adminModule = require('./admin');
+            if (adminModule.triggerAutomaticSongClassification) {
+              await adminModule.triggerAutomaticSongClassification();
+            }
+          } catch (error) {
+            console.error('Error in automatic song classification:', error);
+          }
+        }, 3000); // Wait 3 seconds for file system to settle
+
+      } else {
+        console.error('❌ USDB download failed:', downloadResponse.data.error);
+      }
+    } catch (error) {
+      console.error('❌ USDB download error:', error.message);
+    }
+
+  } catch (error) {
+    console.error('📥 Error in triggerAutomaticUSDBDownload:', error);
+  }
+}
+
+// Helper function to check for playlist upgrades after USDB download
+async function triggerPlaylistUpgradeCheck() {
+  try {
+    console.log('🔄 Triggering playlist upgrade check:', {
+      timestamp: new Date().toISOString()
+    });
+
+    const db = require('../config/database');
+    
+    // Get all YouTube songs from playlist
+    const youtubeSongs = await new Promise((resolve, reject) => {
+      db.all('SELECT id, artist, title FROM songs WHERE mode = ? ORDER BY id', ['youtube'], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    // Get all ultrastar songs from file system
+    const { findUltrastarSong } = require('../utils/ultrastarSongs');
+    
+    let upgradeCount = 0;
+    
+    for (const youtubeSong of youtubeSongs) {
+      try {
+        const ultrastarSong = findUltrastarSong(youtubeSong.artist, youtubeSong.title);
+        if (ultrastarSong) {
+          console.log('🎯 Found upgrade opportunity:', {
+            songId: youtubeSong.id,
+            artist: youtubeSong.artist,
+            title: youtubeSong.title,
+            ultrastarFolder: ultrastarSong.folderName
+          });
+
+          // Update song mode to ultrastar
+          await new Promise((resolve, reject) => {
+            db.run(
+              'UPDATE songs SET mode = ?, youtube_url = ? WHERE id = ?',
+              ['ultrastar', `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`, youtubeSong.id],
+              function(err) {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+
+          upgradeCount++;
+          console.log('✅ Upgraded song to ultrastar:', {
+            songId: youtubeSong.id,
+            artist: youtubeSong.artist,
+            title: youtubeSong.title
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error checking upgrade for song:', youtubeSong.id, error.message);
+      }
+    }
+
+    if (upgradeCount > 0) {
+      console.log(`🎉 Playlist upgrade completed: ${upgradeCount} songs upgraded to ultrastar`);
+      
+      // Broadcast update to admin dashboard
+      const { broadcastPlaylistUpgrade } = require('../utils/websocketService');
+      const io = require('../server').io;
+      if (io) {
+        await broadcastPlaylistUpgrade(io, {
+          message: `${upgradeCount} YouTube-Songs wurden zu Ultrastar-Songs hochgestuft`,
+          upgradeCount,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      console.log('ℹ️ No playlist upgrades found');
+    }
+
+  } catch (error) {
+    console.error('🔄 Error in triggerPlaylistUpgradeCheck:', error);
+  }
+}
+
+module.exports = {
+  router,
+  triggerAutomaticUSDBSearch
+};

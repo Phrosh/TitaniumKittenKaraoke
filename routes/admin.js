@@ -243,6 +243,15 @@ router.put('/song/:songId', [
       await Song.updateDownloadStatus(songId, 'none');
     }
 
+    // Trigger automatic USDB search if artist or title changed and it's a YouTube song
+    if (song.mode === 'youtube' && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song') {
+      // Import the function from songs.js
+      const songsModule = require('./songs');
+      if (songsModule.triggerAutomaticUSDBSearch) {
+        songsModule.triggerAutomaticUSDBSearch(songId, artist, title);
+      }
+    }
+
     res.json({ message: 'Song updated successfully' });
   } catch (error) {
     console.error('Update song error:', error);
@@ -1142,11 +1151,17 @@ router.post('/usdb-download', [
         
         // Insert song into database using the Song model
         const Song = require('../models/Song');
+        const User = require('../models/User');
+        
+        // Create a default user for manual downloads
+        const defaultUser = await User.create('Admin', 'ADM');
+        
         await Song.createFromUSDB(
           songData.artist || 'Unknown', 
           songData.title || 'Unknown', 
           folderName, 
-          'USDB'
+          'USDB',
+          defaultUser.id
         );
 
         // Prepare success message with audio separation and video remux info
@@ -1161,6 +1176,28 @@ router.post('/usdb-download', [
           message += ' und Audio aus Video entfernt';
         } else if (response.data.video_remux && response.data.video_remux.status === 'failed') {
           message += ' (Video-Remux fehlgeschlagen)';
+        }
+
+        // Trigger automatic song classification for all YouTube songs
+        setTimeout(async () => {
+          try {
+            await triggerAutomaticSongClassification();
+          } catch (error) {
+            console.error('Error in automatic song classification:', error);
+          }
+        }, 2000); // Wait 2 seconds for file system to settle
+
+        // Broadcast USDB download notification to admin dashboard
+        const { broadcastUSDBDownloadNotification } = require('../utils/websocketService');
+        const io = req.app.get('io');
+        if (io) {
+          await broadcastUSDBDownloadNotification(io, {
+            message: `USDB-Song heruntergeladen: ${songData.artist} - ${songData.title}`,
+            artist: songData.artist,
+            title: songData.title,
+            folderName: folderName,
+            timestamp: new Date().toISOString()
+          });
         }
 
         res.json({
@@ -1934,4 +1971,133 @@ router.post('/youtube-cache/rename', [
   }
 });
 
-module.exports = router;
+// Helper function to trigger automatic song classification for all YouTube songs
+async function triggerAutomaticSongClassification() {
+  try {
+    console.log('🔄 Triggering automatic song classification for all YouTube songs...');
+    
+    const db = require('../config/database');
+    
+    // Get all YouTube and youtube_cache songs from playlist
+    const youtubeSongs = await new Promise((resolve, reject) => {
+      db.all('SELECT id, artist, title, mode FROM songs WHERE mode IN (?, ?) ORDER BY id', ['youtube', 'youtube_cache'], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    if (youtubeSongs.length === 0) {
+      console.log('ℹ️ No YouTube songs found for classification');
+      return;
+    }
+
+    console.log(`🔍 Checking ${youtubeSongs.length} YouTube songs for classification updates...`);
+
+    let classificationCount = 0;
+    
+    for (const song of youtubeSongs) {
+      try {
+        const { artist, title } = song;
+        
+        // Check file songs (highest priority)
+        const fileFolderSetting = await new Promise((resolve, reject) => {
+          db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          });
+        });
+        
+        let updated = false;
+        let newMode = song.mode;
+        let newYoutubeUrl = null;
+        
+        if (fileFolderSetting && fileFolderSetting.value) {
+          const { findFileSong } = require('../utils/fileSongs');
+          const fileSong = findFileSong(fileFolderSetting.value, artist, title);
+          if (fileSong) {
+            newMode = 'file';
+            newYoutubeUrl = fileSong.filename;
+            updated = true;
+            console.log(`🔄 Song classification updated: ${artist} - ${title} -> file (${fileSong.filename})`);
+          }
+        }
+        
+        // Check server videos if not updated yet
+        if (!updated) {
+          const { findLocalVideo } = require('../utils/localVideos');
+          const localVideo = findLocalVideo(artist, title);
+          if (localVideo) {
+            newMode = 'server_video';
+            newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+            updated = true;
+            console.log(`🔄 Song classification updated: ${artist} - ${title} -> server_video (${localVideo.filename}) -> URL: ${newYoutubeUrl}`);
+          }
+        }
+        
+        // Fix existing server_video URLs that might be missing file extension
+        if (!updated && song.mode === 'server_video' && song.youtube_url && !song.youtube_url.includes('.')) {
+          const { findLocalVideo } = require('../utils/localVideos');
+          const localVideo = findLocalVideo(artist, title);
+          if (localVideo) {
+            newYoutubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
+            updated = true;
+            console.log(`🔧 Fixed server video URL: ${artist} - ${title} -> ${newYoutubeUrl}`);
+          }
+        }
+        
+        // Check ultrastar songs if not updated yet
+        if (!updated) {
+          const { findUltrastarSong } = require('../utils/ultrastarSongs');
+          const ultrastarSong = findUltrastarSong(artist, title);
+          if (ultrastarSong) {
+            newMode = 'ultrastar';
+            newYoutubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
+            updated = true;
+            console.log(`🔄 Song classification updated: ${artist} - ${title} -> ultrastar (${ultrastarSong.folderName})`);
+          }
+        }
+        
+        // Update song in database if classification changed
+        if (updated) {
+          await new Promise((resolve, reject) => {
+            db.run(
+              'UPDATE songs SET youtube_url = ?, mode = ? WHERE id = ?',
+              [newYoutubeUrl, newMode, song.id],
+              function(err) {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+          
+          classificationCount++;
+          console.log(`✅ Song classification updated successfully: ${artist} - ${title} -> ${newMode}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error checking classification for song ${song.id}:`, error.message);
+      }
+    }
+
+    if (classificationCount > 0) {
+      console.log(`🎉 Automatic song classification completed: ${classificationCount} songs updated`);
+      
+      // Broadcast playlist update to admin dashboard
+      const { broadcastAdminUpdate } = require('../utils/websocketService');
+      const io = require('../server').io;
+      if (io) {
+        await broadcastAdminUpdate(io);
+      }
+    } else {
+      console.log('ℹ️ No song classifications needed updates');
+    }
+
+  } catch (error) {
+    console.error('🔄 Error in triggerAutomaticSongClassification:', error);
+  }
+}
+
+module.exports = {
+  router,
+  triggerAutomaticSongClassification
+};

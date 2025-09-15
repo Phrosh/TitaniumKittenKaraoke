@@ -81,6 +81,20 @@ export interface PlaylistUpdateData {
   total: number;
 }
 
+export interface PlaylistUpgradeData {
+  message: string;
+  upgradeCount: number;
+  timestamp: string;
+}
+
+export interface USDBDownloadData {
+  message: string;
+  artist: string;
+  title: string;
+  folderName: string;
+  timestamp: string;
+}
+
 class WebSocketService {
   private socket: Socket | null = null;
   private isConnected = false;
@@ -99,12 +113,20 @@ class WebSocketService {
 
         this.socket.on('connect', () => {
           console.log('🔌 WebSocket connected:', this.socket?.id);
+          console.log('🔌 WebSocket connection details:', {
+            id: this.socket?.id,
+            connected: this.socket?.connected,
+            transport: this.socket?.io.engine.transport.name,
+            timestamp: new Date().toISOString()
+          });
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.reconnectDelay = 1000;
           
           // Join show room
           this.socket?.emit('join-show');
+          
+          // Resolve the promise AFTER the connection is established
           resolve();
         });
 
@@ -181,6 +203,15 @@ class WebSocketService {
     }
   }
 
+  emit(event: string, data?: any): void {
+    if (this.socket) {
+      console.log('🔌 WebSocket: Emitting event:', { event, data, socketId: this.socket.id, connected: this.socket.connected });
+      this.socket.emit(event, data);
+    } else {
+      console.log('🔌 WebSocket: Cannot emit event - no socket connection');
+    }
+  }
+
   onShowUpdate(callback: (data: ShowUpdateData) => void): void {
     if (this.socket) {
       this.socket.on('show-update', callback);
@@ -195,7 +226,14 @@ class WebSocketService {
 
   joinAdminRoom(): void {
     if (this.socket) {
+      console.log('🔌 WebSocket: Joining admin room...', {
+        socketId: this.socket.id,
+        connected: this.socket.connected,
+        timestamp: new Date().toISOString()
+      });
       this.socket.emit('join-admin');
+    } else {
+      console.log('🔌 WebSocket: Cannot join admin room - no socket connection');
     }
   }
 
@@ -238,6 +276,44 @@ class WebSocketService {
   offPlaylistUpdate(callback: (data: PlaylistUpdateData) => void): void {
     if (this.socket) {
       this.socket.off('playlist-update', callback);
+    }
+  }
+
+  onPlaylistUpgrade(callback: (data: PlaylistUpgradeData) => void): void {
+    if (this.socket) {
+      console.log('🔌 WebSocket: Registering playlist_upgrade event listener', {
+        socketId: this.socket.id,
+        connected: this.socket.connected,
+        timestamp: new Date().toISOString()
+      });
+      this.socket.on('playlist_upgrade', callback);
+    } else {
+      console.log('🔌 WebSocket: Cannot register playlist_upgrade listener - no socket connection');
+    }
+  }
+
+  offPlaylistUpgrade(callback: (data: PlaylistUpgradeData) => void): void {
+    if (this.socket) {
+      this.socket.off('playlist_upgrade', callback);
+    }
+  }
+
+  onUSDBDownload(callback: (data: USDBDownloadData) => void): void {
+    if (this.socket) {
+      console.log('🔌 WebSocket: Registering usdb_download event listener', {
+        socketId: this.socket.id,
+        connected: this.socket.connected,
+        timestamp: new Date().toISOString()
+      });
+      this.socket.on('usdb_download', callback);
+    } else {
+      console.log('🔌 WebSocket: Cannot register usdb_download listener - no socket connection');
+    }
+  }
+
+  offUSDBDownload(callback: (data: USDBDownloadData) => void): void {
+    if (this.socket) {
+      this.socket.off('usdb_download', callback);
     }
   }
 

@@ -17,16 +17,16 @@ class Song {
     });
   }
 
-  static createFromUSDB(artist, title, folderName, source = 'USDB') {
+  static createFromUSDB(artist, title, folderName, source = 'USDB', userId = null) {
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO songs (artist, title, folder_name, source, mode, status) VALUES (?, ?, ?, ?, ?, ?)',
-        [artist, title, folderName, source, 'ultrastar', 'ready'],
+        'INSERT INTO songs (user_id, artist, title, folder_name, source, mode, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userId, artist, title, folderName, source, 'ultrastar', 'ready'],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, artist, title, folder_name: folderName, source, mode: 'ultrastar', status: 'ready' });
+            resolve({ id: this.lastID, user_id: userId, artist, title, folder_name: folderName, source, mode: 'ultrastar', status: 'ready' });
           }
         }
       );

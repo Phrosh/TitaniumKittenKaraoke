@@ -909,10 +909,94 @@ const AdminDashboard: React.FC = () => {
     
     // Connect to WebSocket
     websocketService.connect().then(() => {
-      console.log('🔌 Connected to WebSocket for admin updates');
+      console.log('🔌 Frontend: Connected to WebSocket for admin updates');
       websocketService.joinAdminRoom();
+      console.log('🔌 Frontend: Joined admin room');
+      
+      // Test WebSocket connection
+      console.log('🔌 Frontend: WebSocket connection status:', {
+        connected: websocketService.getConnectionStatus(),
+        socketId: websocketService.getSocketId(),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Set up WebSocket event listeners AFTER connection is established
+      websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
+      
+      // Listen for play/pause toggle events to update isPlaying state
+      websocketService.on('toggle-play-pause', () => {
+        setIsPlaying(prev => !prev);
+      });
+      
+      // Listen for show actions from ShowView
+      const handleShowAction = (data: { action: string; timestamp: string; [key: string]: any }) => {
+        console.log('📡 Show action received:', data);
+        
+        switch (data.action) {
+          case 'toggle-play-pause':
+            console.log(`⏯️ ShowView ${data.isPlaying ? 'paused' : 'played'} song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+            setIsPlaying(data.isPlaying);
+            break;
+          case 'restart-song':
+            console.log(`🔄 ShowView restarted song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+            break;
+          case 'next-song':
+            console.log(`⏭️ ShowView moved to next song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+            break;
+          case 'previous-song':
+            console.log(`⏮️ ShowView moved to previous song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
+            break;
+          case 'qr-overlay-changed':
+            console.log(`📱 ShowView QR overlay ${data.showQRCodeOverlay ? 'shown' : 'hidden'}: ${data.overlayTitle}`);
+            break;
+          default:
+            console.log(`📡 Unknown show action: ${data.action}`);
+        }
+        
+        // Refresh dashboard data to stay in sync
+        fetchDashboardData();
+      };
+      
+      websocketService.onShowAction(handleShowAction);
+      
+      // Listen for playlist upgrade notifications
+      websocketService.onPlaylistUpgrade((data) => {
+        console.log('🎉 Frontend: Received playlist upgrade notification:', data);
+        toast.success(data.message, {
+          duration: 5000,
+          icon: '🎉'
+        });
+        // Refresh dashboard data to show updated playlist
+        fetchDashboardData();
+      });
+      
+      // Listen for USDB download notifications
+      websocketService.onUSDBDownload((data) => {
+        console.log('📥 Frontend: Received USDB download notification:', data);
+        toast.success(data.message, {
+          duration: 4000,
+          icon: '📥'
+        });
+        // Refresh dashboard data to show updated playlist
+        fetchDashboardData();
+      });
+      
+      // Test WebSocket event listeners registration
+      console.log('🔌 Frontend: Event listeners registered AFTER connection:', {
+        adminUpdate: true,
+        playlistUpgrade: true,
+        usdbDownload: true,
+        socketId: websocketService.getSocketId(),
+        connected: websocketService.getConnectionStatus(),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Test WebSocket connection by sending a test event
+      console.log('🧪 Testing WebSocket connection by sending test event...');
+      websocketService.emit('test-event', { message: 'Test from AdminDashboard', timestamp: new Date().toISOString() });
+      
     }).catch((error) => {
-      console.error('🔌 Failed to connect to WebSocket, falling back to polling:', error);
+      console.error('🔌 Frontend: Failed to connect to WebSocket, falling back to polling:', error);
       
       // Fallback to polling if WebSocket fails
       const interval = setInterval(fetchDashboardData, 10000);
@@ -922,49 +1006,14 @@ const AdminDashboard: React.FC = () => {
       };
     });
 
-    // Set up WebSocket event listeners
-    websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
-    
-    // Listen for play/pause toggle events to update isPlaying state
-    websocketService.on('toggle-play-pause', () => {
-      setIsPlaying(prev => !prev);
-    });
-    
-    // Listen for show actions from ShowView
-    const handleShowAction = (data: { action: string; timestamp: string; [key: string]: any }) => {
-      console.log('📡 Show action received:', data);
-      
-      switch (data.action) {
-        case 'toggle-play-pause':
-          console.log(`⏯️ ShowView ${data.isPlaying ? 'paused' : 'played'} song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
-          setIsPlaying(data.isPlaying);
-          break;
-        case 'restart-song':
-          console.log(`🔄 ShowView restarted song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
-          break;
-        case 'next-song':
-          console.log(`⏭️ ShowView moved to next song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
-          break;
-        case 'previous-song':
-          console.log(`⏮️ ShowView moved to previous song: ${data.currentSong?.artist} - ${data.currentSong?.title}`);
-          break;
-        case 'qr-overlay-changed':
-          console.log(`📱 ShowView QR overlay ${data.showQRCodeOverlay ? 'shown' : 'hidden'}: ${data.overlayTitle}`);
-          break;
-        default:
-          console.log(`📡 Unknown show action: ${data.action}`);
-      }
-      
-      // Refresh dashboard data to stay in sync
-      fetchDashboardData();
-    };
-    
-    websocketService.onShowAction(handleShowAction);
+    // Event listeners are now set up AFTER WebSocket connection is established
 
     return () => {
       websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
       websocketService.off('toggle-play-pause');
-      websocketService.offShowAction(handleShowAction);
+      websocketService.offShowAction(() => {});
+      websocketService.offPlaylistUpgrade(() => {});
+      websocketService.offUSDBDownload(() => {});
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };

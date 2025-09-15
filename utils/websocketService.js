@@ -318,6 +318,45 @@ async function broadcastShowActionToAdmin(io, action, data = {}) {
   }
 }
 
+/**
+ * Sendet Playlist-Upgrade-Benachrichtigungen an Admin-Dashboard
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} data - Upgrade-Daten
+ */
+async function broadcastPlaylistUpgrade(io, data) {
+  try {
+    // Send upgrade notification to all clients in admin room
+    io.to('admin').emit('playlist_upgrade', data);
+    console.log(`🎉 Broadcasted playlist upgrade notification to ${io.sockets.adapter.rooms.get('admin')?.size || 0} clients`);
+    
+  } catch (error) {
+    console.error('Error broadcasting playlist upgrade notification:', error);
+  }
+}
+
+/**
+ * Sendet USDB-Download-Benachrichtigungen an Admin-Dashboard
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} data - Download-Daten
+ */
+async function broadcastUSDBDownloadNotification(io, data) {
+  try {
+    console.log('📡 WebSocket: Broadcasting USDB download notification:', {
+      event: 'usdb_download',
+      data: data,
+      adminRoomSize: io.sockets.adapter.rooms.get('admin')?.size || 0,
+      timestamp: new Date().toISOString()
+    });
+
+    // Send download notification to all clients in admin room
+    io.to('admin').emit('usdb_download', data);
+    console.log(`📥 WebSocket: USDB download notification broadcasted to ${io.sockets.adapter.rooms.get('admin')?.size || 0} clients`);
+    
+  } catch (error) {
+    console.error('📡 WebSocket: Error broadcasting USDB download notification:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
@@ -328,5 +367,7 @@ module.exports = {
   broadcastRestartSong,
   broadcastNextSong,
   broadcastPreviousSong,
-  broadcastShowActionToAdmin
+  broadcastShowActionToAdmin,
+  broadcastPlaylistUpgrade,
+  broadcastUSDBDownloadNotification
 };

@@ -8,9 +8,9 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const { router: authRoutes } = require('./routes/auth');
-const songRoutes = require('./routes/songs');
+const songRoutes = require('./routes/songs').router;
 const playlistRoutes = require('./routes/playlist');
-const adminRoutes = require('./routes/admin');
+const adminRoutes = require('./routes/admin').router;
 const showRoutes = require('./routes/show');
 
 const app = express();
@@ -293,3 +293,6 @@ server.listen(PORT, () => {
     console.error('Error organizing loose TXT files on startup:', error);
   }
 });
+
+// Export the io instance for use in other modules
+module.exports = { io };
