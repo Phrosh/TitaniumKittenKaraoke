@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { boilDown, boilDownMatch } = require('./boilDown');
 
 const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
 
@@ -262,7 +263,27 @@ function findUltrastarSong(artist, title) {
     return found;
   }
   
-  // Try more flexible matching
+  // Try with boil down normalization
+  if (!found) {
+    found = songs.find(song => {
+      // Try individual artist/title matches
+      if (boilDownMatch(song.artist, artist) || boilDownMatch(song.title, title)) {
+        return true;
+      }
+      
+      // Try combined match
+      const boiledCombined = boilDown(`${artist} - ${title}`);
+      const boiledSongCombined = boilDown(`${song.artist} - ${song.title}`);
+      return boiledCombined === boiledSongCombined;
+    });
+    
+    if (found) {
+      console.log(`🎵 Found ultrastar song with boil down matching: "${found.artist}" - "${found.title}" for search: "${artist}" - "${title}"`);
+      return found;
+    }
+  }
+  
+  // Try more flexible matching (fallback)
   found = songs.find(song => {
     const songArtist = song.artist.toLowerCase().trim();
     const songTitle = song.title.toLowerCase().trim();

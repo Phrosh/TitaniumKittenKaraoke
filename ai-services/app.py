@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from usdb_scraper_improved import USDBScraperImproved, download_from_usdb_improved
+from boil_down import boil_down, boil_down_match
 
 app = Flask(__name__)
 CORS(app)
@@ -733,6 +734,109 @@ def download_youtube_video(folder_name):
         
     except Exception as e:
         logger.error(f"Error downloading YouTube video: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/usdb/search-boildown', methods=['POST'])
+def search_usdb_boildown():
+    """
+    Search for songs on USDB using boil down normalization for better matching
+    """
+    try:
+        data = request.get_json()
+        interpret = data.get('interpret', '')
+        title = data.get('title', '')
+        limit = data.get('limit', 20)
+        
+        # Support legacy query parameter
+        if not interpret and not title:
+            query = data.get('query', '')
+            if query:
+                # Try to parse query into interpret and title
+                # Simple heuristic: if query contains " - ", split it
+                if ' - ' in query:
+                    parts = query.split(' - ', 1)
+                    interpret = parts[0].strip()
+                    title = parts[1].strip()
+                else:
+                    # Default to searching in interpret field
+                    interpret = query
+        
+        if not interpret and not title:
+            return jsonify({'error': 'Interpret or title is required'}), 400
+        
+        logger.info(f"Searching USDB with boil down: interpret='{interpret}', title='{title}', limit={limit}")
+        
+        # Get USDB credentials from environment or request
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({'error': 'USDB credentials are required'}), 400
+        
+        # Import the functions from usdb_find_ids.py
+        import sys
+        import os
+        sys.path.append(os.path.dirname(__file__))
+        
+        from usdb_find_ids import login, search_all_by_artist
+        import requests
+        
+        # Create session and login
+        session = requests.Session()
+        session.headers.update({"User-Agent": "Mozilla/5.0"})
+        
+        try:
+            login(session, username, password)
+            logger.info("Login successful")
+        except Exception as e:
+            logger.error(f"Login failed: {str(e)}")
+            return jsonify({'error': f'Login failed: {str(e)}'}), 401
+        
+        # Search for songs
+        try:
+            songs = search_all_by_artist(session, interpret, title, per_page=limit, max_items=limit)
+            logger.info(f"Found {len(songs)} songs")
+            
+            # Apply boil down matching to filter results
+            boiled_interpret = boil_down(interpret)
+            boiled_title = boil_down(title)
+            
+            filtered_songs = []
+            for song in songs:
+                song_artist = song.get("artist", "Unknown Artist")
+                song_title = song["title"]
+                
+                # Check if song matches using boil down normalization
+                if (boil_down_match(song_artist, interpret) or 
+                    boil_down_match(song_title, title) or
+                    boil_down_match(f"{song_artist} - {song_title}", f"{interpret} - {title}")):
+                    filtered_songs.append(song)
+            
+            logger.info(f"Filtered to {len(filtered_songs)} songs using boil down matching")
+            
+            # Convert to the expected format
+            formatted_songs = []
+            for song in filtered_songs:
+                formatted_songs.append({
+                    "id": song["id"],
+                    "artist": song.get("artist", "Unknown Artist"),
+                    "title": song["title"],
+                    "url": f"https://usdb.animux.de/?link=detail&id={song['id']}"
+                })
+            
+            return jsonify({
+                'success': True,
+                'songs': formatted_songs,
+                'count': len(formatted_songs),
+                'boil_down_used': True
+            })
+            
+        except Exception as e:
+            logger.error(f"Search failed: {str(e)}")
+            return jsonify({'error': f'Search failed: {str(e)}'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error searching USDB with boil down: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/usdb/search', methods=['POST'])

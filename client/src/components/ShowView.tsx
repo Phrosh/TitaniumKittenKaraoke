@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { showAPI, songAPI } from '../services/api';
 import websocketService, { ShowUpdateData } from '../services/websocket';
+import { boilDown } from '../utils/boilDown';
 
 // Constants will be moved inside component to use dynamic settings
 
@@ -1792,21 +1793,23 @@ const ShowView: React.FC = () => {
 
   // Central cache function: finds the correct cache file path or returns null for cache miss
   const findCacheFile = async (artist: string, title: string, videoId: string): Promise<string | null> => {
-    // Clean artist and title (remove special characters, extra spaces)
-    const cleanArtist = artist.replace(/[^\w\s-]/g, '').trim();
-    const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
+    // Use boil down normalization for better matching
+    const boiledArtist = boilDown(artist);
+    const boiledTitle = boilDown(title);
     
     // Try both cache structures:
     // #1: "youtube/[artist] - [title]/[videoId].mp4"
-    const artistTitlePath = `${cleanArtist} - ${cleanTitle}`;
+    const artistTitlePath = `${artist} - ${title}`;
     const artistTitleUrl = `http://localhost:5000/api/youtube-videos/${encodeURIComponent(artistTitlePath)}/${videoId}.mp4`;
     
     // #2: "youtube/[videoId]/[videoId].mp4" (fallback)
     const videoIdUrl = `http://localhost:5000/api/youtube-videos/${videoId}/${videoId}.mp4`;
     
     console.log('🔍 Checking cache for:', {
-      artist: cleanArtist,
-      title: cleanTitle,
+      artist: artist,
+      title: title,
+      boiledArtist: boiledArtist,
+      boiledTitle: boiledTitle,
       videoId: videoId,
       artistTitleUrl: artistTitleUrl,
       videoIdUrl: videoIdUrl
@@ -1835,7 +1838,7 @@ const ShowView: React.FC = () => {
     }
 
     // No cache found
-    console.log('🎬 Cache miss: No file found for', { artist: cleanArtist, title: cleanTitle, videoId });
+    console.log('🎬 Cache miss: No file found for', { artist: artist, title: title, boiledArtist: boiledArtist, boiledTitle: boiledTitle, videoId });
     return null;
   };
 

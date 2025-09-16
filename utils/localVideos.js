@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { boilDown, boilDownMatch } = require('./boilDown');
 
 const VIDEOS_DIR = path.join(__dirname, '..', 'songs', 'videos');
 
@@ -80,7 +81,27 @@ function findLocalVideo(artist, title) {
     return found;
   }
   
-  // Try more flexible matching
+  // Try with boil down normalization
+  if (!found) {
+    found = videos.find(video => {
+      // Try individual artist/title matches
+      if (boilDownMatch(video.artist, artist) || boilDownMatch(video.title, title)) {
+        return true;
+      }
+      
+      // Try combined match
+      const boiledCombined = boilDown(`${artist} - ${title}`);
+      const boiledVideoCombined = boilDown(`${video.artist} - ${video.title}`);
+      return boiledCombined === boiledVideoCombined;
+    });
+    
+    if (found) {
+      console.log(`🎬 Found local video (boil down match): "${found.artist}" - "${found.title}" for search: "${artist}" - "${title}" -> ${found.filename}`);
+      return found;
+    }
+  }
+  
+  // Try more flexible matching (fallback)
   found = videos.find(video => {
     const videoArtist = video.artist.toLowerCase().trim();
     const videoTitle = video.title.toLowerCase().trim();

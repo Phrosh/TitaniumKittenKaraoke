@@ -6,6 +6,7 @@ import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
 import websocketService, { AdminUpdateData } from '../services/websocket';
 import { cleanYouTubeUrl, extractVideoIdFromUrl } from '../utils/youtubeUrlCleaner';
+import { boilDown, boilDownMatch } from '../utils/boilDown';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -826,7 +827,29 @@ const AdminDashboard: React.FC = () => {
       youtubeSong.title.toLowerCase() === song.title.toLowerCase()
     );
     
-    // If not found, try with sanitized names
+    // If not found, try with boil down normalization
+    if (!found) {
+      const boiledArtist = boilDown(song.artist);
+      const boiledTitle = boilDown(song.title);
+      
+      found = dashboardData.youtubeSongs.some(youtubeSong => {
+        const boiledYoutubeArtist = boilDown(youtubeSong.artist);
+        const boiledYoutubeTitle = boilDown(youtubeSong.title);
+        
+        // Try individual artist/title matches
+        if (boilDownMatch(youtubeSong.artist, song.artist) || 
+            boilDownMatch(youtubeSong.title, song.title)) {
+          return true;
+        }
+        
+        // Try combined match
+        const boiledCombined = boilDown(`${song.artist} - ${song.title}`);
+        const boiledYoutubeCombined = boilDown(`${youtubeSong.artist} - ${youtubeSong.title}`);
+        return boiledCombined === boiledYoutubeCombined;
+      });
+    }
+    
+    // If still not found, try with sanitized names (fallback)
     if (!found) {
       const sanitizeFilename = (filename: string) => {
         if (!filename) return '';
