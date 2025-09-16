@@ -259,6 +259,71 @@ router.put('/song/:songId', [
   }
 });
 
+// Check download status for a specific song
+router.get('/check-download-status/:songId', async (req, res) => {
+  try {
+    const { songId } = req.params;
+    
+    // Get song from database
+    const song = await Song.findById(songId);
+    if (!song) {
+      return res.status(404).json({ message: 'Song not found' });
+    }
+
+    // Check if song has downloading status
+    if (song.status !== 'downloading' && song.download_status !== 'downloading') {
+      return res.json({ status: song.status || song.download_status });
+    }
+
+    // Check if folder exists for USDB downloads
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Check ultrastar folder
+    const ultrastarPath = path.join(__dirname, '..', 'songs', 'ultrastar', `${song.artist} - ${song.title}`);
+    const youtubePath = path.join(__dirname, '..', 'songs', 'youtube', `${song.artist} - ${song.title}`);
+    
+    const ultrastarExists = fs.existsSync(ultrastarPath);
+    const youtubeExists = fs.existsSync(youtubePath);
+    
+    console.log(`🔍 Checking download status for song ${songId}:`, {
+      artist: song.artist,
+      title: song.title,
+      ultrastarPath,
+      youtubePath,
+      ultrastarExists,
+      youtubeExists,
+      currentStatus: song.status || song.download_status
+    });
+
+    // If folder exists, download was successful
+    if (ultrastarExists || youtubeExists) {
+      // Update status to downloaded
+      await Song.updateStatus(songId, 'downloaded');
+      console.log(`✅ Download completed for song ${songId}: ${song.artist} - ${song.title}`);
+      return res.json({ status: 'downloaded' });
+    } else {
+      // Check if download has been running for more than 2 minutes (likely failed)
+      const downloadStartTime = song.download_started_at || song.created_at;
+      const timeSinceStart = Date.now() - new Date(downloadStartTime).getTime();
+      const twoMinutes = 2 * 60 * 1000;
+      
+      if (timeSinceStart > twoMinutes) {
+        // Download likely failed, update status
+        await Song.updateStatus(songId, 'failed');
+        console.log(`❌ Download failed for song ${songId}: ${song.artist} - ${song.title} (no folder found after ${Math.round(timeSinceStart / 1000)}s)`);
+        return res.json({ status: 'failed' });
+      } else {
+        // Still downloading
+        return res.json({ status: 'downloading' });
+      }
+    }
+  } catch (error) {
+    console.error('Error checking download status:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get all users
 router.get('/users', async (req, res) => {
   try {

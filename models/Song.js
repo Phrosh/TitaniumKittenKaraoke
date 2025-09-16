@@ -211,6 +211,10 @@ class Song {
     });
   }
 
+  static findById(songId) {
+    return this.getById(songId);
+  }
+
   static getCurrentSong() {
     return new Promise((resolve, reject) => {
       db.get(`
@@ -402,6 +406,22 @@ class Song {
             reject(err);
           } else {
             resolve({ id: songId, status, changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
+  static updateDownloadStartTime(songId, downloadStartedAt) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET download_started_at = ? WHERE id = ?',
+        [downloadStartedAt, songId],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: songId, download_started_at: downloadStartedAt, changes: this.changes });
           }
         }
       );

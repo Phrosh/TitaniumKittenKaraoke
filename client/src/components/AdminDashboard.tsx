@@ -1816,10 +1816,16 @@ const AdminDashboard: React.FC = () => {
       clearTimeout(addSongUsdbTimeout);
     }
 
+    // Show loading state immediately
+    if (artist.trim() || title.trim()) {
+      setAddSongUsdbLoading(true);
+      setAddSongUsdbResults([]);
+    }
+
     // Set new timeout
     const timeout = setTimeout(() => {
       performUSDBSearch(artist, title);
-    }, 3000); // 3 seconds delay
+    }, 2000); // 2 seconds delay
 
     setAddSongUsdbTimeout(timeout);
   };
@@ -1832,6 +1838,59 @@ const AdminDashboard: React.FC = () => {
       }
     };
   }, [addSongUsdbTimeout]);
+
+  // Periodic check for failed USDB downloads
+  React.useEffect(() => {
+    const checkFailedDownloads = async () => {
+      try {
+        // Get all songs with downloading status
+        const downloadingSongs = dashboardData?.playlist.filter(song => 
+          song.status === 'downloading' || song.download_status === 'downloading'
+        ) || [];
+
+        if (downloadingSongs.length > 0) {
+          console.log(`🔍 Checking ${downloadingSongs.length} downloading songs for failed downloads...`);
+          
+          // Check each downloading song
+          for (const song of downloadingSongs) {
+            try {
+              // Check if folder exists by making a request to the backend
+              const response = await fetch(`/api/admin/check-download-status/${song.id}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.status === 'failed') {
+                  console.log(`❌ Download failed for song ${song.id}: ${song.artist} - ${song.title}`);
+                  // Refresh dashboard data to update UI
+                  await fetchDashboardData();
+                }
+              }
+            } catch (error) {
+              console.error(`Error checking download status for song ${song.id}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in periodic download check:', error);
+      }
+    };
+
+    // Run check every 5 seconds
+    const interval = setInterval(checkFailedDownloads, 5000);
+    
+    // Run initial check after 10 seconds (to allow downloads to start)
+    const initialTimeout = setTimeout(checkFailedDownloads, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialTimeout);
+    };
+  }, [dashboardData]);
 
   // Admin User Management Functions
   const fetchAdminUsers = async () => {

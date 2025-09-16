@@ -504,6 +504,7 @@ router.post('/request', [
       try {
         const Song = require('../models/Song');
         await Song.updateStatus(song.id, 'downloading');
+        await Song.updateDownloadStartTime(song.id, new Date().toISOString());
         console.log('🔄 Song status set to downloading:', { songId: song.id, artist, title });
       } catch (statusError) {
         console.error('❌ Failed to set song status to downloading:', statusError);
@@ -1753,6 +1754,15 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
     }
 
     const usdbSongId = songIdMatch[1];
+
+    // Set download start time
+    try {
+      const Song = require('../models/Song');
+      await Song.updateDownloadStartTime(songId, new Date().toISOString());
+      console.log('🕐 Download start time set for song:', { songId });
+    } catch (timeError) {
+      console.error('❌ Failed to set download start time:', timeError);
+    }
 
     // Trigger download via AI service
     const axios = require('axios');
