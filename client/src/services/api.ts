@@ -222,6 +222,10 @@ export const adminAPI = {
   // YouTube Cache Song Management
   renameYouTubeCacheSong: (oldArtist: string, oldTitle: string, newArtist: string, newTitle: string) =>
     api.post('/admin/youtube-cache/rename', { oldArtist, oldTitle, newArtist, newTitle }),
+  
+  // General Song Rename (for all song types)
+  renameSong: (oldArtist: string, oldTitle: string, newArtist: string, newTitle: string) =>
+    api.post('/admin/song/rename', { oldArtist, oldTitle, newArtist, newTitle }),
 
   // Cloudflared Management
   getCloudflaredStatus: () => api.get('/admin/cloudflared/status'),

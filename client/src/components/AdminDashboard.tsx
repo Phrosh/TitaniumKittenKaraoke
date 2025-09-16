@@ -2324,7 +2324,7 @@ const AdminDashboard: React.FC = () => {
 
     setActionLoading(true);
     try {
-      const response = await adminAPI.renameYouTubeCacheSong(
+      const response = await adminAPI.renameSong(
         renameSong.artist,
         renameSong.title,
         renameData.newArtist.trim(),
@@ -4278,39 +4278,37 @@ const AdminDashboard: React.FC = () => {
                               
                               {/* Test button for all songs - always on the right */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {/* Rename button for YouTube Cache songs */}
-                                {song.modes?.includes('youtube_cache') && (
-                                  <button
-                                    onClick={() => handleRenameSong(song)}
-                                    disabled={actionLoading}
-                                    style={{
-                                      fontSize: '12px',
-                                      padding: '6px 12px',
-                                      backgroundColor: '#ffc107',
-                                      color: '#212529',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: actionLoading ? 'not-allowed' : 'pointer',
-                                      fontWeight: '500',
-                                      opacity: actionLoading ? 0.6 : 1,
-                                      transition: 'all 0.2s ease'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!actionLoading) {
-                                        e.currentTarget.style.backgroundColor = '#e0a800';
-                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!actionLoading) {
-                                        e.currentTarget.style.backgroundColor = '#ffc107';
-                                        e.currentTarget.style.transform = 'scale(1)';
-                                      }
-                                    }}
-                                  >
-                                    ✏️ Umbenennen
-                                  </button>
-                                )}
+                                {/* Rename button for all song types */}
+                                <button
+                                  onClick={() => handleRenameSong(song)}
+                                  disabled={actionLoading}
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '6px 12px',
+                                    backgroundColor: '#ffc107',
+                                    color: '#212529',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '500',
+                                    opacity: actionLoading ? 0.6 : 1,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#e0a800';
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#ffc107';
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }
+                                  }}
+                                >
+                                  ✏️ Umbenennen
+                                </button>
                                 
                                 <button
                                   onClick={() => handleTestSong(song)}

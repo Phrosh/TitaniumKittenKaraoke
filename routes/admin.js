@@ -2181,7 +2181,188 @@ router.post('/restore-original-song', async (req, res) => {
   }
 });
 
-// Rename YouTube Cache Song
+// General Song Rename (for all song types)
+router.post('/song/rename', [
+  body('oldArtist').notEmpty().trim(),
+  body('oldTitle').notEmpty().trim(),
+  body('newArtist').notEmpty().trim(),
+  body('newTitle').notEmpty().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validierungsfehler', 
+        errors: errors.array() 
+      });
+    }
+
+    const { oldArtist, oldTitle, newArtist, newTitle } = req.body;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Import song scanning functions
+    const { scanUltrastarSongs, findUltrastarSong } = require('../utils/ultrastarSongs');
+    const { scanYouTubeSongs } = require('../utils/youtubeSongs');
+    const { scanLocalVideos } = require('../utils/localVideos');
+    const { scanFileSongs } = require('../utils/fileSongs');
+
+    // Find the song in all possible locations
+    let songType = null;
+    let songData = null;
+    let oldPath = null;
+    let newPath = null;
+
+    // Check Ultrastar songs (folder-based)
+    const ultrastarSongs = scanUltrastarSongs();
+    const ultrastarSong = ultrastarSongs.find(song => 
+      song.artist.toLowerCase() === oldArtist.toLowerCase() &&
+      song.title.toLowerCase() === oldTitle.toLowerCase()
+    );
+    
+    if (ultrastarSong) {
+      songType = 'ultrastar';
+      songData = ultrastarSong;
+      const oldFolderName = `${oldArtist} - ${oldTitle}`;
+      const newFolderName = `${newArtist} - ${newTitle}`;
+      oldPath = path.join(__dirname, '..', 'songs', 'ultrastar', oldFolderName);
+      newPath = path.join(__dirname, '..', 'songs', 'ultrastar', newFolderName);
+    }
+
+    // Check YouTube cache songs (folder-based)
+    if (!songData) {
+      const youtubeSongs = scanYouTubeSongs();
+      const youtubeSong = youtubeSongs.find(song => 
+        song.artist.toLowerCase() === oldArtist.toLowerCase() &&
+        song.title.toLowerCase() === oldTitle.toLowerCase()
+      );
+      
+      if (youtubeSong) {
+        songType = 'youtube_cache';
+        songData = youtubeSong;
+        const oldFolderName = `${oldArtist} - ${oldTitle}`;
+        const newFolderName = `${newArtist} - ${newTitle}`;
+        oldPath = path.join(__dirname, '..', 'songs', 'youtube', oldFolderName);
+        newPath = path.join(__dirname, '..', 'songs', 'youtube', newFolderName);
+      }
+    }
+
+    // Check local videos (file-based)
+    if (!songData) {
+      const localVideos = scanLocalVideos();
+      const localVideo = localVideos.find(video => 
+        video.artist.toLowerCase() === oldArtist.toLowerCase() &&
+        video.title.toLowerCase() === oldTitle.toLowerCase()
+      );
+      
+      if (localVideo) {
+        songType = 'server_video';
+        songData = localVideo;
+        const oldFileName = `${oldArtist} - ${oldTitle}${localVideo.extension}`;
+        const newFileName = `${newArtist} - ${newTitle}${localVideo.extension}`;
+        oldPath = path.join(__dirname, '..', 'songs', 'videos', oldFileName);
+        newPath = path.join(__dirname, '..', 'songs', 'videos', newFileName);
+      }
+    }
+
+    // Check file songs (file-based, but we need to know the folder path)
+    // This is more complex as file songs can be in different folders
+    // For now, we'll skip this and focus on the main song types
+
+    if (!songData) {
+      return res.status(404).json({ 
+        message: 'Song nicht gefunden',
+        success: false
+      });
+    }
+
+    // Check if new name already exists
+    let existingSong = null;
+    
+    if (songType === 'ultrastar') {
+      const ultrastarSongs = scanUltrastarSongs();
+      existingSong = ultrastarSongs.find(song => 
+        song.artist.toLowerCase() === newArtist.toLowerCase() &&
+        song.title.toLowerCase() === newTitle.toLowerCase()
+      );
+    } else if (songType === 'youtube_cache') {
+      const youtubeSongs = scanYouTubeSongs();
+      existingSong = youtubeSongs.find(song => 
+        song.artist.toLowerCase() === newArtist.toLowerCase() &&
+        song.title.toLowerCase() === newTitle.toLowerCase()
+      );
+    } else if (songType === 'server_video') {
+      const localVideos = scanLocalVideos();
+      existingSong = localVideos.find(video => 
+        video.artist.toLowerCase() === newArtist.toLowerCase() &&
+        video.title.toLowerCase() === newTitle.toLowerCase()
+      );
+    }
+
+    if (existingSong) {
+      return res.status(400).json({ 
+        message: 'Ein Song mit diesem Namen existiert bereits',
+        success: false
+      });
+    }
+
+    // Check if old path exists
+    if (!fs.existsSync(oldPath)) {
+      return res.status(404).json({ 
+        message: `${songType === 'server_video' ? 'Video-Datei' : 'Ordner'} nicht gefunden`,
+        success: false
+      });
+    }
+
+    // Check if new path already exists
+    if (fs.existsSync(newPath)) {
+      return res.status(400).json({ 
+        message: `${songType === 'server_video' ? 'Eine Datei' : 'Ein Ordner'} mit diesem Namen existiert bereits`,
+        success: false
+      });
+    }
+
+    // Rename the file/folder
+    fs.renameSync(oldPath, newPath);
+    console.log(`📁 Renamed ${songType} ${songType === 'server_video' ? 'file' : 'folder'}: "${path.basename(oldPath)}" → "${path.basename(newPath)}"`);
+
+    // Update invisible songs database entry
+    try {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE invisible_songs SET artist = ?, title = ? WHERE artist = ? AND title = ?',
+          [newArtist, newTitle, oldArtist, oldTitle],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      console.log(`📝 Updated invisible songs entry: "${oldArtist} - ${oldTitle}" → "${newArtist} - ${newTitle}"`);
+    } catch (dbError) {
+      console.warn('Could not update invisible songs database:', dbError.message);
+      // Don't fail the operation if database update fails
+    }
+
+    res.json({ 
+      message: `Song erfolgreich umbenannt von "${oldArtist} - ${oldTitle}" zu "${newArtist} - ${newTitle}"`,
+      success: true,
+      oldName: `${oldArtist} - ${oldTitle}`,
+      newName: `${newArtist} - ${newTitle}`,
+      songType: songType
+    });
+
+  } catch (error) {
+    console.error('Error renaming song:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      success: false
+    });
+  }
+});
+
+// Rename YouTube Cache Song (legacy endpoint)
 router.post('/youtube-cache/rename', [
   body('oldArtist').notEmpty().trim(),
   body('oldTitle').notEmpty().trim(),
