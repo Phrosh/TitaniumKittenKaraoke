@@ -226,6 +226,10 @@ export const adminAPI = {
   // General Song Rename (for all song types)
   renameSong: (oldArtist: string, oldTitle: string, newArtist: string, newTitle: string) =>
     api.post('/admin/song/rename', { oldArtist, oldTitle, newArtist, newTitle }),
+  
+  // General Song Delete (for all song types)
+  deleteSong: (artist: string, title: string) =>
+    api.post('/admin/song/delete', { artist, title }),
 
   // Cloudflared Management
   getCloudflaredStatus: () => api.get('/admin/cloudflared/status'),

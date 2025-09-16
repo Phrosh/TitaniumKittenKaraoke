@@ -772,6 +772,10 @@ const AdminDashboard: React.FC = () => {
     newTitle: ''
   });
   
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteSong, setDeleteSong] = useState<any>(null);
+  
   // YouTube Download Dialog
   const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
   const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
@@ -2354,6 +2358,46 @@ const AdminDashboard: React.FC = () => {
     setShowRenameModal(false);
     setRenameSong(null);
     setRenameData({ newArtist: '', newTitle: '' });
+  };
+
+  const handleDeleteSongFromLibrary = (song: any) => {
+    setDeleteSong(song);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteSong) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await adminAPI.deleteSong(
+        deleteSong.artist,
+        deleteSong.title
+      );
+      
+      if (response.data.success) {
+        // Refresh songs list
+        await fetchSongs();
+        setShowDeleteModal(false);
+        setDeleteSong(null);
+        toast.success(`Song "${deleteSong.artist} - ${deleteSong.title}" erfolgreich gelöscht`);
+      } else {
+        console.error('Delete failed:', response.data.message);
+        toast.error(response.data.message || 'Fehler beim Löschen des Songs');
+      }
+    } catch (error: any) {
+      console.error('Error deleting song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Löschen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteSong(null);
   };
 
   const handleStartProcessing = async (song: any) => {
@@ -4310,6 +4354,38 @@ const AdminDashboard: React.FC = () => {
                                   ✏️ Umbenennen
                                 </button>
                                 
+                                {/* Delete button for all song types */}
+                                <button
+                                  onClick={() => handleDeleteSongFromLibrary(song)}
+                                  disabled={actionLoading}
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '6px 12px',
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '500',
+                                    opacity: actionLoading ? 0.6 : 1,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#c82333';
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!actionLoading) {
+                                      e.currentTarget.style.backgroundColor = '#dc3545';
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }
+                                  }}
+                                >
+                                  🗑️ Löschen
+                                </button>
+                                
                                 <button
                                   onClick={() => handleTestSong(song)}
                                   disabled={actionLoading}
@@ -5224,6 +5300,64 @@ const AdminDashboard: React.FC = () => {
                 }}
               >
                 {actionLoading ? '⏳ Wird umbenannt...' : '✏️ Umbenennen'}
+              </Button>
+            </ModalButtons>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && deleteSong && (
+        <Modal>
+          <ModalContent>
+            <ModalTitle>🗑️ Song löschen</ModalTitle>
+            
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#fff5f5', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              border: '1px solid #fed7d7',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: '600', color: '#c53030', marginBottom: '10px' }}>
+                ⚠️ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!
+              </div>
+              <div style={{ fontSize: '16px', color: '#2d3748', marginBottom: '15px' }}>
+                Möchtest du den Song wirklich löschen?
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                color: '#4a5568',
+                backgroundColor: 'white',
+                padding: '12px',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <strong>Song:</strong> {deleteSong.artist} - {deleteSong.title}
+                <br />
+                <strong>Typ:</strong> {
+                  deleteSong.modes?.includes('server_video') ? '🟢 Server-Video' :
+                  deleteSong.modes?.includes('file') ? '🔵 Datei-Song' :
+                  deleteSong.modes?.includes('ultrastar') ? '⭐ Ultrastar-Song' :
+                  deleteSong.mode === 'youtube' ? '🔴 YouTube-Song' :
+                  deleteSong.modes?.includes('youtube_cache') ? '🎬 YouTube-Cache' :
+                  'Unbekannt'
+                }
+              </div>
+            </div>
+            
+            <ModalButtons>
+              <Button onClick={handleDeleteCancel}>Abbrechen</Button>
+              <Button 
+                onClick={handleDeleteConfirm}
+                disabled={actionLoading}
+                style={{
+                  backgroundColor: actionLoading ? '#ccc' : '#dc3545',
+                  color: 'white'
+                }}
+              >
+                {actionLoading ? '⏳ Wird gelöscht...' : '🗑️ Endgültig löschen'}
               </Button>
             </ModalButtons>
           </ModalContent>

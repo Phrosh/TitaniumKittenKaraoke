@@ -2362,6 +2362,141 @@ router.post('/song/rename', [
   }
 });
 
+// General Song Delete (for all song types)
+router.post('/song/delete', [
+  body('artist').notEmpty().trim(),
+  body('title').notEmpty().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validierungsfehler', 
+        errors: errors.array() 
+      });
+    }
+
+    const { artist, title } = req.body;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Import song scanning functions
+    const { scanUltrastarSongs } = require('../utils/ultrastarSongs');
+    const { scanYouTubeSongs } = require('../utils/youtubeSongs');
+    const { scanLocalVideos } = require('../utils/localVideos');
+
+    // Find the song in all possible locations
+    let songType = null;
+    let songData = null;
+    let deletePath = null;
+
+    // Check Ultrastar songs (folder-based)
+    const ultrastarSongs = scanUltrastarSongs();
+    const ultrastarSong = ultrastarSongs.find(song => 
+      song.artist.toLowerCase() === artist.toLowerCase() &&
+      song.title.toLowerCase() === title.toLowerCase()
+    );
+    
+    if (ultrastarSong) {
+      songType = 'ultrastar';
+      songData = ultrastarSong;
+      const folderName = `${artist} - ${title}`;
+      deletePath = path.join(__dirname, '..', 'songs', 'ultrastar', folderName);
+    }
+
+    // Check YouTube cache songs (folder-based)
+    if (!songData) {
+      const youtubeSongs = scanYouTubeSongs();
+      const youtubeSong = youtubeSongs.find(song => 
+        song.artist.toLowerCase() === artist.toLowerCase() &&
+        song.title.toLowerCase() === title.toLowerCase()
+      );
+      
+      if (youtubeSong) {
+        songType = 'youtube_cache';
+        songData = youtubeSong;
+        const folderName = `${artist} - ${title}`;
+        deletePath = path.join(__dirname, '..', 'songs', 'youtube', folderName);
+      }
+    }
+
+    // Check local videos (file-based)
+    if (!songData) {
+      const localVideos = scanLocalVideos();
+      const localVideo = localVideos.find(video => 
+        video.artist.toLowerCase() === artist.toLowerCase() &&
+        video.title.toLowerCase() === title.toLowerCase()
+      );
+      
+      if (localVideo) {
+        songType = 'server_video';
+        songData = localVideo;
+        const fileName = `${artist} - ${title}${localVideo.extension}`;
+        deletePath = path.join(__dirname, '..', 'songs', 'videos', fileName);
+      }
+    }
+
+    if (!songData) {
+      return res.status(404).json({ 
+        message: 'Song nicht gefunden',
+        success: false
+      });
+    }
+
+    // Check if path exists
+    if (!fs.existsSync(deletePath)) {
+      return res.status(404).json({ 
+        message: `${songType === 'server_video' ? 'Video-Datei' : 'Ordner'} nicht gefunden`,
+        success: false
+      });
+    }
+
+    // Delete the file/folder
+    if (songType === 'server_video') {
+      // Delete single file
+      fs.unlinkSync(deletePath);
+      console.log(`🗑️ Deleted ${songType} file: "${path.basename(deletePath)}"`);
+    } else {
+      // Delete folder recursively
+      fs.rmSync(deletePath, { recursive: true, force: true });
+      console.log(`🗑️ Deleted ${songType} folder: "${path.basename(deletePath)}"`);
+    }
+
+    // Remove from invisible songs database entry
+    try {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'DELETE FROM invisible_songs WHERE artist = ? AND title = ?',
+          [artist, title],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      console.log(`📝 Removed invisible songs entry: "${artist} - ${title}"`);
+    } catch (dbError) {
+      console.warn('Could not remove invisible songs database entry:', dbError.message);
+      // Don't fail the operation if database update fails
+    }
+
+    res.json({ 
+      message: `Song "${artist} - ${title}" erfolgreich gelöscht`,
+      success: true,
+      deletedName: `${artist} - ${title}`,
+      songType: songType
+    });
+
+  } catch (error) {
+    console.error('Error deleting song:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      success: false
+    });
+  }
+});
+
 // Rename YouTube Cache Song (legacy endpoint)
 router.post('/youtube-cache/rename', [
   body('oldArtist').notEmpty().trim(),
