@@ -10,9 +10,9 @@ import { boilDown, boilDownMatch } from '../utils/boilDown';
 import PlaylistTab from './admin/PlaylistTab';
 import BanlistTab from './admin/BanlistTab';
 import UsersTab from './admin/UsersTab';
+import SettingsTab from './admin/SettingsTab';
 import { Button, SmallButton } from './shared';
 
-import LanguageSelector from './LanguageSelector';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -3421,474 +3421,51 @@ const AdminDashboard: React.FC = () => {
           )}
           
           {activeTab === 'settings' && (
-            <SettingsSection>
-              <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
-              {/* Language Selection */}
-              <SettingsCard>
-                <SettingsLabel>{t('settings.language')}:</SettingsLabel>
-                <LanguageSelector />
-                <SettingsDescription>
-                  {t('settings.selectLanguage')}
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-
-              <SettingsCard>
-                <SettingsLabel>Regression-Wert:</SettingsLabel>
-                <SettingsInput
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={regressionValue}
-                  onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
-                />
-                <SettingsButton 
-                  onClick={handleUpdateRegressionValue}
-                  disabled={settingsLoading}
-                >
-                  {settingsLoading ? 'Speichert...' : 'Speichern'}
-                </SettingsButton>
-                <SettingsDescription>
-                  Der Regression-Wert bestimmt, um wie viel die Priorität eines Songs reduziert wird, 
-                  wenn er nach unten rutscht (Standard: 0.1). Bei 10 Regressionen wird die Priorität um 1.0 reduziert.
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-              
-              {/* URL & Cloudflared Section */}
-              <div style={{ marginTop: '20px', padding: '15px', background: '#e8f4fd', borderRadius: '8px', border: '1px solid #bee5eb' }}>
-                <div style={{ fontWeight: '600', marginBottom: '15px', color: '#0c5460' }}>
-                  🌐 Eigene URL & Cloudflared Tunnel
-                </div>
-                
-                {/* Eigene URL */}
-                <div style={{ marginBottom: '20px' }}>
-                  <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>Eigene URL:</SettingsLabel>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                    <SettingsInput
-                      type="url"
-                      placeholder="https://meine-domain.com"
-                      value={customUrl}
-                      onChange={(e) => setCustomUrl(e.target.value)}
-                      style={{ minWidth: '300px' }}
-                    />
-                    <SettingsButton 
-                      onClick={handleUpdateCustomUrl}
-                      disabled={settingsLoading}
-                    >
-                      {settingsLoading ? 'Speichert...' : 'Speichern'}
-                    </SettingsButton>
-                    <SettingsButton 
-                      onClick={handleCopyUrlToClipboard}
-                      disabled={!customUrl}
-                      style={{ 
-                        backgroundColor: '#6c757d',
-                        color: 'white',
-                        opacity: !customUrl ? 0.6 : 1
-                      }}
-                    >
-                      📋 Kopieren
-                    </SettingsButton>
-                  </div>
-                  <SettingsDescription style={{ color: '#0c5460' }}>
-                    Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
-                    Wenn leer, wird automatisch die aktuelle Domain verwendet.
-                  </SettingsDescription>
-                </div>
-                
-                {/* Cloudflared Integration */}
-                <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
-                  <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>Cloudflared Tunnel:</SettingsLabel>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
-                    <SettingsButton 
-                      onClick={handleInstallCloudflared}
-                      disabled={cloudflaredInstalled || cloudflaredInstallLoading}
-                      style={{ 
-                        backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
-                        color: 'white',
-                        opacity: cloudflaredInstalled ? 0.6 : 1
-                      }}
-                    >
-                      {cloudflaredInstallLoading ? 'Installiert...' : 'Cloudflared Einrichten'}
-                    </SettingsButton>
-                    
-                    <SettingsButton 
-                      onClick={handleStartCloudflaredTunnel}
-                      disabled={!cloudflaredInstalled || cloudflaredStartLoading}
-                      style={{ 
-                        backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
-                        color: 'white',
-                        opacity: !cloudflaredInstalled ? 0.6 : 1
-                      }}
-                    >
-                      {cloudflaredStartLoading ? 'Startet...' : 'Cloudflared Starten'}
-                    </SettingsButton>
-                    
-                    <SettingsButton 
-                      onClick={handleStopCloudflaredTunnel}
-                      disabled={cloudflaredStopLoading}
-                      style={{ 
-                        backgroundColor: '#dc3545',
-                        color: 'white'
-                      }}
-                    >
-                      {cloudflaredStopLoading ? 'Stoppt...' : 'Tunnel Stoppen'}
-                    </SettingsButton>
-                  </div>
-                  <SettingsDescription style={{ color: '#0c5460' }}>
-                    Cloudflared erstellt einen sicheren Tunnel zu Ihrem lokalen Server. 
-                    Nach dem Starten wird automatisch eine öffentliche URL generiert und als "Eigene URL" gesetzt.
-                  </SettingsDescription>
-                </div>
-              </div>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-              
-              <SettingsCard>
-                <SettingsLabel>Overlay-Überschrift:</SettingsLabel>
-                <SettingsInput
-                  type="text"
-                  placeholder="Willkommen beim Karaoke"
-                  value={overlayTitle}
-                  onChange={(e) => setOverlayTitle(e.target.value)}
-                  style={{ minWidth: '300px' }}
-                />
-                <SettingsButton 
-                  onClick={handleUpdateOverlayTitle}
-                  disabled={settingsLoading}
-                >
-                  {settingsLoading ? 'Speichert...' : 'Speichern'}
-                </SettingsButton>
-                <SettingsDescription>
-                  Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-
-              <SettingsCard>
-                <SettingsLabel>Erlaube YouTube-Links in Songwünschen:</SettingsLabel>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={youtubeEnabled}
-                      onChange={(e) => setYoutubeEnabled(e.target.checked)}
-                      style={{ transform: 'scale(1.2)' }}
-                    />
-                    <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>
-                      {youtubeEnabled ? 'Aktiviert' : 'Deaktiviert'}
-                    </span>
-                  </label>
-                  <SettingsButton 
-                    onClick={handleUpdateYouTubeEnabled}
-                    disabled={settingsLoading}
-                    style={{ marginLeft: '10px' }}
-                  >
-                    {settingsLoading ? 'Speichert...' : 'Speichern'}
-                  </SettingsButton>
-                </div>
-                <SettingsDescription>
-                  Wenn deaktiviert, können Benutzer nur Songs aus der lokalen Songliste auswählen. 
-                  YouTube-Links werden nicht akzeptiert.
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-              
-              {/* Auto-Approve Songs Setting */}
-              <SettingsCard>
-                <SettingsLabel>Songwünsche automatisch bestätigen:</SettingsLabel>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={autoApproveSongs}
-                      onChange={(e) => setAutoApproveSongs(e.target.checked)}
-                      style={{ transform: 'scale(1.2)' }}
-                    />
-                    <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>
-                      {autoApproveSongs ? 'Aktiviert' : 'Deaktiviert'}
-                    </span>
-                  </label>
-                  <SettingsButton 
-                    onClick={handleUpdateAutoApproveSongs}
-                    disabled={settingsLoading}
-                    style={{ marginLeft: '10px' }}
-                  >
-                    {settingsLoading ? 'Speichert...' : 'Speichern'}
-                  </SettingsButton>
-                </div>
-                <SettingsDescription>
-                  Wenn aktiviert, werden Songwünsche automatisch zur Playlist hinzugefügt. 
-                  Wenn deaktiviert, werden Songwünsche, die entweder YouTube-Songs sind (nicht im Cache) 
-                  oder auf der unsichtbaren Liste stehen, zur manuellen Bestätigung vorgelegt.
-                </SettingsDescription>
-                
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-              
-              <SettingsCard>
-                <SettingsLabel>USDB-Zugangsdaten:</SettingsLabel>
-                {usdbCredentials ? (
-                  <div style={{ marginBottom: '15px' }}>
-                    <div style={{ 
-                      padding: '10px', 
-                      background: '#d4edda', 
-                      border: '1px solid #c3e6cb', 
-                      borderRadius: '4px',
-                      marginBottom: '10px'
-                    }}>
-                      <div style={{ fontWeight: '600', color: '#155724', marginBottom: '5px' }}>
-                        ✅ USDB-Zugangsdaten gespeichert
-                      </div>
-                      <div style={{ color: '#155724', fontSize: '14px' }}>
-                        Username: {usdbCredentials.username}
-                      </div>
-                    </div>
-                    <SettingsButton 
-                      onClick={handleDeleteUSDBCredentials}
-                      disabled={usdbLoading}
-                      style={{ backgroundColor: '#dc3545' }}
-                    >
-                      {usdbLoading ? 'Löscht...' : 'Zugangsdaten löschen'}
-                    </SettingsButton>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: '15px' }}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                      <SettingsInput
-                        type="text"
-                        placeholder="USDB Username"
-                        value={usdbUsername}
-                        onChange={(e) => setUsdbUsername(e.target.value)}
-                        style={{ minWidth: '200px' }}
-                      />
-                      <SettingsInput
-                        type="password"
-                        placeholder="USDB Passwort"
-                        value={usdbPassword}
-                        onChange={(e) => setUsdbPassword(e.target.value)}
-                        style={{ minWidth: '200px' }}
-                      />
-                      <SettingsButton 
-                        onClick={handleSaveUSDBCredentials}
-                        disabled={usdbLoading}
-                      >
-                        {usdbLoading ? 'Speichert...' : 'Speichern'}
-                      </SettingsButton>
-                    </div>
-                  </div>
-                )}
-                <SettingsDescription>
-                  Zugangsdaten für die UltraStar Database (usdb.animux.de). 
-                  Diese werden benötigt, um Songs von USDB herunterzuladen.
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* Horizontal Divider */}
-              <div style={{ 
-                height: '1px', 
-                background: '#bee5eb', 
-                margin: '20px 0' 
-              }}></div>
-              
-              <SettingsCard>
-                <SettingsLabel>Lokaler Song-Ordner:</SettingsLabel>
-                <SettingsInput
-                  type="text"
-                  placeholder="C:/songs"
-                  value={fileSongsFolder}
-                  onChange={(e) => setFileSongsFolder(e.target.value)}
-                  style={{ minWidth: '300px' }}
-                />
-                <SettingsButton 
-                  onClick={handleUpdateFileSongsFolder}
-                  disabled={settingsLoading}
-                >
-                  {settingsLoading ? 'Speichert...' : 'Speichern'}
-                </SettingsButton>
-                <SettingsButton 
-                  onClick={handleRescanFileSongs}
-                  disabled={settingsLoading}
-                  style={{ marginLeft: '10px', backgroundColor: '#17a2b8' }}
-                >
-                  {settingsLoading ? 'Scannt...' : 'Neu scannen'}
-                </SettingsButton>
-                <SettingsButton 
-                  onClick={handleRemoveFileSongs}
-                  disabled={settingsLoading}
-                  style={{ marginLeft: '10px', backgroundColor: '#dc3545' }}
-                >
-                  {settingsLoading ? 'Entfernt...' : 'Songs aus der Liste entfernen'}
-                </SettingsButton>
-                <SettingsDescription>
-                  Ordner mit lokalen Karaoke-Videos im Format "Interpret - Songtitel.erweiterung". 
-                  Diese Songs haben höchste Priorität bei der Erkennung.
-                </SettingsDescription>
-                
-                {/* Local Server Section */}
-                {fileSongsFolder && (
-                  <div style={{ marginTop: '20px', padding: '15px', background: '#e8f4fd', borderRadius: '8px', border: '1px solid #bee5eb' }}>
-                    <div style={{ fontWeight: '600', marginBottom: '10px', color: '#0c5460' }}>
-                      🌐 Lokaler Webserver für Videos
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#0c5460', marginBottom: '15px' }}>
-                      Starte einen lokalen Webserver, damit Videos über HTTP abgespielt werden können:
-                    </div>
-                    
-                    {/* Port Selection */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                        Port:
-                      </label>
-                      <input
-                        type="number"
-                        value={localServerPort}
-                        onChange={(e) => setLocalServerPort(parseInt(e.target.value) || 4000)}
-                        min="1000"
-                        max="65535"
-                        style={{
-                          width: '80px',
-                          padding: '5px',
-                          border: '1px solid #ccc',
-                          borderRadius: '4px',
-                          fontSize: '14px'
-                        }}
-                      />
-                    </div>
-                    
-                    {/* Server Type Tabs */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                        {[
-                          { key: 'python', label: 'Python', desc: 'Built-in' },
-                          { key: 'npx', label: 'NPX', desc: 'serve' },
-                          { key: 'node', label: 'Node.js', desc: 'Native' }
-                        ].map(({ key, label, desc }) => (
-                          <button
-                            key={key}
-                            onClick={() => setLocalServerTab(key as any)}
-                            style={{
-                              padding: '8px 12px',
-                              border: '1px solid #ccc',
-                              borderRadius: '4px',
-                              background: localServerTab === key ? '#007bff' : 'white',
-                              color: localServerTab === key ? 'white' : '#333',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: '500'
-                            }}
-                          >
-                            {label}
-                            <div style={{ fontSize: '10px', opacity: 0.8 }}>{desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Command Display */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                        Befehl zum Kopieren:
-                      </label>
-                      <div style={{
-                        padding: '10px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        wordBreak: 'break-all',
-                        color: '#495057'
-                      }}>
-                        {generateLocalServerCommand() || 'Bitte Ordner angeben'}
-                      </div>
-                    </div>
-                    
-                    {/* Copy Button */}
-                    <button
-                      onClick={handleCopyServerCommand}
-                      disabled={!fileSongsFolder}
-                      style={{
-                        padding: '8px 16px',
-                        background: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: fileSongsFolder ? 'pointer' : 'not-allowed',
-                        opacity: fileSongsFolder ? 1 : 0.6,
-                        fontSize: '14px',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📋 Befehl kopieren
-                    </button>
-                    
-                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#6c757d' }}>
-                      <strong>Anleitung:</strong><br/>
-                      1. Befehl kopieren und in CMD/PowerShell ausführen<br/>
-                      2. Server läuft auf http://localhost:{localServerPort}/<br/>
-                      3. Videos werden automatisch über HTTP abgespielt
-                    </div>
-                  </div>
-                )}
-                
-                {fileSongs.length > 0 && (
-                  <div style={{ marginTop: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: '600', marginBottom: '8px', color: '#333' }}>
-                      Gefundene Songs ({fileSongs.length}):
-                    </div>
-                    <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '14px' }}>
-                      {fileSongs.slice(0, 10).map((song, index) => (
-                        <div key={index} style={{ marginBottom: '4px', color: '#666' }}>
-                          {song.artist} - {song.title}
-                        </div>
-                      ))}
-                      {fileSongs.length > 10 && (
-                        <div style={{ color: '#999', fontStyle: 'italic' }}>
-                          ... und {fileSongs.length - 10} weitere
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </SettingsCard>
-            </SettingsSection>
+            <SettingsTab
+              t={(key: string) => key}
+              regressionValue={regressionValue}
+              onRegressionValueChange={setRegressionValue}
+              onUpdateRegressionValue={handleUpdateRegressionValue}
+              customUrl={customUrl}
+              onCustomUrlChange={setCustomUrl}
+              onUpdateCustomUrl={handleUpdateCustomUrl}
+              onCopyUrlToClipboard={handleCopyUrlToClipboard}
+              cloudflaredInstalled={cloudflaredInstalled}
+              cloudflaredInstallLoading={cloudflaredInstallLoading}
+              cloudflaredStartLoading={cloudflaredStartLoading}
+              cloudflaredStopLoading={cloudflaredStopLoading}
+              onInstallCloudflared={handleInstallCloudflared}
+              onStartCloudflaredTunnel={handleStartCloudflaredTunnel}
+              onStopCloudflaredTunnel={handleStopCloudflaredTunnel}
+              overlayTitle={overlayTitle}
+              onOverlayTitleChange={setOverlayTitle}
+              onUpdateOverlayTitle={handleUpdateOverlayTitle}
+              youtubeEnabled={youtubeEnabled}
+              onYoutubeEnabledChange={setYoutubeEnabled}
+              onUpdateYouTubeEnabled={handleUpdateYouTubeEnabled}
+              autoApproveSongs={autoApproveSongs}
+              onAutoApproveSongsChange={setAutoApproveSongs}
+              onUpdateAutoApproveSongs={handleUpdateAutoApproveSongs}
+              usdbCredentials={usdbCredentials}
+              usdbUsername={usdbUsername}
+              usdbPassword={usdbPassword}
+              onUsdbUsernameChange={setUsdbUsername}
+              onUsdbPasswordChange={setUsdbPassword}
+              onSaveUSDBCredentials={handleSaveUSDBCredentials}
+              onDeleteUSDBCredentials={handleDeleteUSDBCredentials}
+              fileSongsFolder={fileSongsFolder}
+              onFileSongsFolderChange={setFileSongsFolder}
+              onUpdateFileSongsFolder={handleUpdateFileSongsFolder}
+              onRescanFileSongs={handleRescanFileSongs}
+              onRemoveFileSongs={handleRemoveFileSongs}
+              localServerPort={localServerPort}
+              localServerTab={localServerTab}
+              onLocalServerPortChange={setLocalServerPort}
+              onLocalServerTabChange={setLocalServerTab}
+              onCopyServerCommand={handleCopyServerCommand}
+              settingsLoading={settingsLoading}
+              usdbLoading={usdbLoading}
+            />
           )}
           
           {activeTab === 'users' && (
