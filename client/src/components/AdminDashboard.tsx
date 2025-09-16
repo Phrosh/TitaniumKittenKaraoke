@@ -3264,6 +3264,13 @@ const AdminDashboard: React.FC = () => {
                 </SettingsDescription>
               </SettingsCard>
               
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
+              
               {/* URL & Cloudflared Section */}
               <div style={{ marginTop: '20px', padding: '15px', background: '#e8f4fd', borderRadius: '8px', border: '1px solid #bee5eb' }}>
                 <div style={{ fontWeight: '600', marginBottom: '15px', color: '#0c5460' }}>
@@ -3351,6 +3358,13 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
               
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
+              
               <SettingsCard>
                 <SettingsLabel>Overlay-Überschrift:</SettingsLabel>
                 <SettingsInput
@@ -3370,6 +3384,13 @@ const AdminDashboard: React.FC = () => {
                   Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
                 </SettingsDescription>
               </SettingsCard>
+              
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
 
               <SettingsCard>
                 <SettingsLabel>Erlaube YouTube-Links in Songwünschen:</SettingsLabel>
@@ -3398,6 +3419,13 @@ const AdminDashboard: React.FC = () => {
                   YouTube-Links werden nicht akzeptiert.
                 </SettingsDescription>
               </SettingsCard>
+              
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
               
               <SettingsCard>
                 <SettingsLabel>USDB-Zugangsdaten:</SettingsLabel>
@@ -3456,6 +3484,13 @@ const AdminDashboard: React.FC = () => {
                   Diese werden benötigt, um Songs von USDB herunterzuladen.
                 </SettingsDescription>
               </SettingsCard>
+              
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
               
               <SettingsCard>
                 <SettingsLabel>Lokaler Song-Ordner:</SettingsLabel>
