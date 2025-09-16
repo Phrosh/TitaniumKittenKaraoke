@@ -1947,6 +1947,23 @@ async function triggerPlaylistUpgradeCheck() {
             );
           });
 
+          // Add to invisible songs list (same as YouTube cache downloads)
+          try {
+            await new Promise((resolve, reject) => {
+              db.run(
+                'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                [youtubeSong.artist, youtubeSong.title],
+                function(err) {
+                  if (err) reject(err);
+                  else resolve();
+                }
+              );
+            });
+            console.log(`📝 Added upgraded song to invisible songs: ${youtubeSong.artist} - ${youtubeSong.title}`);
+          } catch (error) {
+            console.error('Error adding upgraded song to invisible songs:', error);
+          }
+
           upgradeCount++;
           console.log('✅ Upgraded song to ultrastar:', {
             songId: youtubeSong.id,
