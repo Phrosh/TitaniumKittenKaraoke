@@ -9,6 +9,7 @@ import { cleanYouTubeUrl, extractVideoIdFromUrl } from '../utils/youtubeUrlClean
 import { boilDown, boilDownMatch } from '../utils/boilDown';
 import PlaylistTab from './admin/PlaylistTab';
 import BanlistTab from './admin/BanlistTab';
+import UsersTab from './admin/UsersTab';
 import { Button, SmallButton } from './shared';
 
 import LanguageSelector from './LanguageSelector';
@@ -3891,85 +3892,14 @@ const AdminDashboard: React.FC = () => {
           )}
           
           {activeTab === 'users' && (
-            <SettingsSection>
-              <SettingsTitle>👥 Nutzerverwaltung</SettingsTitle>
-              
-              {/* Create new admin user */}
-              <SettingsCard>
-                <SettingsLabel>Neuen Admin-Benutzer erstellen:</SettingsLabel>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                  <SettingsInput
-                    type="text"
-                    placeholder="Benutzername"
-                    value={newUserData.username}
-                    onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
-                    style={{ minWidth: '200px' }}
-                  />
-                  <SettingsInput
-                    type="password"
-                    placeholder="Passwort (min. 6 Zeichen)"
-                    value={newUserData.password}
-                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
-                    style={{ minWidth: '200px' }}
-                  />
-                  <SettingsButton 
-                    onClick={handleCreateAdminUser}
-                    disabled={userManagementLoading}
-                  >
-                    {userManagementLoading ? 'Erstellt...' : 'Erstellen'}
-                  </SettingsButton>
-                </div>
-                <SettingsDescription>
-                  Erstelle neue Admin-Benutzer, die Zugriff auf das Admin-Dashboard haben.
-                </SettingsDescription>
-              </SettingsCard>
-              
-              {/* List existing admin users */}
-              <SettingsCard>
-                <SettingsLabel>Bestehende Admin-Benutzer:</SettingsLabel>
-                {!adminUsers || adminUsers.length === 0 ? (
-                  <div style={{ color: '#666', fontStyle: 'italic' }}>
-                    Keine Admin-Benutzer vorhanden
-                  </div>
-                ) : (
-                  <div style={{ marginTop: '10px' }}>
-                    {adminUsers.map((user) => (
-                      <div 
-                        key={user.id} 
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          padding: '10px',
-                          border: '1px solid #ddd',
-                          borderRadius: '5px',
-                          marginBottom: '5px',
-                          backgroundColor: '#f9f9f9'
-                        }}
-                      >
-                        <div>
-                          <strong>{user.username}</strong>
-                          <div style={{ fontSize: '0.9em', color: '#666' }}>
-                            Erstellt: {new Date(user.created_at).toLocaleDateString('de-DE')}
-                          </div>
-                        </div>
-                        <Button 
-                          variant="danger"
-                          onClick={() => handleDeleteAdminUser(user.id, user.username)}
-                          disabled={userManagementLoading}
-                          style={{ padding: '5px 10px', fontSize: '0.9em' }}
-                        >
-                          🗑️ Löschen
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <SettingsDescription>
-                  Verwaltung aller Admin-Benutzer. Du kannst deinen eigenen Account nicht löschen.
-                </SettingsDescription>
-              </SettingsCard>
-            </SettingsSection>
+            <UsersTab
+              adminUsers={adminUsers}
+              newUserData={newUserData}
+              userManagementLoading={userManagementLoading}
+              onNewUserDataChange={setNewUserData}
+              onCreateAdminUser={handleCreateAdminUser}
+              onDeleteAdminUser={handleDeleteAdminUser}
+            />
           )}
           
           {activeTab === 'banlist' && (
