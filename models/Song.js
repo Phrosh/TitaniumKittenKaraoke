@@ -392,6 +392,22 @@ class Song {
     });
   }
 
+  static updateStatus(songId, status) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET status = ? WHERE id = ?',
+        [status, songId],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: songId, status, changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
 }
 
 module.exports = Song;

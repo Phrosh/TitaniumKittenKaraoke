@@ -471,7 +471,7 @@ router.post('/request', [
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
       await Song.updateDownloadStatus(song.id, downloadStatus);
     }
-
+    
     // Trigger automatic USDB search and download for YouTube songs
     console.log('🔍 Checking conditions for automatic USDB search:', {
       mode,
@@ -499,6 +499,16 @@ router.post('/request', [
     
     if (shouldTriggerUSDB) {
       console.log('✅ Conditions met, triggering automatic USDB search');
+      
+      // Set song status to "downloading" to show loading state in UI
+      try {
+        const Song = require('../models/Song');
+        await Song.updateStatus(song.id, 'downloading');
+        console.log('🔄 Song status set to downloading:', { songId: song.id, artist, title });
+      } catch (statusError) {
+        console.error('❌ Failed to set song status to downloading:', statusError);
+      }
+      
       triggerAutomaticUSDBSearch(song.id, artist, title);
     } else {
       console.log('❌ Conditions not met for automatic USDB search');
@@ -1716,6 +1726,14 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
 
     if (!credentials) {
       console.log('⚠️ No USDB credentials found, skipping automatic download');
+      // Set status to failed
+      try {
+        const Song = require('../models/Song');
+        await Song.updateStatus(songId, 'failed');
+        console.log('❌ Song status set to failed (no credentials):', { songId });
+      } catch (statusError) {
+        console.error('❌ Failed to set song status to failed:', statusError);
+      }
       return;
     }
 
@@ -1723,6 +1741,14 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
     const songIdMatch = usdbUrl.match(/id=(\d+)/);
     if (!songIdMatch) {
       console.error('❌ Could not extract song ID from USDB URL:', usdbUrl);
+      // Set status to failed
+      try {
+        const Song = require('../models/Song');
+        await Song.updateStatus(songId, 'failed');
+        console.log('❌ Song status set to failed (invalid URL):', { songId });
+      } catch (statusError) {
+        console.error('❌ Failed to set song status to failed:', statusError);
+      }
       return;
     }
 
@@ -1814,6 +1840,15 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
           console.log('⚠️ No WebSocket IO instance available for notification');
         }
 
+        // Set original song status to ready (download successful)
+        try {
+          const Song = require('../models/Song');
+          await Song.updateStatus(songId, 'ready');
+          console.log('✅ Original song status set to ready (download successful):', { songId });
+        } catch (statusError) {
+          console.error('❌ Failed to set original song status to ready:', statusError);
+        }
+
         // Trigger playlist upgrade check after successful download
         setTimeout(() => {
           triggerPlaylistUpgradeCheck();
@@ -1833,13 +1868,37 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
 
       } else {
         console.error('❌ USDB download failed:', downloadResponse.data.error);
+        // Set status to failed
+        try {
+          const Song = require('../models/Song');
+          await Song.updateStatus(songId, 'failed');
+          console.log('❌ Song status set to failed (download failed):', { songId });
+        } catch (statusError) {
+          console.error('❌ Failed to set song status to failed:', statusError);
+        }
       }
     } catch (error) {
       console.error('❌ USDB download error:', error.message);
+      // Set status to failed
+      try {
+        const Song = require('../models/Song');
+        await Song.updateStatus(songId, 'failed');
+        console.log('❌ Song status set to failed (download error):', { songId });
+      } catch (statusError) {
+        console.error('❌ Failed to set song status to failed:', statusError);
+      }
     }
 
   } catch (error) {
     console.error('📥 Error in triggerAutomaticUSDBDownload:', error);
+    // Set status to failed
+    try {
+      const Song = require('../models/Song');
+      await Song.updateStatus(songId, 'failed');
+      console.log('❌ Song status set to failed (function error):', { songId });
+    } catch (statusError) {
+      console.error('❌ Failed to set song status to failed:', statusError);
+    }
   }
 }
 

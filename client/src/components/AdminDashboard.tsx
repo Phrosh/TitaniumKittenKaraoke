@@ -1335,10 +1335,11 @@ const AdminDashboard: React.FC = () => {
 
   const getDownloadStatusText = (status: string | undefined) => {
     switch (status) {
-      case 'downloading': return '📥 Lädt herunter';
+      case 'downloading': return '🔄 USDB Download läuft...';
       case 'downloaded': return '✅ Heruntergeladen';
       case 'cached': return '💾 Im Cache';
-      case 'failed': return '❌ Fehlgeschlagen';
+      case 'failed': return '❌ USDB Download fehlgeschlagen';
+      case 'ready': return '';
       default: return '';
     }
   };
@@ -2815,7 +2816,7 @@ const AdminDashboard: React.FC = () => {
                             </>
                           )}
                         </SongTitle>
-                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
+                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
                           <YouTubeField
                             type="url"
                             placeholder="YouTube-Link hier eingeben..."
@@ -2829,9 +2830,9 @@ const AdminDashboard: React.FC = () => {
                             }}
                           />
                         )}
-                        {song.download_status && song.download_status !== 'none' && (
-                          <DownloadStatusBadge $status={song.download_status as 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none'}>
-                            {getDownloadStatusText(song.download_status)}
+                        {(song.download_status && song.download_status !== 'none') || (song.status && song.status !== 'ready') && (
+                          <DownloadStatusBadge $status={(song.status || song.download_status) as 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none'}>
+                            {getDownloadStatusText(song.status || song.download_status)}
                           </DownloadStatusBadge>
                         )}
                         {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song)) || song.modes?.includes('youtube_cache') && (
