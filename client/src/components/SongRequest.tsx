@@ -95,13 +95,25 @@ const Button = styled.button`
   }
 `;
 
-const Alert = styled.div<{ type: 'success' | 'error' }>`
+const Alert = styled.div<{ type: 'success' | 'error' | 'info' }>`
   padding: 15px;
   border-radius: 8px;
   margin: 20px 0;
-  background: ${props => props.type === 'success' ? '#d4edda' : '#f8d7da'};
-  color: ${props => props.type === 'success' ? '#155724' : '#721c24'};
-  border: 1px solid ${props => props.type === 'success' ? '#c3e6cb' : '#f5c6cb'};
+  background: ${props => 
+    props.type === 'success' ? '#d4edda' : 
+    props.type === 'error' ? '#f8d7da' : 
+    '#d1ecf1'
+  };
+  color: ${props => 
+    props.type === 'success' ? '#155724' : 
+    props.type === 'error' ? '#721c24' : 
+    '#0c5460'
+  };
+  border: 1px solid ${props => 
+    props.type === 'success' ? '#c3e6cb' : 
+    props.type === 'error' ? '#f5c6cb' : 
+    '#bee5eb'
+  };
 `;
 
 const QRCodeContainer = styled.div`
@@ -349,7 +361,7 @@ const SongRequest: React.FC = () => {
     deviceId: ''
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string>('');
   const [showSongList, setShowSongList] = useState(false);
@@ -587,10 +599,18 @@ const SongRequest: React.FC = () => {
       
       const response = await songAPI.requestSong(requestData);
       
-      setMessage({
-        type: 'success',
-        text: `Song "${response.data.song.title}" wurde erfolgreich zur Playlist hinzugefügt!`
-      });
+      // Check if song requires approval
+      if (response.data.requiresApproval) {
+        setMessage({
+          type: 'info',
+          text: response.data.message || 'Songwunsch wurde zur Bestätigung eingereicht!'
+        });
+      } else {
+        setMessage({
+          type: 'success',
+          text: `Song "${response.data.song.title}" wurde erfolgreich zur Playlist hinzugefügt!`
+        });
+      }
       
       // Reset form - keep name, clear only song input and background vocals
       setFormData(prev => ({ ...prev, songInput: '' }));

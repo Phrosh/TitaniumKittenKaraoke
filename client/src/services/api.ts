@@ -159,6 +159,19 @@ export const adminAPI = {
   updateYouTubeEnabled: (youtubeEnabled: boolean) =>
     api.put('/admin/settings/youtube-enabled', { youtubeEnabled }),
   
+  updateAutoApproveSongs: (autoApproveSongs: boolean) =>
+    api.put('/admin/settings/auto-approve-songs', { autoApproveSongs }),
+  
+  // Song Approval Management
+  getSongApprovals: () =>
+    api.get('/admin/song-approvals'),
+  
+  approveSong: (id: number, data: { singerName: string; artist: string; title: string; youtubeUrl?: string; withBackgroundVocals: boolean }) =>
+    api.post(`/admin/song-approvals/${id}/approve`, data),
+  
+  rejectSong: (id: number) =>
+    api.post(`/admin/song-approvals/${id}/reject`),
+  
   
   // File Songs Management
   getFileSongsFolder: () =>

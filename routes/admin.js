@@ -30,6 +30,20 @@ router.get('/dashboard', async (req, res) => {
     // Load YouTube songs from cache
     const youtubeSongs = scanYouTubeSongs();
     
+    // Load settings
+    const settings = await new Promise((resolve, reject) => {
+      db.all('SELECT key, value FROM settings', (err, rows) => {
+        if (err) reject(err);
+        else {
+          const settingsObj = {};
+          rows.forEach(row => {
+            settingsObj[row.key] = row.value;
+          });
+          resolve(settingsObj);
+        }
+      });
+    });
+    
     // Statistics
     const stats = {
       totalSongs: playlist.length,
@@ -47,7 +61,8 @@ router.get('/dashboard', async (req, res) => {
       users,
       currentSong,
       youtubeSongs,
-      stats
+      stats,
+      settings
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
@@ -501,6 +516,133 @@ router.put('/settings/youtube-enabled', [
     res.json({ message: 'YouTube-Einstellung erfolgreich aktualisiert', youtubeEnabled });
   } catch (error) {
     console.error('Error updating YouTube setting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update Auto-Approve Songs setting
+router.put('/settings/auto-approve-songs', [
+  body('autoApproveSongs').isBoolean().withMessage('Auto-Approve Songs muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { autoApproveSongs } = req.body;
+
+    // Store Auto-Approve Songs setting in settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['auto_approve_songs', autoApproveSongs ? 'true' : 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Auto-Approve Einstellung erfolgreich aktualisiert', autoApproveSongs });
+  } catch (error) {
+    console.error('Error updating auto-approve songs setting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get pending song approvals
+router.get('/song-approvals', async (req, res) => {
+  try {
+    const approvals = await new Promise((resolve, reject) => {
+      db.all(`
+        SELECT sa.*, u.name as user_name, u.device_id 
+        FROM song_approvals sa 
+        JOIN users u ON sa.user_id = u.id 
+        WHERE sa.status = 'pending' 
+        ORDER BY sa.created_at ASC
+      `, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    res.json({ approvals });
+  } catch (error) {
+    console.error('Error getting song approvals:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Approve a song request
+router.post('/song-approvals/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { singerName, artist, title, youtubeUrl, withBackgroundVocals } = req.body;
+
+    // Get the approval request
+    const approval = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM song_approvals WHERE id = ? AND status = ?', [id, 'pending'], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!approval) {
+      return res.status(404).json({ message: 'Approval request not found' });
+    }
+
+    // Create the song
+    const song = await Song.create(
+      approval.user_id, 
+      title || approval.title, 
+      artist || approval.artist, 
+      youtubeUrl || approval.youtube_url, 
+      1, 
+      null, 
+      'youtube', 
+      withBackgroundVocals || approval.with_background_vocals
+    );
+
+    // Update approval status
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE song_approvals SET status = ?, approved_at = ? WHERE id = ?',
+        ['approved', new Date().toISOString(), id],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Song erfolgreich genehmigt und zur Playlist hinzugefügt', song });
+  } catch (error) {
+    console.error('Error approving song:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Reject a song request
+router.post('/song-approvals/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Update approval status
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE song_approvals SET status = ?, rejected_at = ? WHERE id = ?',
+        ['rejected', new Date().toISOString(), id],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'Song erfolgreich abgelehnt' });
+  } catch (error) {
+    console.error('Error rejecting song:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

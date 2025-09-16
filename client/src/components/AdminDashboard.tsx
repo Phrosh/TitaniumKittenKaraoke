@@ -13,6 +13,55 @@ const Container = styled.div`
   padding: 20px;
 `;
 
+const ApprovalNotificationBar = styled.div`
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  }
+`;
+
+const ApprovalNotificationContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const ApprovalNotificationIcon = styled.div`
+  font-size: 24px;
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+`;
+
+const ApprovalNotificationText = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const ApprovalNotificationCount = styled.div`
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 14px;
+`;
+
 const TabContainer = styled.div`
   background: white;
   border-radius: 12px;
@@ -706,6 +755,391 @@ const DropZone = styled.div<{ $isVisible?: boolean }>`
   box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
 `;
 
+// Reusable Song Form Component
+interface SongFormProps {
+  singerName: string;
+  artist: string;
+  title: string;
+  youtubeUrl: string;
+  withBackgroundVocals: boolean;
+  onSingerNameChange: (value: string) => void;
+  onArtistChange: (value: string) => void;
+  onTitleChange: (value: string) => void;
+  onYoutubeUrlChange: (value: string) => void;
+  onWithBackgroundVocalsChange: (checked: boolean) => void;
+  showSongList?: boolean;
+  songList?: any[];
+  onSongSelect?: (song: any) => void;
+  usdbResults?: any[];
+  usdbLoading?: boolean;
+  getFirstLetter?: (artist: string) => string;
+}
+
+const SongForm: React.FC<SongFormProps> = ({
+  singerName,
+  artist,
+  title,
+  youtubeUrl,
+  withBackgroundVocals,
+  onSingerNameChange,
+  onArtistChange,
+  onTitleChange,
+  onYoutubeUrlChange,
+  onWithBackgroundVocalsChange,
+  showSongList = false,
+  songList = [],
+  onSongSelect,
+  usdbResults = [],
+  usdbLoading = false,
+  getFirstLetter
+}) => {
+  return (
+    <>
+      {/* Singer Name */}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          marginBottom: '8px',
+          fontSize: '14px',
+          fontWeight: '500',
+          color: '#333'
+        }}>
+          Sänger-Name:
+        </label>
+        <input
+          type="text"
+          placeholder="Name des Teilnehmers"
+          value={singerName}
+          onChange={(e) => onSingerNameChange(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '14px'
+          }}
+        />
+      </div>
+
+      {/* Artist and Title */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '15px', 
+        marginBottom: '20px',
+        alignItems: 'center'
+      }}>
+        <div style={{ flex: 1 }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333'
+          }}>
+            Interpret:
+          </label>
+          <input
+            type="text"
+            placeholder="Interpret"
+            value={artist}
+            onChange={(e) => onArtistChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333'
+          }}>
+            Songtitel:
+          </label>
+          <input
+            type="text"
+            placeholder="Songtitel"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+      </div>
+
+      {/* YouTube Link */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        marginBottom: '20px',
+        gap: '15px'
+      }}>
+        <div style={{ 
+          flex: 1, 
+          height: '1px', 
+          backgroundColor: '#ddd' 
+        }}></div>
+        <span style={{ 
+          color: '#666', 
+          fontSize: '14px', 
+          fontWeight: '500' 
+        }}>
+          oder
+        </span>
+        <div style={{ 
+          flex: 1, 
+          height: '1px', 
+          backgroundColor: '#ddd' 
+        }}></div>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          marginBottom: '8px',
+          fontSize: '14px',
+          fontWeight: '500',
+          color: '#333'
+        }}>
+          YouTube-Link:
+        </label>
+        <input
+          type="text"
+          placeholder="https://www.youtube.com/watch?v=..."
+          value={youtubeUrl}
+          onChange={(e) => onYoutubeUrlChange(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '14px'
+          }}
+        />
+      </div>
+
+      {/* Background Vocals Checkbox */}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={withBackgroundVocals}
+            onChange={(e) => onWithBackgroundVocalsChange(e.target.checked)}
+            style={{ transform: 'scale(1.2)' }}
+          />
+          <span style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
+            Mit Hintergrundstimmen
+          </span>
+        </label>
+      </div>
+
+      {/* Song List */}
+      {showSongList && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#333'
+          }}>
+            Songliste:
+          </label>
+          
+          <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
+            <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
+            <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+          </div>
+          
+          <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
+            {/* USDB Results Section */}
+            {usdbResults.length > 0 && (
+              <div>
+                <div style={{
+                  position: 'sticky',
+                  top: 0,
+                  background: '#28a745',
+                  color: 'white',
+                  padding: '8px 15px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  zIndex: 10,
+                  borderBottom: '2px solid #218838'
+                }}>
+                  USDB ({usdbResults.length})
+                </div>
+                {usdbResults.map((song, index) => (
+                  <div
+                    key={`usdb-${song.id}`}
+                    onClick={() => onSongSelect?.(song)}
+                    style={{
+                      padding: '10px',
+                      border: '1px solid #eee',
+                      borderRadius: '8px',
+                      marginBottom: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(artist === song.artist && title === song.title)) {
+                        e.currentTarget.style.background = '#f8f9fa';
+                        e.currentTarget.style.borderColor = '#667eea';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!(artist === song.artist && title === song.title)) {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.borderColor = '#eee';
+                      }
+                    }}
+                  >
+                    <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                      {song.artist}
+                    </div>
+                    <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                      {song.title}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Loading indicator for USDB search */}
+            {usdbLoading && (
+              <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                🔍 USDB-Suche läuft...
+              </div>
+            )}
+
+            {/* Local Songs Section */}
+            {songList.length > 0 && getFirstLetter && (() => {
+              // Filter songs based on current artist and title values
+              const artistTerm = (artist || '').toLowerCase().trim();
+              const titleTerm = (title || '').toLowerCase().trim();
+              
+              const filteredSongs = songList.filter(song => {
+                // If no search terms at all, show all songs
+                if (!artistTerm && !titleTerm) return true;
+                
+                // Search in artist, title, or combined
+                const songArtist = song.artist.toLowerCase();
+                const songTitle = song.title.toLowerCase();
+                const songCombined = `${songArtist} - ${songTitle}`;
+                
+                // Check if song matches any of the search criteria
+                let matches = false;
+                
+                // If artist term exists, check if song artist contains it
+                if (artistTerm) {
+                  matches = matches || songArtist.includes(artistTerm) || songCombined.includes(artistTerm);
+                }
+                
+                // If title term exists, check if song title contains it
+                if (titleTerm) {
+                  matches = matches || songTitle.includes(titleTerm) || songCombined.includes(titleTerm);
+                }
+                
+                // Cross-search: artist term in title, title term in artist
+                if (artistTerm && titleTerm) {
+                  matches = matches || songArtist.includes(titleTerm) || songTitle.includes(artistTerm);
+                }
+                
+                return matches;
+              });
+              
+              // Group filtered songs by first letter of artist
+              const groupedSongs = filteredSongs.reduce((groups, song) => {
+                const letter = getFirstLetter(song.artist);
+                if (!groups[letter]) {
+                  groups[letter] = [];
+                }
+                groups[letter].push(song);
+                return groups;
+              }, {} as Record<string, typeof filteredSongs>);
+              
+              const sortedGroups = Object.keys(groupedSongs).sort();
+              
+              return (
+                <>
+                  {sortedGroups.length > 0 ? sortedGroups.map((letter) => (
+                    <div key={letter}>
+                      <div style={{
+                        position: 'sticky',
+                        top: 0,
+                        background: '#adb5bd',
+                        color: 'white',
+                        padding: '8px 15px',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        zIndex: 10,
+                        borderBottom: '2px solid #9ca3af'
+                      }}>
+                        {letter}
+                      </div>
+                      {groupedSongs[letter].map((song, index) => (
+                        <div
+                          key={`${letter}-${index}`}
+                          onClick={() => onSongSelect?.(song)}
+                          style={{
+                            padding: '10px',
+                            border: '1px solid #eee',
+                            borderRadius: '8px',
+                            marginBottom: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!(artist === song.artist && title === song.title)) {
+                              e.currentTarget.style.background = '#f8f9fa';
+                              e.currentTarget.style.borderColor = '#667eea';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(artist === song.artist && title === song.title)) {
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.borderColor = '#eee';
+                            }
+                          }}
+                        >
+                          <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                            {song.artist}
+                          </div>
+                          <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                            {song.title}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )) : (
+                    <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                      Keine lokalen Songs gefunden
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -723,7 +1157,23 @@ const AdminDashboard: React.FC = () => {
   const [customUrl, setCustomUrl] = useState('');
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
+  const [autoApproveSongs, setAutoApproveSongs] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  
+  // Song Approval System State
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [currentApprovalIndex, setCurrentApprovalIndex] = useState(0);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [approvalData, setApprovalData] = useState({
+    singerName: '',
+    artist: '',
+    title: '',
+    youtubeUrl: '',
+    songInput: '',
+    deviceId: '',
+    withBackgroundVocals: false
+  });
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [showPastSongs, setShowPastSongs] = useState(false);
   const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
@@ -809,6 +1259,12 @@ const AdminDashboard: React.FC = () => {
       if (settingsResponse.data.settings.youtube_enabled !== undefined) {
         setYoutubeEnabled(settingsResponse.data.settings.youtube_enabled === 'true');
       }
+      if (settingsResponse.data.settings.auto_approve_songs !== undefined) {
+        setAutoApproveSongs(settingsResponse.data.settings.auto_approve_songs === 'true');
+      }
+      
+      // Load pending approvals count
+      await loadPendingApprovalsCount();
       
       // Load file songs folder setting
       try {
@@ -1030,6 +1486,46 @@ const AdminDashboard: React.FC = () => {
         fetchDashboardData();
       });
       
+      // Listen for song approval requests
+      websocketService.on('song-approval-request', async (data) => {
+        console.log('🎵 Frontend: Received song approval request:', data);
+        
+        // Load current auto-approve setting from server
+        try {
+          const settingsResponse = await adminAPI.getSettings();
+          const currentAutoApprove = settingsResponse.data.settings.auto_approve_songs === 'true';
+          console.log('🎵 Frontend: Current auto-approve setting:', currentAutoApprove);
+          
+          // Check if auto-approve is disabled (inverted logic)
+          if (!currentAutoApprove) {
+            console.log('🎵 Frontend: Auto-approve disabled, loading all pending approvals');
+            // Load all pending approvals and show them in the modal
+            await loadAndShowPendingApprovals();
+          } else {
+            console.log('🎵 Frontend: Auto-approve enabled, ignoring approval request');
+          }
+        } catch (error) {
+          console.error('🎵 Frontend: Error loading settings:', error);
+          // Fallback: show modal anyway if we can't load settings
+          const approvalData = {
+            singerName: data.data.singer_name,
+            artist: data.data.artist,
+            title: data.data.title,
+            youtubeUrl: data.data.youtube_url,
+            songInput: data.data.song_input,
+            deviceId: data.data.device_id,
+            withBackgroundVocals: data.data.with_background_vocals
+          };
+          
+          handleShowApprovalModal([approvalData]);
+          
+          toast('🎵 Neuer Songwunsch zur Bestätigung eingegangen!', {
+            duration: 5000,
+            icon: '🎵'
+          });
+        }
+      });
+      
       // Test WebSocket event listeners registration
       console.log('🔌 Frontend: Event listeners registered AFTER connection:', {
         adminUpdate: true,
@@ -1217,6 +1713,197 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateAutoApproveSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateAutoApproveSongs(autoApproveSongs);
+      toast.success('Auto-Approve Einstellung erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating auto approve songs:', error);
+      toast.error('Fehler beim Aktualisieren der Auto-Approve Einstellung');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  // Song Approval System Handlers
+  const handleShowApprovalModal = (approvals: any[]) => {
+    setPendingApprovals(approvals);
+    setCurrentApprovalIndex(0);
+    if (approvals.length > 0) {
+      const approval = approvals[0];
+      setApprovalData({
+        singerName: approval.singerName || approval.singer_name || '',
+        artist: approval.artist || '',
+        title: approval.title || '',
+        youtubeUrl: approval.youtubeUrl || approval.youtube_url || '',
+        songInput: approval.songInput || approval.song_input || '',
+        deviceId: approval.deviceId || approval.device_id || '',
+        withBackgroundVocals: approval.withBackgroundVocals || approval.with_background_vocals || false
+      });
+      setShowApprovalModal(true);
+    }
+  };
+
+  const loadPendingApprovalsCount = async () => {
+    try {
+      const response = await adminAPI.getSongApprovals();
+      const pendingApprovals = response.data.approvals || [];
+      setPendingApprovalsCount(pendingApprovals.length);
+    } catch (error) {
+      console.error('Error loading pending approvals count:', error);
+      setPendingApprovalsCount(0);
+    }
+  };
+
+  const loadAndShowPendingApprovals = async () => {
+    try {
+      // Load all songs first
+      await loadAllSongs();
+      
+      const response = await adminAPI.getSongApprovals();
+      const pendingApprovals = response.data.approvals || [];
+      
+      if (pendingApprovals.length > 0) {
+        // Convert to the format expected by the modal
+        const formattedApprovals = pendingApprovals.map(approval => ({
+          singerName: approval.singer_name || '',
+          artist: approval.artist || '',
+          title: approval.title || '',
+          youtubeUrl: approval.youtube_url || '',
+          songInput: approval.song_input || '',
+          deviceId: approval.device_id || '',
+          withBackgroundVocals: approval.with_background_vocals || false,
+          id: approval.id // Keep the approval ID for backend operations
+        }));
+        
+        handleShowApprovalModal(formattedApprovals);
+        
+        toast(`🎵 ${pendingApprovals.length} Songwunsch/Songwünsche zur Bestätigung eingegangen!`, {
+          duration: 5000,
+          icon: '🎵'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading pending approvals:', error);
+    }
+  };
+
+  const handleCloseApprovalModal = () => {
+    setShowApprovalModal(false);
+    setPendingApprovals([]);
+    setCurrentApprovalIndex(0);
+    // Update pending approvals count after closing modal
+    loadPendingApprovalsCount();
+    setApprovalData({
+      singerName: '',
+      artist: '',
+      title: '',
+      youtubeUrl: '',
+      songInput: '',
+      deviceId: '',
+      withBackgroundVocals: false
+    });
+  };
+
+  const handleApproveSong = async () => {
+    setActionLoading(true);
+    try {
+      const currentApproval = pendingApprovals[currentApprovalIndex];
+      
+      // Use the approval API if we have an approval ID
+      if (currentApproval.id) {
+        await adminAPI.approveSong(currentApproval.id, {
+          singerName: approvalData.singerName,
+          artist: approvalData.artist,
+          title: approvalData.title,
+          youtubeUrl: approvalData.youtubeUrl,
+          withBackgroundVocals: approvalData.withBackgroundVocals
+        });
+      } else {
+        // Fallback to direct song request API
+        let songInput = '';
+        
+        if (approvalData.youtubeUrl.trim()) {
+          songInput = approvalData.youtubeUrl.trim();
+        } else {
+          songInput = `${approvalData.artist} - ${approvalData.title}`;
+        }
+
+        await songAPI.requestSong({
+          name: approvalData.singerName,
+          songInput: songInput,
+          deviceId: approvalData.deviceId,
+          withBackgroundVocals: approvalData.withBackgroundVocals
+        });
+      }
+
+      toast.success('Song erfolgreich zur Playlist hinzugefügt!');
+      
+      // Move to next approval or close modal
+      if (currentApprovalIndex < pendingApprovals.length - 1) {
+        const nextIndex = currentApprovalIndex + 1;
+        setCurrentApprovalIndex(nextIndex);
+        const nextApproval = pendingApprovals[nextIndex];
+        setApprovalData({
+          singerName: nextApproval.singerName || nextApproval.singer_name || '',
+          artist: nextApproval.artist || '',
+          title: nextApproval.title || '',
+          youtubeUrl: nextApproval.youtubeUrl || nextApproval.youtube_url || '',
+          songInput: nextApproval.songInput || nextApproval.song_input || '',
+          deviceId: nextApproval.deviceId || nextApproval.device_id || '',
+          withBackgroundVocals: nextApproval.withBackgroundVocals || nextApproval.with_background_vocals || false
+        });
+        // Update count after approving
+        await loadPendingApprovalsCount();
+      } else {
+        handleCloseApprovalModal();
+        await fetchDashboardData();
+      }
+    } catch (error: any) {
+      console.error('Error approving song:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Hinzufügen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectSong = async () => {
+    try {
+      const currentApproval = pendingApprovals[currentApprovalIndex];
+      
+      // Use the approval API if we have an approval ID
+      if (currentApproval.id) {
+        await adminAPI.rejectSong(currentApproval.id);
+      }
+      
+      toast('Song abgelehnt', { icon: '❌' });
+      
+      // Move to next approval or close modal
+      if (currentApprovalIndex < pendingApprovals.length - 1) {
+        const nextIndex = currentApprovalIndex + 1;
+        setCurrentApprovalIndex(nextIndex);
+        const nextApproval = pendingApprovals[nextIndex];
+        setApprovalData({
+          singerName: nextApproval.singerName || nextApproval.singer_name || '',
+          artist: nextApproval.artist || '',
+          title: nextApproval.title || '',
+          youtubeUrl: nextApproval.youtubeUrl || nextApproval.youtube_url || '',
+          songInput: nextApproval.songInput || nextApproval.song_input || '',
+          deviceId: nextApproval.deviceId || nextApproval.device_id || '',
+          withBackgroundVocals: nextApproval.withBackgroundVocals || nextApproval.with_background_vocals || false
+        });
+        // Update count after rejecting
+        await loadPendingApprovalsCount();
+      } else {
+        handleCloseApprovalModal();
+      }
+    } catch (error: any) {
+      console.error('Error rejecting song:', error);
+      toast.error('Fehler beim Ablehnen des Songs');
     }
   };
 
@@ -1672,7 +2359,7 @@ const AdminDashboard: React.FC = () => {
       const response = await songAPI.requestSong({
         name: manualSongData.singerName.trim(),
         songInput: manualSongData.songInput.trim(),
-        deviceId: 'ADM' // Admin device ID
+        deviceId: 'ADMIN' // Admin device ID
       });
 
       toast.success('Song erfolgreich hinzugefügt!');
@@ -1760,8 +2447,8 @@ const AdminDashboard: React.FC = () => {
     `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
   );
 
-  // New Add Song Modal Handlers
-  const handleOpenAddSongModal = async () => {
+  // Load all available songs (server videos, ultrastar, file songs)
+  const loadAllSongs = async () => {
     try {
       const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
@@ -1803,11 +2490,18 @@ const AdminDashboard: React.FC = () => {
       });
       
       setManualSongList(allSongs);
-      setShowAddSongModal(true);
+      return allSongs;
     } catch (error) {
-      console.error('Error loading add song modal:', error);
+      console.error('Error loading all songs:', error);
       toast.error('Fehler beim Laden der Songliste');
+      return [];
     }
+  };
+
+  // New Add Song Modal Handlers
+  const handleOpenAddSongModal = async () => {
+    await loadAllSongs();
+    setShowAddSongModal(true);
   };
 
   const handleCloseAddSongModal = () => {
@@ -1858,7 +2552,8 @@ const AdminDashboard: React.FC = () => {
 
       await songAPI.requestSong({
         name: addSongData.singerName,
-        songInput: songInput
+        songInput: songInput,
+        deviceId: 'ADMIN' // Admin device ID
       });
       toast.success('Song erfolgreich zur Playlist hinzugefügt!');
       handleCloseAddSongModal();
@@ -1878,6 +2573,8 @@ const AdminDashboard: React.FC = () => {
     song.title.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
     `${song.artist} - ${song.title}`.toLowerCase().includes(addSongSearchTerm.toLowerCase())
   );
+
+
 
   // USDB Search with delay
   const performUSDBSearch = async (artist: string, title: string) => {
@@ -3004,7 +3701,23 @@ const AdminDashboard: React.FC = () => {
         <LogoutButton onClick={handleLogout}>Abmelden</LogoutButton>
       </Header>
 
-
+      {/* Approval Notification Bar */}
+      {pendingApprovalsCount > 0 && (
+        <ApprovalNotificationBar onClick={loadAndShowPendingApprovals}>
+          <ApprovalNotificationContent>
+            <ApprovalNotificationIcon>🎵</ApprovalNotificationIcon>
+            <ApprovalNotificationText>
+              {pendingApprovalsCount === 1 
+                ? 'Ein Songwunsch wartet auf Bestätigung' 
+                : `${pendingApprovalsCount} Songwünsche warten auf Bestätigung`
+              }
+            </ApprovalNotificationText>
+          </ApprovalNotificationContent>
+          <ApprovalNotificationCount>
+            {pendingApprovalsCount}
+          </ApprovalNotificationCount>
+        </ApprovalNotificationBar>
+      )}
 
       <TabContainer>
         <TabHeader>
@@ -3476,6 +4189,44 @@ const AdminDashboard: React.FC = () => {
                   Wenn deaktiviert, können Benutzer nur Songs aus der lokalen Songliste auswählen. 
                   YouTube-Links werden nicht akzeptiert.
                 </SettingsDescription>
+              </SettingsCard>
+              
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
+              
+              {/* Auto-Approve Songs Setting */}
+              <SettingsCard>
+                <SettingsLabel>Songwünsche automatisch bestätigen:</SettingsLabel>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={autoApproveSongs}
+                      onChange={(e) => setAutoApproveSongs(e.target.checked)}
+                      style={{ transform: 'scale(1.2)' }}
+                    />
+                    <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>
+                      {autoApproveSongs ? 'Aktiviert' : 'Deaktiviert'}
+                    </span>
+                  </label>
+                  <SettingsButton 
+                    onClick={handleUpdateAutoApproveSongs}
+                    disabled={settingsLoading}
+                    style={{ marginLeft: '10px' }}
+                  >
+                    {settingsLoading ? 'Speichert...' : 'Speichern'}
+                  </SettingsButton>
+                </div>
+                <SettingsDescription>
+                  Wenn aktiviert, werden Songwünsche automatisch zur Playlist hinzugefügt. 
+                  Wenn deaktiviert, werden Songwünsche, die entweder YouTube-Songs sind (nicht im Cache) 
+                  oder auf der unsichtbaren Liste stehen, zur manuellen Bestätigung vorgelegt.
+                </SettingsDescription>
+                
               </SettingsCard>
               
               {/* Horizontal Divider */}
@@ -5426,310 +6177,38 @@ const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* Singer Name */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                Sänger-Name:
-              </label>
-              <input
-                type="text"
-                placeholder="Name des Teilnehmers"
-                value={addSongData.singerName}
-                onChange={(e) => setAddSongData(prev => ({ ...prev, singerName: e.target.value }))}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
+            {/* Song Form */}
+            <SongForm
+              singerName={addSongData.singerName}
+              artist={addSongData.artist}
+              title={addSongData.title}
+              youtubeUrl={addSongData.youtubeUrl}
+              withBackgroundVocals={false}
+              onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
+              onArtistChange={(value) => {
+                setAddSongData(prev => ({ ...prev, artist: value }));
+                setAddSongSearchTerm(value);
+                triggerUSDBSearch(value, addSongData.title);
+              }}
+              onTitleChange={(value) => {
+                setAddSongData(prev => ({ ...prev, title: value }));
+                setAddSongSearchTerm(value);
+                triggerUSDBSearch(addSongData.artist, value);
+              }}
+              onYoutubeUrlChange={(value) => setAddSongData(prev => ({ ...prev, youtubeUrl: value }))}
+              onWithBackgroundVocalsChange={() => {}} // Not used in Add Song Modal
+              showSongList={true}
+              songList={filteredAddSongs}
+              onSongSelect={handleSelectAddSong}
+              usdbResults={addSongUsdbResults}
+              usdbLoading={addSongUsdbLoading}
+              getFirstLetter={getFirstLetter}
+            />
 
-            {/* Artist and Title */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '15px', 
-              marginBottom: '20px',
-              alignItems: 'center'
-            }}>
-              <div style={{ flex: 1 }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#333'
-                }}>
-                  Interpret:
-                </label>
-                <input
-                  type="text"
-                  placeholder="Interpret"
-                  value={addSongData.artist}
-                  onChange={(e) => {
-                    setAddSongData(prev => ({ ...prev, artist: e.target.value }));
-                    setAddSongSearchTerm(e.target.value);
-                    triggerUSDBSearch(e.target.value, addSongData.title);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#333'
-                }}>
-                  Songtitel:
-                </label>
-                <input
-                  type="text"
-                  placeholder="Songtitel"
-                  value={addSongData.title}
-                  onChange={(e) => {
-                    setAddSongData(prev => ({ ...prev, title: e.target.value }));
-                    setAddSongSearchTerm(e.target.value);
-                    triggerUSDBSearch(addSongData.artist, e.target.value);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* YouTube Link */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              marginBottom: '20px',
-              gap: '15px'
-            }}>
-              <div style={{ 
-                flex: 1, 
-                height: '1px', 
-                backgroundColor: '#ddd' 
-              }}></div>
-              <span style={{ 
-                color: '#666', 
-                fontSize: '14px', 
-                fontWeight: '500' 
-              }}>
-                oder
-              </span>
-              <div style={{ 
-                flex: 1, 
-                height: '1px', 
-                backgroundColor: '#ddd' 
-              }}></div>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                YouTube-Link:
-              </label>
-              <input
-                type="text"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={addSongData.youtubeUrl}
-                onChange={(e) => setAddSongData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-
-            {/* Song List */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#333'
-              }}>
-                Songliste:
-              </label>
-              
-              <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
-                <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
-                <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
-              </div>
-              
-              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
-                {/* USDB Results Section */}
-                {addSongUsdbResults.length > 0 && (
-                  <div>
-                    <div style={{
-                      position: 'sticky',
-                      top: 0,
-                      background: '#28a745',
-                      color: 'white',
-                      padding: '8px 15px',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      zIndex: 10,
-                      borderBottom: '2px solid #218838'
-                    }}>
-                      USDB ({addSongUsdbResults.length})
-                    </div>
-                    {addSongUsdbResults.map((song, index) => (
-                      <div
-                        key={`usdb-${song.id}`}
-                        onClick={() => handleSelectAddSong(song)}
-                        style={{
-                          padding: '10px',
-                          border: '1px solid #eee',
-                          borderRadius: '8px',
-                          marginBottom: '8px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          backgroundColor: addSongData.artist === song.artist && addSongData.title === song.title ? '#e3f2fd' : 'white'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
-                            e.currentTarget.style.background = '#f8f9fa';
-                            e.currentTarget.style.borderColor = '#667eea';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
-                            e.currentTarget.style.background = 'white';
-                            e.currentTarget.style.borderColor = '#eee';
-                          }
-                        }}
-                      >
-                        <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                          {song.artist}
-                        </div>
-                        <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                          {song.title}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Loading indicator for USDB search */}
-                {addSongUsdbLoading && (
-                  <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                    🔍 USDB-Suche läuft...
-                  </div>
-                )}
-
-                {/* Local Songs Section */}
-                {filteredAddSongs.length > 0 ? (() => {
-                  // Group songs by first letter of artist
-                  const groupedSongs = filteredAddSongs.reduce((groups, song) => {
-                    const letter = getFirstLetter(song.artist);
-                    if (!groups[letter]) {
-                      groups[letter] = [];
-                    }
-                    groups[letter].push(song);
-                    return groups;
-                  }, {} as Record<string, typeof filteredAddSongs>);
-                  
-                  const sortedGroups = Object.keys(groupedSongs).sort();
-                  
-                  return (
-                    <>
-                      {sortedGroups.map((letter) => (
-                        <div key={letter}>
-                          <div style={{
-                            position: 'sticky',
-                            top: 0,
-                            background: '#adb5bd',
-                            color: 'white',
-                            padding: '8px 15px',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            zIndex: 10,
-                            borderBottom: '2px solid #9ca3af'
-                          }}>
-                            {letter}
-                          </div>
-                          {groupedSongs[letter].map((song, index) => (
-                            <div
-                              key={`${letter}-${index}`}
-                              onClick={() => handleSelectAddSong(song)}
-                              style={{
-                                padding: '10px',
-                                border: '1px solid #eee',
-                                borderRadius: '8px',
-                                marginBottom: '8px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                display: 'flex',
-                                backgroundColor: addSongData.artist === song.artist && addSongData.title === song.title ? '#e3f2fd' : 'white'
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
-                                  e.currentTarget.style.background = '#f8f9fa';
-                                  e.currentTarget.style.borderColor = '#667eea';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
-                                  e.currentTarget.style.background = 'white';
-                                  e.currentTarget.style.borderColor = '#eee';
-                                }
-                              }}
-                            >
-                              <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                                {song.artist}
-                              </div>
-                              <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                                {song.title}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </>
-                  );
-                })() : (
-                  !addSongUsdbLoading && !addSongUsdbResults.length && (
-                    <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                      {addSongSearchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
 
             {/* Buttons */}
-            <div style={{
-              display: 'flex',
+            <div style={{ 
+              display: 'flex', 
               gap: '12px',
               justifyContent: 'flex-end',
               marginTop: '20px',
@@ -5756,7 +6235,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={handleAddSongSubmit}
                 disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
-                style={{
+                  style={{
                   padding: '12px 24px',
                   border: 'none',
                   borderRadius: '8px',
@@ -5769,6 +6248,143 @@ const AdminDashboard: React.FC = () => {
                 }}
               >
                 {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
+              </button>
+              </div>
+            </div>
+        </div>
+      )}
+
+      {/* Song Approval Modal */}
+      {showApprovalModal && (
+            <div style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex', 
+              alignItems: 'center', 
+          justifyContent: 'center',
+          zIndex: 1000
+            }}>
+              <div style={{ 
+            background: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
+            {/* Header */}
+              <div style={{ 
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid #eee',
+              paddingBottom: '15px',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{ margin: 0, color: '#333' }}>
+                🎵 Songwunsch bestätigen
+                {pendingApprovals.length > 1 && (
+                  <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', marginLeft: '10px' }}>
+                    ({currentApprovalIndex + 1} von {pendingApprovals.length})
+                  </span>
+                )}
+              </h3>
+              <button
+                onClick={handleCloseApprovalModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                          cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+                        </div>
+
+            {/* Song Details */}
+            <SongForm
+              singerName={approvalData.singerName}
+              artist={approvalData.artist}
+              title={approvalData.title}
+              youtubeUrl={approvalData.youtubeUrl}
+              withBackgroundVocals={approvalData.withBackgroundVocals}
+              onSingerNameChange={(value) => setApprovalData(prev => ({ ...prev, singerName: value }))}
+              onArtistChange={(value) => {
+                setApprovalData(prev => ({ ...prev, artist: value }));
+                setAddSongSearchTerm(value);
+                triggerUSDBSearch(value, approvalData.title || '');
+              }}
+              onTitleChange={(value) => {
+                setApprovalData(prev => ({ ...prev, title: value }));
+                setAddSongSearchTerm(value);
+                triggerUSDBSearch(approvalData.artist || '', value);
+              }}
+              onYoutubeUrlChange={(value) => setApprovalData(prev => ({ ...prev, youtubeUrl: value }))}
+              onWithBackgroundVocalsChange={(checked) => setApprovalData(prev => ({ ...prev, withBackgroundVocals: checked }))}
+              showSongList={true}
+              songList={manualSongList}
+              onSongSelect={(song) => {
+                setApprovalData(prev => ({
+                  ...prev,
+                  artist: song.artist,
+                  title: song.title,
+                  youtubeUrl: song.youtube_url || ''
+                }));
+              }}
+              usdbResults={addSongUsdbResults}
+              usdbLoading={addSongUsdbLoading}
+              getFirstLetter={getFirstLetter}
+            />
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              justifyContent: 'flex-end',
+              marginTop: '20px',
+              paddingTop: '20px',
+              borderTop: '1px solid #e1e5e9'
+            }}>
+              <button
+                onClick={handleRejectSong}
+                disabled={actionLoading}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#666',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Ablehnen
+              </button>
+              <button
+                onClick={handleApproveSong}
+                disabled={actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim())}
+                style={{
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim()) ? '#ccc' : '#28a745',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim()) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {actionLoading ? 'Hinzufügen...' : 'Akzeptieren'}
               </button>
             </div>
           </div>

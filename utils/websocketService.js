@@ -357,6 +357,27 @@ async function broadcastUSDBDownloadNotification(io, data) {
   }
 }
 
+/**
+ * Sendet Song-Approval-Benachrichtigung an Admin Dashboard
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} approvalData - Approval request data
+ */
+async function broadcastSongApprovalNotification(io, approvalData) {
+  try {
+    if (io && io.sockets) {
+      io.to('admin').emit('song-approval-request', {
+        type: 'song-approval-request',
+        data: approvalData,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`📡 WebSocket: Broadcasted song approval request: ${approvalData.artist} - ${approvalData.title} (${approvalData.singer_name})`);
+    }
+  } catch (error) {
+    console.error('📡 WebSocket: Error broadcasting song approval notification:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
@@ -369,5 +390,6 @@ module.exports = {
   broadcastPreviousSong,
   broadcastShowActionToAdmin,
   broadcastPlaylistUpgrade,
-  broadcastUSDBDownloadNotification
+  broadcastUSDBDownloadNotification,
+  broadcastSongApprovalNotification
 };

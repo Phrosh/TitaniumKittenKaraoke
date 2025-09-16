@@ -80,7 +80,8 @@ function initializeDatabase() {
     ('max_song_delay', '15'),
     ('current_song_id', '0'),
     ('regression_value', '0.1'),
-    ('overlay_title', 'Willkommen beim Karaoke')
+    ('overlay_title', 'Willkommen beim Karaoke'),
+    ('auto_approve_songs', 'true')
   `);
 
   // Migration: Add mode column to existing songs table
@@ -146,6 +147,23 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add approved_at and rejected_at columns to song_approvals table
+  db.run(`
+    ALTER TABLE song_approvals ADD COLUMN approved_at DATETIME
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  db.run(`
+    ALTER TABLE song_approvals ADD COLUMN rejected_at DATETIME
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Invisible songs table
   db.run(`
     CREATE TABLE IF NOT EXISTS invisible_songs (
@@ -181,6 +199,24 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_by INTEGER,
       FOREIGN KEY (created_by) REFERENCES admin_users (id)
+    )
+  `);
+
+  // Song approvals table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS song_approvals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      singer_name TEXT NOT NULL,
+      artist TEXT NOT NULL,
+      title TEXT NOT NULL,
+      youtube_url TEXT,
+      song_input TEXT NOT NULL,
+      device_id TEXT,
+      with_background_vocals INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
     )
   `);
   });

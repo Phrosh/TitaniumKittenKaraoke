@@ -162,7 +162,7 @@ router.get('/file-songs', async (req, res) => {
 router.post('/request', [
   body('name').notEmpty().trim().isLength({ min: 1, max: 100 }),
   body('songInput').notEmpty().trim().isLength({ min: 1, max: 500 }),
-  body('deviceId').optional().isLength({ min: 3, max: 3 }),
+  body('deviceId').optional().isLength({ min: 3, max: 10 }),
   body('withBackgroundVocals').optional().isBoolean()
 ], async (req, res) => {
   try {
@@ -463,6 +463,62 @@ router.post('/request', [
 
     // Clean up any existing test songs when adding new songs
     await cleanupTestSongs();
+
+    // Check if this is an admin request (no deviceId or deviceId is 'ADMIN')
+    const isAdminRequest = !deviceId || deviceId === 'ADMIN' || name === 'Admin';
+    console.log(`🔍 Request source: ${isAdminRequest ? 'Admin' : 'User'} (deviceId: ${deviceId}, name: ${name})`);
+    
+    // For admin requests, always add directly (no approval needed)
+    if (isAdminRequest) {
+      console.log(`✅ Admin request, adding song directly: ${artist} - ${title}`);
+    } else {
+      // Check if song requires approval (only for user requests)
+      const requiresApproval = await checkIfSongRequiresApproval(artist, title, mode, youtubeUrl);
+      console.log(`🔍 Song requires approval: ${requiresApproval}`);
+      
+      if (requiresApproval) {
+        // Check if auto-approve is enabled
+        const autoApproveSetting = await new Promise((resolve, reject) => {
+          db.get('SELECT value FROM settings WHERE key = ?', ['auto_approve_songs'], (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          });
+        });
+        
+        const autoApproveEnabled = autoApproveSetting && autoApproveSetting.value === 'true';
+        console.log(`🔍 Auto-approve setting: ${autoApproveSetting?.value}, enabled: ${autoApproveEnabled}`);
+        
+        if (!autoApproveEnabled) {
+          console.log(`📝 Storing song for approval: ${artist} - ${title}`);
+          // Store song request for approval
+          await storeSongRequestForApproval(user.id, name, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals || false);
+          
+          // Send WebSocket notification to admin dashboard
+          const { broadcastSongApprovalNotification } = require('../utils/websocketService');
+          const io = require('../server').io;
+          if (io) {
+            await broadcastSongApprovalNotification(io, {
+              singer_name: name,
+              artist: artist,
+              title: title,
+              youtube_url: youtubeUrl,
+              song_input: songInput,
+              device_id: deviceId,
+              with_background_vocals: withBackgroundVocals || false
+            });
+          }
+          
+          return res.json({ 
+            message: 'Songwunsch wurde zur Bestätigung eingereicht',
+            requiresApproval: true 
+          });
+        } else {
+          console.log(`✅ Auto-approve enabled, adding song directly: ${artist} - ${title}`);
+        }
+      } else {
+        console.log(`✅ Song does not require approval, adding directly: ${artist} - ${title}`);
+      }
+    }
 
     // Create song with priority, duration, mode and background vocals preference
     const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode, withBackgroundVocals || false);
@@ -2006,6 +2062,69 @@ async function triggerPlaylistUpgradeCheck() {
   } catch (error) {
     console.error('🔄 Error in triggerPlaylistUpgradeCheck:', error);
   }
+}
+
+// Helper function to check if a song requires approval
+async function checkIfSongRequiresApproval(artist, title, mode, youtubeUrl) {
+  const db = require('../config/database');
+  
+  console.log(`🔍 Checking if song requires approval: ${artist} - ${title} (mode: ${mode})`);
+  
+  // Check if song is in invisible list
+  const invisibleSong = await new Promise((resolve, reject) => {
+    db.get('SELECT id FROM invisible_songs WHERE artist = ? AND title = ?', [artist, title], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+  
+  if (invisibleSong) {
+    console.log(`📝 Song is in invisible list: ${artist} - ${title}`);
+    return true;
+  }
+  
+  // Check if song is found in any local source (file, server_video, ultrastar)
+  // If mode is 'youtube', it means the song was not found in local sources
+  if (mode === 'youtube') {
+    console.log(`📝 Song not found in local sources, requires approval: ${artist} - ${title}`);
+    return true;
+  }
+  
+  // Check if it's a YouTube URL but not in cache
+  if (youtubeUrl && (youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
+    const { findYouTubeSong } = require('../utils/youtubeSongs');
+    const { cleanYouTubeUrl } = require('../utils/youtubeUrlCleaner');
+    const cleanedUrl = cleanYouTubeUrl(youtubeUrl);
+    const cachedSong = findYouTubeSong(artist, title, cleanedUrl);
+    
+    console.log(`🎥 YouTube song check: ${artist} - ${title}, cached: ${!!cachedSong}`);
+    
+    if (!cachedSong) {
+      console.log(`📝 YouTube song not in cache, requires approval: ${artist} - ${title}`);
+      return true;
+    }
+  }
+  
+  console.log(`✅ Song does not require approval: ${artist} - ${title}`);
+  return false;
+}
+
+// Helper function to store song request for approval
+async function storeSongRequestForApproval(userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals) {
+  const db = require('../config/database');
+  
+  await new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO song_approvals (user_id, singer_name, artist, title, youtube_url, song_input, device_id, with_background_vocals, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals, new Date().toISOString()],
+      function(err) {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+  
+  console.log(`📝 Song request stored for approval: ${artist} - ${title} (${singerName})`);
 }
 
 module.exports = {
