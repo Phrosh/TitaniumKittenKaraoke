@@ -12,6 +12,7 @@ const songRoutes = require('./routes/songs').router;
 const playlistRoutes = require('./routes/playlist');
 const adminRoutes = require('./routes/admin').router;
 const showRoutes = require('./routes/show');
+const i18nRoutes = require('./routes/i18n');
 
 const app = express();
 const server = createServer(app);
@@ -199,6 +200,7 @@ app.get('/api/youtube-videos/:folderName/:filename', (req, res) => {
 app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/show', showRoutes);
+app.use('/api/i18n', i18nRoutes);
 
 // Serve static files from React app (both production and development)
 app.use(express.static(path.join(__dirname, 'client/build'), {

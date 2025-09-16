@@ -7,6 +7,10 @@ import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
 import websocketService, { AdminUpdateData } from '../services/websocket';
 import { cleanYouTubeUrl, extractVideoIdFromUrl } from '../utils/youtubeUrlCleaner';
 import { boilDown, boilDownMatch } from '../utils/boilDown';
+import PlaylistTab from './admin/PlaylistTab';
+import { Button, SmallButton } from './shared';
+
+import LanguageSelector from './LanguageSelector';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -232,382 +236,15 @@ const LogoutButton = styled.button`
 `;
 
 
-const PlaylistContainer = styled.div`
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-`;
 
-const PlaylistHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-`;
 
-const PlaylistTitle = styled.h2`
-  color: #333;
-  margin: 0;
-`;
 
-const ControlButtons = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-`;
 
-const CenterButtons = styled.div`
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-`;
 
-const RightButtons = styled.div`
-  display: flex;
-  gap: 8px;
-`;
 
-const ControlButtonGroup = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: center;
-`;
 
-const ControlButton = styled.button`
-  background: #34495e;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.3s ease;
-  min-width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
-  &:hover:not(:disabled) {
-    background: #2c3e50;
-    transform: scale(1.05);
-  }
 
-  &:disabled {
-    background: #7f8c8d;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.95);
-  }
-`;
-
-const SmallButton = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
-  background: ${props => 
-    props.variant === 'success' ? '#27ae60' :
-    props.variant === 'danger' ? '#e74c3c' :
-    '#667eea'
-  };
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: ${props => 
-      props.variant === 'success' ? '#229954' :
-      props.variant === 'danger' ? '#c0392b' :
-      '#5a6fd8'
-    };
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-const Button = styled.button<{ variant?: 'primary' | 'success' | 'danger' }>`
-  background: ${props => 
-    props.variant === 'success' ? '#27ae60' :
-    props.variant === 'danger' ? '#e74c3c' :
-    '#667eea'
-  };
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: ${props => 
-      props.variant === 'success' ? '#229954' :
-      props.variant === 'danger' ? '#c0392b' :
-      '#5a6fd8'
-    };
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean }>`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  border-radius: 8px;
-  margin: 10px 0;
-  background: ${props => 
-    props.$isCurrent ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%)' :
-    props.$isPast ? '#f8f9fa' :
-    props.$hasNoYoutube ? '#fff3cd' :
-    '#f8f9fa'
-  };
-  border: ${props => 
-    props.$isCurrent ? '3px solid #5a6fd8' :
-    props.$hasNoYoutube ? '2px solid #dc3545' :
-    props.$isPast ? '1px solid #e9ecef' :
-    props.$isDropTarget ? '2px dashed #3498db' :
-    '1px solid #dee2e6'
-  };
-  opacity: ${props => props.$isPast ? 0.6 : props.$isDragging ? 0.5 : 1};
-  transition: all 0.3s ease;
-  transform: ${props => props.$isDragging ? 'scale(1.02)' : 'none'};
-  gap: 15px;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  box-shadow: ${props => 
-    props.$isDragging ? '0 8px 25px rgba(0,0,0,0.15)' : 
-    props.$isCurrent ? '0 4px 15px rgba(102, 126, 234, 0.3)' :
-    'none'
-  };
-`;
-
-const DragHandle = styled.div`
-  cursor: grab;
-  padding: 8px;
-  color: rgba(0, 0, 0, 0.4);
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  touch-action: none;
-
-  &:hover {
-    color: rgba(0, 0, 0, 0.7);
-    background: rgba(0, 0, 0, 0.1);
-  }
-
-  &:active {
-    cursor: grabbing;
-  }
-`;
-
-const PositionBadge = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 100%;
-  color: #6c757d;
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-family: monospace;
-`;
-
-const SongContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const SongName = styled.div<{ $isCurrent?: boolean }>`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: ${props => props.$isCurrent ? '#5a6fd8' : '#333'};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const DeviceId = styled.span<{ $isCurrent?: boolean }>`
-  font-size: 0.85rem;
-  color: ${props => props.$isCurrent ? '#5a6fd8' : '#666'};
-  background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.1)' : '#f0f0f0'};
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: monospace;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.2)' : '#e0e0e0'};
-    transform: scale(1.05);
-  }
-`;
-
-const SongTitleRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-`;
-
-const ModeBadge = styled.div<{ $mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache' }>`
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: ${props => {
-    switch (props.$mode) {
-      case 'youtube': return '#ff4444';
-      case 'server_video': return '#28a745';
-      case 'file': return '#667eea';
-      case 'ultrastar': return '#8e44ad';
-      case 'youtube_cache': return '#dc3545';
-      default: return '#ff4444';
-    }
-  }};
-  color: white;
-  min-width: 60px;
-  text-align: center;
-`;
-
-const HP5Badge = styled.div`
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-left: 8px;
-  background: #ff6b35;
-  color: white;
-  min-width: 40px;
-  text-align: center;
-`;
-
-const DownloadStatusBadge = styled.div<{ $status: 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none' }>`
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-left: 8px;
-  min-width: 80px;
-  text-align: center;
-  background: ${props => {
-    switch (props.$status) {
-      case 'downloading': return '#ffc107';
-      case 'downloaded': return '#28a745';
-      case 'cached': return '#17a2b8';
-      case 'failed': return '#dc3545';
-      default: return '#6c757d';
-    }
-  }};
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-`;
-
-const SongTitle = styled.div<{ $isCurrent?: boolean }>`
-  flex: 1;
-  font-size: 0.95rem;
-  color: ${props => props.$isCurrent ? '#5a6fd8' : '#666'};
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  user-select: text;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  
-  &:hover {
-    background: ${props => props.$isCurrent ? 'rgba(90, 111, 216, 0.1)' : 'rgba(0, 0, 0, 0.1)'};
-    color: ${props => props.$isCurrent ? '#4a5bb8' : '#333'};
-  }
-`;
-
-const YouTubeField = styled.input`
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  background: white;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-  }
-
-  &:hover {
-    border-color: #bbb;
-  }
-
-  &::placeholder {
-    color: #999;
-    font-style: italic;
-  }
-`;
-
-const SongInfo = styled.div`
-  flex: 1;
-`;
-
-const SongDetails = styled.div`
-  font-size: 0.9rem;
-  color: #666;
-`;
-
-const SongActions = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-`;
-
-const Badge = styled.span<{ type: 'current' | 'no-youtube' }>`
-  background: ${props => props.type === 'current' ? '#e74c3c' : '#f39c12'};
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
-`;
 
 const Modal = styled.div`
   position: fixed;
@@ -745,15 +382,6 @@ const SettingsDescription = styled.p`
   line-height: 1.4;
 `;
 
-const DropZone = styled.div<{ $isVisible?: boolean }>`
-  height: 4px;
-  background: #3498db;
-  border-radius: 2px;
-  margin: 5px 0;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  transition: opacity 0.2s ease;
-  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
-`;
 
 // Reusable Song Form Component
 interface SongFormProps {
@@ -3755,264 +3383,60 @@ const AdminDashboard: React.FC = () => {
         
         <TabContent>
           {activeTab === 'playlist' && (
-            <PlaylistContainer>
-        <PlaylistHeader>
-          <ControlButtons>
-            <div>
-              <Button 
-                onClick={handleOpenAddSongModal}
-                style={{ background: '#28a745', marginRight: '15px' }}
-              >
-                ➕ Song Hinzufügen
-              </Button>
-            </div>
-            <CenterButtons>
-              <QRCodeToggleButton 
-                $active={showQRCodeOverlay}
-                onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
-              >
-                📱 {showQRCodeOverlay ? 'Overlay ausblenden' : 'Overlay anzeigen'}
-              </QRCodeToggleButton>
-              
-              {/* Control Buttons */}
-              <ControlButtonGroup>
-                <ControlButton 
-                  onClick={handlePreviousSong}
-                  disabled={actionLoading}
-                  title="Zurück"
-                >
-                  ⏮️
-                </ControlButton>
-                <ControlButton 
-                  onClick={handleTogglePlayPause}
-                  disabled={actionLoading}
-                  title="Pause/Play"
-                >
-                  {isPlaying ? '⏸️' : '▶️'}
-                </ControlButton>
-                <ControlButton 
-                  onClick={handleRestartSong}
-                  disabled={actionLoading}
-                  title="Song neu starten"
-                >
-                  🔄
-                </ControlButton>
-              </ControlButtonGroup>
-              
-              <Button 
-                variant="success" 
-                onClick={handleNextSong}
-                disabled={actionLoading}
-              >
-                ⏭️ Weiter
-              </Button>
-            </CenterButtons>
-            <RightButtons>
-              <SmallButton 
-                onClick={() => setShowPastSongs(!showPastSongs)}
-              >
-                📜 {showPastSongs ? 'Vergangene ausblenden' : 'Vergangene anzeigen'}
-              </SmallButton>
-              <SmallButton 
-                variant="danger" 
-                onClick={handleClearAllSongs}
-                disabled={actionLoading}
-              >
-                🗑️ Liste Leeren
-              </SmallButton>
-            </RightButtons>
-          </ControlButtons>
-        </PlaylistHeader>
-
-        {filteredPlaylist.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-            Keine Songs in der Playlist
-          </div>
-        ) : (
-          <div>
-            {filteredPlaylist.map((song, index) => {
-              const isCurrent = currentSong?.id === song.id;
-              const isPast = currentSong && song.position < currentSong.position;
-              const isDragging = draggedItem === song.id;
-              const isDropTarget = dropTarget === song.id;
-              const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
-              
-              return (
-                <React.Fragment key={song.id}>
-                  {showDropZoneAbove && (
-                    <DropZone $isVisible={true} />
-                  )}
-                  
-                  <SongItem 
-                    $isCurrent={isCurrent}
-                    $hasNoYoutube={song.mode === 'youtube' && !song.youtube_url}
-                    $isPast={isPast}
-                    $isDragging={isDragging}
-                    $isDropTarget={isDropTarget}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, song.id)}
-                    onDragOver={(e) => handleDragOver(e, song.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, song.id)}
-                  >
-                    <DragHandle>
-                      ⋮⋮⋮
-                    </DragHandle>
-                    
-                    <PositionBadge>
-                      #{song.position}
-                    </PositionBadge>
-                    
-                    <SongContent>
-                      <SongName $isCurrent={song.id === currentSong?.id}>
-                        {song.user_name}
-                        <DeviceId 
-                          $isCurrent={song.id === currentSong?.id}
-                          onClick={() => handleDeviceIdClick(song.device_id)}
-                          title="Klicken um zur Banlist hinzuzufügen"
-                        >
-                          📱 {song.device_id}
-                        </DeviceId>
-                      </SongName>
-                      <SongTitleRow>
-                        <SongTitle 
-                          $isCurrent={song.id === currentSong?.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyToClipboard(song);
-                          }}
-                        >
-                          {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                          {song.modes ? (
-                            song.modes.map((mode, index) => (
-                              <React.Fragment key={index}>
-                                {mode === 'ultrastar' && song.with_background_vocals && (
-                                  <HP5Badge>🎤 BG Vocals</HP5Badge>
-                                )}
-                                <ModeBadge $mode={mode}>
-                                  {mode === 'server_video' ? '🟢 Server' : 
-                                   mode === 'file' ? '🔵 Datei' : 
-                                   mode === 'ultrastar' ? '⭐ Ultrastar' : 
-                                   mode === 'youtube_cache' ? '🎬 YouTube Cache' : '🔴 YouTube'}
-                                </ModeBadge>
-                              </React.Fragment>
-                            ))
-                          ) : (
-                            <>
-                              {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
-                                <HP5Badge>🎤 BG Vocals</HP5Badge>
-                              )}
-                              <ModeBadge $mode={song.mode || 'youtube'}>
-                                {song.mode === 'server_video' ? '🟢 Server' : 
-                                 song.mode === 'file' ? '🔵 Datei' : 
-                                 song.mode === 'ultrastar' ? '⭐ Ultrastar' : 
-                                 song.mode === 'youtube_cache' ? '🎬 YouTube Cache' : '🔴 YouTube'}
-                              </ModeBadge>
-                            </>
-                          )}
-                        </SongTitle>
-                        {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
-                          <YouTubeField
-                            type="url"
-                            placeholder="YouTube-Link hier eingeben..."
-                            value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
-                            onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
-                            onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleYouTubeFieldBlur(song.id, e.currentTarget.value);
-                              }
-                            }}
-                          />
-                        )}
-                        {(song.download_status && song.download_status !== 'none') || (song.status && song.status !== 'ready') && (
-                          <DownloadStatusBadge $status={(song.status || song.download_status) as 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none'}>
-                            {getDownloadStatusText(song.status || song.download_status)}
-                          </DownloadStatusBadge>
-                        )}
-                        {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song)) || song.modes?.includes('youtube_cache') && (
-                          <div style={{ 
-                            padding: '8px 12px', 
-                            backgroundColor: '#e8f5e8', 
-                            border: '1px solid #4caf50', 
-                            borderRadius: '6px', 
-                            fontSize: '0.9rem',
-                            color: '#2e7d32',
-                            fontWeight: '500'
-                          }}>
-                            ✅ Im YouTube-Cache verfügbar
-                          </div>
-                        )}
-                      </SongTitleRow>
-                    </SongContent>
-                    
-                    <SongActions>
-        {currentSong?.id === song.id && (
-          <Badge type="current">
-            🎤 AKTUELL
-          </Badge>
-        )}
-                      
-                      <Button 
-                        variant="success"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlaySong(song.id);
-                        }}
-                        disabled={actionLoading}
-                      >
-                        ▶️
-                      </Button>
-                      
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openModal(song, 'edit');
-                        }}
-                        disabled={actionLoading}
-                      >
-                        ✏️
-                      </Button>
-                      
-                      <Button 
-                        variant="primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRefreshClassification(song.id);
-                        }}
-                        disabled={actionLoading}
-                        title="Song-Klassifizierung aktualisieren (prüft auf lokale Dateien)"
-                      >
-                        🔄
-                      </Button>
-                      
-                      <Button 
-                        variant="danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSong(song.id);
-                        }}
-                        disabled={actionLoading}
-                      >
-                        🗑️
-                      </Button>
-                    </SongActions>
-                  </SongItem>
-                  
-                  {index === playlist.length - 1 && draggedItem && !dropTarget && (
-                    <DropZone $isVisible={true} />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        )}
-      </PlaylistContainer>
+            <PlaylistTab
+              filteredPlaylist={filteredPlaylist}
+              currentSong={currentSong}
+              showPastSongs={showPastSongs}
+              showQRCodeOverlay={showQRCodeOverlay}
+              actionLoading={actionLoading}
+              isPlaying={isPlaying}
+              draggedItem={draggedItem}
+              dropTarget={dropTarget}
+              youtubeLinks={youtubeLinks}
+              onOpenAddSongModal={handleOpenAddSongModal}
+              onToggleQRCodeOverlay={handleToggleQRCodeOverlay}
+              onPreviousSong={handlePreviousSong}
+              onTogglePlayPause={handleTogglePlayPause}
+              onRestartSong={handleRestartSong}
+              onNextSong={handleNextSong}
+              onSetShowPastSongs={setShowPastSongs}
+              onClearAllSongs={handleClearAllSongs}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onCopyToClipboard={handleCopyToClipboard}
+              onYouTubeFieldChange={handleYouTubeFieldChange}
+              onYouTubeFieldBlur={handleYouTubeFieldBlur}
+              onPlaySong={handlePlaySong}
+              onOpenModal={openModal}
+              onRefreshClassification={handleRefreshClassification}
+              onDeleteSong={handleDeleteSong}
+              onDeviceIdClick={handleDeviceIdClick}
+              isSongInYouTubeCache={isSongInYouTubeCache}
+              getDownloadStatusText={getDownloadStatusText}
+            />
           )}
           
           {activeTab === 'settings' && (
             <SettingsSection>
               <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
+              {/* Language Selection */}
+              <SettingsCard>
+                <SettingsLabel>{t('settings.language')}:</SettingsLabel>
+                <LanguageSelector />
+                <SettingsDescription>
+                  {t('settings.selectLanguage')}
+                </SettingsDescription>
+              </SettingsCard>
+              
+              {/* Horizontal Divider */}
+              <div style={{ 
+                height: '1px', 
+                background: '#bee5eb', 
+                margin: '20px 0' 
+              }}></div>
+
               <SettingsCard>
                 <SettingsLabel>Regression-Wert:</SettingsLabel>
                 <SettingsInput
