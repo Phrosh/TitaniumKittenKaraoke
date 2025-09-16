@@ -736,6 +736,21 @@ const AdminDashboard: React.FC = () => {
   const [manualSongList, setManualSongList] = useState<any[]>([]);
   const [manualSongSearchTerm, setManualSongSearchTerm] = useState('');
   
+  // New Add Song Modal State
+  const [showAddSongModal, setShowAddSongModal] = useState(false);
+  const [addSongData, setAddSongData] = useState({
+    singerName: '',
+    artist: '',
+    title: '',
+    youtubeUrl: ''
+  });
+  const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
+  
+  // USDB Search State for Add Song Modal
+  const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
+  const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
+  const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
+  
   // Banlist Management
   const [banlist, setBanlist] = useState<any[]>([]);
   const [newBanDeviceId, setNewBanDeviceId] = useState('');
@@ -1649,6 +1664,174 @@ const AdminDashboard: React.FC = () => {
     song.title.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
     `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
   );
+
+  // New Add Song Modal Handlers
+  const handleOpenAddSongModal = async () => {
+    try {
+      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
+        songAPI.getServerVideos(),
+        songAPI.getUltrastarSongs(),
+        songAPI.getFileSongs()
+      ]);
+      
+      const serverVideos = localResponse.data.videos || [];
+      const ultrastarSongs = ultrastarResponse.data.songs || [];
+      const fileSongs = fileResponse.data.fileSongs || [];
+      
+      // Combine all songs
+      const allSongs = [
+        ...serverVideos.map((video: any) => ({
+          artist: video.artist,
+          title: video.title,
+          mode: 'server_video'
+        })),
+        ...ultrastarSongs.map((song: any) => ({
+          artist: song.artist,
+          title: song.title,
+          mode: 'ultrastar'
+        })),
+        ...fileSongs.map((song: any) => ({
+          artist: song.artist,
+          title: song.title,
+          mode: 'file'
+        }))
+      ];
+      
+      // Sort by artist, then by title
+      allSongs.sort((a, b) => {
+        const artistA = a.artist.toLowerCase();
+        const artistB = b.artist.toLowerCase();
+        if (artistA !== artistB) {
+          return artistA.localeCompare(artistB);
+        }
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      });
+      
+      setManualSongList(allSongs);
+      setShowAddSongModal(true);
+    } catch (error) {
+      console.error('Error loading add song modal:', error);
+      toast.error('Fehler beim Laden der Songliste');
+    }
+  };
+
+  const handleCloseAddSongModal = () => {
+    setShowAddSongModal(false);
+    setAddSongData({
+      singerName: '',
+      artist: '',
+      title: '',
+      youtubeUrl: ''
+    });
+    setAddSongSearchTerm('');
+    setAddSongUsdbResults([]);
+    setAddSongUsdbLoading(false);
+    // Clear any pending timeout
+    if (addSongUsdbTimeout) {
+      clearTimeout(addSongUsdbTimeout);
+      setAddSongUsdbTimeout(null);
+    }
+  };
+
+  const handleSelectAddSong = (song: any) => {
+    setAddSongData(prev => ({
+      ...prev,
+      artist: song.artist,
+      title: song.title
+    }));
+  };
+
+  const handleAddSongSubmit = async () => {
+    if (!addSongData.singerName.trim()) {
+      toast.error('Bitte gib einen Sänger-Namen ein');
+      return;
+    }
+
+    if (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) {
+      toast.error('Bitte gib einen Interpret/Songtitel oder YouTube-Link ein');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      let songInput = '';
+      if (addSongData.youtubeUrl.trim()) {
+        songInput = addSongData.youtubeUrl.trim();
+      } else {
+        songInput = `${addSongData.artist} - ${addSongData.title}`;
+      }
+
+      await songAPI.requestSong({
+        name: addSongData.singerName,
+        songInput: songInput
+      });
+      toast.success('Song erfolgreich zur Playlist hinzugefügt!');
+      handleCloseAddSongModal();
+      
+      // Refresh playlist
+      await fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error adding song:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Hinzufügen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredAddSongs = manualSongList.filter(song =>
+    song.artist.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
+    song.title.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
+    `${song.artist} - ${song.title}`.toLowerCase().includes(addSongSearchTerm.toLowerCase())
+  );
+
+  // USDB Search with delay
+  const performUSDBSearch = async (artist: string, title: string) => {
+    if (!artist.trim() && !title.trim()) {
+      setAddSongUsdbResults([]);
+      return;
+    }
+
+    setAddSongUsdbLoading(true);
+    try {
+      const response = await adminAPI.searchUSDB(
+        artist.trim() || undefined,
+        title.trim() || undefined,
+        20 // Limit to 20 results for modal
+      );
+
+      const songs = response.data.songs || [];
+      setAddSongUsdbResults(songs);
+    } catch (error) {
+      console.error('Error searching USDB:', error);
+      setAddSongUsdbResults([]);
+    } finally {
+      setAddSongUsdbLoading(false);
+    }
+  };
+
+  // Debounced USDB search
+  const triggerUSDBSearch = (artist: string, title: string) => {
+    // Clear existing timeout
+    if (addSongUsdbTimeout) {
+      clearTimeout(addSongUsdbTimeout);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      performUSDBSearch(artist, title);
+    }, 3000); // 3 seconds delay
+
+    setAddSongUsdbTimeout(timeout);
+  };
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (addSongUsdbTimeout) {
+        clearTimeout(addSongUsdbTimeout);
+      }
+    };
+  }, [addSongUsdbTimeout]);
 
   // Admin User Management Functions
   const fetchAdminUsers = async () => {
@@ -2614,45 +2797,6 @@ const AdminDashboard: React.FC = () => {
       </Header>
 
 
-      <ManualSongSection>
-        <ManualSongTitle>➕ Song manuell hinzufügen</ManualSongTitle>
-        <ManualSongForm>
-          <ManualSongInput
-            type="text"
-            placeholder="Sänger-Name"
-            value={manualSongData.singerName}
-            onChange={(e) => setManualSongData(prev => ({ ...prev, singerName: e.target.value }))}
-          />
-          <ManualSongInput
-            type="text"
-            placeholder="Song (Interpret - Titel oder YouTube-Link)"
-            value={manualSongData.songInput}
-            onChange={(e) => setManualSongData(prev => ({ ...prev, songInput: e.target.value }))}
-          />
-          <button
-            type="button"
-            onClick={handleOpenManualSongList}
-            style={{
-              background: '#6c757d',
-              color: 'white',
-              border: 'none',
-              padding: '10px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              marginRight: '15px'
-            }}
-          >
-            🎵 Songliste
-          </button>
-          <ManualSongButton 
-            onClick={handleManualSongSubmit}
-            disabled={actionLoading}
-          >
-            {actionLoading ? 'Hinzufügen...' : '➕ Hinzufügen'}
-          </ManualSongButton>
-        </ManualSongForm>
-      </ManualSongSection>
 
       <TabContainer>
         <TabHeader>
@@ -2693,7 +2837,14 @@ const AdminDashboard: React.FC = () => {
             <PlaylistContainer>
         <PlaylistHeader>
           <ControlButtons>
-            <div></div>
+            <div>
+              <Button 
+                onClick={handleOpenAddSongModal}
+                style={{ background: '#28a745', marginRight: '15px' }}
+              >
+                ➕ Song Hinzufügen
+              </Button>
+            </div>
             <CenterButtons>
               <QRCodeToggleButton 
                 $active={showQRCodeOverlay}
@@ -4828,6 +4979,403 @@ const AdminDashboard: React.FC = () => {
             </ModalButtons>
           </ModalContent>
         </Modal>
+      )}
+
+      {/* Add Song Modal */}
+      {showAddSongModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            maxWidth: '800px',
+            width: '90%',
+            maxHeight: '95vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              borderBottom: '1px solid #eee',
+              paddingBottom: '15px'
+            }}>
+              <h3 style={{ margin: 0, color: '#333' }}>➕ Song hinzufügen</h3>
+              <button
+                onClick={handleCloseAddSongModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Singer Name */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                Sänger-Name:
+              </label>
+              <input
+                type="text"
+                placeholder="Name des Teilnehmers"
+                value={addSongData.singerName}
+                onChange={(e) => setAddSongData(prev => ({ ...prev, singerName: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            {/* Artist and Title */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              marginBottom: '20px',
+              alignItems: 'center'
+            }}>
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#333'
+                }}>
+                  Interpret:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Interpret"
+                  value={addSongData.artist}
+                  onChange={(e) => {
+                    setAddSongData(prev => ({ ...prev, artist: e.target.value }));
+                    setAddSongSearchTerm(e.target.value);
+                    triggerUSDBSearch(e.target.value, addSongData.title);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#333'
+                }}>
+                  Songtitel:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Songtitel"
+                  value={addSongData.title}
+                  onChange={(e) => {
+                    setAddSongData(prev => ({ ...prev, title: e.target.value }));
+                    setAddSongSearchTerm(e.target.value);
+                    triggerUSDBSearch(addSongData.artist, e.target.value);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* YouTube Link */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              marginBottom: '20px',
+              gap: '15px'
+            }}>
+              <div style={{ 
+                flex: 1, 
+                height: '1px', 
+                backgroundColor: '#ddd' 
+              }}></div>
+              <span style={{ 
+                color: '#666', 
+                fontSize: '14px', 
+                fontWeight: '500' 
+              }}>
+                oder
+              </span>
+              <div style={{ 
+                flex: 1, 
+                height: '1px', 
+                backgroundColor: '#ddd' 
+              }}></div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                YouTube-Link:
+              </label>
+              <input
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={addSongData.youtubeUrl}
+                onChange={(e) => setAddSongData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            {/* Song List */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#333'
+              }}>
+                Songliste:
+              </label>
+              
+              <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
+                <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
+                <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+              </div>
+              
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
+                {/* USDB Results Section */}
+                {addSongUsdbResults.length > 0 && (
+                  <div>
+                    <div style={{
+                      position: 'sticky',
+                      top: 0,
+                      background: '#28a745',
+                      color: 'white',
+                      padding: '8px 15px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      zIndex: 10,
+                      borderBottom: '2px solid #218838'
+                    }}>
+                      USDB ({addSongUsdbResults.length})
+                    </div>
+                    {addSongUsdbResults.map((song, index) => (
+                      <div
+                        key={`usdb-${song.id}`}
+                        onClick={() => handleSelectAddSong(song)}
+                        style={{
+                          padding: '10px',
+                          border: '1px solid #eee',
+                          borderRadius: '8px',
+                          marginBottom: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          backgroundColor: addSongData.artist === song.artist && addSongData.title === song.title ? '#e3f2fd' : 'white'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
+                            e.currentTarget.style.background = '#f8f9fa';
+                            e.currentTarget.style.borderColor = '#667eea';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
+                            e.currentTarget.style.background = 'white';
+                            e.currentTarget.style.borderColor = '#eee';
+                          }
+                        }}
+                      >
+                        <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                          {song.artist}
+                        </div>
+                        <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                          {song.title}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Loading indicator for USDB search */}
+                {addSongUsdbLoading && (
+                  <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                    🔍 USDB-Suche läuft...
+                  </div>
+                )}
+
+                {/* Local Songs Section */}
+                {filteredAddSongs.length > 0 ? (() => {
+                  // Group songs by first letter of artist
+                  const groupedSongs = filteredAddSongs.reduce((groups, song) => {
+                    const letter = getFirstLetter(song.artist);
+                    if (!groups[letter]) {
+                      groups[letter] = [];
+                    }
+                    groups[letter].push(song);
+                    return groups;
+                  }, {} as Record<string, typeof filteredAddSongs>);
+                  
+                  const sortedGroups = Object.keys(groupedSongs).sort();
+                  
+                  return (
+                    <>
+                      {sortedGroups.map((letter) => (
+                        <div key={letter}>
+                          <div style={{
+                            position: 'sticky',
+                            top: 0,
+                            background: '#adb5bd',
+                            color: 'white',
+                            padding: '8px 15px',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            zIndex: 10,
+                            borderBottom: '2px solid #9ca3af'
+                          }}>
+                            {letter}
+                          </div>
+                          {groupedSongs[letter].map((song, index) => (
+                            <div
+                              key={`${letter}-${index}`}
+                              onClick={() => handleSelectAddSong(song)}
+                              style={{
+                                padding: '10px',
+                                border: '1px solid #eee',
+                                borderRadius: '8px',
+                                marginBottom: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                backgroundColor: addSongData.artist === song.artist && addSongData.title === song.title ? '#e3f2fd' : 'white'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
+                                  e.currentTarget.style.background = '#f8f9fa';
+                                  e.currentTarget.style.borderColor = '#667eea';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!(addSongData.artist === song.artist && addSongData.title === song.title)) {
+                                  e.currentTarget.style.background = 'white';
+                                  e.currentTarget.style.borderColor = '#eee';
+                                }
+                              }}
+                            >
+                              <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                                {song.artist}
+                              </div>
+                              <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                                {song.title}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })() : (
+                  !addSongUsdbLoading && !addSongUsdbResults.length && (
+                    <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
+                      {addSongSearchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              marginTop: '20px',
+              paddingTop: '20px',
+              borderTop: '1px solid #e1e5e9'
+            }}>
+              <button
+                onClick={handleCloseAddSongModal}
+                disabled={actionLoading}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #e1e5e9',
+                  borderRadius: '8px',
+                  backgroundColor: actionLoading ? '#f8f9fa' : 'white',
+                  color: actionLoading ? '#ccc' : '#666',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleAddSongSubmit}
+                disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
+                style={{
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? '#ccc' : '#28a745',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </Container>
