@@ -778,6 +778,12 @@ const AdminDashboard: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [downloadingVideo, setDownloadingVideo] = useState(false);
   
+  // Cloudflared State
+  const [cloudflaredInstalled, setCloudflaredInstalled] = useState(false);
+  const [cloudflaredInstallLoading, setCloudflaredInstallLoading] = useState(false);
+  const [cloudflaredStartLoading, setCloudflaredStartLoading] = useState(false);
+  const [cloudflaredStopLoading, setCloudflaredStopLoading] = useState(false);
+  
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
@@ -944,6 +950,7 @@ const AdminDashboard: React.FC = () => {
     // Initial fetch
     fetchDashboardData();
     fetchUSDBCredentials();
+    checkCloudflaredStatus();
     
     // Connect to WebSocket
     websocketService.connect().then(() => {
@@ -1096,6 +1103,90 @@ const AdminDashboard: React.FC = () => {
       toast.error('Fehler beim Aktualisieren der eigenen URL');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const handleCopyUrlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(customUrl);
+      toast.success('URL in die Zwischenablage kopiert!');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = customUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast.success('URL in die Zwischenablage kopiert!');
+    }
+  };
+
+  // Cloudflared Handler Functions
+  const checkCloudflaredStatus = async () => {
+    try {
+      const response = await adminAPI.getCloudflaredStatus();
+      setCloudflaredInstalled(response.data.installed);
+    } catch (error) {
+      console.error('Error checking cloudflared status:', error);
+      setCloudflaredInstalled(false);
+    }
+  };
+
+  const handleInstallCloudflared = async () => {
+    setCloudflaredInstallLoading(true);
+    try {
+      const response = await adminAPI.installCloudflared();
+      if (response.data.success) {
+        toast.success('Cloudflared erfolgreich installiert!');
+        setCloudflaredInstalled(true);
+      } else {
+        toast.error('Fehler beim Installieren von Cloudflared');
+      }
+    } catch (error) {
+      console.error('Error installing cloudflared:', error);
+      toast.error('Fehler beim Installieren von Cloudflared');
+    } finally {
+      setCloudflaredInstallLoading(false);
+    }
+  };
+
+  const handleStartCloudflaredTunnel = async () => {
+    setCloudflaredStartLoading(true);
+    try {
+      const response = await adminAPI.startCloudflaredTunnel();
+      if (response.data.success) {
+        toast.success(`Cloudflared Tunnel erfolgreich gestartet! URL: ${response.data.tunnelUrl}`);
+        // Update the custom URL with the tunnel URL
+        setCustomUrl(response.data.tunnelUrl);
+        // Refresh settings to get the updated URL
+        await fetchDashboardData();
+      } else {
+        toast.error('Fehler beim Starten des Cloudflared Tunnels');
+      }
+    } catch (error) {
+      console.error('Error starting cloudflared tunnel:', error);
+      toast.error('Fehler beim Starten des Cloudflared Tunnels');
+    } finally {
+      setCloudflaredStartLoading(false);
+    }
+  };
+
+  const handleStopCloudflaredTunnel = async () => {
+    setCloudflaredStopLoading(true);
+    try {
+      const response = await adminAPI.stopCloudflaredTunnel();
+      if (response.data.success) {
+        toast.success('Cloudflared Tunnel erfolgreich gestoppt!');
+      } else {
+        toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+      }
+    } catch (error) {
+      console.error('Error stopping cloudflared tunnel:', error);
+      toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+    } finally {
+      setCloudflaredStopLoading(false);
     }
   };
 
@@ -3173,26 +3264,92 @@ const AdminDashboard: React.FC = () => {
                 </SettingsDescription>
               </SettingsCard>
               
-              <SettingsCard>
-                <SettingsLabel>Eigene URL:</SettingsLabel>
-                <SettingsInput
-                  type="url"
-                  placeholder="https://meine-domain.com"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                  style={{ minWidth: '300px' }}
-                />
-                <SettingsButton 
-                  onClick={handleUpdateCustomUrl}
-                  disabled={settingsLoading}
-                >
-                  {settingsLoading ? 'Speichert...' : 'Speichern'}
-                </SettingsButton>
-                <SettingsDescription>
-                  Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
-                  Wenn leer, wird automatisch die aktuelle Domain verwendet.
-                </SettingsDescription>
-              </SettingsCard>
+              {/* URL & Cloudflared Section */}
+              <div style={{ marginTop: '20px', padding: '15px', background: '#e8f4fd', borderRadius: '8px', border: '1px solid #bee5eb' }}>
+                <div style={{ fontWeight: '600', marginBottom: '15px', color: '#0c5460' }}>
+                  🌐 Eigene URL & Cloudflared Tunnel
+                </div>
+                
+                {/* Eigene URL */}
+                <div style={{ marginBottom: '20px' }}>
+                  <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>Eigene URL:</SettingsLabel>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                    <SettingsInput
+                      type="url"
+                      placeholder="https://meine-domain.com"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      style={{ minWidth: '300px' }}
+                    />
+                    <SettingsButton 
+                      onClick={handleUpdateCustomUrl}
+                      disabled={settingsLoading}
+                    >
+                      {settingsLoading ? 'Speichert...' : 'Speichern'}
+                    </SettingsButton>
+                    <SettingsButton 
+                      onClick={handleCopyUrlToClipboard}
+                      disabled={!customUrl}
+                      style={{ 
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        opacity: !customUrl ? 0.6 : 1
+                      }}
+                    >
+                      📋 Kopieren
+                    </SettingsButton>
+                  </div>
+                  <SettingsDescription style={{ color: '#0c5460' }}>
+                    Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
+                    Wenn leer, wird automatisch die aktuelle Domain verwendet.
+                  </SettingsDescription>
+                </div>
+                
+                {/* Cloudflared Integration */}
+                <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
+                  <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>Cloudflared Tunnel:</SettingsLabel>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    <SettingsButton 
+                      onClick={handleInstallCloudflared}
+                      disabled={cloudflaredInstalled || cloudflaredInstallLoading}
+                      style={{ 
+                        backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
+                        color: 'white',
+                        opacity: cloudflaredInstalled ? 0.6 : 1
+                      }}
+                    >
+                      {cloudflaredInstallLoading ? 'Installiert...' : 'Cloudflared Einrichten'}
+                    </SettingsButton>
+                    
+                    <SettingsButton 
+                      onClick={handleStartCloudflaredTunnel}
+                      disabled={!cloudflaredInstalled || cloudflaredStartLoading}
+                      style={{ 
+                        backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
+                        color: 'white',
+                        opacity: !cloudflaredInstalled ? 0.6 : 1
+                      }}
+                    >
+                      {cloudflaredStartLoading ? 'Startet...' : 'Cloudflared Starten'}
+                    </SettingsButton>
+                    
+                    <SettingsButton 
+                      onClick={handleStopCloudflaredTunnel}
+                      disabled={cloudflaredStopLoading}
+                      style={{ 
+                        backgroundColor: '#dc3545',
+                        color: 'white'
+                      }}
+                    >
+                      {cloudflaredStopLoading ? 'Stoppt...' : 'Tunnel Stoppen'}
+                    </SettingsButton>
+                  </div>
+                  <SettingsDescription style={{ color: '#0c5460' }}>
+                    Cloudflared erstellt einen sicheren Tunnel zu Ihrem lokalen Server. 
+                    Nach dem Starten wird automatisch eine öffentliche URL generiert und als "Eigene URL" gesetzt.
+                  </SettingsDescription>
+                </div>
+              </div>
               
               <SettingsCard>
                 <SettingsLabel>Overlay-Überschrift:</SettingsLabel>

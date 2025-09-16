@@ -222,6 +222,12 @@ export const adminAPI = {
   // YouTube Cache Song Management
   renameYouTubeCacheSong: (oldArtist: string, oldTitle: string, newArtist: string, newTitle: string) =>
     api.post('/admin/youtube-cache/rename', { oldArtist, oldTitle, newArtist, newTitle }),
+
+  // Cloudflared Management
+  getCloudflaredStatus: () => api.get('/admin/cloudflared/status'),
+  installCloudflared: () => api.post('/admin/cloudflared/install'),
+  startCloudflaredTunnel: () => api.post('/admin/cloudflared/start'),
+  stopCloudflaredTunnel: () => api.post('/admin/cloudflared/stop'),
 };
 
 export const showAPI = {
