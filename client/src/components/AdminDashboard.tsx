@@ -2734,6 +2734,18 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const [oldDownloadUrls, setOldDownloadUrls] = useState([]);
+
+  useEffect(() => {
+    if (oldDownloadUrls.length > 0) {
+      const urls = usdbBatchUrls.filter((url: string) => !oldDownloadUrls.includes(url));
+      setUsdbBatchUrls(urls);
+      setOldDownloadUrls([]);
+      setUsdbBatchCurrentDownloading(null);
+      handleBatchDownloadFromUSDB(null, urls);
+    }
+  }, [oldDownloadUrls]);
+
   const handleBatchUrlChange = (index: number, value: string) => {
     const newUrls = [...usdbBatchUrls];
     newUrls[index] = value;
@@ -2745,12 +2757,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleBatchDownloadFromUSDB = async () => {
+  const handleBatchDownloadFromUSDB = async (event?: React.MouseEvent, urls?: string[]) => {
     // Filter out empty URLs
-    const validUrls = usdbBatchUrls.filter(url => url.trim());
+    console.log("urls", urls, usdbBatchUrls);
+    const validUrls = (urls || usdbBatchUrls).filter(url => url.trim());
     
     if (validUrls.length === 0) {
-      toast.error('Bitte mindestens eine USDB-URL eingeben');
+      // toast.error('Bitte mindestens eine USDB-URL eingeben');
       return;
     }
 
@@ -2821,11 +2834,12 @@ const AdminDashboard: React.FC = () => {
       }
       
       // Close modal after successful completion
-      setShowUsdbDialog(false);
-      setUsdbBatchUrls(['']);
+      // setShowUsdbDialog(false);
+      // setUsdbBatchUrls(['']);
+      setOldDownloadUrls(validUrls);
       setUsdbBatchProgress({ current: 0, total: 0 });
       setUsdbBatchResults([]);
-      
+      // setUsdbDownloadFinished(true);
     } catch (error) {
       console.error('Error in batch download:', error);
       toast.error('Fehler beim Batch-Download');
