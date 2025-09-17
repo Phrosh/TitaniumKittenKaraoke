@@ -12,6 +12,7 @@ import BanlistTab from './admin/BanlistTab';
 import UsersTab from './admin/UsersTab';
 import SettingsTab from './admin/SettingsTab';
 import RenameModal from './admin/modals/RenameModal';
+import DeleteModal from './admin/modals/DeleteModal';
 import SongsTab from './admin/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
@@ -4286,62 +4287,13 @@ const AdminDashboard: React.FC = () => {
       />
 
       {/* Delete Modal */}
-      {showDeleteModal && deleteSong && (
-        <Modal>
-          <ModalContent>
-            <ModalTitle>🗑️ Song löschen</ModalTitle>
-            
-            <div style={{ 
-              padding: '20px', 
-              backgroundColor: '#fff5f5', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              border: '1px solid #fed7d7',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '18px', fontWeight: '600', color: '#c53030', marginBottom: '10px' }}>
-                ⚠️ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!
-              </div>
-              <div style={{ fontSize: '16px', color: '#2d3748', marginBottom: '15px' }}>
-                Möchtest du den Song wirklich löschen?
-              </div>
-              <div style={{ 
-                fontSize: '14px', 
-                color: '#4a5568',
-                backgroundColor: 'white',
-                padding: '12px',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0'
-              }}>
-                <strong>Song:</strong> {deleteSong.artist} - {deleteSong.title}
-                <br />
-                <strong>Typ:</strong> {
-                  deleteSong.modes?.includes('server_video') ? '🟢 Server-Video' :
-                  deleteSong.modes?.includes('file') ? '🔵 Datei-Song' :
-                  deleteSong.modes?.includes('ultrastar') ? '⭐ Ultrastar-Song' :
-                  deleteSong.mode === 'youtube' ? '🔴 YouTube-Song' :
-                  deleteSong.modes?.includes('youtube_cache') ? '🎬 YouTube-Cache' :
-                  'Unbekannt'
-                }
-              </div>
-            </div>
-            
-            <ModalButtons>
-              <Button onClick={handleDeleteCancel}>Abbrechen</Button>
-              <Button 
-                onClick={handleDeleteConfirm}
-                disabled={actionLoading}
-                style={{
-                  backgroundColor: actionLoading ? '#ccc' : '#dc3545',
-                  color: 'white'
-                }}
-              >
-                {actionLoading ? '⏳ Wird gelöscht...' : '🗑️ Endgültig löschen'}
-              </Button>
-            </ModalButtons>
-          </ModalContent>
-        </Modal>
-      )}
+      <DeleteModal
+        show={showDeleteModal && !!deleteSong}
+        deleteSong={deleteSong}
+        actionLoading={actionLoading}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+      />
 
       {/* Add Song Modal */}
       {showAddSongModal && (
