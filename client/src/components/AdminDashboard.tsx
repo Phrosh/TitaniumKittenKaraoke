@@ -14,6 +14,7 @@ import SettingsTab from './admin/SettingsTab';
 import RenameModal from './admin/modals/RenameModal';
 import DeleteModal from './admin/modals/DeleteModal';
 import ApprovalModal from './admin/modals/ApprovalModal';
+import EditSongModal from './admin/modals/EditSongModal';
 import SongsTab from './admin/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
@@ -3464,59 +3465,15 @@ const AdminDashboard: React.FC = () => {
       </TabContainer>
 
       {showModal && selectedSong && (
-        <Modal>
-          <ModalContent>
-            <ModalTitle>
-              {modalType === 'youtube' ? 'YouTube Link hinzufügen' : 'Song bearbeiten'}
-            </ModalTitle>
-            
-            <FormGroup>
-              <Label>Titel:</Label>
-              <Input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                disabled={modalType === 'youtube'}
-              />
-            </FormGroup>
-            
-            <FormGroup>
-              <Label>Interpret:</Label>
-              <Input
-                type="text"
-                value={formData.artist}
-                onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
-                disabled={modalType === 'youtube'}
-              />
-            </FormGroup>
-            
-            <FormGroup>
-              <Label>YouTube URL:</Label>
-              <Input
-                type="url"
-                value={formData.youtubeUrl}
-                onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveSong();
-                  }
-                }}
-                placeholder="https://www.youtube.com/watch?v=..."
-              />
-            </FormGroup>
-            
-            <ModalButtons>
-              <Button onClick={closeModal}>Abbrechen</Button>
-              <Button 
-                variant="success" 
-                onClick={handleSaveSong}
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Speichert...' : 'Speichern'}
-              </Button>
-            </ModalButtons>
-          </ModalContent>
-        </Modal>
+        <EditSongModal
+          show={showModal && !!selectedSong}
+          modalType={modalType}
+          formData={formData}
+          actionLoading={actionLoading}
+          onClose={closeModal}
+          onSave={handleSaveSong}
+          onFormDataChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
+        />
       )}
 
       {/* Manual Song List Modal */}
