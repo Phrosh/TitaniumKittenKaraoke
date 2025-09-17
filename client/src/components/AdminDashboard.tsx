@@ -605,10 +605,6 @@ const AdminDashboard: React.FC = () => {
   const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
   const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
   
-  // Banlist Management
-  const [banlist, setBanlist] = useState<any[]>([]);
-  const [newBanDeviceId, setNewBanDeviceId] = useState('');
-  const [newBanReason, setNewBanReason] = useState('');
   
   // Song Management
   const [songs, setSongs] = useState<any[]>([]);
@@ -976,12 +972,6 @@ const AdminDashboard: React.FC = () => {
   }, [activeTab]);
 
 
-  // Load banlist when banlist tab is active
-  useEffect(() => {
-    if (activeTab === 'banlist') {
-      fetchBanlist();
-    }
-  }, [activeTab]);
 
 
   const handleUpdateRegressionValue = async () => {
@@ -2100,62 +2090,14 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Banlist Management Functions
-  const fetchBanlist = async () => {
-    try {
-      const response = await adminAPI.getBanlist();
-      setBanlist(response.data.bannedDevices || []);
-    } catch (error) {
-      console.error('Error fetching banlist:', error);
-    }
-  };
-
-  const handleAddToBanlist = async () => {
-    if (!newBanDeviceId.trim() || newBanDeviceId.length !== 3) {
-      toast.error('Device ID muss genau 3 Zeichen lang sein');
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await adminAPI.addToBanlist(newBanDeviceId.toUpperCase(), newBanReason.trim() || undefined);
-      toast.success(`Device ID ${newBanDeviceId.toUpperCase()} zur Banlist hinzugefügt`);
-      setNewBanDeviceId('');
-      setNewBanReason('');
-      await fetchBanlist();
-    } catch (error: any) {
-      console.error('Error adding to banlist:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Hinzufügen zur Banlist');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRemoveFromBanlist = async (deviceId: string) => {
-    if (!window.confirm(`Device ID ${deviceId} wirklich von der Banlist entfernen?`)) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      await adminAPI.removeFromBanlist(deviceId);
-      toast.success(`Device ID ${deviceId} von der Banlist entfernt`);
-      await fetchBanlist();
-    } catch (error: any) {
-      console.error('Error removing from banlist:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Entfernen von der Banlist');
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleDeviceIdClick = (deviceId: string) => {
     setActiveTab('banlist');
-    setNewBanDeviceId(deviceId);
     // Focus the input field after a short delay to ensure the tab is rendered
     setTimeout(() => {
       const input = document.querySelector('input[placeholder="ABC (3 Zeichen)"]') as HTMLInputElement;
       if (input) {
+        input.value = deviceId;
         input.focus();
       }
     }, 100);
@@ -3243,14 +3185,7 @@ const AdminDashboard: React.FC = () => {
           
           {activeTab === 'banlist' && (
             <BanlistTab
-              banlist={banlist}
-              newBanDeviceId={newBanDeviceId}
-              newBanReason={newBanReason}
-              actionLoading={actionLoading}
-              onNewBanDeviceIdChange={setNewBanDeviceId}
-              onNewBanReasonChange={setNewBanReason}
-              onAddToBanlist={handleAddToBanlist}
-              onRemoveFromBanlist={handleRemoveFromBanlist}
+              onDeviceIdClick={handleDeviceIdClick}
             />
           )}
           

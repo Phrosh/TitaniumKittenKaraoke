@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import { adminAPI } from '../../../services/api';
 import { Button } from '../../shared';
 
 // Styled Components für BanlistTab
@@ -87,26 +89,72 @@ interface BanlistItem {
 }
 
 interface BanlistTabProps {
-  banlist: BanlistItem[];
-  newBanDeviceId: string;
-  newBanReason: string;
-  actionLoading: boolean;
-  onNewBanDeviceIdChange: (value: string) => void;
-  onNewBanReasonChange: (value: string) => void;
-  onAddToBanlist: () => void;
-  onRemoveFromBanlist: (deviceId: string) => void;
+  // Props für externe Interaktionen (z.B. von SongsTab)
+  onDeviceIdClick?: (deviceId: string) => void;
 }
 
 const BanlistTab: React.FC<BanlistTabProps> = ({
-  banlist,
-  newBanDeviceId,
-  newBanReason,
-  actionLoading,
-  onNewBanDeviceIdChange,
-  onNewBanReasonChange,
-  onAddToBanlist,
-  onRemoveFromBanlist
+  onDeviceIdClick
 }) => {
+  // Banlist State
+  const [banlist, setBanlist] = useState<BanlistItem[]>([]);
+  const [newBanDeviceId, setNewBanDeviceId] = useState('');
+  const [newBanReason, setNewBanReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Load banlist when component mounts
+  useEffect(() => {
+    fetchBanlist();
+  }, []);
+
+  // Banlist Management Functions
+  const fetchBanlist = async () => {
+    try {
+      const response = await adminAPI.getBanlist();
+      setBanlist(response.data.bannedDevices || []);
+    } catch (error) {
+      console.error('Error fetching banlist:', error);
+    }
+  };
+
+  const handleAddToBanlist = async () => {
+    if (!newBanDeviceId.trim() || newBanDeviceId.length !== 3) {
+      toast.error('Device ID muss genau 3 Zeichen lang sein');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await adminAPI.addToBanlist(newBanDeviceId.toUpperCase(), newBanReason.trim() || undefined);
+      toast.success(`Device ID ${newBanDeviceId.toUpperCase()} zur Banlist hinzugefügt`);
+      setNewBanDeviceId('');
+      setNewBanReason('');
+      await fetchBanlist();
+    } catch (error: any) {
+      console.error('Error adding to banlist:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Hinzufügen zur Banlist');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveFromBanlist = async (deviceId: string) => {
+    if (!window.confirm(`Device ID ${deviceId} wirklich von der Banlist entfernen?`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await adminAPI.removeFromBanlist(deviceId);
+      toast.success(`Device ID ${deviceId} von der Banlist entfernt`);
+      await fetchBanlist();
+    } catch (error: any) {
+      console.error('Error removing from banlist:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Entfernen von der Banlist');
+    } finally {
+      setActionLoading(false);
+    }
+  };
   return (
     <SettingsSection>
       <SettingsTitle>🚫 Banlist-Verwaltung</SettingsTitle>
@@ -119,7 +167,7 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
             type="text"
             placeholder="ABC (3 Zeichen)"
             value={newBanDeviceId}
-            onChange={(e) => onNewBanDeviceIdChange(e.target.value.toUpperCase())}
+            onChange={(e) => setNewBanDeviceId(e.target.value.toUpperCase())}
             style={{ minWidth: '120px', textTransform: 'uppercase' }}
             maxLength={3}
           />
@@ -127,11 +175,11 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
             type="text"
             placeholder="Grund (optional)"
             value={newBanReason}
-            onChange={(e) => onNewBanReasonChange(e.target.value)}
+            onChange={(e) => setNewBanReason(e.target.value)}
             style={{ minWidth: '200px' }}
           />
           <SettingsButton 
-            onClick={onAddToBanlist}
+            onClick={handleAddToBanlist}
             disabled={actionLoading}
           >
             {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
@@ -179,7 +227,7 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
                 </div>
                 <Button 
                   variant="danger"
-                  onClick={() => onRemoveFromBanlist(ban.device_id)}
+                  onClick={() => handleRemoveFromBanlist(ban.device_id)}
                   disabled={actionLoading}
                   style={{ padding: '5px 10px', fontSize: '0.9em' }}
                 >
