@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { adminAPI, songAPI } from '../../../services/api';
+import USDBDownloadModal from '../modals/usdb/UsdbDownloadModal';
+import DeleteModal from '../modals/DeleteModal';
+import RenameModal from '../modals/RenameModal';
 
 // Styled Components für SongsTab
 const SettingsSection = styled.div`
@@ -210,30 +213,131 @@ const SongsList = styled.div`
 
 interface SongsTabProps {
   // Nur die Callback-Funktionen für externe Modals werden von außen benötigt
-  onOpenUsdbDialog: () => void;
-  onRenameSong: (song: any) => void;
-  onDeleteSongFromLibrary: (song: any) => void;
+  // onOpenUsdbDialog: () => void;
+  // onRenameSong: (song: any) => void;
+  // onDeleteSongFromLibrary: (song: any) => void;
+  processingSongs: Set<string>;
+  setProcessingSongs: (processingSongs: Set<string>) => void;
 }
 
 const SongsTab: React.FC<SongsTabProps> = ({
-  onOpenUsdbDialog,
-  onRenameSong,
-  onDeleteSongFromLibrary
+  // onOpenUsdbDialog,
+  // onRenameSong,
+  // onDeleteSongFromLibrary
+  processingSongs,
+  setProcessingSongs
 }) => {
   // Songs State
   const [songs, setSongs] = useState<any[]>([]);
   const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
-  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
   const [songSearchTerm, setSongSearchTerm] = useState('');
   const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameSong, setRenameSong] = useState<any>(null);
+  const [renameData, setRenameData] = useState({
+    newArtist: '',
+    newTitle: ''
+  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteSong, setDeleteSong] = useState<any>(null);
+  
+  const [showUsdbDialog, setShowUsdbDialog] = useState(false);
 
   // Load songs when component mounts
   useEffect(() => {
     fetchSongs();
     fetchInvisibleSongs();
   }, []);
+
+  const handleRenameSong = (song: any) => {
+    setRenameSong(song);
+    setRenameData({
+      newArtist: song.artist,
+      newTitle: song.title
+    });
+    setShowRenameModal(true);
+  };
+
+  const handleRenameConfirm = async () => {
+    if (!renameSong || !renameData.newArtist.trim() || !renameData.newTitle.trim()) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await adminAPI.renameSong(
+        renameSong.artist,
+        renameSong.title,
+        renameData.newArtist.trim(),
+        renameData.newTitle.trim()
+      );
+      
+      if (response.data.success) {
+        // Refresh songs list
+        await fetchSongs();
+        setShowRenameModal(false);
+        setRenameSong(null);
+        setRenameData({ newArtist: '', newTitle: '' });
+        toast.success(`Song erfolgreich umbenannt zu "${renameData.newArtist.trim()} - ${renameData.newTitle.trim()}"`);
+      } else {
+        console.error('Rename failed:', response.data.message);
+        toast.error(response.data.message || 'Fehler beim Umbenennen des Songs');
+      }
+    } catch (error: any) {
+      console.error('Error renaming song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Umbenennen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRenameCancel = () => {
+    setShowRenameModal(false);
+    setRenameSong(null);
+    setRenameData({ newArtist: '', newTitle: '' });
+  };
+
+  const handleDeleteSongFromLibrary = (song: any) => {
+    setDeleteSong(song);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteSong) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await adminAPI.deleteSong(
+        deleteSong.artist,
+        deleteSong.title
+      );
+      
+      if (response.data.success) {
+        // Refresh songs list
+        await fetchSongs();
+        setShowDeleteModal(false);
+        setDeleteSong(null);
+        toast.success(`Song "${deleteSong.artist} - ${deleteSong.title}" erfolgreich gelöscht`);
+      } else {
+        console.error('Delete failed:', response.data.message);
+        toast.error(response.data.message || 'Fehler beim Löschen des Songs');
+      }
+    } catch (error: any) {
+      console.error('Error deleting song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Löschen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteSong(null);
+  };
 
   // Song Management Functions
   const fetchSongs = useCallback(async () => {
@@ -612,6 +716,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
   };
 
   return (
+    <>
     <SettingsSection>
       <SettingsTitle>🎵 Songverwaltung</SettingsTitle>
       
@@ -666,7 +771,9 @@ const SongsTab: React.FC<SongsTabProps> = ({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
               <UsdbButton
                 type="button"
-                onClick={onOpenUsdbDialog}
+                onClick={() => {
+                  setShowUsdbDialog(true);
+                }}
               >
                 🌐 USDB Song laden
               </UsdbButton>
@@ -843,7 +950,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
                           <ActionButton
                             $variant="warning"
-                            onClick={() => onRenameSong(song)}
+                            onClick={() => handleRenameSong(song)}
                             disabled={actionLoading}
                           >
                             ✏️ Umbenennen
@@ -875,6 +982,57 @@ const SongsTab: React.FC<SongsTabProps> = ({
         })()}
       </SettingsCard>
     </SettingsSection>
+
+      {/* Rename Modal */}
+      <RenameModal
+        show={showRenameModal && !!renameSong}
+        renameSong={renameSong}
+        renameData={renameData}
+        actionLoading={actionLoading}
+        onClose={handleRenameCancel}
+        onConfirm={handleRenameConfirm}
+        onRenameDataChangse={(field, value) => setRenameData(prev => ({ ...prev, [field]: value }))}
+      />
+
+      {/* Delete Modal */}
+      <DeleteModal
+        show={showDeleteModal && !!deleteSong}
+        deleteSong={deleteSong}
+        actionLoading={actionLoading}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+      />
+      {/* USDB Batch Download Dialog */}
+      {/* {here} */}
+      <USDBDownloadModal
+        show={showUsdbDialog}
+        // usdbBatchUrls={usdbBatchUrls}
+        // usdbBatchDownloading={usdbBatchDownloading}
+        // usdbBatchCurrentDownloading={usdbBatchCurrentDownloading}
+        // usdbBatchProgress={usdbBatchProgress}
+        // onClose={handleCloseUsdbDialog}
+        // onBatchUrlChange={handleBatchUrlChange}
+        // onAddBatchUrlField={handleAddBatchUrlField}
+        // onRemoveBatchUrlField={handleRemoveBatchUrlField}
+        // onStartBatchDownload={handleStartBatchDownload}
+        // handleRemoveBatchUrlField={handleRemoveBatchUrlField}
+        // handleBatchUrlChange={handleBatchUrlChange}
+        // usdbBatchResults={usdbBatchResults}
+        // handleBatchDownloadFromUSDB={handleBatchDownloadFromUSDB}
+        // usdbSearchInterpret={usdbSearchInterpret}
+        // setUsdbSearchInterpret={setUsdbSearchInterpret}
+        // usdbSearchTitle={usdbSearchTitle}
+        // setUsdbSearchTitle={setUsdbSearchTitle}
+        // usdbSearchResults={usdbSearchResults}
+        // handleAddSearchResultToDownload={handleAddSearchResultToDownload}
+        // handleSearchUSDB={handleSearchUSDB}
+        // usdbSearchLoading={usdbSearchLoading}
+        fetchSongs={fetchSongs}
+        handleCloseUsdbDialog={() => {
+          setShowUsdbDialog(false);
+        }}
+      />
+    </>
   );
 };
 

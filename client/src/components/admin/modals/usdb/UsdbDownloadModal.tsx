@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
+import {adminAPI} from '../../../../services/api';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface Progress {
   current: number;
@@ -8,28 +11,29 @@ interface Progress {
 
 interface USDBDownloadModalProps {
   show: boolean;
-  usdbBatchUrls: string[];
-  usdbBatchDownloading: boolean;
-  usdbBatchCurrentDownloading: number | null;
-  usdbBatchProgress: Progress;
+//   usdbBatchUrls: string[];
+//   usdbBatchDownloading: boolean;
+//   usdbBatchCurrentDownloading: number | null;
+//   usdbBatchProgress: Progress;
 //   onClose: () => void;
 //   onBatchUrlChange: (index: number, value: string) => void;
 //   onAddBatchUrlField: () => void;
 //   onRemoveBatchUrlField: (index: number) => void;
 //   onStartBatchDownload: () => void;
-  onOpenAddSongSearch?: () => void;
-  handleRemoveBatchUrlField: (index: number) => void;
-  handleBatchUrlChange: (index: number, value: string) => void;
-  usdbBatchResults: any[];
-  handleBatchDownloadFromUSDB: () => Promise<void>;
-  usdbSearchInterpret: string;
-  setUsdbSearchInterpret: (value: string) => void;
-  usdbSearchTitle: string;
-  setUsdbSearchTitle: (value: string) => void;
-  usdbSearchResults: any[];
-  handleAddSearchResultToDownload: (result: any) => void;
-  handleSearchUSDB: () => Promise<void>;
-  usdbSearchLoading: boolean;
+//   onOpenAddSongSearch?: () => void;
+//   handleRemoveBatchUrlField: (index: number) => void;
+//   handleBatchUrlChange: (index: number, value: string) => void;
+//   usdbBatchResults: any[];
+//   handleBatchDownloadFromUSDB: () => Promise<void>;
+//   usdbSearchInterpret: string;
+//   setUsdbSearchInterpret: (value: string) => void;
+//   usdbSearchTitle: string;
+//   setUsdbSearchTitle: (value: string) => void;
+//   usdbSearchResults: any[];
+//   handleAddSearchResultToDownload: (result: any) => void;
+//   handleSearchUSDB: () => Promise<void>;
+//   usdbSearchLoading: boolean;
+  fetchSongs: () => void;
   handleCloseUsdbDialog: () => void;
 }
 
@@ -184,28 +188,251 @@ const Footer = styled.div`
 
 const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
   show,
-  usdbBatchUrls,
-  usdbBatchDownloading,
-  usdbBatchCurrentDownloading,
-  usdbBatchProgress,
-  handleRemoveBatchUrlField,
-  handleBatchUrlChange,
-  usdbBatchResults,
-  handleBatchDownloadFromUSDB,
-  usdbSearchInterpret,
-  setUsdbSearchInterpret,
-  usdbSearchTitle,
-  setUsdbSearchTitle,
-  usdbSearchResults,
-  handleAddSearchResultToDownload,
-  handleSearchUSDB,
-  usdbSearchLoading,
+//   usdbBatchUrls,
+//   usdbBatchDownloading,
+//   usdbBatchCurrentDownloading,
+//   usdbBatchProgress,
+//   handleRemoveBatchUrlField,
+//   handleBatchUrlChange,
+//   usdbBatchResults,
+//   handleBatchDownloadFromUSDB,
+//   usdbSearchInterpret,
+//   setUsdbSearchInterpret,
+//   usdbSearchTitle,
+//   setUsdbSearchTitle,
+//   usdbSearchResults,
+//   handleAddSearchResultToDownload,
+//   handleSearchUSDB,
+//   usdbSearchLoading,
+  fetchSongs,
   handleCloseUsdbDialog
 }) => {
-    if (!show) return null;
+    const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
+    const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
+    const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'completed' | 'error', message?: string}>>([]);
+    const [usdbBatchCurrentDownloading, setUsdbBatchCurrentDownloading] = useState<number | null>(null);
+
+    const [usdbSearchInterpret, setUsdbSearchInterpret] = useState('');
+    const [usdbSearchTitle, setUsdbSearchTitle] = useState('');
+    const [usdbSearchResults, setUsdbSearchResults] = useState<Array<{id: number, artist: string, title: string, url: string}>>([]);
+    const [usdbSearchLoading, setUsdbSearchLoading] = useState(false);
+    const [usdbUrl, setUsdbUrl] = useState('');
+    const [usdbDownloading, setUsdbDownloading] = useState(false);
+
+    const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
+
+    const [oldDownloadUrls, setOldDownloadUrls] = useState([]);
+
+    const handleRemoveBatchUrlField = (index: number) => {
+      if (usdbBatchUrls.length > 1) {
+        const removedUrl = usdbBatchUrls[index];
+        const newUrls = usdbBatchUrls.filter((_, i) => i !== index);
+        setUsdbBatchUrls(newUrls);
+        
+        // Update results array accordingly
+        const newResults = usdbBatchResults.filter((_, i) => i !== index);
+        setUsdbBatchResults(newResults);
+  
+        // If the removed URL was from search results, show a message
+        if (removedUrl && removedUrl.includes('usdb.animux.de')) {
+          toast('Song aus Download-Liste entfernt');
+        }
+      }
+    };
+  
+    const handleBatchUrlChange = (index: number, value: string) => {
+      const newUrls = [...usdbBatchUrls];
+      newUrls[index] = value;
+      setUsdbBatchUrls(newUrls);
+      
+      // Auto-add new field if current field has content and it's the last field
+      if (value.trim() && index === usdbBatchUrls.length - 1) {
+        setUsdbBatchUrls([...newUrls, '']);
+      }
+    };
+  
+    useEffect(() => {
+      if (oldDownloadUrls.length > 0) {
+        const urls = usdbBatchUrls.filter((url: string) => !oldDownloadUrls.includes(url));
+        setUsdbBatchUrls(urls);
+        setOldDownloadUrls([]);
+        setUsdbBatchCurrentDownloading(null);
+        handleBatchDownloadFromUSDB(null, urls);
+      }
+    }, [oldDownloadUrls]);
   
     // const percent = usdbBatchProgress.total > 0 ? (usdbBatchProgress.current / usdbBatchProgress.total) * 100 : 0;
     // const disableStart = usdbBatchDownloading || usdbBatchUrls.some((u) => !u.trim());
+
+    const handleBatchDownloadFromUSDB = async (event?: React.MouseEvent, urls?: string[]) => {
+        // Filter out empty URLs
+        console.log("urls", urls, usdbBatchUrls);
+        const validUrls = (urls || usdbBatchUrls).filter(url => url.trim());
+        
+        if (validUrls.length === 0) {
+          // toast.error('Bitte mindestens eine USDB-URL eingeben');
+          return;
+        }
+    
+        setUsdbBatchDownloading(true);
+        setUsdbBatchProgress({ current: 0, total: validUrls.length });
+        
+        // Initialize results
+        const initialResults = validUrls.map(url => ({
+          url,
+          status: 'pending' as const,
+          message: ''
+        }));
+        setUsdbBatchResults(initialResults);
+    
+        try {
+          for (let i = 0; i < validUrls.length; i++) {
+            const url = validUrls[i];
+            
+            // Find the index in the original array
+            const originalIndex = usdbBatchUrls.findIndex(u => u === url);
+            setUsdbBatchCurrentDownloading(originalIndex);
+            
+            // Update current status to downloading
+            setUsdbBatchResults(prev => prev.map((result, index) => 
+              index === i ? { ...result, status: 'downloading' } : result
+            ));
+            
+            try {
+              const response = await adminAPI.downloadFromUSDB(url);
+              
+              // Mark as completed
+              setUsdbBatchResults(prev => prev.map((result, index) => 
+                index === i ? { 
+                  ...result, 
+                  status: 'completed', 
+                  message: response.data.message || 'Download erfolgreich'
+                } : result
+              ));
+              
+              // Update progress
+              setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
+              
+            } catch (error: any) {
+              // Mark as error
+              const errorMessage = error.response?.data?.message || 'Fehler beim Download';
+              setUsdbBatchResults(prev => prev.map((result, index) => 
+                index === i ? { 
+                  ...result, 
+                  status: 'error', 
+                  message: errorMessage
+                } : result
+              ));
+              
+              // Update progress even on error
+              setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
+            }
+          }
+          
+          // All downloads completed
+          toast.success(`Batch-Download abgeschlossen: ${validUrls.length} Songs verarbeitet`);
+          
+          // Rescan song list
+          try {
+            await adminAPI.rescanFileSongs();
+            await fetchSongs();
+          } catch (rescanError) {
+            console.error('Error rescanning after batch download:', rescanError);
+          }
+          
+          // Close modal after successful completion
+          // setShowUsdbDialog(false);
+          // setUsdbBatchUrls(['']);
+          setOldDownloadUrls(validUrls);
+          setUsdbBatchProgress({ current: 0, total: 0 });
+          setUsdbBatchResults([]);
+          // setUsdbDownloadFinished(true);
+        } catch (error) {
+          console.error('Error in batch download:', error);
+          toast.error('Fehler beim Batch-Download');
+        } finally {
+          setUsdbBatchDownloading(false);
+          setUsdbBatchCurrentDownloading(null);
+        }
+      };
+
+      const handleSearchUSDB = async () => {
+        if (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim()) {
+          toast.error('Bitte Interpret oder Titel eingeben');
+          return;
+        }
+    
+        setUsdbSearchLoading(true);
+        try {
+          const response = await adminAPI.searchUSDB(
+            usdbSearchInterpret.trim() || undefined,
+            usdbSearchTitle.trim() || undefined,
+            100 // Limit to 100 results
+          );
+    
+          const songs = response.data.songs || [];
+          setUsdbSearchResults(songs);
+          
+          if (songs.length === 0) {
+            toast('Keine Songs gefunden');
+          } else {
+            toast.success(`${songs.length} Songs gefunden`);
+          }
+        } catch (error: any) {
+          console.error('Error searching USDB:', error);
+          const message = error.response?.data?.message || 'Fehler bei der USDB-Suche';
+          toast.error(message);
+        } finally {
+          setUsdbSearchLoading(false);
+        }
+      };
+
+      const handleRemoveSearchResult = (songId: number) => {
+        setUsdbSearchResults(prev => prev.filter(s => s.id !== songId));
+      };
+
+      // Filter search results to remove songs already in download list
+      React.useEffect(() => {
+        if (usdbSearchResults.length > 0) {
+          const filteredResults = usdbSearchResults.filter(song => 
+            !usdbBatchUrls.some(url => url.trim() === song.url)
+          );
+          if (filteredResults.length !== usdbSearchResults.length) {
+            setUsdbSearchResults(filteredResults);
+          }
+        }
+      }, [usdbBatchUrls]);
+    
+      const handleAddSearchResultToDownload = (song: {id: number, artist: string, title: string, url: string}) => {
+        // Check if URL already exists in batch list
+        const urlExists = usdbBatchUrls.some(url => url.trim() === song.url);
+        
+        if (urlExists) {
+          toast('Dieser Song ist bereits in der Download-Liste');
+          return;
+        }
+    
+        // Add to batch URLs
+        const newUrls = [...usdbBatchUrls];
+        if (newUrls[newUrls.length - 1] === '') {
+          // Replace empty last field
+          newUrls[newUrls.length - 1] = song.url;
+        } else {
+          // Add new field
+          newUrls.push(song.url);
+        }
+        
+        // Always add an empty field at the end for new entries
+        newUrls.push('');
+        setUsdbBatchUrls(newUrls);
+    
+        // Remove from search results
+        setUsdbSearchResults(prev => prev.filter(s => s.id !== song.id));
+        
+        toast.success(`${song.artist} - ${song.title} zur Download-Liste hinzugefügt`);
+      };
+
+    if (!show) return null;
 
     return (<div style={{
         position: 'fixed',
@@ -612,7 +839,30 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
             borderTop: '1px solid #e1e5e9'
           }}>
             <button
-              onClick={handleCloseUsdbDialog}
+              onClick={async () => {
+                handleCloseUsdbDialog();
+                setUsdbUrl('');
+                // Reset batch states
+                setUsdbBatchUrls(['']);
+                setUsdbBatchDownloading(false);
+                setUsdbBatchProgress({ current: 0, total: 0 });
+                setUsdbBatchResults([]);
+                setUsdbBatchCurrentDownloading(null);
+                
+                try {
+                    // First rescan file system songs (includes USDB downloads)
+                    await adminAPI.rescanFileSongs();
+                    
+                    // Then fetch all songs to update the UI
+                    await fetchSongs();
+                    
+                    toast.success('Songliste wurde aktualisiert');
+                } catch (error) {
+                    console.error('Error refreshing song list:', error);
+                    // Don't show error toast as this is a background operation
+                }
+
+              }}
               disabled={usdbBatchDownloading}
               style={{
                 padding: '12px 24px',

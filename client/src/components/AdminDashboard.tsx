@@ -21,6 +21,9 @@ import SongsTab from './admin/tabs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
 import USDBDownloadModal from './admin/modals/usdb/UsdbDownloadModal';
+import getFirstLetter from '../utils/getFirstLetter';
+import SongForm from './admin/SongForm';
+import loadAllSongs from '../utils/loadAllSongs';
 
 
 const Container = styled.div`
@@ -82,43 +85,43 @@ const Header = styled.div`
   backdrop-filter: blur(10px);
 `;
 
-const QRCodeToggleButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? '#8e44ad' : '#95a5a6'};
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background-color 0.2s;
+// const QRCodeToggleButton = styled.button<{ $active: boolean }>`
+//   background: ${props => props.$active ? '#8e44ad' : '#95a5a6'};
+//   color: white;
+//   border: none;
+//   padding: 15px 25px;
+//   border-radius: 8px;
+//   cursor: pointer;
+//   font-weight: 600;
+//   font-size: 1.1rem;
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   transition: background-color 0.2s;
 
-  &:hover {
-    background: ${props => props.$active ? '#7d3c98' : '#7f8c8d'};
-  }
-`;
+//   &:hover {
+//     background: ${props => props.$active ? '#7d3c98' : '#7f8c8d'};
+//   }
+// `;
 
-const ShowPastSongsToggleButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? '#3498db' : '#95a5a6'};
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background-color 0.2s;
+// const ShowPastSongsToggleButton = styled.button<{ $active: boolean }>`
+//   background: ${props => props.$active ? '#3498db' : '#95a5a6'};
+//   color: white;
+//   border: none;
+//   padding: 15px 25px;
+//   border-radius: 8px;
+//   cursor: pointer;
+//   font-weight: 600;
+//   font-size: 1.1rem;
+//   display: flex;
+//   align-items: center;
+//   gap: 8px;
+//   transition: background-color 0.2s;
 
-  &:hover {
-    background: ${props => props.$active ? '#2980b9' : '#7f8c8d'};
-  }
-`;
+//   &:hover {
+//     background: ${props => props.$active ? '#2980b9' : '#7f8c8d'};
+//   }
+// `;
 
 
 const Title = styled.h1`
@@ -141,422 +144,18 @@ const LogoutButton = styled.button`
   }
 `;
 
-
-
-
-
-
-
-
-
-
-
-
-
 const LoadingMessage = styled.div`
   text-align: center;
   padding: 40px;
   color: #666;
 `;
 
-// Reusable Song Form Component
-interface SongFormProps {
-  singerName: string;
-  artist: string;
-  title: string;
-  youtubeUrl: string;
-  withBackgroundVocals: boolean;
-  onSingerNameChange: (value: string) => void;
-  onArtistChange: (value: string) => void;
-  onTitleChange: (value: string) => void;
-  onYoutubeUrlChange: (value: string) => void;
-  onWithBackgroundVocalsChange: (checked: boolean) => void;
-  showSongList?: boolean;
-  songList?: any[];
-  onSongSelect?: (song: any) => void;
-  usdbResults?: any[];
-  usdbLoading?: boolean;
-  getFirstLetter?: (artist: string) => string;
-}
-
-const SongForm: React.FC<SongFormProps> = ({
-  singerName,
-  artist,
-  title,
-  youtubeUrl,
-  withBackgroundVocals,
-  onSingerNameChange,
-  onArtistChange,
-  onTitleChange,
-  onYoutubeUrlChange,
-  onWithBackgroundVocalsChange,
-  showSongList = false,
-  songList = [],
-  onSongSelect,
-  usdbResults = [],
-  usdbLoading = false,
-  getFirstLetter
-}) => {
-  return (
-    <>
-      {/* Singer Name */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '500',
-          color: '#333'
-        }}>
-          Sänger-Name:
-        </label>
-        <input
-          type="text"
-          placeholder="Name des Teilnehmers"
-          value={singerName}
-          onChange={(e) => onSingerNameChange(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px'
-          }}
-        />
-      </div>
-
-      {/* Artist and Title */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '15px', 
-        marginBottom: '20px',
-        alignItems: 'center'
-      }}>
-        <div style={{ flex: 1 }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-          }}>
-            Interpret:
-          </label>
-          <input
-            type="text"
-            placeholder="Interpret"
-            value={artist}
-            onChange={(e) => onArtistChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px'
-            }}
-          />
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-          }}>
-            Songtitel:
-          </label>
-          <input
-            type="text"
-            placeholder="Songtitel"
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px'
-            }}
-          />
-        </div>
-      </div>
-
-      {/* YouTube Link */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        marginBottom: '20px',
-        gap: '15px'
-      }}>
-        <div style={{ 
-          flex: 1, 
-          height: '1px', 
-          backgroundColor: '#ddd' 
-        }}></div>
-        <span style={{ 
-          color: '#666', 
-          fontSize: '14px', 
-          fontWeight: '500' 
-        }}>
-          oder
-        </span>
-        <div style={{ 
-          flex: 1, 
-          height: '1px', 
-          backgroundColor: '#ddd' 
-        }}></div>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '500',
-          color: '#333'
-        }}>
-          YouTube-Link:
-        </label>
-        <input
-          type="text"
-          placeholder="https://www.youtube.com/watch?v=..."
-          value={youtubeUrl}
-          onChange={(e) => onYoutubeUrlChange(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px'
-          }}
-        />
-      </div>
-
-      {/* Background Vocals Checkbox */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={withBackgroundVocals}
-            onChange={(e) => onWithBackgroundVocalsChange(e.target.checked)}
-            style={{ transform: 'scale(1.2)' }}
-          />
-          <span style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
-            Mit Hintergrundstimmen
-          </span>
-        </label>
-      </div>
-
-      {/* Song List */}
-      {showSongList && (
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#333'
-          }}>
-            Songliste:
-          </label>
-          
-          <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
-            <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
-            <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
-          </div>
-          
-          <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
-            {/* USDB Results Section */}
-            {usdbResults.length > 0 && (
-              <div>
-                <div style={{
-                  position: 'sticky',
-                  top: 0,
-                  background: '#28a745',
-                  color: 'white',
-                  padding: '8px 15px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  zIndex: 10,
-                  borderBottom: '2px solid #218838'
-                }}>
-                  USDB ({usdbResults.length})
-                </div>
-                {usdbResults.map((song, index) => (
-                  <div
-                    key={`usdb-${song.id}`}
-                    onClick={() => onSongSelect?.(song)}
-                    style={{
-                      padding: '10px',
-                      border: '1px solid #eee',
-                      borderRadius: '8px',
-                      marginBottom: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!(artist === song.artist && title === song.title)) {
-                        e.currentTarget.style.background = '#f8f9fa';
-                        e.currentTarget.style.borderColor = '#667eea';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!(artist === song.artist && title === song.title)) {
-                        e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.borderColor = '#eee';
-                      }
-                    }}
-                  >
-                    <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                      {song.artist}
-                    </div>
-                    <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                      {song.title}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Loading indicator for USDB search */}
-            {usdbLoading && (
-              <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                🔍 USDB-Suche läuft...
-              </div>
-            )}
-
-            {/* Local Songs Section */}
-            {songList.length > 0 && getFirstLetter && (() => {
-              // Filter songs based on current artist and title values
-              const artistTerm = (artist || '').toLowerCase().trim();
-              const titleTerm = (title || '').toLowerCase().trim();
-              
-              const filteredSongs = songList.filter(song => {
-                // If no search terms at all, show all songs
-                if (!artistTerm && !titleTerm) return true;
-                
-                // Search in artist, title, or combined
-                const songArtist = song.artist.toLowerCase();
-                const songTitle = song.title.toLowerCase();
-                const songCombined = `${songArtist} - ${songTitle}`;
-                
-                // Check if song matches any of the search criteria
-                let matches = false;
-                
-                // If artist term exists, check if song artist contains it
-                if (artistTerm) {
-                  matches = matches || songArtist.includes(artistTerm) || songCombined.includes(artistTerm);
-                }
-                
-                // If title term exists, check if song title contains it
-                if (titleTerm) {
-                  matches = matches || songTitle.includes(titleTerm) || songCombined.includes(titleTerm);
-                }
-                
-                // Cross-search: artist term in title, title term in artist
-                if (artistTerm && titleTerm) {
-                  matches = matches || songArtist.includes(titleTerm) || songTitle.includes(artistTerm);
-                }
-                
-                return matches;
-              });
-              
-              // Group filtered songs by first letter of artist
-              const groupedSongs = filteredSongs.reduce((groups, song) => {
-                const letter = getFirstLetter(song.artist);
-                if (!groups[letter]) {
-                  groups[letter] = [];
-                }
-                groups[letter].push(song);
-                return groups;
-              }, {} as Record<string, typeof filteredSongs>);
-              
-              const sortedGroups = Object.keys(groupedSongs).sort();
-              
-              return (
-                <>
-                  {sortedGroups.length > 0 ? sortedGroups.map((letter) => (
-                    <div key={letter}>
-                      <div style={{
-                        position: 'sticky',
-                        top: 0,
-                        background: '#adb5bd',
-                        color: 'white',
-                        padding: '8px 15px',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        zIndex: 10,
-                        borderBottom: '2px solid #9ca3af'
-                      }}>
-                        {letter}
-                      </div>
-                      {groupedSongs[letter].map((song, index) => (
-                        <div
-                          key={`${letter}-${index}`}
-                          onClick={() => onSongSelect?.(song)}
-                          style={{
-                            padding: '10px',
-                            border: '1px solid #eee',
-                            borderRadius: '8px',
-                            marginBottom: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!(artist === song.artist && title === song.title)) {
-                              e.currentTarget.style.background = '#f8f9fa';
-                              e.currentTarget.style.borderColor = '#667eea';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!(artist === song.artist && title === song.title)) {
-                              e.currentTarget.style.background = 'white';
-                              e.currentTarget.style.borderColor = '#eee';
-                            }
-                          }}
-                        >
-                          <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                            {song.artist}
-                          </div>
-                          <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                            {song.title}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )) : (
-                    <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                      Keine lokalen Songs gefunden
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'edit' | 'youtube'>('edit');
-  const [formData, setFormData] = useState({
-    title: '',
-    artist: '',
-    youtubeUrl: ''
-  });
   const [actionLoading, setActionLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
   
   // Song Approval System State
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -572,55 +171,36 @@ const AdminDashboard: React.FC = () => {
     deviceId: '',
     withBackgroundVocals: false
   });
-  const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
-  const [showPastSongs, setShowPastSongs] = useState(false);
   const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
-  const [isPlaying, setIsPlaying] = useState(false);
   const [manualSongData, setManualSongData] = useState({
     singerName: '',
     songInput: ''
   });
-  const [showManualSongList, setShowManualSongList] = useState(false);
-  const [manualSongList, setManualSongList] = useState<any[]>([]);
   const [manualSongSearchTerm, setManualSongSearchTerm] = useState('');
-  
-  // New Add Song Modal State
-  const [showAddSongModal, setShowAddSongModal] = useState(false);
-  const [addSongData, setAddSongData] = useState({
-    singerName: '',
-    artist: '',
-    title: '',
-    youtubeUrl: ''
-  });
-  const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
-  
-  // USDB Search State for Add Song Modal
-  const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
-  const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
-  const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  
-  
-  // Rename modal state
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [renameSong, setRenameSong] = useState<any>(null);
-  const [renameData, setRenameData] = useState({
-    newArtist: '',
-    newTitle: ''
-  });
-  
-  // Delete modal state
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteSong, setDeleteSong] = useState<any>(null);
   
   // YouTube Download Dialog
   const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
   const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [downloadingVideo, setDownloadingVideo] = useState(false);
-  
-  
+  const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
+  const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
+  const [manualSongList, setManualSongList] = useState<any[]>([]);
+  const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
+  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  
+  const handleDeviceIdClick = (deviceId: string) => {
+    setActiveTab('banlist');
+    // Focus the input field after a short delay to ensure the tab is rendered
+    setTimeout(() => {
+      const input = document.querySelector('input[placeholder="ABC (3 Zeichen)"]') as HTMLInputElement;
+      if (input) {
+        input.value = deviceId;
+        input.focus();
+      }
+    }, 100);
+  };
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -652,83 +232,6 @@ const AdminDashboard: React.FC = () => {
       setLoading(false);
     }
   }, [navigate]);
-
-  // Check if a song exists in YouTube cache
-  const isSongInYouTubeCache = useCallback((song: Song) => {
-    if (!dashboardData?.youtubeSongs || !song.artist || !song.title) {
-      return false;
-    }
-    
-    // First try exact match
-    let found = dashboardData.youtubeSongs.some(youtubeSong => 
-      youtubeSong.artist.toLowerCase() === song.artist?.toLowerCase() &&
-      youtubeSong.title.toLowerCase() === song.title.toLowerCase()
-    );
-    
-    // If not found, try with boil down normalization
-    if (!found) {
-      const boiledArtist = boilDown(song.artist);
-      const boiledTitle = boilDown(song.title);
-      
-      found = dashboardData.youtubeSongs.some(youtubeSong => {
-        const boiledYoutubeArtist = boilDown(youtubeSong.artist);
-        const boiledYoutubeTitle = boilDown(youtubeSong.title);
-        
-        // Try individual artist/title matches
-        if (boilDownMatch(youtubeSong.artist, song.artist) || 
-            boilDownMatch(youtubeSong.title, song.title)) {
-          return true;
-        }
-        
-        // Try combined match
-        const boiledCombined = boilDown(`${song.artist} - ${song.title}`);
-        const boiledYoutubeCombined = boilDown(`${youtubeSong.artist} - ${youtubeSong.title}`);
-        return boiledCombined === boiledYoutubeCombined;
-      });
-    }
-    
-    // If still not found, try with sanitized names (fallback)
-    if (!found) {
-      const sanitizeFilename = (filename: string) => {
-        if (!filename) return '';
-        return filename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-                     .replace(/^[.\s]+|[.\s]+$/g, '')
-                     .replace(/_+/g, '_')
-                     .replace(/^_+|_+$/g, '') || 'unnamed';
-      };
-      
-      const sanitizedArtist = sanitizeFilename(song.artist);
-      const sanitizedTitle = sanitizeFilename(song.title);
-      
-      found = dashboardData.youtubeSongs.some(youtubeSong => 
-        youtubeSong.folderName === `${sanitizedArtist} - ${sanitizedTitle}`
-      );
-    }
-    
-    // If still not found and we have a YouTube URL, try to find by video ID
-    if (!found && song.youtube_url) {
-      const videoId = extractVideoIdFromUrl(song.youtube_url);
-      if (videoId) {
-        // First try to find in the scanned songs
-        found = dashboardData.youtubeSongs.some(youtubeSong => {
-          // Check if any video file in the folder has this video ID as filename
-          if (youtubeSong.videoFiles && Array.isArray(youtubeSong.videoFiles)) {
-            return youtubeSong.videoFiles.some((videoFile: string) => 
-              videoFile.startsWith(videoId)
-            );
-          }
-          // Fallback: check the main videoFile
-          return youtubeSong.videoFile && youtubeSong.videoFile.startsWith(videoId);
-        });
-        
-        // If still not found, the backend will handle recursive search
-        // This is just for frontend display - the actual cache hit detection
-        // happens on the backend when the song is processed
-      }
-    }
-    
-    return found;
-  }, [dashboardData?.youtubeSongs]);
 
   const handleAdminWebSocketUpdate = useCallback((data: AdminUpdateData) => {
     // Update dashboard data with WebSocket data
@@ -905,12 +408,6 @@ const AdminDashboard: React.FC = () => {
       websocketService.disconnect();
     };
   }, [fetchDashboardData, handleAdminWebSocketUpdate]);
-
-
-
-
-
-
 
 
   // Song Approval System Handlers
@@ -1091,640 +588,112 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-
-
-  const handleToggleQRCodeOverlay = async (show: boolean) => {
-    try {
-      await adminAPI.setQRCodeOverlay(show);
-      setShowQRCodeOverlay(show);
-      toast.success(show ? 'QR-Code Overlay aktiviert!' : 'QR-Code Overlay deaktiviert!');
-    } catch (error) {
-      console.error('Error toggling QR code overlay:', error);
-      toast.error('Fehler beim Umschalten des QR-Code Overlays');
-    }
-  };
-
-  const [draggedItem, setDraggedItem] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<number | null>(null);
-  const [youtubeLinks, setYoutubeLinks] = useState<{[key: number]: string}>({});
-  
-  
-  const [showUsdbDialog, setShowUsdbDialog] = useState(false);
-  const [usdbUrl, setUsdbUrl] = useState('');
-  const [usdbDownloading, setUsdbDownloading] = useState(false);
-  
-  // Batch USDB Management
-  const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
-  const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
-  const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
-  const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'completed' | 'error', message?: string}>>([]);
-  const [usdbBatchCurrentDownloading, setUsdbBatchCurrentDownloading] = useState<number | null>(null);
-
-  // USDB Search Management
-  const [usdbSearchInterpret, setUsdbSearchInterpret] = useState('');
-  const [usdbSearchTitle, setUsdbSearchTitle] = useState('');
-  const [usdbSearchResults, setUsdbSearchResults] = useState<Array<{id: number, artist: string, title: string, url: string}>>([]);
-  const [usdbSearchLoading, setUsdbSearchLoading] = useState(false);
-
-  const handleDragStart = (e: React.DragEvent, songId: number) => {
-    setDraggedItem(songId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', songId.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, songId: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (songId !== draggedItem) {
-      setDropTarget(songId);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    // Only clear drop target if we're leaving the entire song item
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDropTarget(null);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetSongId: number) => {
-    e.preventDefault();
-    
-    if (!draggedItem || !dashboardData || draggedItem === targetSongId) {
-      setDraggedItem(null);
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      
-      const draggedIndex = dashboardData.playlist.findIndex(song => song.id === draggedItem);
-      const targetIndex = dashboardData.playlist.findIndex(song => song.id === targetSongId);
-      
-      if (draggedIndex === -1 || targetIndex === -1) {
-        setDraggedItem(null);
-        return;
-      }
-
-      // Update local state immediately for better UX
-      const newPlaylist = Array.from(dashboardData.playlist);
-      const [reorderedItem] = newPlaylist.splice(draggedIndex, 1);
-      newPlaylist.splice(targetIndex, 0, reorderedItem);
-      
-      setDashboardData(prev => prev ? {
-        ...prev,
-        playlist: newPlaylist
-      } : null);
-
-      // Update positions in backend
-      await playlistAPI.reorderPlaylist(
-        reorderedItem.id,
-        targetIndex + 1
-      );
-      
-      toast.success('Playlist-Reihenfolge aktualisiert!');
-    } catch (error) {
-      console.error('Error reordering playlist:', error);
-      toast.error('Fehler beim Neuordnen der Playlist');
-      // Revert local state on error
-      fetchDashboardData();
-    } finally {
-      setActionLoading(false);
-      setDraggedItem(null);
-      setDropTarget(null);
-    }
-  };
-
-  const handleCopyToClipboard = async (song: Song) => {
-    const textToCopy = `${song.artist} - ${song.title} Karaoke`;
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      toast.success(`"${textToCopy}" in die Zwischenablage kopiert!`);
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      toast.error('Fehler beim Kopieren in die Zwischenablage');
-    }
-  };
-
-
-  const handleYouTubeFieldChange = (songId: number, value: string) => {
-    // Clean the YouTube URL in real-time
-    const cleanedUrl = cleanYouTubeUrl(value);
-    
-    setYoutubeLinks(prev => ({
-      ...prev,
-      [songId]: cleanedUrl
-    }));
-  };
-
-  const handleYouTubeFieldBlur = async (songId: number, value: string) => {
-    try {
-      // Clean the YouTube URL
-      const cleanedUrl = cleanYouTubeUrl(value);
-      
-      // Find the current song to check if the URL has actually changed
-      const currentSong = dashboardData?.playlist.find(song => song.id === songId);
-      const currentUrl = currentSong?.youtube_url || '';
-      
-      // Only update if the URL has actually changed
-      if (cleanedUrl !== currentUrl) {
-        await adminAPI.updateYouTubeUrl(songId, cleanedUrl);
-        toast.success('YouTube-Link aktualisiert!');
-        
-        // If it's a YouTube URL, show additional info
-        if (cleanedUrl && (cleanedUrl.includes('youtube.com') || cleanedUrl.includes('youtu.be'))) {
-          toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
-            icon: '⏳',
-            duration: 3000,
-          });
-        }
-        
-        // Refresh data to get updated link
-        fetchDashboardData();
-      }
-    } catch (error) {
-      console.error('Error updating YouTube URL:', error);
-      toast.error('Fehler beim Aktualisieren des YouTube-Links');
-    }
-  };
-
-  const getDownloadStatusText = (status: string | undefined) => {
-    switch (status) {
-      case 'downloading': return '🔄 USDB Download läuft...';
-      case 'downloaded': return '✅ Heruntergeladen';
-      case 'cached': return '💾 Im Cache';
-      case 'failed': return '❌ USDB Download fehlgeschlagen';
-      case 'ready': return '';
-      default: return '';
-    }
-  };
-
+  const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin/login');
   };
 
-  const handlePlaySong = async (songId: number) => {
-    setActionLoading(true);
-    try {
-      await playlistAPI.setCurrentSong(songId);
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error setting current song:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  // const handleManualSongSubmit = async () => {
+  //   if (!manualSongData.singerName.trim() || !manualSongData.songInput.trim()) {
+  //     toast.error('Bitte fülle alle Felder aus');
+  //     return;
+  //   }
 
-  const handleNextSong = async () => {
-    setActionLoading(true);
-    try {
-      await playlistAPI.nextSong();
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error moving to next song:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  //   setActionLoading(true);
+  //   try {
+  //     // Use the same API function as the /new route
+  //     const response = await songAPI.requestSong({
+  //       name: manualSongData.singerName.trim(),
+  //       songInput: manualSongData.songInput.trim(),
+  //       deviceId: 'ADMIN' // Admin device ID
+  //     });
 
-  const handlePreviousSong = async () => {
-    setActionLoading(true);
-    try {
-      await playlistAPI.previousSong();
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error moving to previous song:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  //     toast.success('Song erfolgreich hinzugefügt!');
+  //     setManualSongData({ singerName: '', songInput: '' });
+  //     await fetchDashboardData();
+  //   } catch (error) {
+  //     console.error('Error adding manual song:', error);
+  //     toast.error('Fehler beim Hinzufügen des Songs');
+  //   } finally {
+  //     setActionLoading(false);
+  //   }
+  // };
 
-  const handleTogglePlayPause = async () => {
-    setActionLoading(true);
-    try {
-      const response = await playlistAPI.togglePlayPause();
-      console.log('⏯️ Play/pause toggle response:', response.data);
+  // const handleOpenManualSongList = async () => {
+  //   try {
+  //     const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
+  //       songAPI.getServerVideos(),
+  //       songAPI.getUltrastarSongs(),
+  //       songAPI.getFileSongs()
+  //     ]);
       
-      // Check if current song is Ultrastar
-      if (response.data.currentSong && response.data.currentSong.mode === 'ultrastar') {
-        console.log('🎤 Ultrastar song detected - ShowView will handle audio control');
-      }
+  //     const serverVideos = localResponse.data.videos || [];
+  //     const ultrastarSongs = ultrastarResponse.data.songs || [];
+  //     const fileSongs = fileResponse.data.fileSongs || [];
       
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRestartSong = async () => {
-    setActionLoading(true);
-    try {
-      await playlistAPI.restartSong();
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error restarting song:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeleteSong = async (songId: number) => {
-    if (!window.confirm('Song wirklich löschen?')) return;
-    
-    setActionLoading(true);
-    try {
-      await playlistAPI.deleteSong(songId);
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error deleting song:', error);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRefreshClassification = async (songId: number) => {
-    setActionLoading(true);
-    try {
-      const response = await adminAPI.refreshSongClassification(songId);
+  //     // Combine and deduplicate songs
+  //     const allSongs = [...fileSongs];
       
-      if (response.data.updated) {
-        toast.success(`Song-Klassifizierung aktualisiert! Neuer Modus: ${response.data.newMode}`);
-        await fetchDashboardData(); // Refresh the dashboard data
-      } else {
-        toast('Keine lokalen Dateien gefunden. Song bleibt als YouTube.', {
-          icon: 'ℹ️',
-          style: {
-            background: '#3498db',
-            color: '#fff',
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error refreshing song classification:', error);
-      toast.error('Fehler beim Aktualisieren der Song-Klassifizierung');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const openModal = (song: Song, type: 'edit' | 'youtube') => {
-    setSelectedSong(song);
-    setModalType(type);
-    setFormData({
-      title: song.title,
-      artist: song.artist || '',
-      youtubeUrl: song.youtube_url || ''
-    });
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedSong(null);
-  };
-
-  const handleSaveSong = async () => {
-    if (!selectedSong) return;
-    
-    setActionLoading(true);
-    try {
-      if (modalType === 'youtube') {
-        await adminAPI.updateYouTubeUrl(selectedSong.id, formData.youtubeUrl);
-      } else {
-        await adminAPI.updateSong(selectedSong.id, {
-          title: formData.title,
-          artist: formData.artist,
-          youtubeUrl: formData.youtubeUrl
-        });
-      }
+  //     // Add server videos
+  //     serverVideos.forEach(serverVideo => {
+  //       const exists = allSongs.some(song => 
+  //         song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+  //         song.title.toLowerCase() === serverVideo.title.toLowerCase()
+  //       );
+  //       if (!exists) {
+  //         allSongs.push(serverVideo);
+  //       }
+  //     });
       
-      // Show success message
-      toast.success('Song erfolgreich aktualisiert!');
+  //     // Add ultrastar songs
+  //     ultrastarSongs.forEach(ultrastarSong => {
+  //       const exists = allSongs.some(song => 
+  //         song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+  //         song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+  //       );
+  //       if (!exists) {
+  //         allSongs.push(ultrastarSong);
+  //       }
+  //     });
       
-      // If it's a YouTube URL, show additional info
-      if (formData.youtubeUrl && (formData.youtubeUrl.includes('youtube.com') || formData.youtubeUrl.includes('youtu.be'))) {
-        toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
-          icon: '⏳',
-          duration: 3000,
-        });
-      }
+  //     // Sort alphabetically by artist, then by title
+  //     allSongs.sort((a, b) => {
+  //       const artistA = a.artist.toLowerCase();
+  //       const artistB = b.artist.toLowerCase();
+  //       if (artistA !== artistB) {
+  //         return artistA.localeCompare(artistB);
+  //       }
+  //       return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+  //     });
       
-      await fetchDashboardData();
-      closeModal();
-    } catch (error) {
-      console.error('Error updating song:', error);
-      toast.error('Fehler beim Aktualisieren des Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  //     setManualSongList(allSongs);
+  //     setShowManualSongList(true);
+  //   } catch (error) {
+  //     console.error('Error loading manual song list:', error);
+  //     toast.error('Fehler beim Laden der Songliste');
+  //   }
+  // };
 
+  // const handleCloseManualSongList = () => {
+  //   setShowManualSongList(false);
+  //   setManualSongSearchTerm('');
+  // };
 
-  const handleClearAllSongs = async () => {
-    if (!window.confirm('Wirklich ALLE Songs aus der Playlist löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
-      return;
-    }
-    
-    setActionLoading(true);
-    try {
-      await adminAPI.clearAllSongs();
-      await fetchDashboardData();
-      alert('Alle Songs wurden erfolgreich gelöscht!');
-    } catch (error) {
-      console.error('Error clearing all songs:', error);
-      alert('Fehler beim Löschen der Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  // const handleSelectManualSong = (song: any) => {
+  //   setManualSongData(prev => ({
+  //     ...prev,
+  //     songInput: `${song.artist} - ${song.title}`
+  //   }));
+  //   handleCloseManualSongList();
+  // };
 
-  const handleManualSongSubmit = async () => {
-    if (!manualSongData.singerName.trim() || !manualSongData.songInput.trim()) {
-      toast.error('Bitte fülle alle Felder aus');
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      // Use the same API function as the /new route
-      const response = await songAPI.requestSong({
-        name: manualSongData.singerName.trim(),
-        songInput: manualSongData.songInput.trim(),
-        deviceId: 'ADMIN' // Admin device ID
-      });
-
-      toast.success('Song erfolgreich hinzugefügt!');
-      setManualSongData({ singerName: '', songInput: '' });
-      await fetchDashboardData();
-    } catch (error) {
-      console.error('Error adding manual song:', error);
-      toast.error('Fehler beim Hinzufügen des Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleOpenManualSongList = async () => {
-    try {
-      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
-        songAPI.getServerVideos(),
-        songAPI.getUltrastarSongs(),
-        songAPI.getFileSongs()
-      ]);
-      
-      const serverVideos = localResponse.data.videos || [];
-      const ultrastarSongs = ultrastarResponse.data.songs || [];
-      const fileSongs = fileResponse.data.fileSongs || [];
-      
-      // Combine and deduplicate songs
-      const allSongs = [...fileSongs];
-      
-      // Add server videos
-      serverVideos.forEach(serverVideo => {
-        const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === serverVideo.title.toLowerCase()
-        );
-        if (!exists) {
-          allSongs.push(serverVideo);
-        }
-      });
-      
-      // Add ultrastar songs
-      ultrastarSongs.forEach(ultrastarSong => {
-        const exists = allSongs.some(song => 
-          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
-          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
-        );
-        if (!exists) {
-          allSongs.push(ultrastarSong);
-        }
-      });
-      
-      // Sort alphabetically by artist, then by title
-      allSongs.sort((a, b) => {
-        const artistA = a.artist.toLowerCase();
-        const artistB = b.artist.toLowerCase();
-        if (artistA !== artistB) {
-          return artistA.localeCompare(artistB);
-        }
-        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-      });
-      
-      setManualSongList(allSongs);
-      setShowManualSongList(true);
-    } catch (error) {
-      console.error('Error loading manual song list:', error);
-      toast.error('Fehler beim Laden der Songliste');
-    }
-  };
-
-  const handleCloseManualSongList = () => {
-    setShowManualSongList(false);
-    setManualSongSearchTerm('');
-  };
-
-  const handleSelectManualSong = (song: any) => {
-    setManualSongData(prev => ({
-      ...prev,
-      songInput: `${song.artist} - ${song.title}`
-    }));
-    handleCloseManualSongList();
-  };
-
-  const filteredManualSongs = manualSongList.filter(song =>
-    song.artist.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
-    song.title.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
-    `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
-  );
-
-  // Load all available songs (server videos, ultrastar, file songs)
-  const loadAllSongs = async () => {
-    try {
-      const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
-        songAPI.getServerVideos(),
-        songAPI.getUltrastarSongs(),
-        songAPI.getFileSongs()
-      ]);
-      
-      const serverVideos = localResponse.data.videos || [];
-      const ultrastarSongs = ultrastarResponse.data.songs || [];
-      const fileSongs = fileResponse.data.fileSongs || [];
-      
-      // Combine all songs
-      const allSongs = [
-        ...serverVideos.map((video: any) => ({
-          artist: video.artist,
-          title: video.title,
-          mode: 'server_video'
-        })),
-        ...ultrastarSongs.map((song: any) => ({
-          artist: song.artist,
-          title: song.title,
-          mode: 'ultrastar'
-        })),
-        ...fileSongs.map((song: any) => ({
-          artist: song.artist,
-          title: song.title,
-          mode: 'file'
-        }))
-      ];
-      
-      // Sort by artist, then by title
-      allSongs.sort((a, b) => {
-        const artistA = a.artist.toLowerCase();
-        const artistB = b.artist.toLowerCase();
-        if (artistA !== artistB) {
-          return artistA.localeCompare(artistB);
-        }
-        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-      });
-      
-      setManualSongList(allSongs);
-      return allSongs;
-    } catch (error) {
-      console.error('Error loading all songs:', error);
-      toast.error('Fehler beim Laden der Songliste');
-      return [];
-    }
-  };
-
-  // New Add Song Modal Handlers
-  const handleOpenAddSongModal = async () => {
-    await loadAllSongs();
-    setShowAddSongModal(true);
-  };
-
-  const handleCloseAddSongModal = () => {
-    setShowAddSongModal(false);
-    setAddSongData({
-      singerName: '',
-      artist: '',
-      title: '',
-      youtubeUrl: ''
-    });
-    setAddSongSearchTerm('');
-    setAddSongUsdbResults([]);
-    setAddSongUsdbLoading(false);
-    // Clear any pending timeout
-    if (addSongUsdbTimeout) {
-      clearTimeout(addSongUsdbTimeout);
-      setAddSongUsdbTimeout(null);
-    }
-  };
-
-  const handleSelectAddSong = (song: any) => {
-    setAddSongData(prev => ({
-      ...prev,
-      artist: song.artist,
-      title: song.title
-    }));
-  };
-
-  const handleAddSongSubmit = async () => {
-    if (!addSongData.singerName.trim()) {
-      toast.error('Bitte gib einen Sänger-Namen ein');
-      return;
-    }
-
-    if (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) {
-      toast.error('Bitte gib einen Interpret/Songtitel oder YouTube-Link ein');
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      let songInput = '';
-      if (addSongData.youtubeUrl.trim()) {
-        songInput = addSongData.youtubeUrl.trim();
-      } else {
-        songInput = `${addSongData.artist} - ${addSongData.title}`;
-      }
-
-      await songAPI.requestSong({
-        name: addSongData.singerName,
-        songInput: songInput,
-        deviceId: 'ADMIN' // Admin device ID
-      });
-      toast.success('Song erfolgreich zur Playlist hinzugefügt!');
-      handleCloseAddSongModal();
-      
-      // Refresh playlist
-      await fetchDashboardData();
-    } catch (error: any) {
-      console.error('Error adding song:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Hinzufügen des Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const filteredAddSongs = manualSongList.filter(song =>
-    song.artist.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
-    song.title.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
-    `${song.artist} - ${song.title}`.toLowerCase().includes(addSongSearchTerm.toLowerCase())
-  );
-
-
-
-  // USDB Search with delay
-  const performUSDBSearch = async (artist: string, title: string) => {
-    if (!artist.trim() && !title.trim()) {
-      setAddSongUsdbResults([]);
-      return;
-    }
-
-    setAddSongUsdbLoading(true);
-    try {
-      const response = await adminAPI.searchUSDB(
-        artist.trim() || undefined,
-        title.trim() || undefined,
-        20 // Limit to 20 results for modal
-      );
-
-      const songs = response.data.songs || [];
-      setAddSongUsdbResults(songs);
-    } catch (error) {
-      console.error('Error searching USDB:', error);
-      setAddSongUsdbResults([]);
-    } finally {
-      setAddSongUsdbLoading(false);
-    }
-  };
-
-  // Debounced USDB search
-  const triggerUSDBSearch = (artist: string, title: string) => {
-    // Clear existing timeout
-    if (addSongUsdbTimeout) {
-      clearTimeout(addSongUsdbTimeout);
-    }
-
-    // Show loading state immediately
-    if (artist.trim() || title.trim()) {
-      setAddSongUsdbLoading(true);
-      setAddSongUsdbResults([]);
-    }
-
-    // Set new timeout
-    const timeout = setTimeout(() => {
-      performUSDBSearch(artist, title);
-    }, 2000); // 2 seconds delay
-
-    setAddSongUsdbTimeout(timeout);
-  };
-
-  // Cleanup timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (addSongUsdbTimeout) {
-        clearTimeout(addSongUsdbTimeout);
-      }
-    };
-  }, [addSongUsdbTimeout]);
+  // const filteredManualSongs = manualSongList.filter(song =>
+  //   song.artist.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
+  //   song.title.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
+  //   `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
+  // );
 
   // Periodic check for failed USDB downloads
   React.useEffect(() => {
@@ -1779,245 +748,139 @@ const AdminDashboard: React.FC = () => {
     };
   }, [dashboardData]);
 
-
-
-  const handleDeviceIdClick = (deviceId: string) => {
-    setActiveTab('banlist');
-    // Focus the input field after a short delay to ensure the tab is rendered
-    setTimeout(() => {
-      const input = document.querySelector('input[placeholder="ABC (3 Zeichen)"]') as HTMLInputElement;
-      if (input) {
-        input.value = deviceId;
-        input.focus();
-      }
-    }, 100);
-  };
-
-  // Songs werden jetzt in der SongsTab verwaltet
-      
-
-
-
-
-  // Check if Ultrastar song has all required files for processing
-  const hasAllRequiredFiles = (song: any) => {
-    if (!song.modes?.includes('ultrastar')) return false;
+  // // Check if Ultrastar song has all required files for processing
+  // const hasAllRequiredFiles = (song: any) => {
+  //   if (!song.modes?.includes('ultrastar')) return false;
     
-    // Check if video files are present (mp4 or webm)
-    const hasVideo = song.hasVideo || false;
+  //   // Check if video files are present (mp4 or webm)
+  //   const hasVideo = song.hasVideo || false;
     
-    // Check if HP2/HP5 files are present
-    const hasHp2Hp5 = song.hasHp2Hp5 || false;
+  //   // Check if HP2/HP5 files are present
+  //   const hasHp2Hp5 = song.hasHp2Hp5 || false;
     
-    // Show processing button only if BOTH video AND HP2/HP5 files are present
-    return hasVideo && hasHp2Hp5;
-  };
+  //   // Show processing button only if BOTH video AND HP2/HP5 files are present
+  //   return hasVideo && hasHp2Hp5;
+  // };
 
-  // Check if Ultrastar song has missing files (for warning display)
-  const hasMissingFiles = (song: any) => {
-    if (!song.modes?.includes('ultrastar')) return false;
+  // // Check if Ultrastar song has missing files (for warning display)
+  // const hasMissingFiles = (song: any) => {
+  //   if (!song.modes?.includes('ultrastar')) return false;
     
-    // If the properties are undefined, we can't determine if files are missing
-    // So we assume they are complete (don't show button/warning)
-    if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
-      return false;
-    }
+  //   // If the properties are undefined, we can't determine if files are missing
+  //   // So we assume they are complete (don't show button/warning)
+  //   if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
+  //     return false;
+  //   }
     
-    // Check if video files are present (mp4 or webm)
-    const hasVideo = song.hasVideo === true;
+  //   // Check if video files are present (mp4 or webm)
+  //   const hasVideo = song.hasVideo === true;
     
-    // Check if HP2/HP5 files are present
-    const hasHp2Hp5 = song.hasHp2Hp5 === true;
+  //   // Check if HP2/HP5 files are present
+  //   const hasHp2Hp5 = song.hasHp2Hp5 === true;
     
-    // Show warning if video OR HP2/HP5 files are missing
-    return !hasVideo || !hasHp2Hp5;
-  };
+  //   // Show warning if video OR HP2/HP5 files are missing
+  //   return !hasVideo || !hasHp2Hp5;
+  // };
 
-  const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
-    setActionLoading(true);
-    try {
-      const songKey = `${song.artist}-${song.title}`;
+  // const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
+  //   setActionLoading(true);
+  //   try {
+  //     const songKey = `${song.artist}-${song.title}`;
       
-      if (audioPreference === 'choice') {
-        // Remove setting (default to choice)
-        await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
-        setUltrastarAudioSettings(prev => {
-          const newSettings = { ...prev };
-          delete newSettings[songKey];
-          return newSettings;
-        });
-        toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "Auswahl" gesetzt`);
-      } else {
-        // Set specific preference
-        await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
-        setUltrastarAudioSettings(prev => ({
-          ...prev,
-          [songKey]: audioPreference
-        }));
-        const preferenceText = audioPreference === 'hp2' ? 'Ohne Background Vocals' : 'Mit Background Vocals';
-        toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "${preferenceText}" gesetzt`);
-      }
-    } catch (error: any) {
-      console.error('Error updating ultrastar audio setting:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Aktualisieren der Audio-Einstellung');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  //     if (audioPreference === 'choice') {
+  //       // Remove setting (default to choice)
+  //       await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
+  //       setUltrastarAudioSettings(prev => {
+  //         const newSettings = { ...prev };
+  //         delete newSettings[songKey];
+  //         return newSettings;
+  //       });
+  //       toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "Auswahl" gesetzt`);
+  //     } else {
+  //       // Set specific preference
+  //       await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
+  //       setUltrastarAudioSettings(prev => ({
+  //         ...prev,
+  //         [songKey]: audioPreference
+  //       }));
+  //       const preferenceText = audioPreference === 'hp2' ? 'Ohne Background Vocals' : 'Mit Background Vocals';
+  //       toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "${preferenceText}" gesetzt`);
+  //     }
+  //   } catch (error: any) {
+  //     console.error('Error updating ultrastar audio setting:', error);
+  //     toast.error(error.response?.data?.message || 'Fehler beim Aktualisieren der Audio-Einstellung');
+  //   } finally {
+  //     setActionLoading(false);
+  //   }
+  // };
 
-  const handleRenameSong = (song: any) => {
-    setRenameSong(song);
-    setRenameData({
-      newArtist: song.artist,
-      newTitle: song.title
-    });
-    setShowRenameModal(true);
-  };
+  
 
-  const handleRenameConfirm = async () => {
-    if (!renameSong || !renameData.newArtist.trim() || !renameData.newTitle.trim()) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      const response = await adminAPI.renameSong(
-        renameSong.artist,
-        renameSong.title,
-        renameData.newArtist.trim(),
-        renameData.newTitle.trim()
-      );
-      
-      if (response.data.success) {
-        // Refresh songs list
-        await fetchSongs();
-        setShowRenameModal(false);
-        setRenameSong(null);
-        setRenameData({ newArtist: '', newTitle: '' });
-        toast.success(`Song erfolgreich umbenannt zu "${renameData.newArtist.trim()} - ${renameData.newTitle.trim()}"`);
-      } else {
-        console.error('Rename failed:', response.data.message);
-        toast.error(response.data.message || 'Fehler beim Umbenennen des Songs');
-      }
-    } catch (error: any) {
-      console.error('Error renaming song:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Umbenennen des Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRenameCancel = () => {
-    setShowRenameModal(false);
-    setRenameSong(null);
-    setRenameData({ newArtist: '', newTitle: '' });
-  };
-
-  const handleDeleteSongFromLibrary = (song: any) => {
-    setDeleteSong(song);
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteSong) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      const response = await adminAPI.deleteSong(
-        deleteSong.artist,
-        deleteSong.title
-      );
-      
-      if (response.data.success) {
-        // Refresh songs list
-        await fetchSongs();
-        setShowDeleteModal(false);
-        setDeleteSong(null);
-        toast.success(`Song "${deleteSong.artist} - ${deleteSong.title}" erfolgreich gelöscht`);
-      } else {
-        console.error('Delete failed:', response.data.message);
-        toast.error(response.data.message || 'Fehler beim Löschen des Songs');
-      }
-    } catch (error: any) {
-      console.error('Error deleting song:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Löschen des Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-    setDeleteSong(null);
-  };
-
-  const handleStartProcessing = async (song: any) => {
-    const songKey = `${song.artist}-${song.title}`;
+  // const handleStartProcessing = async (song: any) => {
+  //   const songKey = `${song.artist}-${song.title}`;
     
-    try {
-      const folderName = song.folderName || `${song.artist} - ${song.title}`;
+  //   try {
+  //     const folderName = song.folderName || `${song.artist} - ${song.title}`;
       
-      // First check if video is needed
-      const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
+  //     // First check if video is needed
+  //     const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
       
-      if (videoCheckResponse.data.needsVideo) {
-        // Show YouTube dialog
-        setSelectedSongForDownload(song);
-        setYoutubeUrl('');
-        setShowYouTubeDialog(true);
-        return;
-      }
+  //     if (videoCheckResponse.data.needsVideo) {
+  //       // Show YouTube dialog
+  //       setSelectedSongForDownload(song);
+  //       setYoutubeUrl('');
+  //       setShowYouTubeDialog(true);
+  //       return;
+  //     }
       
-      // If video exists, proceed with normal processing
-      await startNormalProcessing(song, songKey, folderName);
+  //     // If video exists, proceed with normal processing
+  //     await startNormalProcessing(song, songKey, folderName);
       
-    } catch (error: any) {
-      console.error('Error checking video needs:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('Error checking video needs:', error);
+  //     toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
+  //   }
+  // };
 
-  const handleTestSong = async (song: { artist: string; title: string; modes?: string[]; youtubeUrl?: string }) => {
-    setActionLoading(true);
+  // const handleTestSong = async (song: { artist: string; title: string; modes?: string[]; youtubeUrl?: string }) => {
+  //   setActionLoading(true);
     
-    try {
-      // Determine the best mode and URL for the song
-      let mode = 'youtube';
-      let youtubeUrl = song.youtubeUrl;
+  //   try {
+  //     // Determine the best mode and URL for the song
+  //     let mode = 'youtube';
+  //     let youtubeUrl = song.youtubeUrl;
       
-      if (song.modes?.includes('ultrastar')) {
-        mode = 'ultrastar';
-        youtubeUrl = `/api/ultrastar/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
-      } else if (song.modes?.includes('file')) {
-        mode = 'file';
-        youtubeUrl = song.youtubeUrl || `${song.artist} - ${song.title}`;
-      } else if (song.modes?.includes('server_video')) {
-        mode = 'server_video';
-        youtubeUrl = song.youtubeUrl || `/api/videos/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
-      }
+  //     if (song.modes?.includes('ultrastar')) {
+  //       mode = 'ultrastar';
+  //       youtubeUrl = `/api/ultrastar/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
+  //     } else if (song.modes?.includes('file')) {
+  //       mode = 'file';
+  //       youtubeUrl = song.youtubeUrl || `${song.artist} - ${song.title}`;
+  //     } else if (song.modes?.includes('server_video')) {
+  //       mode = 'server_video';
+  //       youtubeUrl = song.youtubeUrl || `/api/videos/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
+  //     }
       
-      const response = await adminAPI.testSong({
-        artist: song.artist,
-        title: song.title,
-        mode: mode,
-        youtubeUrl: youtubeUrl
-      });
+  //     const response = await adminAPI.testSong({
+  //       artist: song.artist,
+  //       title: song.title,
+  //       mode: mode,
+  //       youtubeUrl: youtubeUrl
+  //     });
       
-      toast.success(`Test-Song "${song.artist} - ${song.title}" erfolgreich gestartet!`);
-      console.log('Test song started:', response.data);
+  //     toast.success(`Test-Song "${song.artist} - ${song.title}" erfolgreich gestartet!`);
+  //     console.log('Test song started:', response.data);
       
-      // Optionally refresh the dashboard to show updated current song
-      fetchDashboardData();
+  //     // Optionally refresh the dashboard to show updated current song
+  //     fetchDashboardData();
       
-    } catch (error: any) {
-      console.error('Error testing song:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Starten des Test-Songs');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  //   } catch (error: any) {
+  //     console.error('Error testing song:', error);
+  //     toast.error(error.response?.data?.message || 'Fehler beim Starten des Test-Songs');
+  //   } finally {
+  //     setActionLoading(false);
+  //   }
+  // };
 
   const startNormalProcessing = async (song: any, songKey: string, folderName: string) => {
     // Mark song as processing
@@ -2118,306 +981,64 @@ const AdminDashboard: React.FC = () => {
     await startNormalProcessing(selectedSongForDownload, songKey, folderName);
   };
 
-  // Helper function to mark processing as completed (for future polling implementation)
-  const markProcessingCompleted = (song: any) => {
-    const songKey = `${song.artist}-${song.title}`;
-    setProcessingSongs(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(songKey);
-      return newSet;
-    });
-    toast.success(`Verarbeitung für ${song.artist} - ${song.title} abgeschlossen`);
-  };
+  // // Helper function to mark processing as completed (for future polling implementation)
+  // const markProcessingCompleted = (song: any) => {
+  //   const songKey = `${song.artist}-${song.title}`;
+  //   setProcessingSongs(prev => {
+  //     const newSet = new Set(prev);
+  //     newSet.delete(songKey);
+  //     return newSet;
+  //   });
+  //   toast.success(`Verarbeitung für ${song.artist} - ${song.title} abgeschlossen`);
+  // };
 
 
   // USDB Management Handlers
 
-  const handleOpenUsdbDialog = () => {
-    // USDB-Zugangsdaten werden jetzt in der SettingsTab verwaltet
-    setShowUsdbDialog(true);
-  };
-
-  const handleCloseUsdbDialog = async () => {
-    setShowUsdbDialog(false);
-    setUsdbUrl('');
-    
-    // Reset batch states
-    setUsdbBatchUrls(['']);
-    setUsdbBatchDownloading(false);
-    setUsdbBatchProgress({ current: 0, total: 0 });
-    setUsdbBatchResults([]);
-    setUsdbBatchCurrentDownloading(null);
-    
-    // Reset search state
-    setUsdbSearchInterpret('');
-    setUsdbSearchTitle('');
-    setUsdbSearchResults([]);
-    setUsdbSearchLoading(false);
-    
-    // Rescan song list after closing USDB dialog
-    try {
-      // First rescan file system songs (includes USDB downloads)
-      await adminAPI.rescanFileSongs();
-      
-      // Then fetch all songs to update the UI
-      await fetchSongs();
-      
-      toast.success('Songliste wurde aktualisiert');
-    } catch (error) {
-      console.error('Error refreshing song list:', error);
-      // Don't show error toast as this is a background operation
-    }
-  };
-
-  // Batch USDB Functions
-  const handleAddBatchUrlField = () => {
-    setUsdbBatchUrls([...usdbBatchUrls, '']);
-  };
-
-  const handleRemoveBatchUrlField = (index: number) => {
-    if (usdbBatchUrls.length > 1) {
-      const removedUrl = usdbBatchUrls[index];
-      const newUrls = usdbBatchUrls.filter((_, i) => i !== index);
-      setUsdbBatchUrls(newUrls);
-      
-      // Update results array accordingly
-      const newResults = usdbBatchResults.filter((_, i) => i !== index);
-      setUsdbBatchResults(newResults);
-
-      // If the removed URL was from search results, show a message
-      if (removedUrl && removedUrl.includes('usdb.animux.de')) {
-        toast('Song aus Download-Liste entfernt');
-      }
-    }
-  };
-
-  const [oldDownloadUrls, setOldDownloadUrls] = useState([]);
-
-  useEffect(() => {
-    if (oldDownloadUrls.length > 0) {
-      const urls = usdbBatchUrls.filter((url: string) => !oldDownloadUrls.includes(url));
-      setUsdbBatchUrls(urls);
-      setOldDownloadUrls([]);
-      setUsdbBatchCurrentDownloading(null);
-      handleBatchDownloadFromUSDB(null, urls);
-    }
-  }, [oldDownloadUrls]);
-
-  const handleBatchUrlChange = (index: number, value: string) => {
-    const newUrls = [...usdbBatchUrls];
-    newUrls[index] = value;
-    setUsdbBatchUrls(newUrls);
-    
-    // Auto-add new field if current field has content and it's the last field
-    if (value.trim() && index === usdbBatchUrls.length - 1) {
-      setUsdbBatchUrls([...newUrls, '']);
-    }
-  };
-
-  const handleBatchDownloadFromUSDB = async (event?: React.MouseEvent, urls?: string[]) => {
-    // Filter out empty URLs
-    console.log("urls", urls, usdbBatchUrls);
-    const validUrls = (urls || usdbBatchUrls).filter(url => url.trim());
-    
-    if (validUrls.length === 0) {
-      // toast.error('Bitte mindestens eine USDB-URL eingeben');
-      return;
-    }
-
-    setUsdbBatchDownloading(true);
-    setUsdbBatchProgress({ current: 0, total: validUrls.length });
-    
-    // Initialize results
-    const initialResults = validUrls.map(url => ({
-      url,
-      status: 'pending' as const,
-      message: ''
-    }));
-    setUsdbBatchResults(initialResults);
-
-    try {
-      for (let i = 0; i < validUrls.length; i++) {
-        const url = validUrls[i];
-        
-        // Find the index in the original array
-        const originalIndex = usdbBatchUrls.findIndex(u => u === url);
-        setUsdbBatchCurrentDownloading(originalIndex);
-        
-        // Update current status to downloading
-        setUsdbBatchResults(prev => prev.map((result, index) => 
-          index === i ? { ...result, status: 'downloading' } : result
-        ));
-        
-        try {
-          const response = await adminAPI.downloadFromUSDB(url);
-          
-          // Mark as completed
-          setUsdbBatchResults(prev => prev.map((result, index) => 
-            index === i ? { 
-              ...result, 
-              status: 'completed', 
-              message: response.data.message || 'Download erfolgreich'
-            } : result
-          ));
-          
-          // Update progress
-          setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
-          
-        } catch (error: any) {
-          // Mark as error
-          const errorMessage = error.response?.data?.message || 'Fehler beim Download';
-          setUsdbBatchResults(prev => prev.map((result, index) => 
-            index === i ? { 
-              ...result, 
-              status: 'error', 
-              message: errorMessage
-            } : result
-          ));
-          
-          // Update progress even on error
-          setUsdbBatchProgress({ current: i + 1, total: validUrls.length });
-        }
-      }
-      
-      // All downloads completed
-      toast.success(`Batch-Download abgeschlossen: ${validUrls.length} Songs verarbeitet`);
-      
-      // Rescan song list
-      try {
-        await adminAPI.rescanFileSongs();
-        await fetchSongs();
-      } catch (rescanError) {
-        console.error('Error rescanning after batch download:', rescanError);
-      }
-      
-      // Close modal after successful completion
-      // setShowUsdbDialog(false);
-      // setUsdbBatchUrls(['']);
-      setOldDownloadUrls(validUrls);
-      setUsdbBatchProgress({ current: 0, total: 0 });
-      setUsdbBatchResults([]);
-      // setUsdbDownloadFinished(true);
-    } catch (error) {
-      console.error('Error in batch download:', error);
-      toast.error('Fehler beim Batch-Download');
-    } finally {
-      setUsdbBatchDownloading(false);
-      setUsdbBatchCurrentDownloading(null);
-    }
-  };
+  // // Batch USDB Functions
+  // const handleAddBatchUrlField = () => {
+  //   setUsdbBatchUrls([...usdbBatchUrls, '']);
+  // };
 
   // USDB Search Functions
-  const handleSearchUSDB = async () => {
-    if (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim()) {
-      toast.error('Bitte Interpret oder Titel eingeben');
-      return;
-    }
+  
 
-    setUsdbSearchLoading(true);
-    try {
-      const response = await adminAPI.searchUSDB(
-        usdbSearchInterpret.trim() || undefined,
-        usdbSearchTitle.trim() || undefined,
-        50 // Limit to 50 results
-      );
 
-      const songs = response.data.songs || [];
-      setUsdbSearchResults(songs);
+  // const handleDownloadFromUSDB = async () => {
+  //   if (!usdbUrl.trim()) {
+  //     toast.error('Bitte USDB-URL eingeben');
+  //     return;
+  //   }
+
+  //   setUsdbDownloading(true);
+  //   try {
+  //     const response = await adminAPI.downloadFromUSDB(usdbUrl);
       
-      if (songs.length === 0) {
-        toast('Keine Songs gefunden');
-      } else {
-        toast.success(`${songs.length} Songs gefunden`);
-      }
-    } catch (error: any) {
-      console.error('Error searching USDB:', error);
-      const message = error.response?.data?.message || 'Fehler bei der USDB-Suche';
-      toast.error(message);
-    } finally {
-      setUsdbSearchLoading(false);
-    }
-  };
-
-  const handleAddSearchResultToDownload = (song: {id: number, artist: string, title: string, url: string}) => {
-    // Check if URL already exists in batch list
-    const urlExists = usdbBatchUrls.some(url => url.trim() === song.url);
-    
-    if (urlExists) {
-      toast('Dieser Song ist bereits in der Download-Liste');
-      return;
-    }
-
-    // Add to batch URLs
-    const newUrls = [...usdbBatchUrls];
-    if (newUrls[newUrls.length - 1] === '') {
-      // Replace empty last field
-      newUrls[newUrls.length - 1] = song.url;
-    } else {
-      // Add new field
-      newUrls.push(song.url);
-    }
-    
-    // Always add an empty field at the end for new entries
-    newUrls.push('');
-    setUsdbBatchUrls(newUrls);
-
-    // Remove from search results
-    setUsdbSearchResults(prev => prev.filter(s => s.id !== song.id));
-    
-    toast.success(`${song.artist} - ${song.title} zur Download-Liste hinzugefügt`);
-  };
-
-  const handleRemoveSearchResult = (songId: number) => {
-    setUsdbSearchResults(prev => prev.filter(s => s.id !== songId));
-  };
-
-  // Filter search results to remove songs already in download list
-  React.useEffect(() => {
-    if (usdbSearchResults.length > 0) {
-      const filteredResults = usdbSearchResults.filter(song => 
-        !usdbBatchUrls.some(url => url.trim() === song.url)
-      );
-      if (filteredResults.length !== usdbSearchResults.length) {
-        setUsdbSearchResults(filteredResults);
-      }
-    }
-  }, [usdbBatchUrls]);
-
-  const handleDownloadFromUSDB = async () => {
-    if (!usdbUrl.trim()) {
-      toast.error('Bitte USDB-URL eingeben');
-      return;
-    }
-
-    setUsdbDownloading(true);
-    try {
-      const response = await adminAPI.downloadFromUSDB(usdbUrl);
-      
-      if (response.data.message) {
-        toast.success(response.data.message);
+  //     if (response.data.message) {
+  //       toast.success(response.data.message);
         
-        // Automatically rescan song list after successful download
-        try {
-          await adminAPI.rescanFileSongs();
-          await fetchSongs();
-        } catch (rescanError) {
-          console.error('Error rescanning after download:', rescanError);
-          // Don't show error toast as download was successful
-        }
-      }
+  //       // Automatically rescan song list after successful download
+  //       try {
+  //         await adminAPI.rescanFileSongs();
+  //         await fetchSongs();
+  //       } catch (rescanError) {
+  //         console.error('Error rescanning after download:', rescanError);
+  //         // Don't show error toast as download was successful
+  //       }
+  //     }
       
-      setShowUsdbDialog(false);
-      setUsdbUrl('');
-      // Refresh dashboard data
-      await fetchDashboardData();
-    } catch (error: any) {
-      console.error('Error downloading from USDB:', error);
-      const message = error.response?.data?.message || 'Fehler beim Herunterladen von USDB';
-      toast.error(message);
-    } finally {
-      setUsdbDownloading(false);
-    }
-  };
+  //     setShowUsdbDialog(false);
+  //     setUsdbUrl('');
+  //     // Refresh dashboard data
+  //     await fetchDashboardData();
+  //   } catch (error: any) {
+  //     console.error('Error downloading from USDB:', error);
+  //     const message = error.response?.data?.message || 'Fehler beim Herunterladen von USDB';
+  //     toast.error(message);
+  //   } finally {
+  //     setUsdbDownloading(false);
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -2434,25 +1055,6 @@ const AdminDashboard: React.FC = () => {
       </Container>
     );
   }
-
-  const { playlist, currentSong, stats } = dashboardData;
-  
-  // Filter playlist based on showPastSongs setting
-  const filteredPlaylist = showPastSongs 
-    ? playlist 
-    : playlist.filter(song => !currentSong || song.position >= currentSong.position);
-
-  // Helper function to get first letter for grouping (same as in SongRequest)
-  const getFirstLetter = (artist: string) => {
-    const firstChar = artist.charAt(0).toUpperCase();
-    if (/[A-Z]/.test(firstChar)) {
-      return firstChar;
-    } else if (/[0-9]/.test(firstChar)) {
-      return '#';
-    } else {
-      return '#';
-    }
-  };
 
   return (
     <Container>
@@ -2473,7 +1075,8 @@ const AdminDashboard: React.FC = () => {
             $active={activeTab === 'playlist'} 
             onClick={() => setActiveTab('playlist')}
           >
-            🎵 Playlist ({filteredPlaylist.length} Songs)
+            🎵 Playlist
+            {/* 🎵 Playlist ({filteredPlaylist.length} Songs) */}
           </TabButton>
           <TabButton 
             $active={activeTab === 'songs'} 
@@ -2504,37 +1107,47 @@ const AdminDashboard: React.FC = () => {
         <TabContent>
           {activeTab === 'playlist' && (
             <PlaylistTab
-              filteredPlaylist={filteredPlaylist}
-              currentSong={currentSong}
-              showPastSongs={showPastSongs}
+              // filteredPlaylist={filteredPlaylist}
+              // currentSong={currentSong}
+              // showPastSongs={showPastSongs}
+              // showQRCodeOverlay={showQRCodeOverlay}
+              // actionLoading={actionLoadingdropTarget}
+              // isPlaying={isPlaying}
+              // draggedItem={draggedItem}
+              // dropTarget={dropTarget}
+              // youtubeLinks={youtubeLinks}
+              // onOpenAddSongModal={handleOpenAddSongModal}
+              // onToggleQRCodeOverlay={handleToggleQRCodeOverlay}
+              // onPreviousSong={handlePreviousSong}
+              // onTogglePlayPause={handleTogglePlayPause}
+              // onRestartSong={handleRestartSong}
+              // onNextSong={handleNextSong}
+              // onSetShowPastSongs={setShowPastSongs}
+              // onClearAllSongs={handleClearAllSongs}
+              // onDragStart={handleDragStart}
+              // onDragOver={handleDragOver}
+              // onDragLeave={handleDragLeave}
+              // onDrop={handleDrop}
               showQRCodeOverlay={showQRCodeOverlay}
-              actionLoading={actionLoading}
+              setShowQRCodeOverlay={setShowQRCodeOverlay}
+              setDashboardData={setDashboardData}
+              // onCopyToClipboard={handleCopyToClipboard}
+              // onYouTubeFieldChange={handleYouTubeFieldChange}
+              // onYouTubeFieldBlur={handleYouTubeFieldBlur}
+              // onPlaySong={handlePlaySong}
+              // onOpenModal={openModal}
+              // onRefreshClassification={handleRefreshClassification}
+              // onDeleteSong={handleDeleteSong}
+              fetchDashboardData={fetchDashboardData}
               isPlaying={isPlaying}
-              draggedItem={draggedItem}
-              dropTarget={dropTarget}
-              youtubeLinks={youtubeLinks}
-              onOpenAddSongModal={handleOpenAddSongModal}
-              onToggleQRCodeOverlay={handleToggleQRCodeOverlay}
-              onPreviousSong={handlePreviousSong}
-              onTogglePlayPause={handleTogglePlayPause}
-              onRestartSong={handleRestartSong}
-              onNextSong={handleNextSong}
-              onSetShowPastSongs={setShowPastSongs}
-              onClearAllSongs={handleClearAllSongs}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onCopyToClipboard={handleCopyToClipboard}
-              onYouTubeFieldChange={handleYouTubeFieldChange}
-              onYouTubeFieldBlur={handleYouTubeFieldBlur}
-              onPlaySong={handlePlaySong}
-              onOpenModal={openModal}
-              onRefreshClassification={handleRefreshClassification}
-              onDeleteSong={handleDeleteSong}
-              onDeviceIdClick={handleDeviceIdClick}
-              isSongInYouTubeCache={isSongInYouTubeCache}
-              getDownloadStatusText={getDownloadStatusText}
+              actionLoading={actionLoading}
+              setActionLoading={setActionLoading}
+              dashboardData={dashboardData}
+              // onDeviceIdClick={handleDeviceIdClick}
+              setActiveTab={setActiveTab}
+              handleDeviceIdClick={handleDeviceIdClick}
+              // isSongInYouTubeCache={isSongInYouTubeCache}
+              // getDownloadStatusText={getDownloadStatusText}
             />
           )}
           
@@ -2556,29 +1169,19 @@ const AdminDashboard: React.FC = () => {
           
           {activeTab === 'songs' && (
             <SongsTab
-              onOpenUsdbDialog={handleOpenUsdbDialog}
-              onRenameSong={handleRenameSong}
-              onDeleteSongFromLibrary={handleDeleteSongFromLibrary}
+              // onOpenUsdbDialog={handleOpenUsdbDialog}
+              // onRenameSong={handleRenameSong}
+              // onDeleteSongFromLibrary={handleDeleteSongFromLibrary}
+              processingSongs={processingSongs}
+              setProcessingSongs={setProcessingSongs}
             />
           )}
           
         </TabContent>
       </TabContainer>
 
-      {showModal && selectedSong && (
-        <EditSongModal
-          show={showModal && !!selectedSong}
-          modalType={modalType}
-          formData={formData}
-          actionLoading={actionLoading}
-          onClose={closeModal}
-          onSave={handleSaveSong}
-          onFormDataChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
-        />
-      )}
-
       {/* Manual Song List Modal */}
-      <ManualSongListModal
+      {/* <ManualSongListModal
         show={showManualSongList}
         manualSongList={filteredManualSongs}
         manualSongSearchTerm={manualSongSearchTerm}
@@ -2586,7 +1189,7 @@ const AdminDashboard: React.FC = () => {
         onSearchTermChange={setManualSongSearchTerm}
         onSongSelect={handleSelectManualSong}
         getFirstLetter={getFirstLetter}
-      />
+      /> */}
 
       {/* YouTube Download Dialog */}
       <YouTubeDownloadModal
@@ -2600,178 +1203,7 @@ const AdminDashboard: React.FC = () => {
         onDownload={handleYouTubeDownload}
       />
 
-      {/* USDB Batch Download Dialog */}
-      {/* {here} */}
-      <USDBDownloadModal
-        show={showUsdbDialog}
-        usdbBatchUrls={usdbBatchUrls}
-        usdbBatchDownloading={usdbBatchDownloading}
-        usdbBatchCurrentDownloading={usdbBatchCurrentDownloading}
-        usdbBatchProgress={usdbBatchProgress}
-        // onClose={handleCloseUsdbDialog}
-        // onBatchUrlChange={handleBatchUrlChange}
-        // onAddBatchUrlField={handleAddBatchUrlField}
-        // onRemoveBatchUrlField={handleRemoveBatchUrlField}
-        // onStartBatchDownload={handleStartBatchDownload}
-        handleRemoveBatchUrlField={handleRemoveBatchUrlField}
-        handleBatchUrlChange={handleBatchUrlChange}
-        usdbBatchResults={usdbBatchResults}
-        handleBatchDownloadFromUSDB={handleBatchDownloadFromUSDB}
-        usdbSearchInterpret={usdbSearchInterpret}
-        setUsdbSearchInterpret={setUsdbSearchInterpret}
-        usdbSearchTitle={usdbSearchTitle}
-        setUsdbSearchTitle={setUsdbSearchTitle}
-        usdbSearchResults={usdbSearchResults}
-        handleAddSearchResultToDownload={handleAddSearchResultToDownload}
-        handleSearchUSDB={handleSearchUSDB}
-        usdbSearchLoading={usdbSearchLoading}
-        handleCloseUsdbDialog={handleCloseUsdbDialog}
-      />
 
-      {/* Rename Modal */}
-      <RenameModal
-        show={showRenameModal && !!renameSong}
-        renameSong={renameSong}
-        renameData={renameData}
-        actionLoading={actionLoading}
-        onClose={handleRenameCancel}
-        onConfirm={handleRenameConfirm}
-        onRenameDataChange={(field, value) => setRenameData(prev => ({ ...prev, [field]: value }))}
-      />
-
-      {/* Delete Modal */}
-      <DeleteModal
-        show={showDeleteModal && !!deleteSong}
-        deleteSong={deleteSong}
-        actionLoading={actionLoading}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-      />
-
-      {/* Add Song Modal */}
-      {showAddSongModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '20px',
-            maxWidth: '800px',
-            width: '90%',
-            maxHeight: '95vh',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px',
-              borderBottom: '1px solid #eee',
-              paddingBottom: '15px'
-            }}>
-              <h3 style={{ margin: 0, color: '#333' }}>➕ Song hinzufügen</h3>
-              <button
-                onClick={handleCloseAddSongModal}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Song Form */}
-            <SongForm
-              singerName={addSongData.singerName}
-              artist={addSongData.artist}
-              title={addSongData.title}
-              youtubeUrl={addSongData.youtubeUrl}
-              withBackgroundVocals={false}
-              onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
-              onArtistChange={(value) => {
-                setAddSongData(prev => ({ ...prev, artist: value }));
-                setAddSongSearchTerm(value);
-                triggerUSDBSearch(value, addSongData.title);
-              }}
-              onTitleChange={(value) => {
-                setAddSongData(prev => ({ ...prev, title: value }));
-                setAddSongSearchTerm(value);
-                triggerUSDBSearch(addSongData.artist, value);
-              }}
-              onYoutubeUrlChange={(value) => setAddSongData(prev => ({ ...prev, youtubeUrl: value }))}
-              onWithBackgroundVocalsChange={() => {}} // Not used in Add Song Modal
-              showSongList={true}
-              songList={filteredAddSongs}
-              onSongSelect={handleSelectAddSong}
-              usdbResults={addSongUsdbResults}
-              usdbLoading={addSongUsdbLoading}
-              getFirstLetter={getFirstLetter}
-            />
-
-
-            {/* Buttons */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '12px',
-              justifyContent: 'flex-end',
-              marginTop: '20px',
-              paddingTop: '20px',
-              borderTop: '1px solid #e1e5e9'
-            }}>
-              <button
-                onClick={handleCloseAddSongModal}
-                disabled={actionLoading}
-                style={{
-                  padding: '12px 24px',
-                  border: '2px solid #e1e5e9',
-                  borderRadius: '8px',
-                  backgroundColor: actionLoading ? '#f8f9fa' : 'white',
-                  color: actionLoading ? '#ccc' : '#666',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: actionLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Abbrechen
-              </button>
-              <button
-                onClick={handleAddSongSubmit}
-                disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
-                  style={{
-                  padding: '12px 24px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? '#ccc' : '#28a745',
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
-              </button>
-              </div>
-            </div>
-        </div>
-      )}
 
       {/* Song Approval Modal */}
       <ApprovalModal
@@ -2791,16 +1223,20 @@ const AdminDashboard: React.FC = () => {
           youtubeUrl={approvalData.youtubeUrl}
           withBackgroundVocals={approvalData.withBackgroundVocals}
           onSingerNameChange={(value) => setApprovalData(prev => ({ ...prev, singerName: value }))}
-          onArtistChange={(value) => {
-            setApprovalData(prev => ({ ...prev, artist: value }));
-            setAddSongSearchTerm(value);
-            triggerUSDBSearch(value, approvalData.title || '');
-          }}
-          onTitleChange={(value) => {
-            setApprovalData(prev => ({ ...prev, title: value }));
-            setAddSongSearchTerm(value);
-            triggerUSDBSearch(approvalData.artist || '', value);
-          }}
+          songData={approvalData}
+          setSongData={setApprovalData}
+          setSongSearchTerm={setAddSongSearchTerm}
+          // triggerUSDBSearch={triggerUSDBSearch}
+          // onArtistChange={(value) => {
+          //   setApprovalData(prev => ({ ...prev, artist: value }));
+          //   setAddSongSearchTerm(value);
+          //   triggerUSDBSearch(value, approvalData.title || '');
+          // }}
+          // onTitleChange={(value) => {
+          //   setApprovalData(prev => ({ ...prev, title: value }));
+          //   setAddSongSearchTerm(value);
+          //   triggerUSDBSearch(approvalData.artist || '', value);
+          // }}
           onYoutubeUrlChange={(value) => setApprovalData(prev => ({ ...prev, youtubeUrl: value }))}
           onWithBackgroundVocalsChange={(checked) => setApprovalData(prev => ({ ...prev, withBackgroundVocals: checked }))}
           showSongList={true}
@@ -2815,6 +1251,8 @@ const AdminDashboard: React.FC = () => {
           }}
           usdbResults={addSongUsdbResults}
           usdbLoading={addSongUsdbLoading}
+          setUsdbResults={setAddSongUsdbResults}
+          setUsdbLoading={setAddSongUsdbLoading}
           getFirstLetter={getFirstLetter}
         />
       </ApprovalModal>
