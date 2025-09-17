@@ -13,6 +13,7 @@ import UsersTab from './admin/UsersTab';
 import SettingsTab from './admin/SettingsTab';
 import RenameModal from './admin/modals/RenameModal';
 import DeleteModal from './admin/modals/DeleteModal';
+import ApprovalModal from './admin/modals/ApprovalModal';
 import SongsTab from './admin/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
@@ -4421,141 +4422,50 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {/* Song Approval Modal */}
-      {showApprovalModal && (
-            <div style={{ 
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex', 
-              alignItems: 'center', 
-          justifyContent: 'center',
-          zIndex: 1000
-            }}>
-              <div style={{ 
-            background: 'white',
-            borderRadius: '12px',
-            padding: '30px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflowY: 'auto'
-          }}>
-            {/* Header */}
-              <div style={{ 
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid #eee',
-              paddingBottom: '15px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ margin: 0, color: '#333' }}>
-                🎵 Songwunsch bestätigen
-                {pendingApprovals.length > 1 && (
-                  <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', marginLeft: '10px' }}>
-                    ({currentApprovalIndex + 1} von {pendingApprovals.length})
-                  </span>
-                )}
-              </h3>
-              <button
-                onClick={handleCloseApprovalModal}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                          cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-                        </div>
-
-            {/* Song Details */}
-            <SongForm
-              singerName={approvalData.singerName}
-              artist={approvalData.artist}
-              title={approvalData.title}
-              youtubeUrl={approvalData.youtubeUrl}
-              withBackgroundVocals={approvalData.withBackgroundVocals}
-              onSingerNameChange={(value) => setApprovalData(prev => ({ ...prev, singerName: value }))}
-              onArtistChange={(value) => {
-                setApprovalData(prev => ({ ...prev, artist: value }));
-                setAddSongSearchTerm(value);
-                triggerUSDBSearch(value, approvalData.title || '');
-              }}
-              onTitleChange={(value) => {
-                setApprovalData(prev => ({ ...prev, title: value }));
-                setAddSongSearchTerm(value);
-                triggerUSDBSearch(approvalData.artist || '', value);
-              }}
-              onYoutubeUrlChange={(value) => setApprovalData(prev => ({ ...prev, youtubeUrl: value }))}
-              onWithBackgroundVocalsChange={(checked) => setApprovalData(prev => ({ ...prev, withBackgroundVocals: checked }))}
-              showSongList={true}
-              songList={manualSongList}
-              onSongSelect={(song) => {
-                setApprovalData(prev => ({
-                  ...prev,
-                  artist: song.artist,
-                  title: song.title,
-                  youtubeUrl: song.youtube_url || ''
-                }));
-              }}
-              usdbResults={addSongUsdbResults}
-              usdbLoading={addSongUsdbLoading}
-              getFirstLetter={getFirstLetter}
-            />
-
-            {/* Action Buttons */}
-            <div style={{
-              display: 'flex',
-              gap: '15px',
-              justifyContent: 'flex-end',
-              marginTop: '20px',
-              paddingTop: '20px',
-              borderTop: '1px solid #e1e5e9'
-            }}>
-              <button
-                onClick={handleRejectSong}
-                disabled={actionLoading}
-                style={{
-                  padding: '12px 24px',
-                  border: '2px solid #e1e5e9',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  color: '#666',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: actionLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Ablehnen
-              </button>
-              <button
-                onClick={handleApproveSong}
-                disabled={actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim())}
-                style={{
-                  padding: '12px 24px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim()) ? '#ccc' : '#28a745',
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: actionLoading || !approvalData.singerName?.trim() || (!approvalData.artist?.trim() && !approvalData.youtubeUrl?.trim()) ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {actionLoading ? 'Hinzufügen...' : 'Akzeptieren'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ApprovalModal
+        show={showApprovalModal}
+        pendingApprovals={pendingApprovals}
+        currentApprovalIndex={currentApprovalIndex}
+        approvalData={approvalData}
+        actionLoading={actionLoading}
+        onClose={handleCloseApprovalModal}
+        onReject={handleRejectSong}
+        onApprove={handleApproveSong}
+      >
+        <SongForm
+          singerName={approvalData.singerName}
+          artist={approvalData.artist}
+          title={approvalData.title}
+          youtubeUrl={approvalData.youtubeUrl}
+          withBackgroundVocals={approvalData.withBackgroundVocals}
+          onSingerNameChange={(value) => setApprovalData(prev => ({ ...prev, singerName: value }))}
+          onArtistChange={(value) => {
+            setApprovalData(prev => ({ ...prev, artist: value }));
+            setAddSongSearchTerm(value);
+            triggerUSDBSearch(value, approvalData.title || '');
+          }}
+          onTitleChange={(value) => {
+            setApprovalData(prev => ({ ...prev, title: value }));
+            setAddSongSearchTerm(value);
+            triggerUSDBSearch(approvalData.artist || '', value);
+          }}
+          onYoutubeUrlChange={(value) => setApprovalData(prev => ({ ...prev, youtubeUrl: value }))}
+          onWithBackgroundVocalsChange={(checked) => setApprovalData(prev => ({ ...prev, withBackgroundVocals: checked }))}
+          showSongList={true}
+          songList={manualSongList}
+          onSongSelect={(song) => {
+            setApprovalData(prev => ({
+              ...prev,
+              artist: song.artist,
+              title: song.title,
+              youtubeUrl: song.youtube_url || ''
+            }));
+          }}
+          usdbResults={addSongUsdbResults}
+          usdbLoading={addSongUsdbLoading}
+          getFirstLetter={getFirstLetter}
+        />
+      </ApprovalModal>
 
     </Container>
   );
