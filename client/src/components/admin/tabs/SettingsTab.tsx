@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import { adminAPI, showAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 
 // Styled Components für SettingsTab
@@ -199,117 +201,83 @@ const PortInput = styled.input`
 `;
 
 interface SettingsTabProps {
-  // Language
+  // Nur die t-Funktion für Übersetzungen wird von außen benötigt
   t: (key: string) => string;
-  
-  // Regression
-  regressionValue: number;
-  onRegressionValueChange: (value: number) => void;
-  onUpdateRegressionValue: () => void;
-  
-  // Custom URL
-  customUrl: string;
-  onCustomUrlChange: (value: string) => void;
-  onUpdateCustomUrl: () => void;
-  onCopyUrlToClipboard: () => void;
-  
-  // Cloudflared
-  cloudflaredInstalled: boolean;
-  cloudflaredInstallLoading: boolean;
-  cloudflaredStartLoading: boolean;
-  cloudflaredStopLoading: boolean;
-  onInstallCloudflared: () => void;
-  onStartCloudflaredTunnel: () => void;
-  onStopCloudflaredTunnel: () => void;
-  
-  // Overlay Title
-  overlayTitle: string;
-  onOverlayTitleChange: (value: string) => void;
-  onUpdateOverlayTitle: () => void;
-  
-  // YouTube Enabled
-  youtubeEnabled: boolean;
-  onYoutubeEnabledChange: (checked: boolean) => void;
-  onUpdateYouTubeEnabled: () => void;
-  
-  // Auto Approve Songs
-  autoApproveSongs: boolean;
-  onAutoApproveSongsChange: (checked: boolean) => void;
-  onUpdateAutoApproveSongs: () => void;
-  
-  // USDB Credentials
-  usdbCredentials: { username: string; password: string } | null;
-  usdbUsername: string;
-  usdbPassword: string;
-  onUsdbUsernameChange: (value: string) => void;
-  onUsdbPasswordChange: (value: string) => void;
-  onSaveUSDBCredentials: () => void;
-  onDeleteUSDBCredentials: () => void;
-  
-  // File Songs
-  fileSongsFolder: string;
-  onFileSongsFolderChange: (value: string) => void;
-  onUpdateFileSongsFolder: () => void;
-  onRescanFileSongs: () => void;
-  onRemoveFileSongs: () => void;
-  
-  // Local Server
-  localServerPort: number;
-  localServerTab: 'node' | 'npx' | 'python';
-  onLocalServerPortChange: (port: number) => void;
-  onLocalServerTabChange: (tab: 'node' | 'npx' | 'python') => void;
-  onCopyServerCommand: () => void;
-  
-  // Loading states
-  settingsLoading: boolean;
-  usdbLoading: boolean;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({
-  t,
-  regressionValue,
-  onRegressionValueChange,
-  onUpdateRegressionValue,
-  customUrl,
-  onCustomUrlChange,
-  onUpdateCustomUrl,
-  onCopyUrlToClipboard,
-  cloudflaredInstalled,
-  cloudflaredInstallLoading,
-  cloudflaredStartLoading,
-  cloudflaredStopLoading,
-  onInstallCloudflared,
-  onStartCloudflaredTunnel,
-  onStopCloudflaredTunnel,
-  overlayTitle,
-  onOverlayTitleChange,
-  onUpdateOverlayTitle,
-  youtubeEnabled,
-  onYoutubeEnabledChange,
-  onUpdateYouTubeEnabled,
-  autoApproveSongs,
-  onAutoApproveSongsChange,
-  onUpdateAutoApproveSongs,
-  usdbCredentials,
-  usdbUsername,
-  usdbPassword,
-  onUsdbUsernameChange,
-  onUsdbPasswordChange,
-  onSaveUSDBCredentials,
-  onDeleteUSDBCredentials,
-  fileSongsFolder,
-  onFileSongsFolderChange,
-  onUpdateFileSongsFolder,
-  onRescanFileSongs,
-  onRemoveFileSongs,
-  localServerPort,
-  localServerTab,
-  onLocalServerPortChange,
-  onLocalServerTabChange,
-  onCopyServerCommand,
-  settingsLoading,
-  usdbLoading
-}) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
+  // Settings State
+  const [regressionValue, setRegressionValue] = useState(0.1);
+  const [customUrl, setCustomUrl] = useState('');
+  const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  const [youtubeEnabled, setYoutubeEnabled] = useState(true);
+  const [autoApproveSongs, setAutoApproveSongs] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  
+  // Cloudflared State
+  const [cloudflaredInstalled, setCloudflaredInstalled] = useState(false);
+  const [cloudflaredInstallLoading, setCloudflaredInstallLoading] = useState(false);
+  const [cloudflaredStartLoading, setCloudflaredStartLoading] = useState(false);
+  const [cloudflaredStopLoading, setCloudflaredStopLoading] = useState(false);
+  
+  // USDB Management
+  const [usdbCredentials, setUsdbCredentials] = useState<{username: string, password: string} | null>(null);
+  const [usdbUsername, setUsdbUsername] = useState('');
+  const [usdbPassword, setUsdbPassword] = useState('');
+  const [usdbLoading, setUsdbLoading] = useState(false);
+  
+  // File Songs Management
+  const [fileSongsFolder, setFileSongsFolder] = useState('');
+  const [fileSongs, setFileSongs] = useState<any[]>([]);
+  const [localServerPort, setLocalServerPort] = useState(4000);
+  const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python'>('python');
+
+  // Load settings when component mounts
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // Load all settings
+  const loadSettings = useCallback(async () => {
+    try {
+      // Fetch settings including regression value and custom URL
+      const settingsResponse = await adminAPI.getSettings();
+      if (settingsResponse.data.settings.regression_value) {
+        setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
+      }
+      if (settingsResponse.data.settings.custom_url) {
+        setCustomUrl(settingsResponse.data.settings.custom_url);
+      }
+      if (settingsResponse.data.settings.overlay_title) {
+        setOverlayTitle(settingsResponse.data.settings.overlay_title);
+      }
+      if (settingsResponse.data.settings.youtube_enabled !== undefined) {
+        setYoutubeEnabled(settingsResponse.data.settings.youtube_enabled === 'true');
+      }
+      if (settingsResponse.data.settings.auto_approve_songs !== undefined) {
+        setAutoApproveSongs(settingsResponse.data.settings.auto_approve_songs === 'true');
+      }
+      
+      // Load file songs folder setting
+      try {
+        const fileSongsResponse = await adminAPI.getFileSongsFolder();
+        setFileSongsFolder(fileSongsResponse.data.folderPath || '');
+        setFileSongs(fileSongsResponse.data.fileSongs || []);
+        setLocalServerPort(fileSongsResponse.data.port || 4000);
+      } catch (error) {
+        console.error('Error loading file songs folder:', error);
+      }
+      
+      // Check cloudflared status
+      await checkCloudflaredStatus();
+      
+      // Load USDB credentials
+      await fetchUSDBCredentials();
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  }, []);
+
   const generateLocalServerCommand = () => {
     if (!fileSongsFolder) return '';
     
@@ -324,6 +292,262 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
         return `python -m http.server ${localServerPort} --directory "${folderPath}"`;
       default:
         return '';
+    }
+  };
+
+  // Settings Management Functions
+  const handleUpdateRegressionValue = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateRegressionValue(regressionValue);
+      toast.success('Regression-Wert erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating regression value:', error);
+      toast.error('Fehler beim Aktualisieren des Regression-Werts');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateCustomUrl = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateCustomUrl(customUrl);
+      toast.success('Eigene URL erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating custom URL:', error);
+      toast.error('Fehler beim Aktualisieren der eigenen URL');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleCopyUrlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(customUrl);
+      toast.success('URL in die Zwischenablage kopiert!');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = customUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast.success('URL in die Zwischenablage kopiert!');
+    }
+  };
+
+  // Cloudflared Handler Functions
+  const checkCloudflaredStatus = async () => {
+    try {
+      const response = await adminAPI.getCloudflaredStatus();
+      setCloudflaredInstalled(response.data.installed);
+    } catch (error) {
+      console.error('Error checking cloudflared status:', error);
+      setCloudflaredInstalled(false);
+    }
+  };
+
+  const handleInstallCloudflared = async () => {
+    setCloudflaredInstallLoading(true);
+    try {
+      const response = await adminAPI.installCloudflared();
+      if (response.data.success) {
+        toast.success('Cloudflared erfolgreich installiert!');
+        setCloudflaredInstalled(true);
+      } else {
+        toast.error('Fehler beim Installieren von Cloudflared');
+      }
+    } catch (error) {
+      console.error('Error installing cloudflared:', error);
+      toast.error('Fehler beim Installieren von Cloudflared');
+    } finally {
+      setCloudflaredInstallLoading(false);
+    }
+  };
+
+  const handleStartCloudflaredTunnel = async () => {
+    setCloudflaredStartLoading(true);
+    try {
+      const response = await adminAPI.startCloudflaredTunnel();
+      if (response.data.success) {
+        toast.success(`Cloudflared Tunnel erfolgreich gestartet! URL: ${response.data.tunnelUrl}`);
+        setCustomUrl(response.data.tunnelUrl);
+        await loadSettings();
+      } else {
+        toast.error('Fehler beim Starten des Cloudflared Tunnels');
+      }
+    } catch (error) {
+      console.error('Error starting cloudflared tunnel:', error);
+      toast.error('Fehler beim Starten des Cloudflared Tunnels');
+    } finally {
+      setCloudflaredStartLoading(false);
+    }
+  };
+
+  const handleStopCloudflaredTunnel = async () => {
+    setCloudflaredStopLoading(true);
+    try {
+      const response = await adminAPI.stopCloudflaredTunnel();
+      if (response.data.success) {
+        toast.success('Cloudflared Tunnel erfolgreich gestoppt!');
+      } else {
+        toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+      }
+    } catch (error) {
+      console.error('Error stopping cloudflared tunnel:', error);
+      toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+    } finally {
+      setCloudflaredStopLoading(false);
+    }
+  };
+
+  const handleUpdateOverlayTitle = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateOverlayTitle(overlayTitle);
+      toast.success('Overlay-Überschrift erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating overlay title:', error);
+      toast.error('Fehler beim Aktualisieren der Overlay-Überschrift');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateYouTubeEnabled = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateYouTubeEnabled(youtubeEnabled);
+      toast.success('YouTube-Einstellung erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating YouTube setting:', error);
+      toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateAutoApproveSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateAutoApproveSongs(autoApproveSongs);
+      toast.success('Auto-Approve Einstellung erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating auto approve songs:', error);
+      toast.error('Fehler beim Aktualisieren der Auto-Approve Einstellung');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  // USDB Management Handlers
+  const fetchUSDBCredentials = async () => {
+    try {
+      const response = await adminAPI.getUSDBCredentials();
+      setUsdbCredentials(response.data.credentials);
+    } catch (error) {
+      console.error('Error fetching USDB credentials:', error);
+    }
+  };
+
+  const handleSaveUSDBCredentials = async () => {
+    if (!usdbUsername.trim() || !usdbPassword.trim()) {
+      toast.error('Bitte fülle alle Felder aus');
+      return;
+    }
+
+    setUsdbLoading(true);
+    try {
+      await adminAPI.saveUSDBCredentials({ username: usdbUsername, password: usdbPassword });
+      toast.success('USDB-Zugangsdaten erfolgreich gespeichert!');
+      setUsdbUsername('');
+      setUsdbPassword('');
+      await fetchUSDBCredentials();
+    } catch (error: any) {
+      console.error('Error saving USDB credentials:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Speichern der USDB-Zugangsdaten');
+    } finally {
+      setUsdbLoading(false);
+    }
+  };
+
+  const handleDeleteUSDBCredentials = async () => {
+    if (!window.confirm('Möchtest du die USDB-Zugangsdaten wirklich löschen?')) {
+      return;
+    }
+
+    setUsdbLoading(true);
+    try {
+      await adminAPI.deleteUSDBCredentials();
+      toast.success('USDB-Zugangsdaten erfolgreich gelöscht!');
+      setUsdbCredentials(null);
+    } catch (error: any) {
+      console.error('Error deleting USDB credentials:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Löschen der USDB-Zugangsdaten');
+    } finally {
+      setUsdbLoading(false);
+    }
+  };
+
+  // File Songs Management Functions
+  const handleUpdateFileSongsFolder = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.setFileSongsFolder(fileSongsFolder, localServerPort);
+      setFileSongs(response.data.fileSongs);
+      toast.success('Song-Ordner erfolgreich aktualisiert!');
+    } catch (error) {
+      console.error('Error updating file songs folder:', error);
+      toast.error('Fehler beim Aktualisieren des Song-Ordners');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleRescanFileSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.rescanFileSongs();
+      setFileSongs(response.data.fileSongs);
+      toast.success('Songs erfolgreich neu gescannt!');
+    } catch (error) {
+      console.error('Error rescanning file songs:', error);
+      toast.error('Fehler beim Neu-Scannen der Songs');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleRemoveFileSongs = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await adminAPI.removeFileSongs();
+      setFileSongs(response.data.fileSongs);
+      toast.success('Alle Songs erfolgreich aus der Liste entfernt!');
+    } catch (error) {
+      console.error('Error removing file songs:', error);
+      toast.error('Fehler beim Entfernen der Songs');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleCopyServerCommand = async () => {
+    const command = generateLocalServerCommand();
+    if (!command) {
+      toast.error('Bitte zuerst einen Song-Ordner angeben');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(command);
+      toast.success('Befehl in die Zwischenablage kopiert!');
+    } catch (error) {
+      console.error('Error copying command:', error);
+      toast.error('Fehler beim Kopieren des Befehls');
     }
   };
 
@@ -350,11 +574,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           step="0.01"
           min="0"
           max="1"
-          value={regressionValue}
-          onChange={(e) => onRegressionValueChange(parseFloat(e.target.value))}
+            value={regressionValue}
+            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
         />
         <SettingsButton 
-          onClick={onUpdateRegressionValue}
+          onClick={handleUpdateRegressionValue}
           disabled={settingsLoading}
         >
           {settingsLoading ? 'Speichert...' : 'Speichern'}
@@ -379,17 +603,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               type="url"
               placeholder="https://meine-domain.com"
               value={customUrl}
-              onChange={(e) => onCustomUrlChange(e.target.value)}
+              onChange={(e) => setCustomUrl(e.target.value)}
               style={{ minWidth: '300px' }}
             />
             <SettingsButton 
-              onClick={onUpdateCustomUrl}
+              onClick={handleUpdateCustomUrl}
               disabled={settingsLoading}
             >
               {settingsLoading ? 'Speichert...' : 'Speichern'}
             </SettingsButton>
             <SettingsButton 
-              onClick={onCopyUrlToClipboard}
+              onClick={handleCopyUrlToClipboard}
               disabled={!customUrl}
               style={{ 
                 backgroundColor: '#6c757d',
@@ -411,7 +635,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>Cloudflared Tunnel:</SettingsLabel>
           <ButtonGroup>
             <SettingsButton 
-              onClick={onInstallCloudflared}
+              onClick={handleInstallCloudflared}
               disabled={cloudflaredInstalled || cloudflaredInstallLoading}
               style={{ 
                 backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
@@ -423,7 +647,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             </SettingsButton>
             
             <SettingsButton 
-              onClick={onStartCloudflaredTunnel}
+              onClick={handleStartCloudflaredTunnel}
               disabled={!cloudflaredInstalled || cloudflaredStartLoading}
               style={{ 
                 backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
@@ -435,7 +659,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             </SettingsButton>
             
             <SettingsButton 
-              onClick={onStopCloudflaredTunnel}
+              onClick={handleStopCloudflaredTunnel}
               disabled={cloudflaredStopLoading}
               style={{ 
                 backgroundColor: '#dc3545',
@@ -461,11 +685,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           type="text"
           placeholder="Willkommen beim Karaoke"
           value={overlayTitle}
-          onChange={(e) => onOverlayTitleChange(e.target.value)}
+          onChange={(e) => setOverlayTitle(e.target.value)}
           style={{ minWidth: '300px' }}
         />
         <SettingsButton 
-          onClick={onUpdateOverlayTitle}
+          onClick={handleUpdateOverlayTitle}
           disabled={settingsLoading}
         >
           {settingsLoading ? 'Speichert...' : 'Speichern'}
@@ -485,14 +709,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             <CheckboxInput
               type="checkbox"
               checked={youtubeEnabled}
-              onChange={(e) => onYoutubeEnabledChange(e.target.checked)}
+              onChange={(e) => setYoutubeEnabled(e.target.checked)}
             />
             <CheckboxText>
               {youtubeEnabled ? 'Aktiviert' : 'Deaktiviert'}
             </CheckboxText>
           </CheckboxLabel>
           <SettingsButton 
-            onClick={onUpdateYouTubeEnabled}
+            onClick={handleUpdateYouTubeEnabled}
             disabled={settingsLoading}
             style={{ marginLeft: '10px' }}
           >
@@ -515,14 +739,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             <CheckboxInput
               type="checkbox"
               checked={autoApproveSongs}
-              onChange={(e) => onAutoApproveSongsChange(e.target.checked)}
+              onChange={(e) => setAutoApproveSongs(e.target.checked)}
             />
             <CheckboxText>
               {autoApproveSongs ? 'Aktiviert' : 'Deaktiviert'}
             </CheckboxText>
           </CheckboxLabel>
           <SettingsButton 
-            onClick={onUpdateAutoApproveSongs}
+            onClick={handleUpdateAutoApproveSongs}
             disabled={settingsLoading}
             style={{ marginLeft: '10px' }}
           >
@@ -548,7 +772,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               <StatusText>Username: {usdbCredentials.username}</StatusText>
             </StatusContainer>
             <SettingsButton 
-              onClick={onDeleteUSDBCredentials}
+              onClick={handleDeleteUSDBCredentials}
               disabled={usdbLoading}
               style={{ backgroundColor: '#dc3545' }}
             >
@@ -562,18 +786,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 type="text"
                 placeholder="USDB Username"
                 value={usdbUsername}
-                onChange={(e) => onUsdbUsernameChange(e.target.value)}
+                onChange={(e) => setUsdbUsername(e.target.value)}
                 style={{ minWidth: '200px' }}
               />
               <SettingsInput
                 type="password"
                 placeholder="USDB Passwort"
                 value={usdbPassword}
-                onChange={(e) => onUsdbPasswordChange(e.target.value)}
+                onChange={(e) => setUsdbPassword(e.target.value)}
                 style={{ minWidth: '200px' }}
               />
               <SettingsButton 
-                onClick={onSaveUSDBCredentials}
+                onClick={handleSaveUSDBCredentials}
                 disabled={usdbLoading}
               >
                 {usdbLoading ? 'Speichert...' : 'Speichern'}
@@ -596,25 +820,25 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
           type="text"
           placeholder="C:/songs"
           value={fileSongsFolder}
-          onChange={(e) => onFileSongsFolderChange(e.target.value)}
+          onChange={(e) => setFileSongsFolder(e.target.value)}
           style={{ minWidth: '300px' }}
         />
         <ButtonGroup>
           <SettingsButton 
-            onClick={onUpdateFileSongsFolder}
+            onClick={handleUpdateFileSongsFolder}
             disabled={settingsLoading}
           >
             {settingsLoading ? 'Speichert...' : 'Speichern'}
           </SettingsButton>
           <SettingsButton 
-            onClick={onRescanFileSongs}
+            onClick={handleRescanFileSongs}
             disabled={settingsLoading}
             style={{ backgroundColor: '#17a2b8' }}
           >
             {settingsLoading ? 'Scannt...' : 'Neu scannen'}
           </SettingsButton>
           <SettingsButton 
-            onClick={onRemoveFileSongs}
+            onClick={handleRemoveFileSongs}
             disabled={settingsLoading}
             style={{ backgroundColor: '#dc3545' }}
           >
@@ -642,7 +866,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               <PortInput
                 type="number"
                 value={localServerPort}
-                onChange={(e) => onLocalServerPortChange(parseInt(e.target.value) || 4000)}
+                onChange={(e) => setLocalServerPort(parseInt(e.target.value) || 4000)}
                 min="1000"
                 max="65535"
               />
@@ -659,7 +883,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                   <TabButton
                     key={key}
                     $active={localServerTab === key}
-                    onClick={() => onLocalServerTabChange(key as any)}
+                    onClick={() => setLocalServerTab(key as any)}
                   >
                     {label}
                     <TabDescription>{desc}</TabDescription>
@@ -680,7 +904,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             
             {/* Copy Button */}
             <button
-              onClick={onCopyServerCommand}
+              onClick={handleCopyServerCommand}
               style={{
                 padding: '8px 16px',
                 backgroundColor: '#6c757d',

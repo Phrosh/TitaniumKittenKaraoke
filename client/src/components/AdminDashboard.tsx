@@ -557,12 +557,6 @@ const AdminDashboard: React.FC = () => {
     youtubeUrl: ''
   });
   const [actionLoading, setActionLoading] = useState(false);
-  const [regressionValue, setRegressionValue] = useState(0.1);
-  const [customUrl, setCustomUrl] = useState('');
-  const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
-  const [youtubeEnabled, setYoutubeEnabled] = useState(true);
-  const [autoApproveSongs, setAutoApproveSongs] = useState(true);
-  const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Song Approval System State
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -632,11 +626,6 @@ const AdminDashboard: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [downloadingVideo, setDownloadingVideo] = useState(false);
   
-  // Cloudflared State
-  const [cloudflaredInstalled, setCloudflaredInstalled] = useState(false);
-  const [cloudflaredInstallLoading, setCloudflaredInstallLoading] = useState(false);
-  const [cloudflaredStartLoading, setCloudflaredStartLoading] = useState(false);
-  const [cloudflaredStopLoading, setCloudflaredStopLoading] = useState(false);
   
   const navigate = useNavigate();
 
@@ -645,36 +634,11 @@ const AdminDashboard: React.FC = () => {
       const response = await adminAPI.getDashboard();
       setDashboardData(response.data);
       
-      // Fetch settings including regression value and custom URL
-      const settingsResponse = await adminAPI.getSettings();
-      if (settingsResponse.data.settings.regression_value) {
-        setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
-      }
-      if (settingsResponse.data.settings.custom_url) {
-        setCustomUrl(settingsResponse.data.settings.custom_url);
-      }
-      if (settingsResponse.data.settings.overlay_title) {
-        setOverlayTitle(settingsResponse.data.settings.overlay_title);
-      }
-      if (settingsResponse.data.settings.youtube_enabled !== undefined) {
-        setYoutubeEnabled(settingsResponse.data.settings.youtube_enabled === 'true');
-      }
-      if (settingsResponse.data.settings.auto_approve_songs !== undefined) {
-        setAutoApproveSongs(settingsResponse.data.settings.auto_approve_songs === 'true');
-      }
+      // Settings werden jetzt in der SettingsTab verwaltet
       
       // Load pending approvals count
       await loadPendingApprovalsCount();
       
-      // Load file songs folder setting
-      try {
-        const fileSongsResponse = await adminAPI.getFileSongsFolder();
-        setFileSongsFolder(fileSongsResponse.data.folderPath || '');
-        setFileSongs(fileSongsResponse.data.fileSongs || []);
-        setLocalServerPort(fileSongsResponse.data.port || 4000);
-      } catch (error) {
-        console.error('Error loading file songs folder:', error);
-      }
       
       // Check QR overlay status from show API
       try {
@@ -784,23 +748,9 @@ const AdminDashboard: React.FC = () => {
       settings: data.settings
     }));
     
-    // Update local state from settings
-    if (data.settings) {
-      if (data.settings.regression_value) {
-        setRegressionValue(parseFloat(data.settings.regression_value));
-      }
-      if (data.settings.custom_url) {
-        setCustomUrl(data.settings.custom_url);
-      }
-      if (data.settings.overlay_title) {
-        setOverlayTitle(data.settings.overlay_title);
-      }
-      if (data.settings.youtube_enabled) {
-        setYoutubeEnabled(data.settings.youtube_enabled === 'true');
-      }
-      if (data.settings.show_qr_overlay) {
-        setShowQRCodeOverlay(data.settings.show_qr_overlay === 'true');
-      }
+    // Settings werden jetzt in der SettingsTab verwaltet
+    if (data.settings && data.settings.show_qr_overlay) {
+      setShowQRCodeOverlay(data.settings.show_qr_overlay === 'true');
     }
     
     setLoading(false);
@@ -809,8 +759,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     // Initial fetch
     fetchDashboardData();
-    fetchUSDBCredentials();
-    checkCloudflaredStatus();
+    // USDB credentials und Cloudflared werden jetzt in der SettingsTab verwaltet
     
     // Connect to WebSocket
     websocketService.connect().then(() => {
@@ -968,154 +917,8 @@ const AdminDashboard: React.FC = () => {
 
 
 
-  const handleUpdateRegressionValue = async () => {
-    setSettingsLoading(true);
-    try {
-      await adminAPI.updateRegressionValue(regressionValue);
-      toast.success('Regression-Wert erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating regression value:', error);
-      toast.error('Fehler beim Aktualisieren des Regression-Werts');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
 
-  const handleUpdateCustomUrl = async () => {
-    setSettingsLoading(true);
-    try {
-      await adminAPI.updateCustomUrl(customUrl);
-      toast.success('Eigene URL erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating custom URL:', error);
-      toast.error('Fehler beim Aktualisieren der eigenen URL');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
 
-  const handleCopyUrlToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(customUrl);
-      toast.success('URL in die Zwischenablage kopiert!');
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = customUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      toast.success('URL in die Zwischenablage kopiert!');
-    }
-  };
-
-  // Cloudflared Handler Functions
-  const checkCloudflaredStatus = async () => {
-    try {
-      const response = await adminAPI.getCloudflaredStatus();
-      setCloudflaredInstalled(response.data.installed);
-    } catch (error) {
-      console.error('Error checking cloudflared status:', error);
-      setCloudflaredInstalled(false);
-    }
-  };
-
-  const handleInstallCloudflared = async () => {
-    setCloudflaredInstallLoading(true);
-    try {
-      const response = await adminAPI.installCloudflared();
-      if (response.data.success) {
-        toast.success('Cloudflared erfolgreich installiert!');
-        setCloudflaredInstalled(true);
-      } else {
-        toast.error('Fehler beim Installieren von Cloudflared');
-      }
-    } catch (error) {
-      console.error('Error installing cloudflared:', error);
-      toast.error('Fehler beim Installieren von Cloudflared');
-    } finally {
-      setCloudflaredInstallLoading(false);
-    }
-  };
-
-  const handleStartCloudflaredTunnel = async () => {
-    setCloudflaredStartLoading(true);
-    try {
-      const response = await adminAPI.startCloudflaredTunnel();
-      if (response.data.success) {
-        toast.success(`Cloudflared Tunnel erfolgreich gestartet! URL: ${response.data.tunnelUrl}`);
-        // Update the custom URL with the tunnel URL
-        setCustomUrl(response.data.tunnelUrl);
-        // Refresh settings to get the updated URL
-        await fetchDashboardData();
-      } else {
-        toast.error('Fehler beim Starten des Cloudflared Tunnels');
-      }
-    } catch (error) {
-      console.error('Error starting cloudflared tunnel:', error);
-      toast.error('Fehler beim Starten des Cloudflared Tunnels');
-    } finally {
-      setCloudflaredStartLoading(false);
-    }
-  };
-
-  const handleStopCloudflaredTunnel = async () => {
-    setCloudflaredStopLoading(true);
-    try {
-      const response = await adminAPI.stopCloudflaredTunnel();
-      if (response.data.success) {
-        toast.success('Cloudflared Tunnel erfolgreich gestoppt!');
-      } else {
-        toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
-      }
-    } catch (error) {
-      console.error('Error stopping cloudflared tunnel:', error);
-      toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
-    } finally {
-      setCloudflaredStopLoading(false);
-    }
-  };
-
-  const handleUpdateOverlayTitle = async () => {
-    setSettingsLoading(true);
-    try {
-      await adminAPI.updateOverlayTitle(overlayTitle);
-      toast.success('Overlay-Überschrift erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating overlay title:', error);
-      toast.error('Fehler beim Aktualisieren der Overlay-Überschrift');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
-  const handleUpdateYouTubeEnabled = async () => {
-    setSettingsLoading(true);
-    try {
-      await adminAPI.updateYouTubeEnabled(youtubeEnabled);
-      toast.success('YouTube-Einstellung erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating YouTube setting:', error);
-      toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
-  const handleUpdateAutoApproveSongs = async () => {
-    setSettingsLoading(true);
-    try {
-      await adminAPI.updateAutoApproveSongs(autoApproveSongs);
-      toast.success('Auto-Approve Einstellung erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating auto approve songs:', error);
-      toast.error('Fehler beim Aktualisieren der Auto-Approve Einstellung');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
 
   // Song Approval System Handlers
   const handleShowApprovalModal = (approvals: any[]) => {
@@ -1296,80 +1099,6 @@ const AdminDashboard: React.FC = () => {
   };
 
 
-  const handleUpdateFileSongsFolder = async () => {
-    setSettingsLoading(true);
-    try {
-      const response = await adminAPI.setFileSongsFolder(fileSongsFolder, localServerPort);
-      setFileSongs(response.data.fileSongs);
-      toast.success('Song-Ordner erfolgreich aktualisiert!');
-    } catch (error) {
-      console.error('Error updating file songs folder:', error);
-      toast.error('Fehler beim Aktualisieren des Song-Ordners');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
-  const handleRescanFileSongs = async () => {
-    setSettingsLoading(true);
-    try {
-      const response = await adminAPI.rescanFileSongs();
-      setFileSongs(response.data.fileSongs);
-      toast.success('Songs erfolgreich neu gescannt!');
-    } catch (error) {
-      console.error('Error rescanning file songs:', error);
-      toast.error('Fehler beim Neu-Scannen der Songs');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
-  const handleRemoveFileSongs = async () => {
-    setSettingsLoading(true);
-    try {
-      const response = await adminAPI.removeFileSongs();
-      setFileSongs(response.data.fileSongs);
-      toast.success('Alle Songs erfolgreich aus der Liste entfernt!');
-    } catch (error) {
-      console.error('Error removing file songs:', error);
-      toast.error('Fehler beim Entfernen der Songs');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
-  const generateLocalServerCommand = () => {
-    if (!fileSongsFolder) return '';
-    
-    const folderPath = fileSongsFolder.replace(/\\/g, '/');
-    
-    switch (localServerTab) {
-      case 'node':
-        return `node -e "const http=require('http'),fs=require('fs'),path=require('path');const port=${localServerPort},dir='${folderPath}';const server=http.createServer((req,res)=>{res.setHeader('Access-Control-Allow-Origin','*');const filePath=path.join(dir,req.url.slice(1));fs.stat(filePath,(err,stats)=>{if(err||!stats.isFile()){res.writeHead(404);res.end('Not found');return;}res.setHeader('Content-Type','video/mp4');fs.createReadStream(filePath).pipe(res);});});server.listen(port,()=>console.log('🌐 Server: http://localhost:'+port+'/'));"`;
-      case 'npx':
-        return `npx serve "${folderPath}" -p ${localServerPort} -s`;
-      case 'python':
-        return `python -m http.server ${localServerPort} --directory "${folderPath}"`;
-      default:
-        return '';
-    }
-  };
-
-  const handleCopyServerCommand = async () => {
-    const command = generateLocalServerCommand();
-    if (!command) {
-      toast.error('Bitte zuerst einen Song-Ordner angeben');
-      return;
-    }
-    
-    try {
-      await navigator.clipboard.writeText(command);
-      toast.success('Befehl in die Zwischenablage kopiert!');
-    } catch (error) {
-      console.error('Error copying command:', error);
-      toast.error('Fehler beim Kopieren des Befehls');
-    }
-  };
 
   const handleToggleQRCodeOverlay = async (show: boolean) => {
     try {
@@ -1387,17 +1116,6 @@ const AdminDashboard: React.FC = () => {
   const [youtubeLinks, setYoutubeLinks] = useState<{[key: number]: string}>({});
   
   
-  // File Songs Management
-  const [fileSongsFolder, setFileSongsFolder] = useState('');
-  const [fileSongs, setFileSongs] = useState<any[]>([]);
-  const [localServerPort, setLocalServerPort] = useState(4000);
-  const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python'>('python');
-  
-  // USDB Management
-  const [usdbCredentials, setUsdbCredentials] = useState<{username: string, password: string} | null>(null);
-  const [usdbUsername, setUsdbUsername] = useState('');
-  const [usdbPassword, setUsdbPassword] = useState('');
-  const [usdbLoading, setUsdbLoading] = useState(false);
   const [showUsdbDialog, setShowUsdbDialog] = useState(false);
   const [usdbUrl, setUsdbUrl] = useState('');
   const [usdbDownloading, setUsdbDownloading] = useState(false);
@@ -2600,61 +2318,9 @@ const AdminDashboard: React.FC = () => {
 
 
   // USDB Management Handlers
-  const fetchUSDBCredentials = async () => {
-    try {
-      const response = await adminAPI.getUSDBCredentials();
-      setUsdbCredentials(response.data.credentials);
-    } catch (error) {
-      console.error('Error fetching USDB credentials:', error);
-    }
-  };
-
-  const handleSaveUSDBCredentials = async () => {
-    if (!usdbUsername.trim() || !usdbPassword.trim()) {
-      toast.error('Bitte Username und Passwort eingeben');
-      return;
-    }
-
-    setUsdbLoading(true);
-    try {
-      await adminAPI.saveUSDBCredentials(usdbUsername, usdbPassword);
-      toast.success('USDB-Zugangsdaten erfolgreich gespeichert!');
-      setUsdbUsername('');
-      setUsdbPassword('');
-      await fetchUSDBCredentials();
-    } catch (error: any) {
-      console.error('Error saving USDB credentials:', error);
-      const message = error.response?.data?.message || 'Fehler beim Speichern der USDB-Zugangsdaten';
-      toast.error(message);
-    } finally {
-      setUsdbLoading(false);
-    }
-  };
-
-  const handleDeleteUSDBCredentials = async () => {
-    if (!window.confirm('USDB-Zugangsdaten wirklich löschen?')) {
-      return;
-    }
-
-    setUsdbLoading(true);
-    try {
-      await adminAPI.deleteUSDBCredentials();
-      toast.success('USDB-Zugangsdaten erfolgreich gelöscht!');
-      setUsdbCredentials(null);
-    } catch (error: any) {
-      console.error('Error deleting USDB credentials:', error);
-      const message = error.response?.data?.message || 'Fehler beim Löschen der USDB-Zugangsdaten';
-      toast.error(message);
-    } finally {
-      setUsdbLoading(false);
-    }
-  };
 
   const handleOpenUsdbDialog = () => {
-    if (!usdbCredentials) {
-      toast.error('Bitte zuerst USDB-Zugangsdaten in den Einstellungen eingeben');
-      return;
-    }
+    // USDB-Zugangsdaten werden jetzt in der SettingsTab verwaltet
     setShowUsdbDialog(true);
   };
 
@@ -3062,48 +2728,6 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'settings' && (
             <SettingsTab
               t={(key: string) => key}
-              regressionValue={regressionValue}
-              onRegressionValueChange={setRegressionValue}
-              onUpdateRegressionValue={handleUpdateRegressionValue}
-              customUrl={customUrl}
-              onCustomUrlChange={setCustomUrl}
-              onUpdateCustomUrl={handleUpdateCustomUrl}
-              onCopyUrlToClipboard={handleCopyUrlToClipboard}
-              cloudflaredInstalled={cloudflaredInstalled}
-              cloudflaredInstallLoading={cloudflaredInstallLoading}
-              cloudflaredStartLoading={cloudflaredStartLoading}
-              cloudflaredStopLoading={cloudflaredStopLoading}
-              onInstallCloudflared={handleInstallCloudflared}
-              onStartCloudflaredTunnel={handleStartCloudflaredTunnel}
-              onStopCloudflaredTunnel={handleStopCloudflaredTunnel}
-              overlayTitle={overlayTitle}
-              onOverlayTitleChange={setOverlayTitle}
-              onUpdateOverlayTitle={handleUpdateOverlayTitle}
-              youtubeEnabled={youtubeEnabled}
-              onYoutubeEnabledChange={setYoutubeEnabled}
-              onUpdateYouTubeEnabled={handleUpdateYouTubeEnabled}
-              autoApproveSongs={autoApproveSongs}
-              onAutoApproveSongsChange={setAutoApproveSongs}
-              onUpdateAutoApproveSongs={handleUpdateAutoApproveSongs}
-              usdbCredentials={usdbCredentials}
-              usdbUsername={usdbUsername}
-              usdbPassword={usdbPassword}
-              onUsdbUsernameChange={setUsdbUsername}
-              onUsdbPasswordChange={setUsdbPassword}
-              onSaveUSDBCredentials={handleSaveUSDBCredentials}
-              onDeleteUSDBCredentials={handleDeleteUSDBCredentials}
-              fileSongsFolder={fileSongsFolder}
-              onFileSongsFolderChange={setFileSongsFolder}
-              onUpdateFileSongsFolder={handleUpdateFileSongsFolder}
-              onRescanFileSongs={handleRescanFileSongs}
-              onRemoveFileSongs={handleRemoveFileSongs}
-              localServerPort={localServerPort}
-              localServerTab={localServerTab}
-              onLocalServerPortChange={setLocalServerPort}
-              onLocalServerTabChange={setLocalServerTab}
-              onCopyServerCommand={handleCopyServerCommand}
-              settingsLoading={settingsLoading}
-              usdbLoading={usdbLoading}
             />
           )}
           
