@@ -26,25 +26,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
     // const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
     const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
-
-    const handleClose = () => {
-        setAddSongData({
-            singerName: '',
-            artist: '',
-            title: '',
-            youtubeUrl: ''
-          });
-          setAddSongUsdbResults([]);
-          setAddSongUsdbLoading(false);
-          setAddSongSearchTerm('');
-          setActionLoading(false);
-
-          // Clear any pending timeout
-        //   if (addSongUsdbTimeout) {
-        //     clearTimeout(addSongUsdbTimeout);
-        //     setAddSongUsdbTimeout(null);
-        //   }
-    };
     
   const handleSelectAddSong = (song: any) => {
     setAddSongData(prev => ({
@@ -59,6 +40,16 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     song.title.toLowerCase().includes(addSongSearchTerm.toLowerCase()) ||
     `${song.artist} - ${song.title}`.toLowerCase().includes(addSongSearchTerm.toLowerCase())
   );
+
+  useEffect(() => {
+    if (!show) {
+        setActionLoading(false);
+        setAddSongUsdbResults([]);
+        setAddSongUsdbLoading(false);
+        setAddSongSearchTerm('');
+        setActionLoading(false);
+    }
+  }, [show]);
 
     if (!show) return null;
 
@@ -126,7 +117,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 <button
                   onClick={() => {
                     onClose();
-                    handleClose();
                   }}
                   disabled={actionLoading}
                   style={{
@@ -147,8 +137,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                   onClick={() => {
                     setActionLoading(true);
                     onSave();
-                    onClose();
-                    handleClose();
                   }}
                   disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
                     style={{

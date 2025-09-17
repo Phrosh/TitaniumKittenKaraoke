@@ -407,6 +407,12 @@ const filteredPlaylist = showPastSongs
 
   const handleCloseAddSongModal = () => {
     setShowAddSongModal(false);
+    setAddSongData({
+        singerName: '',
+        artist: '',
+        title: '',
+        youtubeUrl: ''
+      });
   };
 
   const handleAddSongSubmit = async () => {
@@ -435,6 +441,7 @@ const filteredPlaylist = showPastSongs
         deviceId: 'ADM' // Admin device ID
       });
       toast.success('Song erfolgreich zur Playlist hinzugefügt!');
+
       handleCloseAddSongModal();
       
       // Refresh playlist

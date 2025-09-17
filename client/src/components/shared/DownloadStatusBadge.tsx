@@ -35,7 +35,7 @@ interface DownloadStatusBadgeProps {
   const DownloadStatusBadge: React.FC<DownloadStatusBadgeProps> = ({ 
     status
   }) => {
-    if (status === 'none'/* || status === 'ready' || status === 'pending'*/) {
+    if (status === 'none' || status === 'ready' || status === 'pending') {
       return null;
     }
     return (
