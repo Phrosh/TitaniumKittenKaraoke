@@ -15,6 +15,7 @@ import RenameModal from './admin/modals/RenameModal';
 import DeleteModal from './admin/modals/DeleteModal';
 import ApprovalModal from './admin/modals/ApprovalModal';
 import EditSongModal from './admin/modals/EditSongModal';
+import ManualSongListModal from './admin/modals/ManualSongListModal';
 import SongsTab from './admin/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
@@ -3477,147 +3478,15 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {/* Manual Song List Modal */}
-      {showManualSongList && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '20px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '95vh',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px',
-              borderBottom: '1px solid #eee',
-              paddingBottom: '15px'
-            }}>
-              <h3 style={{ margin: 0, color: '#333' }}>🎵 Server Songs</h3>
-              <button
-                onClick={handleCloseManualSongList}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Songs durchsuchen..."
-              value={manualSongSearchTerm}
-              onChange={(e) => setManualSongSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                marginBottom: '15px',
-                fontSize: '14px'
-              }}
-            />
-            
-            <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
-              <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
-              <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
-            </div>
-            
-            <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-              {filteredManualSongs.length > 0 ? (() => {
-                // Group songs by first letter of artist
-                const groupedSongs = filteredManualSongs.reduce((groups, song) => {
-                  const letter = getFirstLetter(song.artist);
-                  if (!groups[letter]) {
-                    groups[letter] = [];
-                  }
-                  groups[letter].push(song);
-                  return groups;
-                }, {} as Record<string, typeof filteredManualSongs>);
-                
-                const sortedGroups = Object.keys(groupedSongs).sort();
-                
-                return (
-                  <>
-                    {sortedGroups.map((letter) => (
-                      <div key={letter}>
-                        <div style={{
-                          position: 'sticky',
-                          top: 0,
-                          background: '#adb5bd',
-                          color: 'white',
-                          padding: '8px 15px',
-                          fontSize: '16px',
-                          fontWeight: 'bold',
-                          zIndex: 10,
-                          borderBottom: '2px solid #9ca3af'
-                        }}>
-                          {letter}
-                        </div>
-                        {groupedSongs[letter].map((song, index) => (
-                          <div
-                            key={`${letter}-${index}`}
-                            onClick={() => handleSelectManualSong(song)}
-                            style={{
-                              padding: '10px',
-                              border: '1px solid #eee',
-                              borderRadius: '8px',
-                              marginBottom: '8px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              display: 'flex'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#f8f9fa';
-                              e.currentTarget.style.borderColor = '#667eea';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'white';
-                              e.currentTarget.style.borderColor = '#eee';
-                            }}
-                          >
-                            <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                              {song.artist}
-                            </div>
-                            <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                              {song.title}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </>
-                );
-              })() : (
-                <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                  {manualSongSearchTerm ? 'Keine Songs gefunden' : 'Keine Server Songs verfügbar'}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-          )}
+      <ManualSongListModal
+        show={showManualSongList}
+        manualSongList={filteredManualSongs}
+        manualSongSearchTerm={manualSongSearchTerm}
+        onClose={handleCloseManualSongList}
+        onSearchTermChange={setManualSongSearchTerm}
+        onSongSelect={handleSelectManualSong}
+        getFirstLetter={getFirstLetter}
+      />
 
       {/* YouTube Download Dialog */}
       {showYouTubeDialog && (
