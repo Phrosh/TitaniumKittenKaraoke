@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import { adminAPI } from '../../../services/api';
 import { Button } from '../../shared';
 import { AdminUser } from '../../../types';
 
@@ -85,22 +87,76 @@ interface NewUserData {
 }
 
 interface UsersTabProps {
-  adminUsers: AdminUser[];
-  newUserData: NewUserData;
-  userManagementLoading: boolean;
-  onNewUserDataChange: (data: NewUserData) => void;
-  onCreateAdminUser: () => void;
-  onDeleteAdminUser: (userId: number, username: string) => void;
+  // Keine Props nötig, da die Komponente ihre eigene Logik verwaltet
 }
 
-const UsersTab: React.FC<UsersTabProps> = ({
-  adminUsers,
-  newUserData,
-  userManagementLoading,
-  onNewUserDataChange,
-  onCreateAdminUser,
-  onDeleteAdminUser
-}) => {
+const UsersTab: React.FC<UsersTabProps> = () => {
+  // Users State
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [newUserData, setNewUserData] = useState<NewUserData>({ username: '', password: '' });
+  const [userManagementLoading, setUserManagementLoading] = useState(false);
+
+  // Load admin users when component mounts
+  useEffect(() => {
+    fetchAdminUsers();
+  }, []);
+
+  // Admin User Management Functions
+  const fetchAdminUsers = async () => {
+    try {
+      const response = await adminAPI.getAdminUsers();
+      console.log('Admin users response:', response.data);
+      setAdminUsers(response.data.adminUsers || []);
+    } catch (error) {
+      console.error('Error fetching admin users:', error);
+      toast.error('Fehler beim Laden der Admin-Benutzer');
+    }
+  };
+
+  const handleCreateAdminUser = async () => {
+    if (!newUserData.username.trim() || !newUserData.password.trim()) {
+      toast.error('Bitte fülle alle Felder aus');
+      return;
+    }
+
+    if (newUserData.password.length < 6) {
+      toast.error('Passwort muss mindestens 6 Zeichen lang sein');
+      return;
+    }
+
+    setUserManagementLoading(true);
+    try {
+      await adminAPI.createAdminUser(newUserData);
+      toast.success('Admin-Benutzer erfolgreich erstellt!');
+      setNewUserData({ username: '', password: '' });
+      await fetchAdminUsers();
+    } catch (error: any) {
+      console.error('Error creating admin user:', error);
+      const message = error.response?.data?.message || 'Fehler beim Erstellen des Admin-Benutzers';
+      toast.error(message);
+    } finally {
+      setUserManagementLoading(false);
+    }
+  };
+
+  const handleDeleteAdminUser = async (userId: number, username: string) => {
+    if (!window.confirm(`Möchtest du den Admin-Benutzer "${username}" wirklich löschen?`)) {
+      return;
+    }
+
+    setUserManagementLoading(true);
+    try {
+      await adminAPI.deleteAdminUser(userId);
+      toast.success(`Admin-Benutzer "${username}" erfolgreich gelöscht!`);
+      await fetchAdminUsers();
+    } catch (error: any) {
+      console.error('Error deleting admin user:', error);
+      const message = error.response?.data?.message || 'Fehler beim Löschen des Admin-Benutzers';
+      toast.error(message);
+    } finally {
+      setUserManagementLoading(false);
+    }
+  };
   return (
     <SettingsSection>
       <SettingsTitle>👥 Nutzerverwaltung</SettingsTitle>
@@ -113,21 +169,21 @@ const UsersTab: React.FC<UsersTabProps> = ({
             type="text"
             placeholder="Benutzername"
             value={newUserData.username}
-            onChange={(e) => onNewUserDataChange({ ...newUserData, username: e.target.value })}
+            onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
             style={{ minWidth: '200px' }}
           />
           <SettingsInput
             type="password"
             placeholder="Passwort (min. 6 Zeichen)"
             value={newUserData.password}
-            onChange={(e) => onNewUserDataChange({ ...newUserData, password: e.target.value })}
+            onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
             style={{ minWidth: '200px' }}
           />
           <SettingsButton 
-            onClick={onCreateAdminUser}
+            onClick={handleCreateAdminUser}
             disabled={userManagementLoading}
           >
-            {userManagementLoading ? 'Erstellt...' : 'Erstellen'}
+            {userManagementLoading ? 'Erstellen...' : 'Erstellen'}
           </SettingsButton>
         </div>
         <SettingsDescription>
@@ -166,7 +222,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
                 </div>
                 <Button 
                   variant="danger"
-                  onClick={() => onDeleteAdminUser(user.id, user.username)}
+                  onClick={() => handleDeleteAdminUser(user.id, user.username)}
                   disabled={userManagementLoading}
                   style={{ padding: '5px 10px', fontSize: '0.9em' }}
                 >

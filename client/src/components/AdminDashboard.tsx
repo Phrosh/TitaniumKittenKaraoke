@@ -964,12 +964,6 @@ const AdminDashboard: React.FC = () => {
     };
   }, [fetchDashboardData, handleAdminWebSocketUpdate]);
 
-  // Load admin users when users tab is active
-  useEffect(() => {
-    if (activeTab === 'users') {
-      fetchAdminUsers();
-    }
-  }, [activeTab]);
 
 
 
@@ -1392,10 +1386,6 @@ const AdminDashboard: React.FC = () => {
   const [dropTarget, setDropTarget] = useState<number | null>(null);
   const [youtubeLinks, setYoutubeLinks] = useState<{[key: number]: string}>({});
   
-  // Admin User Management
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [newUserData, setNewUserData] = useState({ username: '', password: '' });
-  const [userManagementLoading, setUserManagementLoading] = useState(false);
   
   // File Songs Management
   const [fileSongsFolder, setFileSongsFolder] = useState('');
@@ -2078,17 +2068,6 @@ const AdminDashboard: React.FC = () => {
     };
   }, [dashboardData]);
 
-  // Admin User Management Functions
-  const fetchAdminUsers = async () => {
-    try {
-      const response = await adminAPI.getAdminUsers();
-      console.log('Admin users response:', response.data);
-      setAdminUsers(response.data.adminUsers || []);
-    } catch (error) {
-      console.error('Error fetching admin users:', error);
-      toast.error('Fehler beim Laden der Admin-Benutzer');
-    }
-  };
 
 
   const handleDeviceIdClick = (deviceId: string) => {
@@ -2619,50 +2598,6 @@ const AdminDashboard: React.FC = () => {
     toast.success(`Verarbeitung für ${song.artist} - ${song.title} abgeschlossen`);
   };
 
-  const handleCreateAdminUser = async () => {
-    if (!newUserData.username.trim() || !newUserData.password.trim()) {
-      toast.error('Bitte fülle alle Felder aus');
-      return;
-    }
-
-    if (newUserData.password.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen lang sein');
-      return;
-    }
-
-    setUserManagementLoading(true);
-    try {
-      await adminAPI.createAdminUser(newUserData);
-      toast.success('Admin-Benutzer erfolgreich erstellt!');
-      setNewUserData({ username: '', password: '' });
-      await fetchAdminUsers();
-    } catch (error: any) {
-      console.error('Error creating admin user:', error);
-      const message = error.response?.data?.message || 'Fehler beim Erstellen des Admin-Benutzers';
-      toast.error(message);
-    } finally {
-      setUserManagementLoading(false);
-    }
-  };
-
-  const handleDeleteAdminUser = async (userId: number, username: string) => {
-    if (!window.confirm(`Möchtest du den Admin-Benutzer "${username}" wirklich löschen?`)) {
-      return;
-    }
-
-    setUserManagementLoading(true);
-    try {
-      await adminAPI.deleteAdminUser(userId);
-      toast.success(`Admin-Benutzer "${username}" erfolgreich gelöscht!`);
-      await fetchAdminUsers();
-    } catch (error: any) {
-      console.error('Error deleting admin user:', error);
-      const message = error.response?.data?.message || 'Fehler beim Löschen des Admin-Benutzers';
-      toast.error(message);
-    } finally {
-      setUserManagementLoading(false);
-    }
-  };
 
   // USDB Management Handlers
   const fetchUSDBCredentials = async () => {
@@ -3173,14 +3108,7 @@ const AdminDashboard: React.FC = () => {
           )}
           
           {activeTab === 'users' && (
-            <UsersTab
-              adminUsers={adminUsers}
-              newUserData={newUserData}
-              userManagementLoading={userManagementLoading}
-              onNewUserDataChange={setNewUserData}
-              onCreateAdminUser={handleCreateAdminUser}
-              onDeleteAdminUser={handleDeleteAdminUser}
-            />
+            <UsersTab />
           )}
           
           {activeTab === 'banlist' && (
