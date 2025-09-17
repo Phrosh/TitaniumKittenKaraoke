@@ -94,7 +94,7 @@ const SongForm: React.FC<SongFormProps> = ({
         const response = await adminAPI.searchUSDB(
           artist.trim() || undefined,
           title.trim() || undefined,
-          20 // Limit to 20 results for modal
+          100
         );
   
         const songs = response.data.songs || [];

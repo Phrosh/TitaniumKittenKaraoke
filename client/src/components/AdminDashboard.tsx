@@ -5,150 +5,19 @@ import toast from 'react-hot-toast';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
 import websocketService, { AdminUpdateData } from '../services/websocket';
-import { cleanYouTubeUrl, extractVideoIdFromUrl } from '../utils/youtubeUrlCleaner';
-import { boilDown, boilDownMatch } from '../utils/boilDown';
-import PlaylistTab from './admin/tabs/PlaylistTab';
+import PlaylistTab from './admin/tabs/playlist/PlaylistTab';
 import BanlistTab from './admin/tabs/BanlistTab';
 import UsersTab from './admin/tabs/UsersTab';
 import SettingsTab from './admin/tabs/SettingsTab';
-import RenameModal from './admin/modals/RenameModal';
-import DeleteModal from './admin/modals/DeleteModal';
 import ApprovalModal from './admin/modals/ApprovalModal';
-import EditSongModal from './admin/modals/EditSongModal';
-import ManualSongListModal from './admin/modals/ManualSongListModal';
 import YouTubeDownloadModal from './admin/modals/YouTubeDownloadModal';
 import SongsTab from './admin/tabs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
-import { Button, SmallButton } from './shared';
-import USDBDownloadModal from './admin/modals/usdb/UsdbDownloadModal';
 import getFirstLetter from '../utils/getFirstLetter';
 import SongForm from './admin/SongForm';
 import loadAllSongs from '../utils/loadAllSongs';
+import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent } from './admin/style';
 
-
-const Container = styled.div`
-  min-height: 100vh;
-  padding: 20px;
-`;
-
-
-const TabContainer = styled.div`
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-`;
-
-const TabHeader = styled.div`
-  display: flex;
-  border-bottom: 1px solid #e9ecef;
-`;
-
-const TabButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? '#e3f2fd' : 'transparent'};
-  color: ${props => props.$active ? '#1976d2' : '#666'};
-  border: none;
-  padding: 15px 25px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-radius: ${props => props.$active ? '12px 12px 0 0' : '0'};
-  
-  &:hover {
-    background: ${props => props.$active ? '#bbdefb' : '#f8f9fa'};
-    color: ${props => props.$active ? '#1565c0' : '#333'};
-  }
-  
-  &:first-child {
-    border-radius: 12px 0 0 0;
-  }
-  
-  &:last-child {
-    border-radius: 0 12px 0 0;
-  }
-`;
-
-const TabContent = styled.div`
-  padding: 20px;
-`;
-
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 20px;
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-`;
-
-// const QRCodeToggleButton = styled.button<{ $active: boolean }>`
-//   background: ${props => props.$active ? '#8e44ad' : '#95a5a6'};
-//   color: white;
-//   border: none;
-//   padding: 15px 25px;
-//   border-radius: 8px;
-//   cursor: pointer;
-//   font-weight: 600;
-//   font-size: 1.1rem;
-//   display: flex;
-//   align-items: center;
-//   gap: 8px;
-//   transition: background-color 0.2s;
-
-//   &:hover {
-//     background: ${props => props.$active ? '#7d3c98' : '#7f8c8d'};
-//   }
-// `;
-
-// const ShowPastSongsToggleButton = styled.button<{ $active: boolean }>`
-//   background: ${props => props.$active ? '#3498db' : '#95a5a6'};
-//   color: white;
-//   border: none;
-//   padding: 15px 25px;
-//   border-radius: 8px;
-//   cursor: pointer;
-//   font-weight: 600;
-//   font-size: 1.1rem;
-//   display: flex;
-//   align-items: center;
-//   gap: 8px;
-//   transition: background-color 0.2s;
-
-//   &:hover {
-//     background: ${props => props.$active ? '#2980b9' : '#7f8c8d'};
-//   }
-// `;
-
-
-const Title = styled.h1`
-  color: white;
-  font-size: 2.5rem;
-  margin: 0;
-`;
-
-const LogoutButton = styled.button`
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-
-  &:hover {
-    background: #c0392b;
-  }
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #666;
-`;
 
 const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
@@ -189,6 +58,12 @@ const AdminDashboard: React.FC = () => {
   const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
   const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+
+  useEffect(async () => {
+    if (!showApprovalModal) { return ; }
+    const songs = await loadAllSongs();
+    setManualSongList(songs);
+  }, [showApprovalModal]);
   
   const handleDeviceIdClick = (deviceId: string) => {
     setActiveTab('banlist');
@@ -206,8 +81,6 @@ const AdminDashboard: React.FC = () => {
     try {
       const response = await adminAPI.getDashboard();
       setDashboardData(response.data);
-      
-      // Settings werden jetzt in der SettingsTab verwaltet
       
       // Load pending approvals count
       await loadPendingApprovalsCount();
@@ -595,106 +468,6 @@ const AdminDashboard: React.FC = () => {
     navigate('/admin/login');
   };
 
-  // const handleManualSongSubmit = async () => {
-  //   if (!manualSongData.singerName.trim() || !manualSongData.songInput.trim()) {
-  //     toast.error('Bitte fülle alle Felder aus');
-  //     return;
-  //   }
-
-  //   setActionLoading(true);
-  //   try {
-  //     // Use the same API function as the /new route
-  //     const response = await songAPI.requestSong({
-  //       name: manualSongData.singerName.trim(),
-  //       songInput: manualSongData.songInput.trim(),
-  //       deviceId: 'ADMIN' // Admin device ID
-  //     });
-
-  //     toast.success('Song erfolgreich hinzugefügt!');
-  //     setManualSongData({ singerName: '', songInput: '' });
-  //     await fetchDashboardData();
-  //   } catch (error) {
-  //     console.error('Error adding manual song:', error);
-  //     toast.error('Fehler beim Hinzufügen des Songs');
-  //   } finally {
-  //     setActionLoading(false);
-  //   }
-  // };
-
-  // const handleOpenManualSongList = async () => {
-  //   try {
-  //     const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
-  //       songAPI.getServerVideos(),
-  //       songAPI.getUltrastarSongs(),
-  //       songAPI.getFileSongs()
-  //     ]);
-      
-  //     const serverVideos = localResponse.data.videos || [];
-  //     const ultrastarSongs = ultrastarResponse.data.songs || [];
-  //     const fileSongs = fileResponse.data.fileSongs || [];
-      
-  //     // Combine and deduplicate songs
-  //     const allSongs = [...fileSongs];
-      
-  //     // Add server videos
-  //     serverVideos.forEach(serverVideo => {
-  //       const exists = allSongs.some(song => 
-  //         song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
-  //         song.title.toLowerCase() === serverVideo.title.toLowerCase()
-  //       );
-  //       if (!exists) {
-  //         allSongs.push(serverVideo);
-  //       }
-  //     });
-      
-  //     // Add ultrastar songs
-  //     ultrastarSongs.forEach(ultrastarSong => {
-  //       const exists = allSongs.some(song => 
-  //         song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
-  //         song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
-  //       );
-  //       if (!exists) {
-  //         allSongs.push(ultrastarSong);
-  //       }
-  //     });
-      
-  //     // Sort alphabetically by artist, then by title
-  //     allSongs.sort((a, b) => {
-  //       const artistA = a.artist.toLowerCase();
-  //       const artistB = b.artist.toLowerCase();
-  //       if (artistA !== artistB) {
-  //         return artistA.localeCompare(artistB);
-  //       }
-  //       return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-  //     });
-      
-  //     setManualSongList(allSongs);
-  //     setShowManualSongList(true);
-  //   } catch (error) {
-  //     console.error('Error loading manual song list:', error);
-  //     toast.error('Fehler beim Laden der Songliste');
-  //   }
-  // };
-
-  // const handleCloseManualSongList = () => {
-  //   setShowManualSongList(false);
-  //   setManualSongSearchTerm('');
-  // };
-
-  // const handleSelectManualSong = (song: any) => {
-  //   setManualSongData(prev => ({
-  //     ...prev,
-  //     songInput: `${song.artist} - ${song.title}`
-  //   }));
-  //   handleCloseManualSongList();
-  // };
-
-  // const filteredManualSongs = manualSongList.filter(song =>
-  //   song.artist.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
-  //   song.title.toLowerCase().includes(manualSongSearchTerm.toLowerCase()) ||
-  //   `${song.artist} - ${song.title}`.toLowerCase().includes(manualSongSearchTerm.toLowerCase())
-  // );
-
   // Periodic check for failed USDB downloads
   React.useEffect(() => {
     const checkFailedDownloads = async () => {
@@ -747,140 +520,6 @@ const AdminDashboard: React.FC = () => {
       clearTimeout(initialTimeout);
     };
   }, [dashboardData]);
-
-  // // Check if Ultrastar song has all required files for processing
-  // const hasAllRequiredFiles = (song: any) => {
-  //   if (!song.modes?.includes('ultrastar')) return false;
-    
-  //   // Check if video files are present (mp4 or webm)
-  //   const hasVideo = song.hasVideo || false;
-    
-  //   // Check if HP2/HP5 files are present
-  //   const hasHp2Hp5 = song.hasHp2Hp5 || false;
-    
-  //   // Show processing button only if BOTH video AND HP2/HP5 files are present
-  //   return hasVideo && hasHp2Hp5;
-  // };
-
-  // // Check if Ultrastar song has missing files (for warning display)
-  // const hasMissingFiles = (song: any) => {
-  //   if (!song.modes?.includes('ultrastar')) return false;
-    
-  //   // If the properties are undefined, we can't determine if files are missing
-  //   // So we assume they are complete (don't show button/warning)
-  //   if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
-  //     return false;
-  //   }
-    
-  //   // Check if video files are present (mp4 or webm)
-  //   const hasVideo = song.hasVideo === true;
-    
-  //   // Check if HP2/HP5 files are present
-  //   const hasHp2Hp5 = song.hasHp2Hp5 === true;
-    
-  //   // Show warning if video OR HP2/HP5 files are missing
-  //   return !hasVideo || !hasHp2Hp5;
-  // };
-
-  // const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
-  //   setActionLoading(true);
-  //   try {
-  //     const songKey = `${song.artist}-${song.title}`;
-      
-  //     if (audioPreference === 'choice') {
-  //       // Remove setting (default to choice)
-  //       await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
-  //       setUltrastarAudioSettings(prev => {
-  //         const newSettings = { ...prev };
-  //         delete newSettings[songKey];
-  //         return newSettings;
-  //       });
-  //       toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "Auswahl" gesetzt`);
-  //     } else {
-  //       // Set specific preference
-  //       await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
-  //       setUltrastarAudioSettings(prev => ({
-  //         ...prev,
-  //         [songKey]: audioPreference
-  //       }));
-  //       const preferenceText = audioPreference === 'hp2' ? 'Ohne Background Vocals' : 'Mit Background Vocals';
-  //       toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "${preferenceText}" gesetzt`);
-  //     }
-  //   } catch (error: any) {
-  //     console.error('Error updating ultrastar audio setting:', error);
-  //     toast.error(error.response?.data?.message || 'Fehler beim Aktualisieren der Audio-Einstellung');
-  //   } finally {
-  //     setActionLoading(false);
-  //   }
-  // };
-
-  
-
-  // const handleStartProcessing = async (song: any) => {
-  //   const songKey = `${song.artist}-${song.title}`;
-    
-  //   try {
-  //     const folderName = song.folderName || `${song.artist} - ${song.title}`;
-      
-  //     // First check if video is needed
-  //     const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
-      
-  //     if (videoCheckResponse.data.needsVideo) {
-  //       // Show YouTube dialog
-  //       setSelectedSongForDownload(song);
-  //       setYoutubeUrl('');
-  //       setShowYouTubeDialog(true);
-  //       return;
-  //     }
-      
-  //     // If video exists, proceed with normal processing
-  //     await startNormalProcessing(song, songKey, folderName);
-      
-  //   } catch (error: any) {
-  //     console.error('Error checking video needs:', error);
-  //     toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
-  //   }
-  // };
-
-  // const handleTestSong = async (song: { artist: string; title: string; modes?: string[]; youtubeUrl?: string }) => {
-  //   setActionLoading(true);
-    
-  //   try {
-  //     // Determine the best mode and URL for the song
-  //     let mode = 'youtube';
-  //     let youtubeUrl = song.youtubeUrl;
-      
-  //     if (song.modes?.includes('ultrastar')) {
-  //       mode = 'ultrastar';
-  //       youtubeUrl = `/api/ultrastar/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
-  //     } else if (song.modes?.includes('file')) {
-  //       mode = 'file';
-  //       youtubeUrl = song.youtubeUrl || `${song.artist} - ${song.title}`;
-  //     } else if (song.modes?.includes('server_video')) {
-  //       mode = 'server_video';
-  //       youtubeUrl = song.youtubeUrl || `/api/videos/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
-  //     }
-      
-  //     const response = await adminAPI.testSong({
-  //       artist: song.artist,
-  //       title: song.title,
-  //       mode: mode,
-  //       youtubeUrl: youtubeUrl
-  //     });
-      
-  //     toast.success(`Test-Song "${song.artist} - ${song.title}" erfolgreich gestartet!`);
-  //     console.log('Test song started:', response.data);
-      
-  //     // Optionally refresh the dashboard to show updated current song
-  //     fetchDashboardData();
-      
-  //   } catch (error: any) {
-  //     console.error('Error testing song:', error);
-  //     toast.error(error.response?.data?.message || 'Fehler beim Starten des Test-Songs');
-  //   } finally {
-  //     setActionLoading(false);
-  //   }
-  // };
 
   const startNormalProcessing = async (song: any, songKey: string, folderName: string) => {
     // Mark song as processing
@@ -1107,47 +746,15 @@ const AdminDashboard: React.FC = () => {
         <TabContent>
           {activeTab === 'playlist' && (
             <PlaylistTab
-              // filteredPlaylist={filteredPlaylist}
-              // currentSong={currentSong}
-              // showPastSongs={showPastSongs}
-              // showQRCodeOverlay={showQRCodeOverlay}
-              // actionLoading={actionLoadingdropTarget}
-              // isPlaying={isPlaying}
-              // draggedItem={draggedItem}
-              // dropTarget={dropTarget}
-              // youtubeLinks={youtubeLinks}
-              // onOpenAddSongModal={handleOpenAddSongModal}
-              // onToggleQRCodeOverlay={handleToggleQRCodeOverlay}
-              // onPreviousSong={handlePreviousSong}
-              // onTogglePlayPause={handleTogglePlayPause}
-              // onRestartSong={handleRestartSong}
-              // onNextSong={handleNextSong}
-              // onSetShowPastSongs={setShowPastSongs}
-              // onClearAllSongs={handleClearAllSongs}
-              // onDragStart={handleDragStart}
-              // onDragOver={handleDragOver}
-              // onDragLeave={handleDragLeave}
-              // onDrop={handleDrop}
               showQRCodeOverlay={showQRCodeOverlay}
               setShowQRCodeOverlay={setShowQRCodeOverlay}
               setDashboardData={setDashboardData}
-              // onCopyToClipboard={handleCopyToClipboard}
-              // onYouTubeFieldChange={handleYouTubeFieldChange}
-              // onYouTubeFieldBlur={handleYouTubeFieldBlur}
-              // onPlaySong={handlePlaySong}
-              // onOpenModal={openModal}
-              // onRefreshClassification={handleRefreshClassification}
-              // onDeleteSong={handleDeleteSong}
               fetchDashboardData={fetchDashboardData}
               isPlaying={isPlaying}
               actionLoading={actionLoading}
               setActionLoading={setActionLoading}
               dashboardData={dashboardData}
-              // onDeviceIdClick={handleDeviceIdClick}
-              setActiveTab={setActiveTab}
               handleDeviceIdClick={handleDeviceIdClick}
-              // isSongInYouTubeCache={isSongInYouTubeCache}
-              // getDownloadStatusText={getDownloadStatusText}
             />
           )}
           
@@ -1169,9 +776,6 @@ const AdminDashboard: React.FC = () => {
           
           {activeTab === 'songs' && (
             <SongsTab
-              // onOpenUsdbDialog={handleOpenUsdbDialog}
-              // onRenameSong={handleRenameSong}
-              // onDeleteSongFromLibrary={handleDeleteSongFromLibrary}
               processingSongs={processingSongs}
               setProcessingSongs={setProcessingSongs}
             />
@@ -1179,17 +783,6 @@ const AdminDashboard: React.FC = () => {
           
         </TabContent>
       </TabContainer>
-
-      {/* Manual Song List Modal */}
-      {/* <ManualSongListModal
-        show={showManualSongList}
-        manualSongList={filteredManualSongs}
-        manualSongSearchTerm={manualSongSearchTerm}
-        onClose={handleCloseManualSongList}
-        onSearchTermChange={setManualSongSearchTerm}
-        onSongSelect={handleSelectManualSong}
-        getFirstLetter={getFirstLetter}
-      /> */}
 
       {/* YouTube Download Dialog */}
       <YouTubeDownloadModal
@@ -1226,17 +819,6 @@ const AdminDashboard: React.FC = () => {
           songData={approvalData}
           setSongData={setApprovalData}
           setSongSearchTerm={setAddSongSearchTerm}
-          // triggerUSDBSearch={triggerUSDBSearch}
-          // onArtistChange={(value) => {
-          //   setApprovalData(prev => ({ ...prev, artist: value }));
-          //   setAddSongSearchTerm(value);
-          //   triggerUSDBSearch(value, approvalData.title || '');
-          // }}
-          // onTitleChange={(value) => {
-          //   setApprovalData(prev => ({ ...prev, title: value }));
-          //   setAddSongSearchTerm(value);
-          //   triggerUSDBSearch(approvalData.artist || '', value);
-          // }}
           onYoutubeUrlChange={(value) => setApprovalData(prev => ({ ...prev, youtubeUrl: value }))}
           onWithBackgroundVocalsChange={(checked) => setApprovalData(prev => ({ ...prev, withBackgroundVocals: checked }))}
           showSongList={true}

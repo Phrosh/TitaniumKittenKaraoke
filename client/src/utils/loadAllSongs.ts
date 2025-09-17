@@ -2,7 +2,7 @@ import { toast } from "react-hot-toast";
 import { songAPI } from "../services/api";
 
 // Load all available songs (server videos, ultrastar, file songs)
-const loadAllSongs = async () => {
+const loadAllSongs = async (callback?: (songs: any[]) => void) => {
     try {
       const [localResponse, ultrastarResponse, fileResponse] = await Promise.all([
         songAPI.getServerVideos(),
