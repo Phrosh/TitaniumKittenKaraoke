@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
+import { adminAPI, songAPI } from '../../../services/api';
 
 // Styled Components für SongsTab
 const SettingsSection = styled.div`
@@ -207,46 +209,330 @@ const SongsList = styled.div`
 `;
 
 interface SongsTabProps {
-  songs: any[];
-  invisibleSongs: any[];
-  songTab: 'all' | 'visible' | 'invisible';
-  songSearchTerm: string;
-  actionLoading: boolean;
-  processingSongs: Set<string>;
-  ultrastarAudioSettings: Record<string, string>;
-  onSongTabChange: (tab: 'all' | 'visible' | 'invisible') => void;
-  onSongSearchTermChange: (term: string) => void;
-  onToggleSongVisibility: (song: any) => void;
-  onStartProcessing: (song: any) => void;
-  onTestSong: (song: any) => void;
+  // Nur die Callback-Funktionen für externe Modals werden von außen benötigt
   onOpenUsdbDialog: () => void;
   onRenameSong: (song: any) => void;
   onDeleteSongFromLibrary: (song: any) => void;
-  onUltrastarAudioChange: (song: any, value: string) => void;
-  hasMissingFiles: (song: any) => boolean;
-  getFirstLetter: (text: string) => string;
 }
 
 const SongsTab: React.FC<SongsTabProps> = ({
-  songs,
-  invisibleSongs,
-  songTab,
-  songSearchTerm,
-  actionLoading,
-  processingSongs,
-  ultrastarAudioSettings,
-  onSongTabChange,
-  onSongSearchTermChange,
-  onToggleSongVisibility,
-  onStartProcessing,
-  onTestSong,
   onOpenUsdbDialog,
   onRenameSong,
-  onDeleteSongFromLibrary,
-  onUltrastarAudioChange,
-  hasMissingFiles,
-  getFirstLetter
+  onDeleteSongFromLibrary
 }) => {
+  // Songs State
+  const [songs, setSongs] = useState<any[]>([]);
+  const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
+  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
+  const [songSearchTerm, setSongSearchTerm] = useState('');
+  const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
+  const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Load songs when component mounts
+  useEffect(() => {
+    fetchSongs();
+    fetchInvisibleSongs();
+  }, []);
+
+  // Song Management Functions
+  const fetchSongs = useCallback(async () => {
+    try {
+      const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse, youtubeResponse] = await Promise.all([
+        songAPI.getServerVideos(),
+        songAPI.getUltrastarSongs(),
+        songAPI.getFileSongs(),
+        adminAPI.getUltrastarAudioSettings(),
+        songAPI.getYouTubeSongs()
+      ]);
+      
+      const serverVideos = localResponse.data.videos || [];
+      const ultrastarSongs = ultrastarResponse.data.songs || [];
+      const fileSongs = fileResponse.data.fileSongs || [];
+      const youtubeSongs = youtubeResponse.data.youtubeSongs || [];
+      const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
+      
+      // Create audio settings map
+      const audioSettingsMap: Record<string, string> = {};
+      audioSettings.forEach((setting: any) => {
+        const key = `${setting.artist}-${setting.title}`;
+        audioSettingsMap[key] = setting.audio_preference;
+      });
+      setUltrastarAudioSettings(audioSettingsMap);
+      
+      // Combine and deduplicate songs, preserving all modes
+      const allSongs = [...fileSongs];
+      
+      // Add server videos
+      serverVideos.forEach((serverVideo: any) => {
+        const existingSong = allSongs.find(song => 
+          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
+          song.title.toLowerCase() === serverVideo.title.toLowerCase()
+        );
+        
+        if (existingSong) {
+          // Add server_video mode to existing song
+          if (!existingSong.modes) existingSong.modes = [];
+          if (!existingSong.modes.includes('server_video')) {
+            existingSong.modes.push('server_video');
+          }
+        } else {
+          // Add new song with server_video mode
+          allSongs.push({
+            ...serverVideo,
+            modes: ['server_video']
+          });
+        }
+      });
+      
+      // Add ultrastar songs
+      ultrastarSongs.forEach((ultrastarSong: any) => {
+        const existingSong = allSongs.find(song => 
+          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
+        );
+        
+        if (existingSong) {
+          // Add ultrastar mode to existing song
+          if (!existingSong.modes) existingSong.modes = [];
+          if (!existingSong.modes.includes('ultrastar')) {
+            existingSong.modes.push('ultrastar');
+          }
+          // Add ultrastar-specific properties
+          existingSong.hasVideo = ultrastarSong.hasVideo;
+          existingSong.hasHp2Hp5 = ultrastarSong.hasHp2Hp5;
+          existingSong.folderName = ultrastarSong.folderName;
+        } else {
+          // Add new song with ultrastar mode
+          allSongs.push({
+            ...ultrastarSong,
+            modes: ['ultrastar']
+          });
+        }
+      });
+      
+      // Add YouTube songs
+      youtubeSongs.forEach((youtubeSong: any) => {
+        const existingSong = allSongs.find(song => 
+          song.artist.toLowerCase() === youtubeSong.artist.toLowerCase() &&
+          song.title.toLowerCase() === youtubeSong.title.toLowerCase()
+        );
+        
+        if (existingSong) {
+          // Add youtube mode to existing song
+          if (!existingSong.modes) existingSong.modes = [];
+          if (!existingSong.modes.includes('youtube')) {
+            existingSong.modes.push('youtube');
+          }
+          // Add YouTube-specific properties
+          existingSong.youtubeUrl = youtubeSong.youtubeUrl;
+          existingSong.videoFiles = youtubeSong.videoFiles;
+        } else {
+          // Add new song with youtube mode
+          allSongs.push({
+            ...youtubeSong,
+            modes: ['youtube']
+          });
+        }
+      });
+      
+      // Sort by artist, then by title
+      allSongs.sort((a, b) => {
+        const artistA = a.artist.toLowerCase();
+        const artistB = b.artist.toLowerCase();
+        if (artistA !== artistB) {
+          return artistA.localeCompare(artistB);
+        }
+        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      });
+      
+      setSongs(allSongs);
+    } catch (error) {
+      console.error('Error loading songs:', error);
+      toast.error('Fehler beim Laden der Songliste');
+    }
+  }, []);
+
+  const fetchInvisibleSongs = useCallback(async () => {
+    try {
+      const response = await adminAPI.getInvisibleSongs();
+      setInvisibleSongs(response.data.invisibleSongs || []);
+    } catch (error) {
+      console.error('Error fetching invisible songs:', error);
+    }
+  }, []);
+
+  const handleToggleSongVisibility = async (song: any) => {
+    // Check if song is currently in invisible_songs table
+    const isInInvisibleTable = invisibleSongs.some(invisible => 
+      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+      invisible.title.toLowerCase() === song.title.toLowerCase()
+    );
+
+    if (isInInvisibleTable) {
+      // Song is in invisible_songs table - remove it to make it visible
+      const invisibleSong = invisibleSongs.find(invisible => 
+        invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+        invisible.title.toLowerCase() === song.title.toLowerCase()
+      );
+      
+      setActionLoading(true);
+      try {
+        await adminAPI.removeFromInvisibleSongs(invisibleSong.id);
+        toast.success(`${song.artist} - ${song.title} wieder sichtbar gemacht`);
+        await fetchInvisibleSongs();
+      } catch (error: any) {
+        console.error('Error removing from invisible songs:', error);
+        toast.error(error.response?.data?.message || 'Fehler beim Sichtbarmachen des Songs');
+      } finally {
+        setActionLoading(false);
+      }
+    } else {
+      // Song is not in invisible_songs table - add it to make it invisible
+      setActionLoading(true);
+      try {
+        await adminAPI.addToInvisibleSongs(song.artist, song.title);
+        toast.success(`${song.artist} - ${song.title} unsichtbar gemacht`);
+        await fetchInvisibleSongs();
+      } catch (error: any) {
+        console.error('Error adding to invisible songs:', error);
+        toast.error(error.response?.data?.message || 'Fehler beim Unsichtbarmachen des Songs');
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+
+  const handleStartProcessing = async (song: any) => {
+    const songKey = `${song.artist}-${song.title}`;
+    
+    try {
+      const folderName = song.folderName || `${song.artist} - ${song.title}`;
+      
+      // Add to processing set
+      setProcessingSongs(prev => new Set(prev).add(songKey));
+      
+      const response = await adminAPI.checkVideoNeeds(folderName);
+      
+      if (response.data.needsVideo) {
+        toast.success(`Video wird für "${song.artist} - ${song.title}" verarbeitet`);
+      } else {
+        toast.info(`Kein Video erforderlich für "${song.artist} - ${song.title}"`);
+      }
+      
+      // Refresh songs to get updated status
+      await fetchSongs();
+      
+    } catch (error: any) {
+      console.error('Error checking video needs:', error);
+      toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
+    } finally {
+      // Remove from processing set
+      setProcessingSongs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(songKey);
+        return newSet;
+      });
+    }
+  };
+
+  const handleTestSong = async (song: { artist: string; title: string; modes?: string[]; youtubeUrl?: string }) => {
+    setActionLoading(true);
+    
+    try {
+      // Determine the best mode and URL for the song
+      let mode = 'youtube';
+      let url = song.youtubeUrl;
+      
+      // Prefer server_video if available
+      if (song.modes?.includes('server_video')) {
+        mode = 'server_video';
+        url = `http://localhost:4000/${song.artist} - ${song.title}.mp4`;
+      }
+      
+      const response = await adminAPI.testSong(song.artist, song.title, mode, url);
+      
+      if (response.data.success) {
+        toast.success(`Test-Song "${song.artist} - ${song.title}" zur Playlist hinzugefügt`);
+      } else {
+        toast.error(response.data.message || 'Fehler beim Testen des Songs');
+      }
+    } catch (error: any) {
+      console.error('Error testing song:', error);
+      toast.error(error.response?.data?.message || 'Fehler beim Testen des Songs');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
+    setActionLoading(true);
+    try {
+      const songKey = `${song.artist}-${song.title}`;
+      
+      if (audioPreference === 'choice') {
+        // Remove the setting (user will choose each time)
+        await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
+        setUltrastarAudioSettings(prev => {
+          const newSettings = { ...prev };
+          delete newSettings[songKey];
+          return newSettings;
+        });
+        toast.success(`Audio-Einstellung für "${song.artist} - ${song.title}" entfernt`);
+      } else {
+        // Set the preference
+        await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
+        setUltrastarAudioSettings(prev => ({
+          ...prev,
+          [songKey]: audioPreference
+        }));
+        toast.success(`Audio-Einstellung für "${song.artist} - ${song.title}" gesetzt`);
+      }
+    } catch (error: any) {
+      console.error('Error updating ultrastar audio setting:', error);
+      toast.error('Fehler beim Aktualisieren der Audio-Einstellung');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Check if Ultrastar song has all required files for processing
+  const canProcessSong = (song: any) => {
+    if (!song.modes?.includes('ultrastar')) return false;
+    
+    // If the properties are undefined, we can't determine if files are present
+    // So we assume they are missing (don't show button)
+    if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
+      return false;
+    }
+    
+    const hasVideo = song.hasVideo === true || song.hasVideo === 'true';
+    const hasHp2Hp5 = song.hasHp2Hp5 === true || song.hasHp2Hp5 === 'true';
+    
+    // Show processing button only if BOTH video AND HP2/HP5 files are present
+    return hasVideo && hasHp2Hp5;
+  };
+
+  // Check if Ultrastar song has missing files (for warning display)
+  const hasMissingFiles = (song: any) => {
+    if (!song.modes?.includes('ultrastar')) return false;
+    
+    // If the properties are undefined, we can't determine if files are missing
+    // So we assume they are complete (don't show button/warning)
+    if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
+      return false;
+    }
+    
+    const hasVideo = song.hasVideo === true || song.hasVideo === 'true';
+    const hasHp2Hp5 = song.hasHp2Hp5 === true || song.hasHp2Hp5 === 'true';
+    
+    // Show warning if video OR HP2/HP5 files are missing
+    return !hasVideo || !hasHp2Hp5;
+  };
+
+  const getFirstLetter = (text: string) => {
+    return text.charAt(0).toUpperCase();
+  };
   const getVisibleSongsCount = () => {
     return songs.filter(song => !invisibleSongs.some(invisible => 
       invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
@@ -338,21 +624,21 @@ const SongsTab: React.FC<SongsTabProps> = ({
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <TabButton
                 $active={songTab === 'all'}
-                onClick={() => onSongTabChange('all')}
+                onClick={() => setSongTab('all')}
               >
                 Alle Songs ({songs.length})
               </TabButton>
               <TabButton
                 $active={songTab === 'visible'}
                 $color="#28a745"
-                onClick={() => onSongTabChange('visible')}
+                onClick={() => setSongTab('visible')}
               >
                 Eingeblendete ({getVisibleSongsCount()})
               </TabButton>
               <TabButton
                 $active={songTab === 'invisible'}
                 $color="#dc3545"
-                onClick={() => onSongTabChange('invisible')}
+                onClick={() => setSongTab('invisible')}
               >
                 Ausgeblendete ({getInvisibleSongsCount()})
               </TabButton>
@@ -364,7 +650,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
               type="text"
               placeholder="Nach Song oder Interpret suchen..."
               value={songSearchTerm}
-              onChange={(e) => onSongSearchTermChange(e.target.value)}
+              onChange={(e) => setSongSearchTerm(e.target.value)}
               style={{ marginBottom: '15px', width: '100%', maxWidth: '600px' }}
             />
             <SettingsDescription>
@@ -438,7 +724,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         <input
                           type="checkbox"
                           checked={!isInvisible}
-                          onChange={() => onToggleSongVisibility(song)}
+                          onChange={() => handleToggleSongVisibility(song)}
                           disabled={actionLoading}
                           style={{
                             cursor: actionLoading ? 'not-allowed' : 'pointer',
@@ -450,7 +736,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                           <SongTitle>
                             <SongName>
                               <SongText
-                                onClick={() => onToggleSongVisibility(song)}
+                                onClick={() => handleToggleSongVisibility(song)}
                                 title="Klicken zum Umschalten der Sichtbarkeit"
                               >
                                 {song.artist} - {song.title}
@@ -500,36 +786,12 @@ const SongsTab: React.FC<SongsTabProps> = ({
                             {hasMissingFiles(song) && (
                               <ActionButton
                                 $variant="success"
-                                onClick={() => onStartProcessing(song)}
+                                onClick={() => handleStartProcessing(song)}
                                 disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`)}
                               >
                                 {processingSongs.has(`${song.artist}-${song.title}`) ? '⏳ Verarbeitung läuft...' : '🔧 Verarbeitung starten'}
                               </ActionButton>
                             )}
-                            
-                            <ActionButton
-                              $variant="warning"
-                              onClick={() => onRenameSong(song)}
-                              disabled={actionLoading}
-                            >
-                              ✏️ Umbenennen
-                            </ActionButton>
-                            
-                            <ActionButton
-                              $variant="danger"
-                              onClick={() => onDeleteSongFromLibrary(song)}
-                              disabled={actionLoading}
-                            >
-                              🗑️ Löschen
-                            </ActionButton>
-                            
-                            <ActionButton
-                              $variant="info"
-                              onClick={() => onTestSong(song)}
-                              disabled={actionLoading}
-                            >
-                              🎵 Testen
-                            </ActionButton>
                           </ActionButtons>
                         </SongInfo>
                         
@@ -546,7 +808,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                   name={`audio-${song.artist}-${song.title}`}
                                   value="hp2"
                                   checked={ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'hp2'}
-                                  onChange={(e) => onUltrastarAudioChange(song, e.target.value)}
+                                  onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                   disabled={actionLoading}
                                 />
                                 Ohne Background Gesang
@@ -557,7 +819,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                   name={`audio-${song.artist}-${song.title}`}
                                   value="hp5"
                                   checked={ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'hp5'}
-                                  onChange={(e) => onUltrastarAudioChange(song, e.target.value)}
+                                  onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                   disabled={actionLoading}
                                 />
                                 Mit Background Gesang
@@ -568,7 +830,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                   name={`audio-${song.artist}-${song.title}`}
                                   value="choice"
                                   checked={!ultrastarAudioSettings[`${song.artist}-${song.title}`] || ultrastarAudioSettings[`${song.artist}-${song.title}`] === 'choice'}
-                                  onChange={(e) => onUltrastarAudioChange(song, e.target.value)}
+                                  onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                   disabled={actionLoading}
                                 />
                                 Auswahl
@@ -576,6 +838,33 @@ const SongsTab: React.FC<SongsTabProps> = ({
                             </div>
                           </div>
                         )}
+                        
+                        {/* Action buttons for all songs - positioned at the right */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+                          <ActionButton
+                            $variant="warning"
+                            onClick={() => onRenameSong(song)}
+                            disabled={actionLoading}
+                          >
+                            ✏️ Umbenennen
+                          </ActionButton>
+                          
+                          <ActionButton
+                            $variant="danger"
+                            onClick={() => onDeleteSongFromLibrary(song)}
+                            disabled={actionLoading}
+                          >
+                            🗑️ Löschen
+                          </ActionButton>
+                          
+                          <ActionButton
+                            $variant="info"
+                            onClick={() => handleTestSong(song)}
+                            disabled={actionLoading}
+                          >
+                            🎵 Testen
+                          </ActionButton>
+                        </div>
                       </SongItem>
                     );
                   })}

@@ -600,13 +600,6 @@ const AdminDashboard: React.FC = () => {
   const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
   
   
-  // Song Management
-  const [songs, setSongs] = useState<any[]>([]);
-  const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
-  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
-  const [songSearchTerm, setSongSearchTerm] = useState('');
-  const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
-  const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
   
   // Rename modal state
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -1800,191 +1793,11 @@ const AdminDashboard: React.FC = () => {
     }, 100);
   };
 
-  // Song Management Functions
-  const fetchSongs = useCallback(async () => {
-    try {
-      const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse, youtubeResponse] = await Promise.all([
-        songAPI.getServerVideos(),
-        songAPI.getUltrastarSongs(),
-        songAPI.getFileSongs(),
-        adminAPI.getUltrastarAudioSettings(),
-        songAPI.getYouTubeSongs()
-      ]);
+  // Songs werden jetzt in der SongsTab verwaltet
       
-      const serverVideos = localResponse.data.videos || [];
-      const ultrastarSongs = ultrastarResponse.data.songs || [];
-      const fileSongs = fileResponse.data.fileSongs || [];
-      const youtubeSongs = youtubeResponse.data.youtubeSongs || [];
-      const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
-      
-      // Convert audio settings to a lookup object
-      const audioSettingsMap: Record<string, string> = {};
-      audioSettings.forEach((setting: any) => {
-        const key = `${setting.artist}-${setting.title}`;
-        audioSettingsMap[key] = setting.audio_preference;
-      });
-      setUltrastarAudioSettings(audioSettingsMap);
-      
-      // Combine and deduplicate songs, preserving all modes
-      const allSongs = [...fileSongs];
-      
-      // Add server videos
-      serverVideos.forEach(serverVideo => {
-        const existingIndex = allSongs.findIndex(song => 
-          song.artist.toLowerCase() === serverVideo.artist.toLowerCase() &&
-          song.title.toLowerCase() === serverVideo.title.toLowerCase()
-        );
-        if (existingIndex !== -1) {
-          // Song exists, add server_video mode
-          if (!allSongs[existingIndex].modes) {
-            allSongs[existingIndex].modes = [];
-          }
-          if (!allSongs[existingIndex].modes.includes('server_video')) {
-            allSongs[existingIndex].modes.push('server_video');
-          }
-        } else {
-          // Song doesn't exist, add as server_video only
-          allSongs.push({ ...serverVideo, modes: ['server_video'] });
-        }
-      });
-      
-      // Add ultrastar songs
-      ultrastarSongs.forEach(ultrastarSong => {
-        const existingIndex = allSongs.findIndex(song => 
-          song.artist.toLowerCase() === ultrastarSong.artist.toLowerCase() &&
-          song.title.toLowerCase() === ultrastarSong.title.toLowerCase()
-        );
-        if (existingIndex !== -1) {
-          // Song exists, add ultrastar mode and file status
-          if (!allSongs[existingIndex].modes) {
-            allSongs[existingIndex].modes = [];
-          }
-          if (!allSongs[existingIndex].modes.includes('ultrastar')) {
-            allSongs[existingIndex].modes.push('ultrastar');
-          }
-          // Update file status from ultrastar song
-          allSongs[existingIndex].hasVideo = ultrastarSong.hasVideo;
-          allSongs[existingIndex].hasPreferredVideo = ultrastarSong.hasPreferredVideo;
-          allSongs[existingIndex].hasHp2Hp5 = ultrastarSong.hasHp2Hp5;
-          allSongs[existingIndex].hasAudio = ultrastarSong.hasAudio;
-        } else {
-          // Song doesn't exist, add as ultrastar only with file status
-          allSongs.push({ 
-            ...ultrastarSong, 
-            modes: ['ultrastar'],
-            hasVideo: ultrastarSong.hasVideo,
-            hasPreferredVideo: ultrastarSong.hasPreferredVideo,
-            hasHp2Hp5: ultrastarSong.hasHp2Hp5,
-            hasAudio: ultrastarSong.hasAudio
-          });
-        }
-      });
-      
-      // Add YouTube cache songs
-      youtubeSongs.forEach(youtubeSong => {
-        const existingIndex = allSongs.findIndex(song => 
-          song.artist.toLowerCase() === youtubeSong.artist.toLowerCase() &&
-          song.title.toLowerCase() === youtubeSong.title.toLowerCase()
-        );
-        if (existingIndex !== -1) {
-          // Song exists, add youtube_cache mode
-          if (!allSongs[existingIndex].modes) {
-            allSongs[existingIndex].modes = [];
-          }
-          if (!allSongs[existingIndex].modes.includes('youtube_cache')) {
-            allSongs[existingIndex].modes.push('youtube_cache');
-          }
-        } else {
-          // Song doesn't exist, add as youtube_cache only
-          allSongs.push({ 
-            ...youtubeSong, 
-            modes: ['youtube_cache'],
-            hasVideo: youtubeSong.hasVideo
-          });
-        }
-      });
-      
-      // Add modes array to songs that don't have modes yet
-      allSongs.forEach(song => {
-        if (!song.modes) {
-          song.modes = ['file'];
-        }
-      });
-      
-      // Sort alphabetically by artist, then by title
-      allSongs.sort((a, b) => {
-        const artistA = a.artist.toLowerCase();
-        const artistB = b.artist.toLowerCase();
-        if (artistA !== artistB) {
-          return artistA.localeCompare(artistB);
-        }
-        return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
-      });
-      
-      setSongs(allSongs);
-    } catch (error) {
-      console.error('Error loading songs:', error);
-      toast.error('Fehler beim Laden der Songliste');
-    }
-  }, []);
 
-  const fetchInvisibleSongs = useCallback(async () => {
-    try {
-      const response = await adminAPI.getInvisibleSongs();
-      setInvisibleSongs(response.data.invisibleSongs || []);
-    } catch (error) {
-      console.error('Error fetching invisible songs:', error);
-    }
-  }, []);
 
-  // Load songs when songs tab is active
-  useEffect(() => {
-    if (activeTab === 'songs') {
-      fetchSongs();
-      fetchInvisibleSongs();
-    }
-  }, [activeTab, fetchSongs, fetchInvisibleSongs]);
 
-  const handleToggleSongVisibility = async (song: any) => {
-    // Check if song is currently in invisible_songs table
-    const isInInvisibleTable = invisibleSongs.some(invisible => 
-      invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-      invisible.title.toLowerCase() === song.title.toLowerCase()
-    );
-
-    if (isInInvisibleTable) {
-      // Song is in invisible_songs table - remove it to make it visible
-      const invisibleSong = invisibleSongs.find(invisible => 
-        invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-        invisible.title.toLowerCase() === song.title.toLowerCase()
-      );
-      
-      setActionLoading(true);
-      try {
-        await adminAPI.removeFromInvisibleSongs(invisibleSong.id);
-        toast.success(`${song.artist} - ${song.title} wieder sichtbar gemacht`);
-        await fetchInvisibleSongs();
-      } catch (error: any) {
-        console.error('Error removing from invisible songs:', error);
-        toast.error(error.response?.data?.message || 'Fehler beim Sichtbarmachen des Songs');
-      } finally {
-        setActionLoading(false);
-      }
-    } else {
-      // Song is not in invisible_songs table - add it to make it invisible
-      setActionLoading(true);
-      try {
-        await adminAPI.addToInvisibleSongs(song.artist, song.title);
-        toast.success(`${song.artist} - ${song.title} unsichtbar gemacht`);
-        await fetchInvisibleSongs();
-      } catch (error: any) {
-        console.error('Error adding to invisible songs:', error);
-        toast.error(error.response?.data?.message || 'Fehler beim Unsichtbarmachen des Songs');
-      } finally {
-        setActionLoading(false);
-      }
-    }
-  };
 
   // Check if Ultrastar song has all required files for processing
   const hasAllRequiredFiles = (song: any) => {
@@ -2743,24 +2556,9 @@ const AdminDashboard: React.FC = () => {
           
           {activeTab === 'songs' && (
             <SongsTab
-              songs={songs}
-              invisibleSongs={invisibleSongs}
-              songTab={songTab}
-              songSearchTerm={songSearchTerm}
-              actionLoading={actionLoading}
-              processingSongs={processingSongs}
-              ultrastarAudioSettings={ultrastarAudioSettings}
-              onSongTabChange={setSongTab}
-              onSongSearchTermChange={setSongSearchTerm}
-              onToggleSongVisibility={handleToggleSongVisibility}
-              onStartProcessing={handleStartProcessing}
-              onTestSong={handleTestSong}
               onOpenUsdbDialog={handleOpenUsdbDialog}
               onRenameSong={handleRenameSong}
               onDeleteSongFromLibrary={handleDeleteSongFromLibrary}
-              onUltrastarAudioChange={handleUltrastarAudioChange}
-              hasMissingFiles={hasMissingFiles}
-              getFirstLetter={getFirstLetter}
             />
           )}
           
