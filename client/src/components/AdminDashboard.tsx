@@ -11,6 +11,7 @@ import PlaylistTab from './admin/PlaylistTab';
 import BanlistTab from './admin/BanlistTab';
 import UsersTab from './admin/UsersTab';
 import SettingsTab from './admin/SettingsTab';
+import RenameModal from './admin/modals/RenameModal';
 import SongsTab from './admin/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import { Button, SmallButton } from './shared';
@@ -4274,61 +4275,15 @@ const AdminDashboard: React.FC = () => {
       )}
 
       {/* Rename Modal */}
-      {showRenameModal && renameSong && (
-        <Modal>
-          <ModalContent>
-            <ModalTitle>✏️ Song umbenennen</ModalTitle>
-            
-            <FormGroup>
-              <Label>Neuer Interpret:</Label>
-              <Input
-                type="text"
-                value={renameData.newArtist}
-                onChange={(e) => setRenameData(prev => ({ ...prev, newArtist: e.target.value }))}
-                placeholder="Interpret eingeben"
-                autoFocus
-              />
-            </FormGroup>
-            
-            <FormGroup>
-              <Label>Neuer Songtitel:</Label>
-              <Input
-                type="text"
-                value={renameData.newTitle}
-                onChange={(e) => setRenameData(prev => ({ ...prev, newTitle: e.target.value }))}
-                placeholder="Songtitel eingeben"
-              />
-            </FormGroup>
-            
-            <div style={{ 
-              padding: '12px', 
-              backgroundColor: '#f8f9fa', 
-              borderRadius: '6px', 
-              marginBottom: '20px',
-              fontSize: '14px',
-              color: '#666'
-            }}>
-              <strong>Aktueller Name:</strong> {renameSong.artist} - {renameSong.title}
-              <br />
-              <strong>Neuer Name:</strong> {renameData.newArtist} - {renameData.newTitle}
-            </div>
-            
-            <ModalButtons>
-              <Button onClick={handleRenameCancel}>Abbrechen</Button>
-              <Button 
-                onClick={handleRenameConfirm}
-                disabled={actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim()}
-                style={{
-                  backgroundColor: actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim() ? '#ccc' : '#ffc107',
-                  color: '#212529'
-                }}
-              >
-                {actionLoading ? '⏳ Wird umbenannt...' : '✏️ Umbenennen'}
-              </Button>
-            </ModalButtons>
-          </ModalContent>
-        </Modal>
-      )}
+      <RenameModal
+        show={showRenameModal && !!renameSong}
+        renameSong={renameSong}
+        renameData={renameData}
+        actionLoading={actionLoading}
+        onClose={handleRenameCancel}
+        onConfirm={handleRenameConfirm}
+        onRenameDataChange={(field, value) => setRenameData(prev => ({ ...prev, [field]: value }))}
+      />
 
       {/* Delete Modal */}
       {showDeleteModal && deleteSong && (
