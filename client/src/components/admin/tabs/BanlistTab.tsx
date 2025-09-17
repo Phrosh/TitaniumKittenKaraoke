@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Button } from '../shared';
+import { Button } from '../../shared';
 
 // Styled Components für BanlistTab
 const SettingsSection = styled.div`

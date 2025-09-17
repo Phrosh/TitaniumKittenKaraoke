@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import LanguageSelector from '../LanguageSelector';
+import LanguageSelector from '../../LanguageSelector';
 
 // Styled Components für SettingsTab
 const SettingsSection = styled.div`

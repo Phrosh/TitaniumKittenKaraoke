@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Button } from '../shared';
-import { AdminUser } from '../../types';
+import { Button } from '../../shared';
+import { AdminUser } from '../../../types';
 
 // Styled Components für UsersTab
 const SettingsSection = styled.div`
