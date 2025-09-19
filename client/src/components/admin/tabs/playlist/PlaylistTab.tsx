@@ -1,13 +1,9 @@
 import React from 'react';
-import styled from 'styled-components';
 import { AdminDashboardData, Song } from '../../../../types';
-import { useState, useCallback } from 'react';
-import { cleanYouTubeUrl, extractVideoIdFromUrl } from '../../../../utils/youtubeUrlCleaner';
+import { useState } from 'react';
+import { cleanYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
-import { boilDown, boilDownMatch } from '../../../../utils/boilDown';
-// import EditSongModal from '../../modals/EditSongModal';
-import SongForm from '../../SongForm';
 import loadAllSongs from '../../../../utils/loadAllSongs';
 import { 
   PlaylistContainer, 
@@ -19,7 +15,6 @@ import {
   RightButtons,
   SmallButton,
   QRCodeToggleButton,
-  // ShowPastSongsToggleButton,
   DropZone,
   SongItem,
   DragHandle,
@@ -30,16 +25,14 @@ import {
   SongTitleRow,
   SongTitle,
   YouTubeField,
-  HP5Badge,
   SongActions,
-  Badge
 } from './style';
 import { Button } from '../../../shared';
 import { isSongInYouTubeCache, DownloadStatus } from '../../../../utils/helper';
-import ModeBadge from '../../../shared/ModeBadge';
 import EditSongModal from './EditSongModal';
 import AddSongModal from './AddSongModal';
 import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
+import SmallModeBadge from '../../../shared/SmallModeBadge';
 
 
 interface PlaylistTabProps {
@@ -590,18 +583,20 @@ const filteredPlaylist = showPastSongs
                           {song.modes ? (
                             song.modes.map((mode, index) => (
                               <React.Fragment key={index}>
+                                <SmallModeBadge mode={mode} modes={[mode]} />
                                 {mode === 'ultrastar' && song.with_background_vocals && (
-                                  <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                  // <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                  <SmallModeBadge mode="hp2" />
                                 )}
-                                <ModeBadge mode={mode} />
                               </React.Fragment>
                             ))
                           ) : (
                             <>
+                                <SmallModeBadge mode={song.mode || 'youtube'}  modes={[song.mode || 'youtube']} />
                               {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
-                                <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                // <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                <SmallModeBadge mode="hp2" />
                               )}
-                                <ModeBadge mode={song.mode || 'youtube'} />
                             </>
                           )}
                         </SongTitle>

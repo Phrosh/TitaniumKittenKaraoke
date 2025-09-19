@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, ModalContent, ModalTitle, ModalButtons } from '../../../shared/style';
 import { Button } from '../../../shared';
+import SmallModeBadge from '../../../shared/SmallModeBadge';
 
 interface DeleteModalProps {
   show: boolean;
@@ -47,15 +48,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 border: '1px solid #e2e8f0'
               }}>
                 <strong>Song:</strong> {deleteSong.artist} - {deleteSong.title}
-                <br />
-                <strong>Typ:</strong> {
-                  deleteSong.modes?.includes('server_video') ? '🟢 Server-Video' :
-                  deleteSong.modes?.includes('file') ? '🔵 Datei-Song' :
-                  deleteSong.modes?.includes('ultrastar') ? '⭐ Ultrastar-Song' :
-                  deleteSong.mode === 'youtube' ? '🔴 YouTube-Song' :
-                  deleteSong.modes?.includes('youtube_cache') ? '🎬 YouTube-Cache' :
-                  'Unbekannt'
-                }
+                <SmallModeBadge mode={deleteSong.mode} modes={deleteSong.modes} />
               </div>
             </div>
             

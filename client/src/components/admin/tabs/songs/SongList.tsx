@@ -12,6 +12,7 @@ import { hasMissingFiles } from '../../../../utils/helper';
 import DeleteModal from './DeleteModal';
 import RenameModal from './RenameModal';
 import YoutubeDownloadModal from './YoutubeDownloadModal';
+import SmallModeBadge from '../../../shared/SmallModeBadge';
 
 interface SongListProps {
     songTab: 'all' | 'visible' | 'invisible';
@@ -457,68 +458,8 @@ const SongList: React.FC<SongListProps> = ({
                                                         >
                                                             {song.artist} - {song.title}
                                                         </div>
-                                                        <div style={{ display: 'flex', gap: '4px' }}>
-                                                            {song.modes?.includes('server_video') && (
-                                                                <span style={{
-                                                                    fontSize: '12px',
-                                                                    color: '#28a745',
-                                                                    background: '#d4edda',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '500'
-                                                                }}>
-                                                                    🟢 Server
-                                                                </span>
-                                                            )}
-                                                            {song.modes?.includes('file') && (
-                                                                <span style={{
-                                                                    fontSize: '12px',
-                                                                    color: '#007bff',
-                                                                    background: '#cce7ff',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '500'
-                                                                }}>
-                                                                    🔵 Datei
-                                                                </span>
-                                                            )}
-                                                            {song.modes?.includes('ultrastar') && (
-                                                                <span style={{
-                                                                    fontSize: '12px',
-                                                                    color: '#8e44ad',
-                                                                    background: '#e8d5f2',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '500'
-                                                                }}>
-                                                                    ⭐ Ultrastar
-                                                                </span>
-                                                            )}
-                                                            {song.mode === 'youtube' && (
-                                                                <span style={{
-                                                                    fontSize: '12px',
-                                                                    color: '#dc3545',
-                                                                    background: '#f8d7da',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '500'
-                                                                }}>
-                                                                    🔴 YouTube
-                                                                </span>
-                                                            )}
-                                                            {song.modes?.includes('youtube_cache') && (
-                                                                <span style={{
-                                                                    fontSize: '12px',
-                                                                    color: '#dc3545',
-                                                                    background: '#f8d7da',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '500'
-                                                                }}>
-                                                                    🎬 YouTube Cache
-                                                                </span>
-                                                            )}
-                                                            {hasMissingFiles(song) && (
+                                                        <SmallModeBadge mode={song.mode} modes={song.modes} />
+                                                        {hasMissingFiles(song) && (
                                                                 <span
                                                                     style={{
                                                                         fontSize: '12px',
@@ -534,7 +475,6 @@ const SongList: React.FC<SongListProps> = ({
                                                                     ⚠️ Verarbeitung
                                                                 </span>
                                                             )}
-                                                        </div>
                                                     </div>
                                                 </div>
 
