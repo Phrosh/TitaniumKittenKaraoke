@@ -29,6 +29,7 @@ Titanium Kitten Karaoke ist ein vollständigeskonnt Karaoke-System, das über ei
 - **Fairness-Algorithmus**: Intelligente Playlist-Verwaltung, die sicherstellt, dass jeder Teilnehmer fair behandelt wird
 - **Live-Playlist**: Echtzeit-Anzeige der aktuellen Songreihenfolge
 - **Responsive Design**: Funktioniert auf allen Geräten - Desktop, Tablet, Smartphone
+- **🌍 Mehrsprachigkeit**: Vollständige Unterstützung für 12 Sprachen (DE, EN, ES, FR, FI, NL, PL, SV, RU, JA, KO, ZH)
 
 ### 🛠️ Admin-Features
 - **Vollständiges Admin-Dashboard**: Komplette Kontrolle über Playlist und Einstellungen
