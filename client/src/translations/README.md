@@ -1,61 +1,61 @@
-# Internationalisierung (i18n) - Karaoke System
+# Internationalization (i18n) - Karaoke System
 
-## Übersicht
+## Overview
 
-Das Karaoke-System wurde vollständig internationalisiert und unterstützt derzeit 12 Sprachen:
+The karaoke system has been fully internationalized and currently supports 12 languages:
 
-- 🇺🇸 **Englisch** (en-US) - Standardsprache ✅
-- 🇩🇪 **Deutsch** (de-DE) ✅
-- 🇪🇸 **Spanisch** (es-ES) ✅
-- 🇫🇷 **Französisch** (fr-FR) ✅
-- 🇫🇮 **Finnisch** (fi-FI) ✅
-- 🇳🇱 **Niederländisch** (nl-NL) ✅
-- 🇵🇱 **Polnisch** (pl-PL) ✅
-- 🇸🇪 **Schwedisch** (sv-SE) ✅
-- 🇷🇺 **Russisch** (ru-RU) ✅
-- 🇯🇵 **Japanisch** (ja-JP) ✅
-- 🇰🇷 **Koreanisch** (ko-KR) ✅
-- 🇨🇳 **Chinesisch** (zh-CN) ✅
+- 🇺🇸 **English** (en-US) - Default language ✅
+- 🇩🇪 **German** (de-DE) ✅
+- 🇪🇸 **Spanish** (es-ES) ✅
+- 🇫🇷 **French** (fr-FR) ✅
+- 🇫🇮 **Finnish** (fi-FI) ✅
+- 🇳🇱 **Dutch** (nl-NL) ✅
+- 🇵🇱 **Polish** (pl-PL) ✅
+- 🇸🇪 **Swedish** (sv-SE) ✅
+- 🇷🇺 **Russian** (ru-RU) ✅
+- 🇯🇵 **Japanese** (ja-JP) ✅
+- 🇰🇷 **Korean** (ko-KR) ✅
+- 🇨🇳 **Chinese** (zh-CN) ✅
 
-## Ordnerstruktur
+## Folder Structure
 
 ```
 translations/
 ├── en-US/
-│   ├── language.json      # Sprachinformationen
-│   └── translation.json   # Übersetzungen
+│   ├── language.json      # Language information
+│   └── translation.json   # Translations
 ├── de-DE/
 │   ├── language.json
 │   └── translation.json
-├── ... (weitere Sprachen)
+├── ... (additional languages)
 └── README.md
 ```
 
-## Sprachinformationen (language.json)
+## Language Information (language.json)
 
-Jede Sprache hat eine `language.json` Datei mit folgenden Informationen:
+Each language has a `language.json` file with the following information:
 
 ```json
 {
-  "name": "Deutsch",           // Name der Sprache in der eigenen Sprache
-  "nameEn": "German",          // Name der Sprache auf Englisch
-  "author": "Phrosh"           // Autor der Übersetzung
+  "name": "Deutsch",           // Name of the language in its own language
+  "nameEn": "German",          // Name of the language in English
+  "author": "Phrosh"           // Author of the translation
 }
 ```
 
-## Übersetzungsstruktur (translation.json)
+## Translation Structure (translation.json)
 
-Die Übersetzungen sind in logische Bereiche unterteilt:
+The translations are divided into logical areas:
 
-- `common` - Allgemeine UI-Elemente (Buttons, Labels, etc.)
-- `songRequest` - Song-Anfrage-Formular
-- `adminDashboard` - Admin-Dashboard
-- `showView` - Karaoke-Show-Ansicht
-- `playlistView` - Playlist-Ansicht
-- `adminLogin` - Admin-Login
-- `settings` - Einstellungen
+- `common` - General UI elements (buttons, labels, etc.)
+- `songRequest` - Song request form
+- `adminDashboard` - Admin dashboard
+- `showView` - Karaoke show view
+- `playlistView` - Playlist view
+- `adminLogin` - Admin login
+- `settings` - Settings
 
-## Verwendung
+## Usage
 
 ### Frontend (React)
 
@@ -74,43 +74,43 @@ const MyComponent = () => {
 };
 ```
 
-### Sprachauswahl
+### Language Selection
 
-Die Sprachauswahl ist im Admin-Dashboard unter Einstellungen verfügbar. Die ausgewählte Sprache wird im localStorage gespeichert.
+Language selection is available in the admin dashboard under settings. The selected language is stored in localStorage.
 
-## Technische Details
+## Technical Details
 
-- **Frontend**: react-i18next mit i18next-browser-languagedetector
-- **Backend**: i18next (für zukünftige Backend-Internationalisierung)
-- **Standardsprache**: Englisch (en-US)
-- **Fallback**: Englisch bei fehlenden Übersetzungen
+- **Frontend**: react-i18next with i18next-browser-languagedetector
+- **Backend**: i18next (for future backend internationalization)
+- **Default Language**: English (en-US)
+- **Fallback**: English for missing translations
 
-## Hinweise für Entwickler
+## Notes for Developers
 
-1. **Neue Strings hinzufügen**: Alle neuen UI-Strings müssen in allen Sprachdateien hinzugefügt werden
-2. **Logs**: Alle Log-Nachrichten bleiben auf Englisch
-3. **Skripte**: Alle Skripte und technische Dokumentation bleiben auf Englisch
-4. **Konsistenz**: Verwende konsistente Übersetzungen für ähnliche Begriffe
+1. **Adding new strings**: All new UI strings must be added to all language files
+2. **Logs**: All log messages remain in English
+3. **Scripts**: All scripts and technical documentation remain in English
+4. **Consistency**: Use consistent translations for similar terms
 
-## Neue Sprache hinzufügen
+## Adding a New Language
 
-1. Erstelle einen neuen Ordner mit dem Sprachcode (z.B. `it-IT` für Italienisch)
-2. Erstelle `language.json` mit Sprachinformationen
-3. Erstelle `translation.json` mit allen Übersetzungen
-4. Füge die Sprache zur i18n-Konfiguration hinzu (`client/src/i18n.ts`)
-5. Aktualisiere die `LanguageSelector`-Komponente
+1. Create a new folder with the language code (e.g. `it-IT` for Italian)
+2. Create `language.json` with language information
+3. Create `translation.json` with all translations
+4. Add the language to the i18n configuration (`client/src/i18n.ts`)
+5. Update the `LanguageSelector` component
 
-## Qualitätssicherung
+## Quality Assurance
 
-- Alle Übersetzungen wurden von "Phrosh" erstellt
-- Konsistente Terminologie innerhalb jeder Sprache
-- Vollständige Abdeckung aller UI-Elemente (über 200 Übersetzungskeys pro Sprache)
-- Fallback auf Englisch bei fehlenden Übersetzungen
-- Alle 12 Sprachen sind vollständig implementiert und einsatzbereit
+- All translations were created by "Phrosh"
+- Consistent terminology within each language
+- Complete coverage of all UI elements (over 200 translation keys per language)
+- Fallback to English for missing translations
+- All 12 languages are fully implemented and ready for use
 
-## Status der Übersetzungen
+## Translation Status
 
-✅ **Vollständig übersetzt**: Alle Sprachen enthalten die komplette Übersetzung aller UI-Elemente
+✅ **Fully translated**: All languages contain complete translation of all UI elements
 - Admin Dashboard, Song Management, Playlist View, Show View
 - Modals, Forms, Error Messages, Success Messages
-- Alle Buttons, Labels, Placeholders und Tooltips
+- All buttons, labels, placeholders and tooltips

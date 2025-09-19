@@ -4,73 +4,73 @@
 
 <img src="assets/tkk-logo.png" alt="Titanium Kitten Karaoke Logo" width="200" height="200">
 
-**Das ultimative Web-basierte Karaoke-System für Veranstalter**
+**The ultimate web-based karaoke system for event organizers**
 
 </div>
 
-Titanium Kitten Karaoke ist ein professionelles Karaoke-Management-System, das speziell für Veranstalter von Karaoke-Events in Bars, Clubs oder auf Parties entwickelt wurde. Es übernimmt die komplette Verwaltung der Songs, Playlists und bietet eine intuitive Benutzeroberfläche für sowohl Veranstalter als auch Teilnehmer.
+Titanium Kitten Karaoke is a professional karaoke management system specifically designed for organizers of karaoke events in bars, clubs, or parties. It handles complete song and playlist management and provides an intuitive user interface for both organizers and participants.
 
-## 🎯 Was ist Titanium Kitten Karaoke?
+## 🎯 What is Titanium Kitten Karaoke?
 
-Titanium Kitten Karaoke ist ein vollständigeskonnt Karaoke-System, das über einen Web-Browser zugänglich ist. Es funktioniert am besten auf einem Webserver mit statischer IP oder eigener Domain, kann aber auch per ngrok von zu Hause aus betrieben werden. Sowohl die Verwaltung als auch die Live-Videos sind über jeden modernen Web-Browser erreichbar.
+Titanium Kitten Karaoke is a complete karaoke system accessible through a web browser. It works best on a web server with a static IP or custom domain, but can also be operated from home using ngrok. Both administration and live videos are accessible through any modern web browser.
 
-**💡 Tipp:** Verwende einen Webserver mit eigener Domain oder einen leistungsstarken Desktop-PC mit ngrok als Server. Während der Live-Karaoke-Show greifst du dann mit einem Laptop über den Browser darauf zu.
+**💡 Tip:** Use a web server with a custom domain or a powerful desktop PC with ngrok as server. During the live karaoke show, you then access it with a laptop through the browser.
 
 ## ✨ Features
 
-### 🎵 Song-Management
-- **Multi-Format Support**: YouTube-Videos, lokale Videos vom Live-PC und UltraStar Songs
-- **USDB Integration**: Direkter Download von Songs aus der größten UltraStar-Datenbank
-- **KI-gestützte Konvertierung**: Automatische Erstellung von Instrumental-Versionen ohne Gesang
-- **Umfangreiche Song-Verwaltung**: Vollständige Kontrolle über die Musikbibliothek
+### 🎵 Song Management
+- **Multi-Format Support**: YouTube videos, local videos from live PC and UltraStar songs
+- **USDB Integration**: Direct download of songs from the largest UltraStar database
+- **AI-powered Conversion**: Automatic creation of instrumental versions without vocals
+- **Comprehensive Song Management**: Complete control over the music library
 
-### 👥 Benutzerfreundlichkeit
-- **QR-Code Songwünsche**: Teilnehmer scannen einfach einen QR-Code und geben ihre Songwünsche ein
-- **Fairness-Algorithmus**: Intelligente Playlist-Verwaltung, die sicherstellt, dass jeder Teilnehmer fair behandelt wird
-- **Live-Playlist**: Echtzeit-Anzeige der aktuellen Songreihenfolge
-- **Responsive Design**: Funktioniert auf allen Geräten - Desktop, Tablet, Smartphone
-- **🌍 Mehrsprachigkeit**: Vollständige Unterstützung für 12 Sprachen (DE, EN, ES, FR, FI, NL, PL, SV, RU, JA, KO, ZH)
+### 👥 User Experience
+- **QR-Code Song Requests**: Participants simply scan a QR code and enter their song requests
+- **Fairness Algorithm**: Intelligent playlist management ensuring every participant is treated fairly
+- **Live Playlist**: Real-time display of current song order
+- **Responsive Design**: Works on all devices - desktop, tablet, smartphone
+- **🌍 Multilingual**: Full support for 12 languages (DE, EN, ES, FR, FI, NL, PL, SV, RU, JA, KO, ZH)
 
-### 🛠️ Admin-Features
-- **Vollständiges Admin-Dashboard**: Komplette Kontrolle über Playlist und Einstellungen
-- **Nutzerverwaltung**: Ban-Lists und Benutzer-Management
-- **Live-Controls**: Direkte Steuerung der aktuellen Karaoke-Session
-- **Einstellbare Parameter**: Anpassung des Fairness-Algorithmus und anderer Systemeinstellungen
+### 🛠️ Admin Features
+- **Complete Admin Dashboard**: Full control over playlist and settings
+- **User Management**: Ban lists and user management
+- **Live Controls**: Direct control of current karaoke session
+- **Configurable Parameters**: Adjustment of fairness algorithm and other system settings
 
-### 🎬 Live-Features
-- **Live-Video-Stream**: Direkte Übertragung der aktuellen Karaoke-Session
-- **Multi-Browser-Support**: Verschiedene Browser-Fenster für verschiedene Funktionen
-- **Beamer-Integration**: Optimiert für die Übertragung auf große Bildschirme
+### 🎬 Live Features
+- **Live Video Stream**: Direct transmission of current karaoke session
+- **Multi-Browser Support**: Different browser windows for different functions
+- **Projector Integration**: Optimized for transmission to large screens
 
-## 🔧 Voraussetzungen
+## 🔧 Requirements
 
-### Server-Anforderungen
-- **Node.js** (Version 18 oder höher) mit npm
-- **Python 3.10** oder höher (für KI-Features)
-- **CUDA** (für Hardwarebeschleunigung bei KI-Features)
-- **Freie Ports**: 3000, 5000, 6000, 4000 (für lokale Dateien)
+### Server Requirements
+- **Node.js** (Version 18 or higher) with npm
+- **Python 3.10** or higher (for AI features)
+- **CUDA** (for hardware acceleration with AI features)
+- **Free Ports**: 3000, 5000, 6000, 4000 (for local files)
 
-### Live-PC Anforderungen
-- **Internetfähiger Browser** (Chrome, Firefox, Safari, Edge)
-- **Stabile Internetverbindung** (für Remote-Zugriff)
+### Live PC Requirements
+- **Internet-capable Browser** (Chrome, Firefox, Safari, Edge)
+- **Stable Internet Connection** (for remote access)
 
 ## 🚀 Installation
 
-### Automatische Installation
-1. **Repository klonen oder Dateien herunterladen**
-2. **`install.bat` ausführen** - Das Skript erledigt alles automatisch
+### Automatic Installation
+1. **Clone repository or download files**
+2. **Run `install.bat`** - The script handles everything automatically
 
-### Manuelle Installation (falls nötig)
+### Manual Installation (if needed)
 ```bash
-# Backend-Dependencies installieren
+# Install backend dependencies
 npm install
 
-# Frontend-Dependencies installieren
+# Install frontend dependencies
 cd client
 npm install
 cd ..
 
-# Python-Dependencies für KI-Features
+# Python dependencies for AI features
 cd ai-services
 python -m venv venv
 # Windows:
@@ -81,51 +81,51 @@ pip install -r requirements.txt
 cd ..
 ```
 
-## 🎮 Benutzung
+## 🎮 Usage
 
-### Server starten
-1. **`start.bat` ausführen** - Startet das komplette System
-2. **Optional**: ngrok auf Port 5000 starten für Remote-Zugriff
+### Starting the Server
+1. **Run `start.bat`** - Starts the complete system
+2. **Optional**: Start ngrok on port 5000 for remote access
 
-### URLs und Zugriff
-- **`localhost:5000`** - Aktuelle Playlist anzeigen
-- **`localhost:5000/admin`** - Admin Dashboard für Playlist-Management und Einstellungen
-- **`localhost:5000/show`** - Live-Video der aktuellen Karaoke-Session
-- **`localhost:5000/new`** - QR-Code-Ziel für Songwünsche der Teilnehmer
+### URLs and Access
+- **`localhost:5000`** - Display current playlist
+- **`localhost:5000/admin`** - Admin dashboard for playlist management and settings
+- **`localhost:5000/show`** - Live video of current karaoke session
+- **`localhost:5000/new`** - QR code target for participant song requests
 
-### 💡 Empfohlene Setup-Anordnung
-1. **Admin-Dashboard** auf dem Laptop für den Veranstalter (dich) öffnen
-2. **Live-Session** (`/show`) in einem zweiten Browserfenster öffnen
-3. **Live-Session** per Beamer oder zweiten Bildschirm an das Publikum richten
-4. **QR-Code** für Teilnehmer bereitstellen
+### 💡 Recommended Setup Arrangement
+1. **Admin Dashboard** open on laptop for organizer (you)
+2. **Live Session** (`/show`) open in a second browser window
+3. **Live Session** direct to audience via projector or second screen
+4. **QR Code** provide for participants
 
-### ⚙️ Wichtige Konfiguration
-- **Öffentliche Adresse**: Im Admin-Dashboard die öffentliche Server-Adresse angeben, damit der QR-Code funktioniert
-- **Ports freigeben**: Stellen Sie sicher, dass die benötigten Ports (3000, 5000, 6000, 4000) verfügbar sind
+### ⚙️ Important Configuration
+- **Public Address**: Specify the public server address in the admin dashboard so the QR code works
+- **Open Ports**: Make sure the required ports (3000, 5000, 6000, 4000) are available
 
-## 🧠 Fairness-Algorithmus
+## 🧠 Fairness Algorithm
 
-Der integrierte Fairness-Algorithmus sorgt für eine gerechte Verteilung der Songs:
+The integrated fairness algorithm ensures fair distribution of songs:
 
-- **Priorisierung**: Teilnehmer mit weniger Songs werden bevorzugt
-- **Verhinderung von Stapelung**: Kein Teilnehmer kann mehrere Songs hintereinander singen
-- **Intelligente Einfügung**: Neue Songs werden optimal in die bestehende Playlist eingefügt
-- **Einstellbare Parameter**: Maximale Verschiebungen pro Song konfigurierbar
+- **Prioritization**: Participants with fewer songs are preferred
+- **Prevention of Stacking**: No participant can sing multiple songs in a row
+- **Intelligent Insertion**: New songs are optimally inserted into the existing playlist
+- **Configurable Parameters**: Maximum shifts per song configurable
 
-## 🎵 Unterstützte Formate
+## 🎵 Supported Formats
 
-- **YouTube-Videos**: Direkte Integration über Links
-- **Lokale Videos**: Videos vom Live-PC (direktes Streaming)
-- **Remove Videos**: Videos vom Server
-- **UltraStar Songs**: Unterstützung des UltraStar-Formats
-- **USDB-Downloads**: Automatischer Download aus der UltraStar-Datenbank
-- **KI-Konvertierung**: Automatische Erstellung von Instrumental-Versionen
+- **YouTube Videos**: Direct integration via links
+- **Local Videos**: Videos from live PC (direct streaming)
+- **Remote Videos**: Videos from server
+- **UltraStar Songs**: Support for UltraStar format
+- **USDB Downloads**: Automatic download from UltraStar database
+- **AI Conversion**: Automatic creation of instrumental versions
 
-## 🔒 Sicherheit & Verwaltung
+## 🔒 Security & Management
 
-- **JWT-basierte Authentifizierung** für Admin-Bereiche
-- **Nutzerverwaltung** mit Ban-Funktionalität
+- **JWT-based Authentication** for admin areas
+- **User Management** with ban functionality
 
-**Viel Spaß mit Titanium Kitten Karaoke! 🎤🎵**
+**Have fun with Titanium Kitten Karaoke! 🎤🎵**
 
-*Entwickelt für professionelle Karaoke-Veranstaltungen*
+*Developed for professional karaoke events*
