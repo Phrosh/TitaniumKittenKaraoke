@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { adminAPI, playlistAPI, showAPI, songAPI } from '../services/api';
-import { AdminDashboardData, Song, AdminUser, YouTubeSong } from '../types';
+import { adminAPI, showAPI, songAPI } from '../services/api';
+import { AdminDashboardData } from '../types';
 import websocketService, { AdminUpdateData } from '../services/websocket';
 import PlaylistTab from './admin/tabs/playlist/PlaylistTab';
 import BanlistTab from './admin/tabs/BanlistTab';
 import UsersTab from './admin/tabs/UsersTab';
 import SettingsTab from './admin/tabs/SettingsTab';
 import ApprovalModal from './admin/modals/ApprovalModal';
-import YouTubeDownloadModal from './admin/modals/YouTubeDownloadModal';
-import SongsTab from './admin/tabs/SongsTab';
+import SongsTab from './admin/tabs/songs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import getFirstLetter from '../utils/getFirstLetter';
 import SongForm from './admin/SongForm';
@@ -41,22 +39,10 @@ const AdminDashboard: React.FC = () => {
     withBackgroundVocals: false
   });
   const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
-  const [manualSongData, setManualSongData] = useState({
-    singerName: '',
-    songInput: ''
-  });
-  const [manualSongSearchTerm, setManualSongSearchTerm] = useState('');
-  
-  // YouTube Download Dialog
-  const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
-  const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [downloadingVideo, setDownloadingVideo] = useState(false);
   const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
   const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
   const [manualSongList, setManualSongList] = useState<any[]>([]);
   const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
-  const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   useEffect(async () => {
@@ -521,164 +507,6 @@ const AdminDashboard: React.FC = () => {
     };
   }, [dashboardData]);
 
-  const startNormalProcessing = async (song: any, songKey: string, folderName: string) => {
-    // Mark song as processing
-    setProcessingSongs(prev => new Set(prev).add(songKey));
-    
-    try {
-      const response = await songAPI.processUltrastarSong(folderName);
-      
-      if (response.data.status === 'no_processing_needed') {
-        toast('Keine Verarbeitung erforderlich - alle Dateien sind bereits vorhanden', { icon: 'ℹ️' });
-        // Remove from processing state since no processing was needed
-        setProcessingSongs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(songKey);
-          return newSet;
-        });
-      } else {
-        toast.success(`Verarbeitung für ${song.artist} - ${song.title} gestartet`);
-        console.log('Processing started:', response.data);
-        // Keep in processing state - will be removed later when job completes
-      }
-    } catch (error: any) {
-      console.error('Error starting processing:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Starten der Verarbeitung');
-      // Remove from processing state on error
-      setProcessingSongs(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(songKey);
-        return newSet;
-      });
-    }
-  };
-
-  const handleYouTubeDownload = async () => {
-    if (!youtubeUrl.trim()) {
-      toast.error('Bitte gib eine YouTube-URL ein');
-      return;
-    }
-    
-    if (!selectedSongForDownload) {
-      toast.error('Kein Song für Download ausgewählt');
-      return;
-    }
-    
-    setDownloadingVideo(true);
-    
-    try {
-      const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
-      
-      toast('YouTube-Video wird heruntergeladen...', { icon: '📥' });
-      
-      const response = await songAPI.downloadYouTubeVideo(folderName, youtubeUrl);
-      
-      if (response.data.status === 'success') {
-        toast.success(`Video erfolgreich heruntergeladen: ${response.data.downloadedFile}`);
-        
-        // Close dialog
-        setShowYouTubeDialog(false);
-        setSelectedSongForDownload(null);
-        setYoutubeUrl('');
-        
-        // Start normal processing after download
-        const songKey = `${selectedSongForDownload.artist}-${selectedSongForDownload.title}`;
-        await startNormalProcessing(selectedSongForDownload, songKey, folderName);
-        
-      } else {
-        toast.error('Download fehlgeschlagen');
-      }
-      
-    } catch (error: any) {
-      console.error('Error downloading YouTube video:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Herunterladen des YouTube-Videos');
-    } finally {
-      setDownloadingVideo(false);
-    }
-  };
-
-  const handleCloseYouTubeDialog = () => {
-    setShowYouTubeDialog(false);
-    setSelectedSongForDownload(null);
-    setYoutubeUrl('');
-    setDownloadingVideo(false);
-  };
-
-  const handleProcessWithoutVideo = async () => {
-    if (!selectedSongForDownload) {
-      toast.error('Kein Song für Verarbeitung ausgewählt');
-      return;
-    }
-    
-    const songKey = `${selectedSongForDownload.artist}-${selectedSongForDownload.title}`;
-    const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
-    
-    // Close dialog first
-    handleCloseYouTubeDialog();
-    
-    // Start processing without video
-    await startNormalProcessing(selectedSongForDownload, songKey, folderName);
-  };
-
-  // // Helper function to mark processing as completed (for future polling implementation)
-  // const markProcessingCompleted = (song: any) => {
-  //   const songKey = `${song.artist}-${song.title}`;
-  //   setProcessingSongs(prev => {
-  //     const newSet = new Set(prev);
-  //     newSet.delete(songKey);
-  //     return newSet;
-  //   });
-  //   toast.success(`Verarbeitung für ${song.artist} - ${song.title} abgeschlossen`);
-  // };
-
-
-  // USDB Management Handlers
-
-  // // Batch USDB Functions
-  // const handleAddBatchUrlField = () => {
-  //   setUsdbBatchUrls([...usdbBatchUrls, '']);
-  // };
-
-  // USDB Search Functions
-  
-
-
-  // const handleDownloadFromUSDB = async () => {
-  //   if (!usdbUrl.trim()) {
-  //     toast.error('Bitte USDB-URL eingeben');
-  //     return;
-  //   }
-
-  //   setUsdbDownloading(true);
-  //   try {
-  //     const response = await adminAPI.downloadFromUSDB(usdbUrl);
-      
-  //     if (response.data.message) {
-  //       toast.success(response.data.message);
-        
-  //       // Automatically rescan song list after successful download
-  //       try {
-  //         await adminAPI.rescanFileSongs();
-  //         await fetchSongs();
-  //       } catch (rescanError) {
-  //         console.error('Error rescanning after download:', rescanError);
-  //         // Don't show error toast as download was successful
-  //       }
-  //     }
-      
-  //     setShowUsdbDialog(false);
-  //     setUsdbUrl('');
-  //     // Refresh dashboard data
-  //     await fetchDashboardData();
-  //   } catch (error: any) {
-  //     console.error('Error downloading from USDB:', error);
-  //     const message = error.response?.data?.message || 'Fehler beim Herunterladen von USDB';
-  //     toast.error(message);
-  //   } finally {
-  //     setUsdbDownloading(false);
-  //   }
-  // };
-
   if (loading) {
     return (
       <Container>
@@ -719,7 +547,9 @@ const AdminDashboard: React.FC = () => {
           </TabButton>
           <TabButton 
             $active={activeTab === 'songs'} 
-            onClick={() => setActiveTab('songs')}
+            onClick={() => {
+              setActiveTab('songs');
+            }}
           >
             📁 Songverwaltung
           </TabButton>
@@ -776,25 +606,12 @@ const AdminDashboard: React.FC = () => {
           
           {activeTab === 'songs' && (
             <SongsTab
-              processingSongs={processingSongs}
-              setProcessingSongs={setProcessingSongs}
+              fetchDashboardData={fetchDashboardData}
             />
           )}
           
         </TabContent>
       </TabContainer>
-
-      {/* YouTube Download Dialog */}
-      <YouTubeDownloadModal
-        show={showYouTubeDialog}
-        selectedSongForDownload={selectedSongForDownload}
-        youtubeUrl={youtubeUrl}
-        downloadingVideo={downloadingVideo}
-        onClose={handleCloseYouTubeDialog}
-        onUrlChange={setYoutubeUrl}
-        onProcessWithoutVideo={handleProcessWithoutVideo}
-        onDownload={handleYouTubeDownload}
-      />
 
 
 

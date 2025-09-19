@@ -98,3 +98,23 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
         return '';
     }
   }
+  
+  // Check if Ultrastar song has missing files (for warning display)
+  export const hasMissingFiles = (song: any) => {
+    if (!song.modes?.includes('ultrastar')) return false;
+    
+    // If the properties are undefined, we can't determine if files are missing
+    // So we assume they are complete (don't show button/warning)
+    if (song.hasVideo === undefined || song.hasHp2Hp5 === undefined) {
+      return false;
+    }
+    
+    // Check if video files are present (mp4 or webm)
+    const hasVideo = song.hasVideo === true;
+    
+    // Check if HP2/HP5 files are present
+    const hasHp2Hp5 = song.hasHp2Hp5 === true;
+    
+    // Show warning if video OR HP2/HP5 files are missing
+    return !hasVideo || !hasHp2Hp5;
+  };

@@ -10,8 +10,6 @@ interface SongFormProps {
     youtubeUrl: string;
     withBackgroundVocals: boolean;
     onSingerNameChange: (value: string) => void;
-    // onArtistChange: (value: string) => void;
-    // onTitleChange: (value: string) => void;
     onYoutubeUrlChange: (value: string) => void;
     onWithBackgroundVocalsChange: (checked: boolean) => void;
     showSongList?: boolean;
@@ -22,7 +20,6 @@ interface SongFormProps {
     songData: {artist: string, title: string};
     setSongData: (data: {artist: string, title: string, singerName: string, youtubeUrl: string	}) => void;
     setSongSearchTerm: (term: string) => void;
-    // triggerUSDBSearch: (artist: string, title: string) => void;
     setUsdbResults: (results: any[]) => void;
     setUsdbLoading: (loading: boolean) => void;
   }
@@ -34,8 +31,6 @@ const SongForm: React.FC<SongFormProps> = ({
     youtubeUrl,
     withBackgroundVocals,
     onSingerNameChange,
-    // onArtistChange,
-    // onTitleChange,
     onYoutubeUrlChange,
     onWithBackgroundVocalsChange,
     showSongList = false,
@@ -46,7 +41,6 @@ const SongForm: React.FC<SongFormProps> = ({
     usdbLoading = false,
     setSongData,
     setSongSearchTerm,
-    // triggerUSDBSearch,
     setUsdbResults,
     setUsdbLoading
   }) => {
