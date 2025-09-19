@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ModalContent, ModalTitle, ModalButtons } from '../../../shared/style';
 import { Button } from '../../../shared';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
@@ -18,12 +19,14 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t } = useTranslation();
+  
   if (!show || !deleteSong) return null;
 
   return (
     <Modal>
           <ModalContent>
-            <ModalTitle>🗑️ Song löschen</ModalTitle>
+            <ModalTitle>🗑️ {t('deleteModal.title')}</ModalTitle>
             
             <div style={{ 
               padding: '20px', 
@@ -34,10 +37,10 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
               textAlign: 'center'
             }}>
               <div style={{ fontSize: '18px', fontWeight: '600', color: '#c53030', marginBottom: '10px' }}>
-                ⚠️ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!
+                ⚠️ {t('deleteModal.warning')}
               </div>
               <div style={{ fontSize: '16px', color: '#2d3748', marginBottom: '15px' }}>
-                Möchtest du den Song wirklich löschen?
+                {t('deleteModal.confirmQuestion')}
               </div>
               <div style={{ 
                 fontSize: '14px', 
@@ -47,13 +50,13 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 borderRadius: '6px',
                 border: '1px solid #e2e8f0'
               }}>
-                <strong>Song:</strong> {deleteSong.artist} - {deleteSong.title}
+                <strong>{t('deleteModal.song')}:</strong> {deleteSong.artist} - {deleteSong.title}
                 <SmallModeBadge mode={deleteSong.mode} modes={deleteSong.modes} />
               </div>
             </div>
             
             <ModalButtons>
-              <Button onClick={onClose}>Abbrechen</Button>
+              <Button onClick={onClose}>{t('common.cancel')}</Button>
               <Button 
                 onClick={onConfirm}
                 disabled={actionLoading}
@@ -62,7 +65,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                   color: 'white'
                 }}
               >
-                {actionLoading ? '⏳ Wird gelöscht...' : '🗑️ Endgültig löschen'}
+                {actionLoading ? `⏳ ${t('deleteModal.deleting')}` : `🗑️ ${t('deleteModal.deletePermanently')}`}
               </Button>
             </ModalButtons>
           </ModalContent>

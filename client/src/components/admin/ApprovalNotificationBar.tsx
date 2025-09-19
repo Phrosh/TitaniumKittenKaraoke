@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useTranslation } from 'react-i18next';
 
 const ApprovalNotificationBar = styled.div`
   background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
@@ -59,6 +60,8 @@ const ApprovalNotificationBarComponent: React.FC<ApprovalNotificationBarProps> =
   pendingApprovalsCount,
   onNotificationClick
 }) => {
+  const { t } = useTranslation();
+
   if (pendingApprovalsCount <= 0) {
     return null;
   }
@@ -68,9 +71,9 @@ const ApprovalNotificationBarComponent: React.FC<ApprovalNotificationBarProps> =
       <ApprovalNotificationContent>
         <ApprovalNotificationIcon>🎵</ApprovalNotificationIcon>
         <ApprovalNotificationText>
-          {pendingApprovalsCount === 1 
-            ? 'Ein Songwunsch wartet auf Bestätigung' 
-            : `${pendingApprovalsCount} Songwünsche warten auf Bestätigung`
+          {pendingApprovalsCount === 1
+            ? t('approvalNotification.singleSong')
+            : t('approvalNotification.multipleSongs', { count: pendingApprovalsCount })
           }
         </ApprovalNotificationText>
       </ApprovalNotificationContent>

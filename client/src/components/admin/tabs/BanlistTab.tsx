@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { adminAPI } from '../../../services/api';
 import { Button } from '../../shared';
 
@@ -96,6 +97,8 @@ interface BanlistTabProps {
 const BanlistTab: React.FC<BanlistTabProps> = ({
   onDeviceIdClick
 }) => {
+  const { t } = useTranslation();
+  
   // Banlist State
   const [banlist, setBanlist] = useState<BanlistItem[]>([]);
   const [newBanDeviceId, setNewBanDeviceId] = useState('');
@@ -119,49 +122,49 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
 
   const handleAddToBanlist = async () => {
     if (!newBanDeviceId.trim() || newBanDeviceId.length !== 3) {
-      toast.error('Device ID muss genau 3 Zeichen lang sein');
+      toast.error(t('banlist.deviceIdLengthError'));
       return;
     }
 
     setActionLoading(true);
     try {
       await adminAPI.addToBanlist(newBanDeviceId.toUpperCase(), newBanReason.trim() || undefined);
-      toast.success(`Device ID ${newBanDeviceId.toUpperCase()} zur Banlist hinzugefügt`);
+      toast.success(t('banlist.deviceAddedSuccess', { deviceId: newBanDeviceId.toUpperCase() }));
       setNewBanDeviceId('');
       setNewBanReason('');
       await fetchBanlist();
     } catch (error: any) {
       console.error('Error adding to banlist:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Hinzufügen zur Banlist');
+      toast.error(error.response?.data?.message || t('banlist.addError'));
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRemoveFromBanlist = async (deviceId: string) => {
-    if (!window.confirm(`Device ID ${deviceId} wirklich von der Banlist entfernen?`)) {
+    if (!window.confirm(t('banlist.confirmRemove', { deviceId }))) {
       return;
     }
 
     setActionLoading(true);
     try {
       await adminAPI.removeFromBanlist(deviceId);
-      toast.success(`Device ID ${deviceId} von der Banlist entfernt`);
+      toast.success(t('banlist.deviceRemovedSuccess', { deviceId }));
       await fetchBanlist();
     } catch (error: any) {
       console.error('Error removing from banlist:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Entfernen von der Banlist');
+      toast.error(error.response?.data?.message || t('banlist.removeError'));
     } finally {
       setActionLoading(false);
     }
   };
   return (
     <SettingsSection>
-      <SettingsTitle>🚫 Banlist-Verwaltung</SettingsTitle>
+      <SettingsTitle>🚫 {t('banlist.title')}</SettingsTitle>
       
       {/* Add device to banlist */}
       <SettingsCard>
-        <SettingsLabel>Device ID zur Banlist hinzufügen:</SettingsLabel>
+        <SettingsLabel>{t('banlist.addDeviceId')}</SettingsLabel>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
           <SettingsInput
             type="text"
@@ -182,20 +185,20 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
             onClick={handleAddToBanlist}
             disabled={actionLoading}
           >
-            {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
+            {actionLoading ? t('banlist.adding') : t('banlist.add')}
           </SettingsButton>
         </div>
         <SettingsDescription>
-          Device IDs auf der Banlist können keine Songs hinzufügen. Sie erhalten trotzdem eine Erfolgsmeldung.
+          {t('banlist.description')}
         </SettingsDescription>
       </SettingsCard>
       
       {/* List banned devices */}
       <SettingsCard>
-        <SettingsLabel>Gesperrte Device IDs ({banlist.length}):</SettingsLabel>
+        <SettingsLabel>{t('banlist.bannedDevices', { count: banlist.length })}</SettingsLabel>
         {banlist.length === 0 ? (
           <div style={{ color: '#666', fontStyle: 'italic' }}>
-            Keine Device IDs gesperrt
+            {t('banlist.noBannedDevices')}
           </div>
         ) : (
           <div style={{ marginTop: '10px' }}>
@@ -218,11 +221,11 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
                     🚫 {ban.device_id}
                   </div>
                   <div style={{ fontSize: '14px', color: '#666', marginTop: '2px' }}>
-                    {ban.reason ? `Grund: ${ban.reason}` : 'Kein Grund angegeben'}
+                    {ban.reason ? t('banlist.reason', { reason: ban.reason }) : t('banlist.noReason')}
                   </div>
                   <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                    Gesperrt am: {new Date(ban.created_at).toLocaleString('de-DE')}
-                    {ban.banned_by && ` • von ${ban.banned_by}`}
+                    {t('banlist.bannedOn', { date: new Date(ban.created_at).toLocaleString('de-DE') })}
+                    {ban.banned_by && t('banlist.bannedBy', { user: ban.banned_by })}
                   </div>
                 </div>
                 <Button 
@@ -231,14 +234,14 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
                   disabled={actionLoading}
                   style={{ padding: '5px 10px', fontSize: '0.9em' }}
                 >
-                  🗑️ Entfernen
+                  🗑️ {t('banlist.remove')}
                 </Button>
               </div>
             ))}
           </div>
         )}
         <SettingsDescription>
-          Verwaltung der gesperrten Device IDs. Gesperrte Geräte können keine Songs hinzufügen.
+          {t('banlist.managementDescription')}
         </SettingsDescription>
       </SettingsCard>
     </SettingsSection>

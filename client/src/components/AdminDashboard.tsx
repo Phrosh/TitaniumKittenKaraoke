@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminAPI, showAPI, songAPI } from '../services/api';
 import { AdminDashboardData } from '../types';
@@ -18,6 +19,8 @@ import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, T
 
 
 const AdminDashboard: React.FC = () => {
+  const { t } = useTranslation();
+  
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -223,7 +226,7 @@ const AdminDashboard: React.FC = () => {
           
           handleShowApprovalModal([approvalData]);
           
-          toast('🎵 Neuer Songwunsch zur Bestätigung eingegangen!', {
+          toast(`🎵 ${t('adminDashboard.newSongApprovalRequest')}`, {
             duration: 5000,
             icon: '🎵'
           });
@@ -322,10 +325,10 @@ const AdminDashboard: React.FC = () => {
         
         handleShowApprovalModal(formattedApprovals);
         
-        toast(`🎵 ${pendingApprovals.length} Songwunsch/Songwünsche zur Bestätigung eingegangen!`, {
-          duration: 5000,
-          icon: '🎵'
-        });
+          toast(`🎵 ${t('adminDashboard.songApprovalNotification', { count: pendingApprovals.length })}`, {
+            duration: 5000,
+            icon: '🎵'
+          });
       }
     } catch (error) {
       console.error('Error loading pending approvals:', error);
@@ -381,7 +384,7 @@ const AdminDashboard: React.FC = () => {
         });
       }
 
-      toast.success('Song erfolgreich zur Playlist hinzugefügt!');
+      toast.success(t('adminDashboard.songAddedSuccess'));
       
       // Move to next approval or close modal
       if (currentApprovalIndex < pendingApprovals.length - 1) {
@@ -405,7 +408,7 @@ const AdminDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error approving song:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Hinzufügen des Songs');
+      toast.error(error.response?.data?.error || t('adminDashboard.songAddError'));
     } finally {
       setActionLoading(false);
     }
@@ -420,7 +423,7 @@ const AdminDashboard: React.FC = () => {
         await adminAPI.rejectSong(currentApproval.id);
       }
       
-      toast('Song abgelehnt', { icon: '❌' });
+      toast(t('adminDashboard.songRejected'), { icon: '❌' });
       
       // Move to next approval or close modal
       if (currentApprovalIndex < pendingApprovals.length - 1) {
@@ -443,7 +446,7 @@ const AdminDashboard: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error rejecting song:', error);
-      toast.error('Fehler beim Ablehnen des Songs');
+      toast.error(t('adminDashboard.songRejectError'));
     }
   };
 
@@ -510,7 +513,7 @@ const AdminDashboard: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingMessage>Lade Dashboard...</LoadingMessage>
+        <LoadingMessage>{t('adminDashboard.loading')}</LoadingMessage>
       </Container>
     );
   }
@@ -518,7 +521,7 @@ const AdminDashboard: React.FC = () => {
   if (!dashboardData) {
     return (
       <Container>
-        <LoadingMessage>Fehler beim Laden der Daten</LoadingMessage>
+        <LoadingMessage>{t('adminDashboard.loadError')}</LoadingMessage>
       </Container>
     );
   }
@@ -526,8 +529,8 @@ const AdminDashboard: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>🎤 Admin Dashboard</Title>
-        <LogoutButton onClick={handleLogout}>Abmelden</LogoutButton>
+        <Title>🎤 {t('adminDashboard.title')}</Title>
+        <LogoutButton onClick={handleLogout}>{t('adminDashboard.logout')}</LogoutButton>
       </Header>
 
       {/* Approval Notification Bar */}
@@ -542,7 +545,7 @@ const AdminDashboard: React.FC = () => {
             $active={activeTab === 'playlist'} 
             onClick={() => setActiveTab('playlist')}
           >
-            🎵 Playlist
+            🎵 {t('adminDashboard.tabs.playlist')}
             {/* 🎵 Playlist ({filteredPlaylist.length} Songs) */}
           </TabButton>
           <TabButton 
@@ -551,25 +554,25 @@ const AdminDashboard: React.FC = () => {
               setActiveTab('songs');
             }}
           >
-            📁 Songverwaltung
+            📁 {t('adminDashboard.tabs.songs')}
           </TabButton>
           <TabButton 
             $active={activeTab === 'banlist'} 
             onClick={() => setActiveTab('banlist')}
           >
-            🚫 Banlist
+            🚫 {t('adminDashboard.tabs.banlist')}
           </TabButton>
           <TabButton 
             $active={activeTab === 'users'} 
             onClick={() => setActiveTab('users')}
           >
-            👥 Nutzerverwaltung
+            👥 {t('adminDashboard.tabs.users')}
           </TabButton>
           <TabButton 
             $active={activeTab === 'settings'} 
             onClick={() => setActiveTab('settings')}
           >
-            ⚙️ Einstellungen
+            ⚙️ {t('adminDashboard.tabs.settings')}
           </TabButton>
         </TabHeader>
         

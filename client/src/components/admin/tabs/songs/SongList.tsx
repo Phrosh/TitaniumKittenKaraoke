@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -37,6 +38,8 @@ const SongList: React.FC<SongListProps> = ({
     ultrastarAudioSettings,
     setUltrastarAudioSettings,
 }) => {
+    const { t } = useTranslation();
+    
     const [actionLoading, setActionLoading] = useState(false);
     const [showRenameModal, setShowRenameModal] = useState(false);
     const [renameSong, setRenameSong] = useState<any>(null);
@@ -54,7 +57,7 @@ const SongList: React.FC<SongListProps> = ({
 
     const handleProcessWithoutVideo = async () => {
         if (!selectedSongForDownload) {
-          toast.error('Kein Song für Verarbeitung ausgewählt');
+          toast.error(t('songList.noSongSelected'));
           return;
         }
         
@@ -96,7 +99,7 @@ const SongList: React.FC<SongListProps> = ({
                     delete newSettings[songKey];
                     return newSettings;
                 });
-                toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "Auswahl" gesetzt`);
+                toast.success(t('songList.audioSettingChoice', { artist: song.artist, title: song.title }));
             } else {
                 // Set specific preference
                 await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
@@ -104,12 +107,12 @@ const SongList: React.FC<SongListProps> = ({
                     ...prev,
                     [songKey]: audioPreference
                 }));
-                const preferenceText = audioPreference === 'hp2' ? 'Ohne Background Vocals' : 'Mit Background Vocals';
-                toast.success(`${song.artist} - ${song.title}: Audio-Einstellung auf "${preferenceText}" gesetzt`);
+                const preferenceText = audioPreference === 'hp2' ? t('songList.background') : t('songList.instrumental');
+                toast.success(t('songList.audioSettingBackground', { artist: song.artist, title: song.title, preference: preferenceText }));
             }
         } catch (error: any) {
             console.error('Error updating ultrastar audio setting:', error);
-            toast.error(error.response?.data?.message || 'Fehler beim Aktualisieren der Audio-Einstellung');
+            toast.error(error.response?.data?.message || t('songList.audioSettingError'));
         } finally {
             setActionLoading(false);
         }
@@ -141,11 +144,11 @@ const SongList: React.FC<SongListProps> = ({
             setActionLoading(true);
             try {
                 await adminAPI.removeFromInvisibleSongs(invisibleSong.id);
-                toast.success(`${song.artist} - ${song.title} wieder sichtbar gemacht`);
+                toast.success(t('songList.songMadeVisible', { artist: song.artist, title: song.title }));
                 await fetchInvisibleSongs();
             } catch (error: any) {
                 console.error('Error removing from invisible songs:', error);
-                toast.error(error.response?.data?.message || 'Fehler beim Sichtbarmachen des Songs');
+                toast.error(error.response?.data?.message || t('songList.visibilityError'));
             } finally {
                 setActionLoading(false);
             }
@@ -154,11 +157,11 @@ const SongList: React.FC<SongListProps> = ({
             setActionLoading(true);
             try {
                 await adminAPI.addToInvisibleSongs(song.artist, song.title);
-                toast.success(`${song.artist} - ${song.title} unsichtbar gemacht`);
+                toast.success(t('songList.songMadeInvisible', { artist: song.artist, title: song.title }));
                 await fetchInvisibleSongs();
             } catch (error: any) {
                 console.error('Error adding to invisible songs:', error);
-                toast.error(error.response?.data?.message || 'Fehler beim Unsichtbarmachen des Songs');
+                toast.error(error.response?.data?.message || t('songList.visibilityError'));
             } finally {
                 setActionLoading(false);
             }
@@ -186,7 +189,7 @@ const SongList: React.FC<SongListProps> = ({
 
         } catch (error: any) {
             console.error('Error checking video needs:', error);
-            toast.error(error.response?.data?.error || 'Fehler beim Prüfen der Video-Anforderungen');
+            toast.error(error.response?.data?.error || t('songList.videoCheckError'));
         }
     };
 
@@ -198,7 +201,7 @@ const SongList: React.FC<SongListProps> = ({
             const response = await songAPI.processUltrastarSong(folderName);
 
             if (response.data.status === 'no_processing_needed') {
-                toast('Keine Verarbeitung erforderlich - alle Dateien sind bereits vorhanden', { icon: 'ℹ️' });
+                toast(t('songList.noProcessingNeeded'), { icon: 'ℹ️' });
                 // Remove from processing state since no processing was needed
                 setProcessingSongs(prev => {
                     const newSet = new Set(prev);
@@ -206,13 +209,13 @@ const SongList: React.FC<SongListProps> = ({
                     return newSet;
                 });
             } else {
-                toast.success(`Verarbeitung für ${song.artist} - ${song.title} gestartet`);
+                toast.success(t('songList.processingStarted', { artist: song.artist, title: song.title }));
                 console.log('Processing started:', response.data);
                 // Keep in processing state - will be removed later when job completes
             }
         } catch (error: any) {
             console.error('Error starting processing:', error);
-            toast.error(error.response?.data?.error || 'Fehler beim Starten der Verarbeitung');
+            toast.error(error.response?.data?.error || t('songList.processingError'));
             // Remove from processing state on error
             setProcessingSongs(prev => {
                 const newSet = new Set(prev);
@@ -248,7 +251,7 @@ const SongList: React.FC<SongListProps> = ({
                 youtubeUrl: youtubeUrl
             });
 
-            toast.success(`Test-Song "${song.artist} - ${song.title}" erfolgreich gestartet!`);
+            toast.success(t('songList.testSongStarted', { artist: song.artist, title: song.title }));
             console.log('Test song started:', response.data);
 
             // Optionally refresh the dashboard to show updated current song
@@ -256,7 +259,7 @@ const SongList: React.FC<SongListProps> = ({
 
         } catch (error: any) {
             console.error('Error testing song:', error);
-            toast.error(error.response?.data?.message || 'Fehler beim Starten des Test-Songs');
+            toast.error(error.response?.data?.message || t('songList.testSongError'));
         } finally {
             setActionLoading(false);
         }
@@ -289,14 +292,14 @@ const SongList: React.FC<SongListProps> = ({
                 await fetchSongs();
                 setShowDeleteModal(false);
                 setDeleteSong(null);
-                toast.success(`Song "${deleteSong.artist} - ${deleteSong.title}" erfolgreich gelöscht`);
+                toast.success(t('songList.songDeleted', { artist: deleteSong.artist, title: deleteSong.title }));
             } else {
                 console.error('Delete failed:', response.data.message);
-                toast.error(response.data.message || 'Fehler beim Löschen des Songs');
+                toast.error(response.data.message || t('songList.deleteError'));
             }
         } catch (error: any) {
             console.error('Error deleting song:', error);
-            toast.error(error.response?.data?.message || 'Fehler beim Löschen des Songs');
+            toast.error(error.response?.data?.message || t('songList.deleteError'));
         } finally {
             setActionLoading(false);
         }
@@ -327,14 +330,14 @@ const SongList: React.FC<SongListProps> = ({
             setShowRenameModal(false);
             setRenameSong(null);
             // setRenameData({ newArtist: '', newTitle: '' });
-            toast.success(`Song erfolgreich umbenannt zu "${renameData.newArtist.trim()} - ${renameData.newTitle.trim()}"`);
+            toast.success(t('songList.songRenamed', { oldArtist: renameSong.artist, oldTitle: renameSong.title, newArtist: renameData.newArtist.trim(), newTitle: renameData.newTitle.trim() }));
           } else {
             console.error('Rename failed:', response.data.message);
-            toast.error(response.data.message || 'Fehler beim Umbenennen des Songs');
+            toast.error(response.data.message || t('songList.renameError'));
           }
         } catch (error: any) {
           console.error('Error renaming song:', error);
-          toast.error(error.response?.data?.message || 'Fehler beim Umbenennen des Songs');
+          toast.error(error.response?.data?.message || t('songList.renameError'));
         } finally {
           setActionLoading(false);
         }
@@ -343,19 +346,19 @@ const SongList: React.FC<SongListProps> = ({
     return <>
         <SettingsCard>
             <SettingsLabel>
-                {songTab === 'all' && `Alle Songs (${songs.length}):`}
-                {songTab === 'visible' && `Eingeblendete Songs (${songs.filter(song => !invisibleSongs.some(invisible =>
+                {songTab === 'all' && t('songList.allSongsLabel', { count: songs.length })}
+                {songTab === 'visible' && t('songList.visibleSongsLabel', { count: songs.filter(song => !invisibleSongs.some(invisible =>
                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                     invisible.title.toLowerCase() === song.title.toLowerCase()
-                )).length}):`}
-                {songTab === 'invisible' && `Ausgeblendete Songs (${songs.filter(song => invisibleSongs.some(invisible =>
+                )).length })}
+                {songTab === 'invisible' && t('songList.invisibleSongsLabel', { count: songs.filter(song => invisibleSongs.some(invisible =>
                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                     invisible.title.toLowerCase() === song.title.toLowerCase()
-                )).length}):`}
+                )).length })}
             </SettingsLabel>
             {songs.length === 0 ? (
                 <div style={{ color: '#666', fontStyle: 'italic' }}>
-                    Keine Songs vorhanden
+                    {t('songList.noSongsFound')}
                 </div>
             ) : (() => {
                 // Filter songs based on tab and search term
@@ -454,7 +457,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                 userSelect: 'none'
                                                             }}
                                                             onClick={() => handleToggleSongVisibility(song)}
-                                                            title="Klicken zum Umschalten der Sichtbarkeit"
+                                                            title={t('songList.toggleVisibility')}
                                                         >
                                                             {song.artist} - {song.title}
                                                         </div>
@@ -470,9 +473,9 @@ const SongList: React.FC<SongListProps> = ({
                                                                         fontWeight: '500',
                                                                         cursor: 'help'
                                                                     }}
-                                                                    title="Dieses Ultrastar-Video benötigt nach dem ersten Songwunsch länger für die Verarbeitung, da wichtige Dateien fehlen (Video-Datei oder HP2/HP5-Audio-Dateien)."
+                                                                    title={t('songList.processingWarning')}
                                                                 >
-                                                                    ⚠️ Verarbeitung
+                                                                    ⚠️ {t('songList.processing')}
                                                                 </span>
                                                             )}
                                                     </div>
@@ -509,7 +512,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                 }
                                                             }}
                                                         >
-                                                            {processingSongs.has(`${song.artist}-${song.title}`) ? '⏳ Verarbeitung läuft...' : '🔧 Verarbeitung starten'}
+                                                            {processingSongs.has(`${song.artist}-${song.title}`) ? `⏳ ${t('songList.processingRunning')}` : `🔧 ${t('songList.startProcessing')}`}
                                                         </button>
                                                     </div>
                                                 )}
@@ -518,7 +521,7 @@ const SongList: React.FC<SongListProps> = ({
                                                 {song.modes?.includes('ultrastar') && (
                                                     <div style={{ flex: 1, padding: '8px', background: '#f8f9fa', borderRadius: '4px' }}>
                                                         <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#495057' }}>
-                                                            Audio-Einstellung:
+                                                            {t('songList.audioPreference')}:
                                                         </div>
                                                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
@@ -530,7 +533,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                     onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                                                     disabled={actionLoading}
                                                                 />
-                                                                Ohne Background Gesang
+                                                                {t('songList.background')}
                                                             </label>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                                                                 <input
@@ -541,7 +544,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                     onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                                                     disabled={actionLoading}
                                                                 />
-                                                                Mit Background Gesang
+                                                                {t('songList.instrumental')}
                                                             </label>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                                                                 <input
@@ -552,7 +555,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                     onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                                                     disabled={actionLoading}
                                                                 />
-                                                                Auswahl
+                                                                {t('songList.choice')}
                                                             </label>
                                                         </div>
                                                     </div>
@@ -589,7 +592,7 @@ const SongList: React.FC<SongListProps> = ({
                                                             }
                                                         }}
                                                     >
-                                                        ✏️ Umbenennen
+                                                        ✏️ {t('songList.rename')}
                                                     </button>
 
                                                     {/* Delete button for all song types */}
@@ -621,7 +624,7 @@ const SongList: React.FC<SongListProps> = ({
                                                             }
                                                         }}
                                                     >
-                                                        🗑️ Löschen
+                                                        🗑️ {t('songList.delete')}
                                                     </button>
 
                                                     <button
@@ -652,7 +655,7 @@ const SongList: React.FC<SongListProps> = ({
                                                             }
                                                         }}
                                                     >
-                                                        🎤 Testen
+                                                        🎤 {t('songList.test')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -665,7 +668,7 @@ const SongList: React.FC<SongListProps> = ({
                 );
             })()}
             <SettingsDescription>
-                Unsichtbare Songs erscheinen nicht in der öffentlichen Songliste (/new), sind aber im Admin-Dashboard weiterhin sichtbar.
+                {t('songList.invisibleDescription')}
             </SettingsDescription>
         </SettingsCard>
         {/* modals */}

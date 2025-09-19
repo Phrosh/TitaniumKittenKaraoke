@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useTranslation } from 'react-i18next';
 
 interface ApprovalData {
   singerName: string;
@@ -103,6 +104,7 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({
   onApprove,
   children,
 }) => {
+  const { t } = useTranslation();
   if (!show) return null;
 
   const approveDisabled =
@@ -115,10 +117,10 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({
       <ModalCard>
         <Header>
           <Title>
-            🎵 Songwunsch bestätigen
+            🎵 {t('approvalModal.confirmSongRequest')}
             {pendingApprovals.length > 1 && (
               <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#666', marginLeft: '10px' }}>
-                ({currentApprovalIndex + 1} von {pendingApprovals.length})
+                ({t('approvalModal.currentOfTotal', { current: currentApprovalIndex + 1, total: pendingApprovals.length })})
               </span>
             )}
           </Title>
@@ -128,9 +130,9 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({
         {children}
 
         <Actions>
-          <Button onClick={onReject} disabled={actionLoading}>Ablehnen</Button>
+          <Button onClick={onReject} disabled={actionLoading}>{t('approvalModal.reject')}</Button>
           <Button primary onClick={onApprove} disabled={approveDisabled}>
-            {actionLoading ? 'Hinzufügen...' : 'Akzeptieren'}
+            {actionLoading ? t('approvalModal.adding') : t('approvalModal.accept')}
           </Button>
         </Actions>
       </ModalCard>

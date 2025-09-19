@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import {adminAPI} from '../../../../services/api';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 
 interface Progress {
@@ -21,6 +22,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
   fetchSongs,
   handleCloseUsdbDialog
 }) => {
+  const { t } = useTranslation();
   const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
   const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
   const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
@@ -56,7 +58,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
 
       // If the removed URL was from search results, show a message
       if (removedUrl && removedUrl.includes('usdb.animux.de')) {
-        toast('Song aus Download-Liste entfernt');
+        toast(t('usdbDownloadModal.songRemovedFromList'));
       }
     }
   };
@@ -113,7 +115,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
             index === i ? { 
               ...result, 
               status: 'completed', 
-              message: response.data.message || 'Download erfolgreich'
+              message: response.data.message || t('usdbDownloadModal.downloadSuccessful')
             } : result
           ));
           
@@ -122,7 +124,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
           
         } catch (error: any) {
           // Mark as error
-          const errorMessage = error.response?.data?.message || 'Fehler beim Download';
+          const errorMessage = error.response?.data?.message || t('usdbDownloadModal.downloadError');
           setUsdbBatchResults(prev => prev.map((result, index) => 
             index === i ? { 
               ...result, 
@@ -137,7 +139,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
       }
       
       // All downloads completed
-      toast.success(`Batch-Download abgeschlossen: ${validUrls.length} Songs verarbeitet`);
+      toast.success(t('usdbDownloadModal.batchDownloadCompleted', { count: validUrls.length }));
       
       // Rescan song list
       try {
@@ -153,7 +155,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
       // setUsdbDownloadFinished(true);
     } catch (error) {
       console.error('Error in batch download:', error);
-      toast.error('Fehler beim Batch-Download');
+      toast.error(t('usdbDownloadModal.batchDownloadError'));
     } finally {
       setUsdbBatchDownloading(false);
       setUsdbBatchCurrentDownloading(null);
@@ -162,7 +164,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
 
   const handleSearchUSDB = async () => {
     if (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim()) {
-      toast.error('Bitte Interpret oder Titel eingeben');
+      toast.error(t('usdbDownloadModal.enterArtistOrTitle'));
       return;
     }
 
@@ -178,13 +180,13 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
       setUsdbSearchResults(songs);
       
       if (songs.length === 0) {
-        toast('Keine Songs gefunden');
+        toast(t('usdbDownloadModal.noSongsFound'));
       } else {
-        toast.success(`${songs.length} Songs gefunden`);
+        toast.success(t('usdbDownloadModal.songsFound', { count: songs.length }));
       }
     } catch (error: any) {
       console.error('Error searching USDB:', error);
-      const message = error.response?.data?.message || 'Fehler bei der USDB-Suche';
+      const message = error.response?.data?.message || t('usdbDownloadModal.searchError');
       toast.error(message);
     } finally {
       setUsdbSearchLoading(false);
@@ -196,7 +198,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
     const urlExists = usdbBatchUrls.some(url => url.trim() === song.url);
     
     if (urlExists) {
-      toast('Dieser Song ist bereits in der Download-Liste');
+      toast(t('usdbDownloadModal.songAlreadyInList'));
       return;
     }
 
@@ -217,7 +219,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
     // Remove from search results
     setUsdbSearchResults(prev => prev.filter(s => s.id !== song.id));
     
-    toast.success(`${song.artist} - ${song.title} zur Download-Liste hinzugefügt`);
+    toast.success(t('usdbDownloadModal.songAddedToList', { artist: song.artist, title: song.title }));
   };
 
   // Filter search results to remove songs already in download list
@@ -285,7 +287,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
               fontSize: '20px',
               fontWeight: '600'
             }}>
-              🌐 USDB Song Management
+              🌐 {t('usdbDownloadModal.title')}
             </h3>
             
             {/* Two-column layout */}
@@ -308,7 +310,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   fontSize: '16px',
                   fontWeight: '600'
                 }}>
-                  📥 Batch-Download
+                  📥 {t('usdbDownloadModal.batchDownload')}
                 </h4>
             
                 {/* Progress Bar */}
@@ -321,10 +323,10 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                       marginBottom: '8px'
                     }}>
                       <span style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
-                        Fortschritt:
+                        {t('usdbDownloadModal.progress')}:
                       </span>
                       <span style={{ fontSize: '14px', color: '#666' }}>
-                        {usdbBatchProgress.current} / {usdbBatchProgress.total} Downloads
+                        {usdbBatchProgress.current} / {usdbBatchProgress.total} {t('usdbDownloadModal.downloads')}
                       </span>
                     </div>
                     <div style={{
@@ -347,7 +349,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                 {/* Batch URL Fields */}
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: '#333' }}>
-                    USDB-URLs (füge beliebig viele hinzu):
+                    {t('usdbDownloadModal.usdbUrls')}:
                   </label>
                   
                   {usdbBatchUrls.map((url, index) => (
@@ -477,7 +479,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                       }
                     }}
                   >
-                    {usdbBatchDownloading ? '⏳ Downloads laufen...' : '🌐 Batch-Download starten'}
+                    {usdbBatchDownloading ? `⏳ ${t('usdbDownloadModal.downloadsRunning')}` : `🌐 ${t('usdbDownloadModal.startBatchDownload')}`}
                   </button>
                 </div>
               </div>
@@ -495,7 +497,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   fontSize: '16px',
                   fontWeight: '600'
                 }}>
-                  🔍 Song-Suche
+                  🔍 {t('usdbDownloadModal.songSearch')}
                 </h4>
 
                 {/* Search Form */}
@@ -509,13 +511,13 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '14px' }}>
-                        Interpret:
+                        {t('usdbDownloadModal.artist')}:
                       </label>
                       <input
                         type="text"
                         value={usdbSearchInterpret}
                         onChange={(e) => setUsdbSearchInterpret(e.target.value)}
-                        placeholder="z.B. ABBA"
+                        placeholder={t('usdbDownloadModal.artistPlaceholder')}
                         style={{
                           width: '100%',
                           padding: '10px',
@@ -536,13 +538,13 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                     
                     <div>
                       <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#333', fontSize: '14px' }}>
-                        Titel (optional):
+                        {t('usdbDownloadModal.titleOptional')}:
                       </label>
                       <input
                         type="text"
                         value={usdbSearchTitle}
                         onChange={(e) => setUsdbSearchTitle(e.target.value)}
-                        placeholder="z.B. The Winner Takes It All"
+                        placeholder={t('usdbDownloadModal.titlePlaceholder')}
                         style={{
                           width: '100%',
                           padding: '10px',
@@ -588,7 +590,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                       }
                     }}
                   >
-                    {usdbSearchLoading ? '⏳ Suche läuft...' : '🔍 Suchen'}
+                    {usdbSearchLoading ? `⏳ ${t('usdbDownloadModal.searching')}` : `🔍 ${t('usdbDownloadModal.search')}`}
                   </button>
                 </div>
 
@@ -597,7 +599,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   {usdbSearchResults.length > 0 ? (
                     <div>
                       <div style={{ marginBottom: '10px', fontSize: '14px', fontWeight: '600', color: '#333' }}>
-                        Gefundene Songs ({usdbSearchResults.length}):
+                        {t('usdbDownloadModal.foundSongs', { count: usdbSearchResults.length })}:
                       </div>
                       {usdbSearchResults.map((song) => (
                         <div
@@ -645,7 +647,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                       fontSize: '14px',
                       padding: '20px'
                     }}>
-                      {usdbSearchLoading ? 'Suche läuft...' : 'Keine Suchergebnisse'}
+                      {usdbSearchLoading ? t('usdbDownloadModal.searching') : t('usdbDownloadModal.noSearchResults')}
                     </div>
                   )}
                 </div>
@@ -688,7 +690,7 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   }
                 }}
               >
-                Schließen
+                {t('common.close')}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { adminAPI, showAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 
@@ -201,11 +202,11 @@ const PortInput = styled.input`
 `;
 
 interface SettingsTabProps {
-  // Nur die t-Funktion für Übersetzungen wird von außen benötigt
-  t: (key: string) => string;
+  // Keine Props mehr benötigt, da useTranslation intern verwendet wird
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
+const SettingsTab: React.FC<SettingsTabProps> = () => {
+  const { t } = useTranslation();
   // Settings State
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [customUrl, setCustomUrl] = useState('');
@@ -300,10 +301,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateRegressionValue(regressionValue);
-      toast.success('Regression-Wert erfolgreich aktualisiert!');
+      toast.success(t('settings.regressionValueUpdated'));
     } catch (error) {
       console.error('Error updating regression value:', error);
-      toast.error('Fehler beim Aktualisieren des Regression-Werts');
+      toast.error(t('settings.regressionValueError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -313,10 +314,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateCustomUrl(customUrl);
-      toast.success('Eigene URL erfolgreich aktualisiert!');
+      toast.success(t('settings.customUrlUpdated'));
     } catch (error) {
       console.error('Error updating custom URL:', error);
-      toast.error('Fehler beim Aktualisieren der eigenen URL');
+      toast.error(t('settings.customUrlError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -325,7 +326,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
   const handleCopyUrlToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(customUrl);
-      toast.success('URL in die Zwischenablage kopiert!');
+      toast.success(t('settings.customUrlCopied'));
     } catch (error) {
       console.error('Error copying to clipboard:', error);
       // Fallback for older browsers
@@ -335,7 +336,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      toast.success('URL in die Zwischenablage kopiert!');
+      toast.success(t('settings.customUrlCopied'));
     }
   };
 
@@ -355,14 +356,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.installCloudflared();
       if (response.data.success) {
-        toast.success('Cloudflared erfolgreich installiert!');
+        toast.success(t('settings.cloudflaredInstalledSuccess'));
         setCloudflaredInstalled(true);
       } else {
-        toast.error('Fehler beim Installieren von Cloudflared');
+        toast.error(t('settings.cloudflaredInstallError'));
       }
     } catch (error) {
       console.error('Error installing cloudflared:', error);
-      toast.error('Fehler beim Installieren von Cloudflared');
+      toast.error(t('settings.cloudflaredInstallError'));
     } finally {
       setCloudflaredInstallLoading(false);
     }
@@ -373,15 +374,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.startCloudflaredTunnel();
       if (response.data.success) {
-        toast.success(`Cloudflared Tunnel erfolgreich gestartet! URL: ${response.data.tunnelUrl}`);
+        toast.success(t('settings.cloudflaredStartedSuccess', { url: response.data.tunnelUrl }));
         setCustomUrl(response.data.tunnelUrl);
         await loadSettings();
       } else {
-        toast.error('Fehler beim Starten des Cloudflared Tunnels');
+        toast.error(t('settings.cloudflaredStartError'));
       }
     } catch (error) {
       console.error('Error starting cloudflared tunnel:', error);
-      toast.error('Fehler beim Starten des Cloudflared Tunnels');
+      toast.error(t('settings.cloudflaredStartError'));
     } finally {
       setCloudflaredStartLoading(false);
     }
@@ -392,13 +393,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.stopCloudflaredTunnel();
       if (response.data.success) {
-        toast.success('Cloudflared Tunnel erfolgreich gestoppt!');
+        toast.success(t('settings.cloudflaredStoppedSuccess'));
       } else {
-        toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+        toast.error(t('settings.cloudflaredStopError'));
       }
     } catch (error) {
       console.error('Error stopping cloudflared tunnel:', error);
-      toast.error('Fehler beim Stoppen des Cloudflared Tunnels');
+      toast.error(t('settings.cloudflaredStopError'));
     } finally {
       setCloudflaredStopLoading(false);
     }
@@ -408,10 +409,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateOverlayTitle(overlayTitle);
-      toast.success('Overlay-Überschrift erfolgreich aktualisiert!');
+      toast.success(t('settings.overlayTitleUpdated'));
     } catch (error) {
       console.error('Error updating overlay title:', error);
-      toast.error('Fehler beim Aktualisieren der Overlay-Überschrift');
+      toast.error(t('settings.overlayTitleError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -421,10 +422,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateYouTubeEnabled(youtubeEnabled);
-      toast.success('YouTube-Einstellung erfolgreich aktualisiert!');
+      toast.success(t('settings.youtubeEnabledUpdated'));
     } catch (error) {
       console.error('Error updating YouTube setting:', error);
-      toast.error('Fehler beim Aktualisieren der YouTube-Einstellung');
+      toast.error(t('settings.youtubeEnabledError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -434,10 +435,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateAutoApproveSongs(autoApproveSongs);
-      toast.success('Auto-Approve Einstellung erfolgreich aktualisiert!');
+      toast.success(t('settings.autoApproveSongsUpdated'));
     } catch (error) {
       console.error('Error updating auto approve songs:', error);
-      toast.error('Fehler beim Aktualisieren der Auto-Approve Einstellung');
+      toast.error(t('settings.autoApproveSongsError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -455,38 +456,38 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
 
   const handleSaveUSDBCredentials = async () => {
     if (!usdbUsername.trim() || !usdbPassword.trim()) {
-      toast.error('Bitte fülle alle Felder aus');
+      toast.error(t('settings.fillAllFields'));
       return;
     }
 
     setUsdbLoading(true);
     try {
       await adminAPI.saveUSDBCredentials({ username: usdbUsername, password: usdbPassword });
-      toast.success('USDB-Zugangsdaten erfolgreich gespeichert!');
+      toast.success(t('settings.usdbCredentialsSavedSuccess'));
       setUsdbUsername('');
       setUsdbPassword('');
       await fetchUSDBCredentials();
     } catch (error: any) {
       console.error('Error saving USDB credentials:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Speichern der USDB-Zugangsdaten');
+      toast.error(error.response?.data?.message || t('settings.usdbCredentialsSaveError'));
     } finally {
       setUsdbLoading(false);
     }
   };
 
   const handleDeleteUSDBCredentials = async () => {
-    if (!window.confirm('Möchtest du die USDB-Zugangsdaten wirklich löschen?')) {
+    if (!window.confirm(t('settings.confirmDeleteUsdbCredentials'))) {
       return;
     }
 
     setUsdbLoading(true);
     try {
       await adminAPI.deleteUSDBCredentials();
-      toast.success('USDB-Zugangsdaten erfolgreich gelöscht!');
+      toast.success(t('settings.usdbCredentialsDeletedSuccess'));
       setUsdbCredentials(null);
     } catch (error: any) {
       console.error('Error deleting USDB credentials:', error);
-      toast.error(error.response?.data?.message || 'Fehler beim Löschen der USDB-Zugangsdaten');
+      toast.error(error.response?.data?.message || t('settings.usdbCredentialsDeleteError'));
     } finally {
       setUsdbLoading(false);
     }
@@ -498,10 +499,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.setFileSongsFolder(fileSongsFolder, localServerPort);
       setFileSongs(response.data.fileSongs);
-      toast.success('Song-Ordner erfolgreich aktualisiert!');
+      toast.success(t('settings.songFolderUpdatedSuccess'));
     } catch (error) {
       console.error('Error updating file songs folder:', error);
-      toast.error('Fehler beim Aktualisieren des Song-Ordners');
+      toast.error(t('settings.songFolderUpdateError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -512,10 +513,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.rescanFileSongs();
       setFileSongs(response.data.fileSongs);
-      toast.success('Songs erfolgreich neu gescannt!');
+      toast.success(t('settings.songsRescannedSuccess'));
     } catch (error) {
       console.error('Error rescanning file songs:', error);
-      toast.error('Fehler beim Neu-Scannen der Songs');
+      toast.error(t('settings.songsRescanError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -526,10 +527,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
     try {
       const response = await adminAPI.removeFileSongs();
       setFileSongs(response.data.fileSongs);
-      toast.success('Alle Songs erfolgreich aus der Liste entfernt!');
+      toast.success(t('settings.allSongsRemovedSuccess'));
     } catch (error) {
       console.error('Error removing file songs:', error);
-      toast.error('Fehler beim Entfernen der Songs');
+      toast.error(t('settings.songsRemoveError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -538,22 +539,22 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
   const handleCopyServerCommand = async () => {
     const command = generateLocalServerCommand();
     if (!command) {
-      toast.error('Bitte zuerst einen Song-Ordner angeben');
+      toast.error(t('settings.pleaseSpecifySongFolder'));
       return;
     }
     
     try {
       await navigator.clipboard.writeText(command);
-      toast.success('Befehl in die Zwischenablage kopiert!');
+      toast.success(t('settings.commandCopiedSuccess'));
     } catch (error) {
       console.error('Error copying command:', error);
-      toast.error('Fehler beim Kopieren des Befehls');
+      toast.error(t('settings.commandCopyError'));
     }
   };
 
   return (
     <SettingsSection>
-      <SettingsTitle>⚙️ Einstellungen</SettingsTitle>
+      <SettingsTitle>⚙️ {t('settings.title')}</SettingsTitle>
       
       {/* Language Selection */}
       <SettingsCard>
@@ -568,7 +569,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
 
       {/* Regression Value */}
       <SettingsCard>
-        <SettingsLabel>Regression-Wert:</SettingsLabel>
+        <SettingsLabel>{t('settings.regressionValue')}</SettingsLabel>
         <SettingsInput
           type="number"
           step="0.01"
@@ -581,11 +582,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
           onClick={handleUpdateRegressionValue}
           disabled={settingsLoading}
         >
-          {settingsLoading ? 'Speichert...' : 'Speichern'}
+          {settingsLoading ? t('settings.saving') : t('settings.save')}
         </SettingsButton>
         <SettingsDescription>
-          Der Regression-Wert bestimmt, um wie viel die Priorität eines Songs reduziert wird, 
-          wenn er nach unten rutscht (Standard: 0.1). Bei 10 Regressionen wird die Priorität um 1.0 reduziert.
+          {t('settings.regressionValueDescription')}
         </SettingsDescription>
       </SettingsCard>
       
@@ -593,11 +593,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       
       {/* URL & Cloudflared Section */}
       <SpecialSection>
-        <SpecialTitle>🌐 Eigene URL & Cloudflared Tunnel</SpecialTitle>
+        <SpecialTitle>🌐 {t('settings.customUrlAndCloudflared')}</SpecialTitle>
         
         {/* Custom URL */}
         <div style={{ marginBottom: '20px' }}>
-          <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>Eigene URL:</SettingsLabel>
+          <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>{t('settings.customUrl')}</SettingsLabel>
           <InputGroup>
             <SettingsInput
               type="url"
@@ -610,7 +610,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
               onClick={handleUpdateCustomUrl}
               disabled={settingsLoading}
             >
-              {settingsLoading ? 'Speichert...' : 'Speichern'}
+              {settingsLoading ? t('settings.saving') : t('settings.save')}
             </SettingsButton>
             <SettingsButton 
               onClick={handleCopyUrlToClipboard}
@@ -621,18 +621,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 opacity: !customUrl ? 0.6 : 1
               }}
             >
-              📋 Kopieren
+              📋 {t('settings.copyUrl')}
             </SettingsButton>
           </InputGroup>
           <SettingsDescription style={{ color: '#0c5460' }}>
-            Wenn gesetzt, wird der QR-Code mit dieser URL + "/new" generiert. 
-            Wenn leer, wird automatisch die aktuelle Domain verwendet.
+            {t('settings.customUrlDescription')}
           </SettingsDescription>
         </div>
         
         {/* Cloudflared Integration */}
         <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
-          <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>Cloudflared Tunnel:</SettingsLabel>
+          <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>{t('settings.cloudflaredTunnel')}:</SettingsLabel>
           <ButtonGroup>
             <SettingsButton 
               onClick={handleInstallCloudflared}
@@ -643,7 +642,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 opacity: cloudflaredInstalled ? 0.6 : 1
               }}
             >
-              {cloudflaredInstallLoading ? 'Installiert...' : 'Cloudflared Einrichten'}
+              {cloudflaredInstallLoading ? t('settings.installing') : t('settings.setupCloudflared')}
             </SettingsButton>
             
             <SettingsButton 
@@ -655,7 +654,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 opacity: !cloudflaredInstalled ? 0.6 : 1
               }}
             >
-              {cloudflaredStartLoading ? 'Startet...' : 'Cloudflared Starten'}
+              {cloudflaredStartLoading ? t('settings.starting') : t('settings.startCloudflared')}
             </SettingsButton>
             
             <SettingsButton 
@@ -666,12 +665,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 color: 'white'
               }}
             >
-              {cloudflaredStopLoading ? 'Stoppt...' : 'Tunnel Stoppen'}
+              {cloudflaredStopLoading ? t('settings.stopping') : t('settings.stopTunnel')}
             </SettingsButton>
           </ButtonGroup>
           <SettingsDescription style={{ color: '#0c5460' }}>
-            Cloudflared erstellt einen sicheren Tunnel zu Ihrem lokalen Server. 
-            Nach dem Starten wird automatisch eine öffentliche URL generiert und als "Eigene URL" gesetzt.
+            {t('settings.cloudflaredDescription')}
           </SettingsDescription>
         </div>
       </SpecialSection>
@@ -680,7 +678,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       
       {/* Overlay Title */}
       <SettingsCard>
-        <SettingsLabel>Overlay-Überschrift:</SettingsLabel>
+        <SettingsLabel>{t('settings.overlayTitle')}</SettingsLabel>
         <SettingsInput
           type="text"
           placeholder="Willkommen beim Karaoke"
@@ -692,10 +690,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
           onClick={handleUpdateOverlayTitle}
           disabled={settingsLoading}
         >
-          {settingsLoading ? 'Speichert...' : 'Speichern'}
+          {settingsLoading ? t('settings.saving') : t('settings.save')}
         </SettingsButton>
         <SettingsDescription>
-          Diese Überschrift wird im QR-Code Overlay im /show Endpoint angezeigt.
+          {t('settings.overlayTitleDescription')}
         </SettingsDescription>
       </SettingsCard>
       
@@ -703,7 +701,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
 
       {/* YouTube Enabled */}
       <SettingsCard>
-        <SettingsLabel>Erlaube YouTube-Links in Songwünschen:</SettingsLabel>
+        <SettingsLabel>{t('settings.youtubeEnabled')}</SettingsLabel>
         <CheckboxContainer>
           <CheckboxLabel>
             <CheckboxInput
@@ -712,7 +710,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
               onChange={(e) => setYoutubeEnabled(e.target.checked)}
             />
             <CheckboxText>
-              {youtubeEnabled ? 'Aktiviert' : 'Deaktiviert'}
+              {youtubeEnabled ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
           <SettingsButton 
@@ -720,12 +718,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
             disabled={settingsLoading}
             style={{ marginLeft: '10px' }}
           >
-            {settingsLoading ? 'Speichert...' : 'Speichern'}
+            {settingsLoading ? t('settings.saving') : t('settings.save')}
           </SettingsButton>
         </CheckboxContainer>
         <SettingsDescription>
-          Wenn deaktiviert, können Benutzer nur Songs aus der lokalen Songliste auswählen. 
-          YouTube-Links werden nicht akzeptiert.
+          {t('settings.youtubeEnabledDescription')}
         </SettingsDescription>
       </SettingsCard>
       
@@ -733,7 +730,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       
       {/* Auto-Approve Songs Setting */}
       <SettingsCard>
-        <SettingsLabel>Songwünsche automatisch bestätigen:</SettingsLabel>
+        <SettingsLabel>{t('settings.autoApproveSongs')}</SettingsLabel>
         <CheckboxContainer>
           <CheckboxLabel>
             <CheckboxInput
@@ -742,7 +739,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
               onChange={(e) => setAutoApproveSongs(e.target.checked)}
             />
             <CheckboxText>
-              {autoApproveSongs ? 'Aktiviert' : 'Deaktiviert'}
+              {autoApproveSongs ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
           <SettingsButton 
@@ -750,13 +747,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
             disabled={settingsLoading}
             style={{ marginLeft: '10px' }}
           >
-            {settingsLoading ? 'Speichert...' : 'Speichern'}
+            {settingsLoading ? t('settings.saving') : t('settings.save')}
           </SettingsButton>
         </CheckboxContainer>
         <SettingsDescription>
-          Wenn aktiviert, werden Songwünsche automatisch zur Playlist hinzugefügt. 
-          Wenn deaktiviert, werden Songwünsche, die entweder YouTube-Songs sind (nicht im Cache) 
-          oder auf der unsichtbaren Liste stehen, zur manuellen Bestätigung vorgelegt.
+          {t('settings.autoApproveSongsDescription')}
         </SettingsDescription>
       </SettingsCard>
       
@@ -764,19 +759,19 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       
       {/* USDB Credentials */}
       <SettingsCard>
-        <SettingsLabel>USDB-Zugangsdaten:</SettingsLabel>
+        <SettingsLabel>{t('settings.usdbCredentials')}:</SettingsLabel>
         {usdbCredentials ? (
           <div style={{ marginBottom: '15px' }}>
             <StatusContainer>
-              <StatusTitle>✅ USDB-Zugangsdaten gespeichert</StatusTitle>
-              <StatusText>Username: {usdbCredentials.username}</StatusText>
+              <StatusTitle>✅ {t('settings.usdbCredentialsSaved')}</StatusTitle>
+              <StatusText>{t('settings.username')}: {usdbCredentials.username}</StatusText>
             </StatusContainer>
             <SettingsButton 
               onClick={handleDeleteUSDBCredentials}
               disabled={usdbLoading}
               style={{ backgroundColor: '#dc3545' }}
             >
-              {usdbLoading ? 'Löscht...' : 'Zugangsdaten löschen'}
+              {usdbLoading ? t('settings.deleting') : t('settings.deleteCredentials')}
             </SettingsButton>
           </div>
         ) : (
@@ -784,14 +779,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
             <InputGroup>
               <SettingsInput
                 type="text"
-                placeholder="USDB Username"
+                placeholder={t('settings.usdbUsernamePlaceholder')}
                 value={usdbUsername}
                 onChange={(e) => setUsdbUsername(e.target.value)}
                 style={{ minWidth: '200px' }}
               />
               <SettingsInput
                 type="password"
-                placeholder="USDB Passwort"
+                placeholder={t('settings.usdbPasswordPlaceholder')}
                 value={usdbPassword}
                 onChange={(e) => setUsdbPassword(e.target.value)}
                 style={{ minWidth: '200px' }}
@@ -800,14 +795,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 onClick={handleSaveUSDBCredentials}
                 disabled={usdbLoading}
               >
-                {usdbLoading ? 'Speichert...' : 'Speichern'}
+                {usdbLoading ? t('settings.saving') : t('settings.save')}
               </SettingsButton>
             </InputGroup>
           </div>
         )}
         <SettingsDescription>
-          Zugangsdaten für die UltraStar Database (usdb.animux.de). 
-          Diese werden benötigt, um Songs von USDB herunterzuladen.
+          {t('settings.usdbCredentialsDescription')}
         </SettingsDescription>
       </SettingsCard>
       
@@ -815,7 +809,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
       
       {/* File Songs */}
       <SettingsCard>
-        <SettingsLabel>Lokaler Song-Ordner:</SettingsLabel>
+        <SettingsLabel>{t('settings.localSongFolder')}:</SettingsLabel>
         <SettingsInput
           type="text"
           placeholder="C:/songs"
@@ -828,40 +822,39 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
             onClick={handleUpdateFileSongsFolder}
             disabled={settingsLoading}
           >
-            {settingsLoading ? 'Speichert...' : 'Speichern'}
+            {settingsLoading ? t('settings.saving') : t('settings.save')}
           </SettingsButton>
           <SettingsButton 
             onClick={handleRescanFileSongs}
             disabled={settingsLoading}
             style={{ backgroundColor: '#17a2b8' }}
           >
-            {settingsLoading ? 'Scannt...' : 'Neu scannen'}
+            {settingsLoading ? t('settings.scanning') : t('settings.rescan')}
           </SettingsButton>
           <SettingsButton 
             onClick={handleRemoveFileSongs}
             disabled={settingsLoading}
             style={{ backgroundColor: '#dc3545' }}
           >
-            {settingsLoading ? 'Entfernt...' : 'Songs aus der Liste entfernen'}
+            {settingsLoading ? t('settings.removing') : t('settings.removeSongsFromList')}
           </SettingsButton>
         </ButtonGroup>
         <SettingsDescription>
-          Ordner mit lokalen Karaoke-Videos im Format "Interpret - Songtitel.erweiterung". 
-          Diese Songs haben höchste Priorität bei der Erkennung.
+          {t('settings.localSongFolderDescription')}
         </SettingsDescription>
         
         {/* Local Server Section */}
         {fileSongsFolder && (
           <SpecialSection>
-            <SpecialTitle>🌐 Lokaler Webserver für Videos</SpecialTitle>
+            <SpecialTitle>🌐 {t('settings.localWebServerForVideos')}</SpecialTitle>
             <SpecialDescription>
-              Starte einen lokalen Webserver, damit Videos über HTTP abgespielt werden können:
+              {t('settings.localWebServerDescription')}:
             </SpecialDescription>
             
             {/* Port Selection */}
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                Port:
+                {t('settings.port')}:
               </label>
               <PortInput
                 type="number"
@@ -895,7 +888,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
             {/* Command Display */}
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                Befehl zum Kopieren:
+                {t('settings.commandToCopy')}:
               </label>
               <CommandContainer>
                 {generateLocalServerCommand()}
@@ -915,7 +908,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ t }) => {
                 fontSize: '14px'
               }}
             >
-              📋 Befehl kopieren
+              📋 {t('settings.copyCommand')}
             </button>
           </SpecialSection>
         )}

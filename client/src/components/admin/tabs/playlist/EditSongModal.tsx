@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalTitle, FormGroup, Label, Input, ModalButtons } from '../../../shared/style';
 import Button from '../../../shared/Button';
+import { useTranslation } from 'react-i18next';
 
 type ModalType = 'edit' | 'youtube';
 
@@ -21,19 +22,19 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   formData,
   setFormData,
 }) => {
-
-    const [actionLoading, setActionLoading] = useState(false);
+  const { t } = useTranslation();
+  const [actionLoading, setActionLoading] = useState(false);
     if (!show) return null;
 
     return (
         <Modal>
             <ModalContent>
                 <ModalTitle>
-                {modalType === 'youtube' ? 'YouTube Link hinzufügen' : 'Song bearbeiten'}
+                {modalType === 'youtube' ? t('modals.editSong.addYoutubeLink') : t('modals.editSong.editSong')}
                 </ModalTitle>
                 
                 <FormGroup>
-                <Label>Titel:</Label>
+                <Label>{t('modals.editSong.title')}:</Label>
                 <Input
                     type="text"
                     value={formData.title}
@@ -43,7 +44,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 </FormGroup>
                 
                 <FormGroup>
-                <Label>Interpret:</Label>
+                <Label>{t('modals.editSong.artist')}:</Label>
                 <Input
                     type="text"
                     value={formData.artist}
@@ -53,7 +54,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 </FormGroup>
                 
                 <FormGroup>
-                <Label>YouTube URL:</Label>
+                <Label>{t('modals.editSong.youtubeUrl')}:</Label>
                 <Input
                     type="url"
                     value={formData.youtubeUrl}
@@ -68,13 +69,13 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 </FormGroup>
                 
                 <ModalButtons>
-                <Button onClick={onClose}>Abbrechen</Button>
+                <Button onClick={onClose}>{t('modals.editSong.cancel')}</Button>
                 <Button 
                     variant="success" 
                     onClick={onSave}
                     disabled={actionLoading}
                 >
-                    {actionLoading ? 'Speichert...' : 'Speichern'}
+                    {actionLoading ? t('modals.editSong.saving') : t('modals.editSong.save')}
                 </Button>
                 </ModalButtons>
             </ModalContent>

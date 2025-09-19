@@ -1,5 +1,6 @@
 import React from 'react';
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { adminAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -21,6 +22,8 @@ interface SongsTabProps {
 const SongsTab: React.FC<SongsTabProps> = ({
     fetchDashboardData,
 }) => {
+    const { t } = useTranslation();
+    
     const [songSearchTerm, setSongSearchTerm] = useState('');
     const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
     const [showUsdbDialog, setShowUsdbDialog] = useState(false);
@@ -32,7 +35,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
     const handleOpenUsdbDialog = () => {
         const usdbCredentials = fetchUSDBCredentials();
         if (!usdbCredentials) {
-            toast.error('Bitte zuerst USDB-Zugangsdaten in den Einstellungen eingeben');
+            toast.error(t('songs.usdbCredentialsRequired'));
             return;
         }
         setShowUsdbDialog(true);
@@ -161,7 +164,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
             setSongs(allSongs);
         } catch (error) {
             console.error('Error loading songs:', error);
-            toast.error('Fehler beim Laden der Songliste');
+            toast.error(t('songs.loadError'));
         }
     }, []);
 
@@ -186,7 +189,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
             // Then fetch all songs to update the UI
             await fetchSongs();
 
-            toast.success('Songliste wurde aktualisiert');
+            toast.success(t('songs.songListUpdated'));
         } catch (error) {
             console.error('Error refreshing song list:', error);
             // Don't show error toast as this is a background operation
@@ -195,7 +198,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
 
     return <>
         <SettingsSection>
-            <SettingsTitle>🎵 Songverwaltung</SettingsTitle>
+            <SettingsTitle>🎵 {t('songs.title')}</SettingsTitle>
 
             {/* Two-column layout */}
             <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -219,7 +222,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                Alle Songs ({songs.length})
+                                {t('songs.allSongs', { count: songs.length })}
                             </button>
                             <button
                                 onClick={() => setSongTab('visible')}
@@ -236,10 +239,10 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                Eingeblendete ({songs.filter(song => !invisibleSongs.some(invisible =>
+                                {t('songs.visibleSongs', { count: songs.filter(song => !invisibleSongs.some(invisible =>
                                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                                     invisible.title.toLowerCase() === song.title.toLowerCase()
-                                )).length})
+                                )).length })}
                             </button>
                             <button
                                 onClick={() => setSongTab('invisible')}
@@ -256,24 +259,24 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                Ausgeblendete ({songs.filter(song => invisibleSongs.some(invisible =>
+                                {t('songs.invisibleSongs', { count: songs.filter(song => invisibleSongs.some(invisible =>
                                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                                     invisible.title.toLowerCase() === song.title.toLowerCase()
-                                )).length})
+                                )).length })}
                             </button>
                         </div>
 
                         {/* Search songs */}
-                        <SettingsLabel>Songs durchsuchen:</SettingsLabel>
+                        <SettingsLabel>{t('songs.searchSongs')}</SettingsLabel>
                         <SettingsInput
                             type="text"
-                            placeholder="Nach Song oder Interpret suchen..."
+                            placeholder={t('songs.searchPlaceholder')}
                             value={songSearchTerm}
                             onChange={(e) => setSongSearchTerm(e.target.value)}
                             style={{ marginBottom: '15px', width: '100%', maxWidth: '600px' }}
                         />
                         <SettingsDescription>
-                            Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.
+                            {t('songs.managementDescription')}
                         </SettingsDescription>
                     </SettingsCard>
                 </div>
@@ -281,7 +284,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                 {/* Right column: USDB Download */}
                 <div style={{ flex: '0 0 350px', minWidth: '350px' }}>
                     <SettingsCard>
-                        <SettingsLabel>USDB Song herunterladen:</SettingsLabel>
+                        <SettingsLabel>{t('songs.usdbDownload')}</SettingsLabel>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
                             <button
                                 type="button"
@@ -311,11 +314,11 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                     e.currentTarget.style.transform = 'translateY(0)';
                                 }}
                             >
-                                🌐 USDB Song laden
+                                🌐 {t('songs.usdbLoadSong')}
                             </button>
                         </div>
                         <SettingsDescription>
-                            Lade Songs direkt von der UltraStar Database (
+                            {t('songs.usdbDescription')} (
                             <a
                                 href="https://usdb.animux.de"
                                 target="_blank"
@@ -324,8 +327,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                             >
                                 usdb.animux.de
                             </a>
-                            ) herunter.
-                            Stelle sicher, dass du zuerst deine USDB-Zugangsdaten in den Einstellungen eingetragen hast.
+                            ) {t('songs.usdbDescriptionEnd')}.
                         </SettingsDescription>
                     </SettingsCard>
                 </div>

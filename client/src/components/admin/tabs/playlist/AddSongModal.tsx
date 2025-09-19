@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalTitle, FormGroup, Label, Input, ModalButtons } from '../../../shared/style';
 import Button from '../../../shared/Button';
 import SongForm from '../../SongForm';
+import { useTranslation } from 'react-i18next';
 
 interface AddSongModalProps {
   show: boolean;
@@ -20,8 +21,8 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
   setAddSongData,
   manualSongList,
 }) => {
-
-    const [actionLoading, setActionLoading] = useState(false);
+  const { t } = useTranslation();
+  const [actionLoading, setActionLoading] = useState(false);
     const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
     const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
     // const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -74,7 +75,7 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 borderBottom: '1px solid #eee',
                 paddingBottom: '15px'
               }}>
-                <h3 style={{ margin: 0, color: '#333' }}>➕ Song hinzufügen</h3>
+                <h3 style={{ margin: 0, color: '#333' }}>➕ {t('modals.addSong.title')}</h3>
                 <button
                   onClick={onClose}
                   style={{
@@ -131,7 +132,7 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  Abbrechen
+                  {t('modals.addSong.cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -151,7 +152,7 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  {actionLoading ? 'Hinzufügen...' : 'Hinzufügen'}
+                  {actionLoading ? t('modals.addSong.adding') : t('modals.addSong.add')}
                 </button>
                 </ModalButtons>
               </div>

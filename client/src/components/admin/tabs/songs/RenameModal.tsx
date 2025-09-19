@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ModalContent, ModalTitle, ModalButtons, FormGroup, Label, Input } from '../../../shared/style';
 import { Button } from '../../../shared';
 
@@ -18,6 +19,8 @@ const RenameModal: React.FC<RenameModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t } = useTranslation();
+  
   const [renameData, setRenameData] = useState({
       newArtist: '',
       newTitle: ''
@@ -37,26 +40,26 @@ const RenameModal: React.FC<RenameModalProps> = ({
   return (
     <Modal>
           <ModalContent>
-            <ModalTitle>✏️ Song umbenennen</ModalTitle>
+            <ModalTitle>✏️ {t('renameModal.title')}</ModalTitle>
             
             <FormGroup>
-              <Label>Neuer Interpret:</Label>
+              <Label>{t('renameModal.newArtist')}</Label>
               <Input
                 type="text"
                 value={renameData.newArtist}
                 onChange={(e) => setRenameData(prev => ({ ...prev, newArtist: e.target.value }))}
-                placeholder="Interpret eingeben"
+                placeholder={t('renameModal.artistPlaceholder')}
                 autoFocus
               />
             </FormGroup>
             
             <FormGroup>
-              <Label>Neuer Songtitel:</Label>
+              <Label>{t('renameModal.newTitle')}</Label>
               <Input
                 type="text"
                 value={renameData.newTitle}
                 onChange={(e) => setRenameData(prev => ({ ...prev, newTitle: e.target.value }))}
-                placeholder="Songtitel eingeben"
+                placeholder={t('renameModal.titlePlaceholder')}
               />
             </FormGroup>
             
@@ -68,13 +71,13 @@ const RenameModal: React.FC<RenameModalProps> = ({
               fontSize: '14px',
               color: '#666'
             }}>
-              <strong>Aktueller Name:</strong> {renameSong.artist} - {renameSong.title}
+              <strong>{t('renameModal.currentName')}:</strong> {renameSong.artist} - {renameSong.title}
               <br />
-              <strong>Neuer Name:</strong> {renameData.newArtist} - {renameData.newTitle}
+              <strong>{t('renameModal.newName')}:</strong> {renameData.newArtist} - {renameData.newTitle}
             </div>
             
             <ModalButtons>
-              <Button onClick={onClose}>Abbrechen</Button>
+              <Button onClick={onClose}>{t('common.cancel')}</Button>
               <Button 
                 onClick={onConfirm(renameData)}
                 disabled={actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim()}
@@ -83,7 +86,7 @@ const RenameModal: React.FC<RenameModalProps> = ({
                   color: '#212529'
                 }}
               >
-                {actionLoading ? '⏳ Wird umbenannt...' : '✏️ Umbenennen'}
+                {actionLoading ? `⏳ ${t('renameModal.renaming')}` : `✏️ ${t('renameModal.rename')}`}
               </Button>
             </ModalButtons>
           </ModalContent>

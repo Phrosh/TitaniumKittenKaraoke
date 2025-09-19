@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '../../../shared';
 import toast from 'react-hot-toast';
 import { songAPI } from '../../../../services/api';
+import { useTranslation } from 'react-i18next';
 
 interface YoutubeDownloadModalProps {
   show: boolean;
@@ -18,6 +19,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
   onContinueWithoutVideo,
   startNormalProcessing,
 }) => {
+  const { t } = useTranslation();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [downloadingVideo, setDownloadingVideo] = useState(false);
 
@@ -30,12 +32,12 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
 
   const handleYouTubeDownload = async () => {
     if (!youtubeUrl.trim()) {
-      toast.error('Bitte gib eine YouTube-URL ein');
+      toast.error(t('youtubeDownloadModal.pleaseEnterUrl'));
       return;
     }
     
     if (!selectedSongForDownload) {
-      toast.error('Kein Song für Download ausgewählt');
+      toast.error(t('youtubeDownloadModal.noSongSelected'));
       return;
     }
     
@@ -44,12 +46,12 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
     try {
       const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
       
-      toast('YouTube-Video wird heruntergeladen...', { icon: '📥' });
+      toast(t('youtubeDownloadModal.downloadingVideo'), { icon: '📥' });
       
       const response = await songAPI.downloadYouTubeVideo(folderName, youtubeUrl);
       
       if (response.data.status === 'success') {
-        toast.success(`Video erfolgreich heruntergeladen: ${response.data.downloadedFile}`);
+        toast.success(t('youtubeDownloadModal.videoDownloadedSuccessfully', { fileName: response.data.downloadedFile }));
         
         // Close dialog
         // setShowYouTubeDialog(false);
@@ -63,12 +65,12 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
         await startNormalProcessing(selectedSongForDownload, songKey, folderName);
         
       } else {
-        toast.error('Download fehlgeschlagen');
+        toast.error(t('youtubeDownloadModal.downloadFailed'));
       }
       
     } catch (error: any) {
       console.error('Error downloading YouTube video:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Herunterladen des YouTube-Videos');
+      toast.error(error.response?.data?.error || t('youtubeDownloadModal.errorDownloadingVideo'));
     } finally {
       setDownloadingVideo(false);
     }
@@ -103,7 +105,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
           fontSize: '20px',
           fontWeight: '600'
         }}>
-          📥 YouTube-Video herunterladen
+          📥 {t('youtubeDownloadModal.downloadYouTubeVideo')}
         </h3>
         
         <p style={{
@@ -112,8 +114,10 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
           fontSize: '14px',
           lineHeight: '1.5'
         }}>
-          Für <strong>{selectedSongForDownload?.artist} - {selectedSongForDownload?.title}</strong> wurde kein Video gefunden.
-          Du kannst optional eine YouTube-URL eingeben, um das Video herunterzuladen, oder ohne Video fortfahren.
+          {t('youtubeDownloadModal.noVideoFound', { 
+            artist: selectedSongForDownload?.artist, 
+            title: selectedSongForDownload?.title 
+          })}
         </p>
         
         <div style={{ marginBottom: '20px' }}>
@@ -124,7 +128,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
             fontWeight: '500',
             color: '#333'
           }}>
-            YouTube-URL (optional):
+            {t('youtubeDownloadModal.youtubeUrlOptional')}:
           </label>
           <input
             type="url"
@@ -179,7 +183,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
               }
             }}
           >
-            Abbrechen
+            {t('youtubeDownloadModal.cancel')}
           </button>
           
           <button
@@ -212,7 +216,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
               }
             }}
           >
-            ⚡ Ohne Video fortfahren
+            ⚡ {t('youtubeDownloadModal.continueWithoutVideo')}
           </button>
           
           <button
@@ -242,7 +246,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
               }
             }}
           >
-            {downloadingVideo ? '⏳ Download läuft...' : '📥 Herunterladen'}
+            {downloadingVideo ? `⏳ ${t('youtubeDownloadModal.downloadRunning')}` : `📥 ${t('youtubeDownloadModal.download')}`}
           </button>
         </div>
       </div>

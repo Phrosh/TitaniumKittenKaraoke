@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { adminAPI } from '../../../services/api';
 import { Button } from '../../shared';
 import { AdminUser } from '../../../types';
@@ -91,6 +92,8 @@ interface UsersTabProps {
 }
 
 const UsersTab: React.FC<UsersTabProps> = () => {
+  const { t } = useTranslation();
+  
   // Users State
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [newUserData, setNewUserData] = useState<NewUserData>({ username: '', password: '' });
@@ -109,30 +112,30 @@ const UsersTab: React.FC<UsersTabProps> = () => {
       setAdminUsers(response.data.adminUsers || []);
     } catch (error) {
       console.error('Error fetching admin users:', error);
-      toast.error('Fehler beim Laden der Admin-Benutzer');
+      toast.error(t('users.loadError'));
     }
   };
 
   const handleCreateAdminUser = async () => {
     if (!newUserData.username.trim() || !newUserData.password.trim()) {
-      toast.error('Bitte fülle alle Felder aus');
+      toast.error(t('users.fillAllFields'));
       return;
     }
 
     if (newUserData.password.length < 6) {
-      toast.error('Passwort muss mindestens 6 Zeichen lang sein');
+      toast.error(t('users.passwordMinLength'));
       return;
     }
 
     setUserManagementLoading(true);
     try {
       await adminAPI.createAdminUser(newUserData);
-      toast.success('Admin-Benutzer erfolgreich erstellt!');
+      toast.success(t('users.userCreatedSuccess'));
       setNewUserData({ username: '', password: '' });
       await fetchAdminUsers();
     } catch (error: any) {
       console.error('Error creating admin user:', error);
-      const message = error.response?.data?.message || 'Fehler beim Erstellen des Admin-Benutzers';
+      const message = error.response?.data?.message || t('users.createError');
       toast.error(message);
     } finally {
       setUserManagementLoading(false);
@@ -140,18 +143,18 @@ const UsersTab: React.FC<UsersTabProps> = () => {
   };
 
   const handleDeleteAdminUser = async (userId: number, username: string) => {
-    if (!window.confirm(`Möchtest du den Admin-Benutzer "${username}" wirklich löschen?`)) {
+    if (!window.confirm(t('users.confirmDelete', { username }))) {
       return;
     }
 
     setUserManagementLoading(true);
     try {
       await adminAPI.deleteAdminUser(userId);
-      toast.success(`Admin-Benutzer "${username}" erfolgreich gelöscht!`);
+      toast.success(t('users.userDeletedSuccess', { username }));
       await fetchAdminUsers();
     } catch (error: any) {
       console.error('Error deleting admin user:', error);
-      const message = error.response?.data?.message || 'Fehler beim Löschen des Admin-Benutzers';
+      const message = error.response?.data?.message || t('users.deleteError');
       toast.error(message);
     } finally {
       setUserManagementLoading(false);
@@ -159,22 +162,22 @@ const UsersTab: React.FC<UsersTabProps> = () => {
   };
   return (
     <SettingsSection>
-      <SettingsTitle>👥 Nutzerverwaltung</SettingsTitle>
+      <SettingsTitle>👥 {t('users.title')}</SettingsTitle>
       
       {/* Create new admin user */}
       <SettingsCard>
-        <SettingsLabel>Neuen Admin-Benutzer erstellen:</SettingsLabel>
+        <SettingsLabel>{t('users.createNewUser')}</SettingsLabel>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
           <SettingsInput
             type="text"
-            placeholder="Benutzername"
+            placeholder={t('users.username')}
             value={newUserData.username}
             onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
             style={{ minWidth: '200px' }}
           />
           <SettingsInput
             type="password"
-            placeholder="Passwort (min. 6 Zeichen)"
+            placeholder={t('users.password')}
             value={newUserData.password}
             onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
             style={{ minWidth: '200px' }}
@@ -183,20 +186,20 @@ const UsersTab: React.FC<UsersTabProps> = () => {
             onClick={handleCreateAdminUser}
             disabled={userManagementLoading}
           >
-            {userManagementLoading ? 'Erstellen...' : 'Erstellen'}
+            {userManagementLoading ? t('users.creating') : t('users.create')}
           </SettingsButton>
         </div>
         <SettingsDescription>
-          Erstelle neue Admin-Benutzer, die Zugriff auf das Admin-Dashboard haben.
+          {t('users.createDescription')}
         </SettingsDescription>
       </SettingsCard>
       
       {/* List existing admin users */}
       <SettingsCard>
-        <SettingsLabel>Bestehende Admin-Benutzer:</SettingsLabel>
+        <SettingsLabel>{t('users.existingUsers')}</SettingsLabel>
         {!adminUsers || adminUsers.length === 0 ? (
           <div style={{ color: '#666', fontStyle: 'italic' }}>
-            Keine Admin-Benutzer vorhanden
+            {t('users.noUsers')}
           </div>
         ) : (
           <div style={{ marginTop: '10px' }}>
@@ -217,7 +220,7 @@ const UsersTab: React.FC<UsersTabProps> = () => {
                 <div>
                   <strong>{user.username}</strong>
                   <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    Erstellt: {new Date(user.created_at).toLocaleDateString('de-DE')}
+                    {t('users.created')}: {new Date(user.created_at).toLocaleDateString('de-DE')}
                   </div>
                 </div>
                 <Button 
@@ -226,14 +229,14 @@ const UsersTab: React.FC<UsersTabProps> = () => {
                   disabled={userManagementLoading}
                   style={{ padding: '5px 10px', fontSize: '0.9em' }}
                 >
-                  🗑️ Löschen
+                  🗑️ {t('users.delete')}
                 </Button>
               </div>
             ))}
           </div>
         )}
         <SettingsDescription>
-          Verwaltung aller Admin-Benutzer. Du kannst deinen eigenen Account nicht löschen.
+          {t('users.managementDescription')}
         </SettingsDescription>
       </SettingsCard>
     </SettingsSection>

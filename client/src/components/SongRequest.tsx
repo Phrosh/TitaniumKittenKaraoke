@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { songAPI } from '../services/api';
 import { SongRequestData } from '../types';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -355,6 +356,7 @@ const FormatModalButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 
 
 const SongRequest: React.FC = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<SongRequestData>({
     name: '',
     songInput: '',
@@ -603,12 +605,12 @@ const SongRequest: React.FC = () => {
       if (response.data.requiresApproval) {
         setMessage({
           type: 'info',
-          text: response.data.message || 'Songwunsch wurde zur Bestätigung eingereicht!'
+          text: response.data.message || t('songRequest.submittedForApproval')
         });
       } else {
         setMessage({
           type: 'success',
-          text: `Song "${response.data.song.title}" wurde erfolgreich zur Playlist hinzugefügt!`
+          text: t('songRequest.songAddedSuccessfully', { songTitle: response.data.song.title })
         });
       }
       
@@ -618,7 +620,7 @@ const SongRequest: React.FC = () => {
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Fehler beim Hinzufügen des Songs'
+        text: error.response?.data?.message || t('songRequest.errorAddingSong')
       });
     } finally {
       setLoading(false);
@@ -704,7 +706,7 @@ const SongRequest: React.FC = () => {
       
         <Form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="name">Dein Name:</Label>
+            <Label htmlFor="name">{t('songRequest.yourName')}:</Label>
             <Input
               type="text"
               id="name"
@@ -712,12 +714,12 @@ const SongRequest: React.FC = () => {
               value={formData.name}
               onChange={handleInputChange}
               required
-              placeholder="Gib deinen Namen ein"
+              placeholder={t('songRequest.namePlaceholder')}
             />
           </FormGroup>
 
           <FormGroup style={{ marginBottom: '-10px' }}>
-            <Label htmlFor="songInput">Song Wunsch:</Label>
+            <Label htmlFor="songInput">{t('songRequest.songRequest')}:</Label>
             {youtubeEnabled ? (
               <Input
                 type="text"
@@ -726,7 +728,7 @@ const SongRequest: React.FC = () => {
                 value={formData.songInput}
                 onChange={handleInputChange}
                 required
-                placeholder="Interpret - Songtitel oder YouTube Link"
+                placeholder={t('songRequest.songInputPlaceholder')}
               />
             ) : (
               <div style={{
@@ -742,7 +744,7 @@ const SongRequest: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center'
               }}>
-                {formData.songInput || 'Bitte wähle einen Song aus der Songliste'}
+                {formData.songInput || t('songRequest.selectFromSongList')}
               </div>
             )}
           </FormGroup>
@@ -750,14 +752,14 @@ const SongRequest: React.FC = () => {
           <LocalSongsSection>
             {youtubeEnabled && (
               <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
-                Oder nimm einen Song aus der Liste:
+                {t('songRequest.orSelectFromList')}
               </div>
             )}
             <LocalSongsButton 
               type="button" 
               onClick={handleOpenSongList}
             >
-              🎵 Songliste öffnen
+              🎵 {t('songRequest.openSongList')}
             </LocalSongsButton>
           </LocalSongsSection>
 
@@ -777,7 +779,7 @@ const SongRequest: React.FC = () => {
                   style={{ width: '18px', height: '18px' }}
                 />
                 <Label htmlFor="withBackgroundVocals" style={{ marginBottom: 0, cursor: 'pointer' }}>
-                  Mit Background-Gesang
+                  {t('songRequest.withBackgroundVocals')}
                 </Label>
               </div>
             </FormGroup>
@@ -793,12 +795,12 @@ const SongRequest: React.FC = () => {
             type="submit" 
             disabled={loading || !formData.name.trim() || !formData.songInput.trim()}
           >
-            {loading ? 'Wird hinzugefügt...' : 'Song hinzufügen'}
+            {loading ? t('songRequest.adding') : t('songRequest.addSong')}
           </Button>
         </Form>
         
         <QRCodeContainer>
-          <h3>QR Code für andere Geräte:</h3>
+          <h3>{t('songRequest.qrCodeForOtherDevices')}</h3>
           {qrCodeDataUrl && <QRCodeImage src={qrCodeDataUrl} alt="QR Code" />}
         </QRCodeContainer>
 
@@ -808,20 +810,20 @@ const SongRequest: React.FC = () => {
       <SongListModal $isOpen={showSongList}>
         <SongListContent>
           <SongListHeader>
-            <SongListTitle>🎵 Alle Songs</SongListTitle>
+            <SongListTitle>🎵 {t('songRequest.allSongs')}</SongListTitle>
             <CloseButton onClick={handleCloseSongList}>×</CloseButton>
           </SongListHeader>
           
           <SearchInput
             type="text"
-            placeholder="Songs durchsuchen..."
+            placeholder={t('songRequest.searchSongs')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           
           <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
-            <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
-            <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+            <div style={{ flex: 1, paddingRight: '10px' }}>{t('songRequest.artist').toUpperCase()}</div>
+            <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>{t('songRequest.songTitle').toUpperCase()}</div>
           </div>
           
           <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -851,7 +853,7 @@ const SongRequest: React.FC = () => {
               ))
             ) : (
               <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                {searchTerm ? 'Keine Songs gefunden' : 'Keine Songs verfügbar'}
+                {searchTerm ? t('songRequest.noSongsFound') : t('songRequest.noSongsAvailable')}
               </div>
             )}
           </div>
@@ -862,42 +864,42 @@ const SongRequest: React.FC = () => {
       <FormatModal $isOpen={showFormatModal}>
         <FormatModalContent>
           <FormatModalHeader>
-            <FormatModalTitle>🎵 Songtitel-Format korrigieren</FormatModalTitle>
+            <FormatModalTitle>🎵 {t('songRequest.correctSongTitleFormat')}</FormatModalTitle>
             <FormatModalCloseButton onClick={handleFormatModalCancel}>×</FormatModalCloseButton>
           </FormatModalHeader>
           
           <FormatModalBody>
             <FormatModalText>
-              Der Songtitel sollte im Format <strong>"Interpret - Songname"</strong> eingegeben werden.
+              {t('songRequest.songTitleFormatDescription')}
               {pendingSongInput && (
                 <>
                   <br /><br />
-                  <strong>Eingegeben:</strong> "{pendingSongInput}"
+                  <strong>{t('songRequest.entered')}:</strong> "{pendingSongInput}"
                 </>
               )}
             </FormatModalText>
             
             <FormatModalInputs>
               <FormatModalRow>
-                <Label htmlFor="formatModalArtist" style={{ marginBottom: 0, minWidth: '80px' }}>Interpret:</Label>
+                <Label htmlFor="formatModalArtist" style={{ marginBottom: 0, minWidth: '80px' }}>{t('songRequest.artist')}:</Label>
                 <FormatModalInput
                   type="text"
                   id="formatModalArtist"
                   value={formatModalArtist}
                   onChange={(e) => setFormatModalArtist(e.target.value)}
-                  placeholder={`z.B. ${randomExampleSong.artist}`}
+                  placeholder={t('songRequest.exampleArtist', { artist: randomExampleSong.artist })}
                   autoFocus
                 />
               </FormatModalRow>
               
               <FormatModalRow>
-                <Label htmlFor="formatModalTitle" style={{ marginBottom: 0, minWidth: '80px' }}>Songtitel:</Label>
+                <Label htmlFor="formatModalTitle" style={{ marginBottom: 0, minWidth: '80px' }}>{t('songRequest.songTitle')}:</Label>
                 <FormatModalInput
                   type="text"
                   id="formatModalTitle"
                   value={formatModalTitle}
                   onChange={(e) => setFormatModalTitle(e.target.value)}
-                  placeholder={`z.B. ${randomExampleSong.title}`}
+                  placeholder={t('songRequest.exampleTitle', { title: randomExampleSong.title })}
                 />
               </FormatModalRow>
             </FormatModalInputs>
@@ -905,14 +907,14 @@ const SongRequest: React.FC = () => {
           
           <FormatModalButtons>
             <FormatModalButton onClick={handleFormatModalCancel}>
-              Abbrechen
+              {t('songRequest.cancel')}
             </FormatModalButton>
             <FormatModalButton 
               $variant="primary"
               onClick={handleFormatModalConfirm}
               disabled={!formatModalArtist.trim() || !formatModalTitle.trim()}
             >
-              Korrigieren
+              {t('songRequest.correct')}
             </FormatModalButton>
           </FormatModalButtons>
         </FormatModalContent>

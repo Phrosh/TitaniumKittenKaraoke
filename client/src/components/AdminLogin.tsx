@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -104,6 +105,7 @@ const InitTitle = styled.h3`
 `;
 
 const AdminLogin: React.FC = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -156,12 +158,12 @@ const AdminLogin: React.FC = () => {
       if (error.response?.status === 401) {
         setMessage({
           type: 'error',
-          text: 'Ungültige Anmeldedaten'
+          text: t('adminLogin.invalidCredentials')
         });
       } else {
         setMessage({
           type: 'error',
-          text: 'Fehler beim Anmelden'
+          text: t('adminLogin.loginError')
         });
       }
     } finally {
@@ -178,13 +180,13 @@ const AdminLogin: React.FC = () => {
       await adminAPI.initAdmin(formData.username, formData.password);
       setMessage({
         type: 'success',
-        text: 'Admin-Benutzer erfolgreich erstellt! Du kannst dich jetzt anmelden.'
+        text: t('adminLogin.adminCreatedSuccessfully')
       });
       setShowInitAdmin(false);
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Fehler beim Erstellen des Admin-Benutzers'
+        text: error.response?.data?.message || t('adminLogin.adminCreationError')
       });
     } finally {
       setInitLoading(false);
@@ -194,11 +196,11 @@ const AdminLogin: React.FC = () => {
   return (
     <Container>
       <Card>
-        <Title>🔐 Admin Login</Title>
+        <Title>🔐 {t('adminLogin.adminLogin')}</Title>
 
         <Form onSubmit={handleLogin}>
           <FormGroup>
-            <Label htmlFor="username">Benutzername:</Label>
+            <Label htmlFor="username">{t('adminLogin.username')}:</Label>
             <Input
               type="text"
               id="username"
@@ -206,12 +208,12 @@ const AdminLogin: React.FC = () => {
               value={formData.username}
               onChange={handleInputChange}
               required
-              placeholder="Admin Benutzername"
+              placeholder={t('adminLogin.usernamePlaceholder')}
             />
           </FormGroup>
 
           <FormGroup>
-            <Label htmlFor="password">Passwort:</Label>
+            <Label htmlFor="password">{t('adminLogin.password')}:</Label>
             <Input
               type="password"
               id="password"
@@ -219,7 +221,7 @@ const AdminLogin: React.FC = () => {
               value={formData.password}
               onChange={handleInputChange}
               required
-              placeholder="Passwort"
+              placeholder={t('adminLogin.passwordPlaceholder')}
             />
           </FormGroup>
 
@@ -230,16 +232,16 @@ const AdminLogin: React.FC = () => {
           )}
 
           <Button type="submit" disabled={loading}>
-            {loading ? 'Wird angemeldet...' : 'Anmelden'}
+            {loading ? t('adminLogin.loggingIn') : t('adminLogin.login')}
           </Button>
         </Form>
 
         {showInitAdmin && (
           <InitAdminCard>
-            <InitTitle>Ersten Admin-Benutzer erstellen</InitTitle>
+            <InitTitle>{t('adminLogin.createFirstAdmin')}</InitTitle>
             <Form onSubmit={handleInitAdmin}>
               <FormGroup>
-                <Label htmlFor="init-username">Benutzername:</Label>
+                <Label htmlFor="init-username">{t('adminLogin.username')}:</Label>
                 <Input
                   type="text"
                   id="init-username"
@@ -247,12 +249,12 @@ const AdminLogin: React.FC = () => {
                   value={formData.username}
                   onChange={handleInputChange}
                   required
-                  placeholder="Admin Benutzername"
+                  placeholder={t('adminLogin.usernamePlaceholder')}
                 />
               </FormGroup>
 
               <FormGroup>
-                <Label htmlFor="init-password">Passwort:</Label>
+                <Label htmlFor="init-password">{t('adminLogin.password')}:</Label>
                 <Input
                   type="password"
                   id="init-password"
@@ -260,12 +262,12 @@ const AdminLogin: React.FC = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  placeholder="Passwort (min. 6 Zeichen)"
+                  placeholder={t('adminLogin.passwordMinLength')}
                 />
               </FormGroup>
 
               <Button type="submit" disabled={initLoading}>
-                {initLoading ? 'Wird erstellt...' : 'Admin erstellen'}
+                {initLoading ? t('adminLogin.creating') : t('adminLogin.createAdmin')}
               </Button>
             </Form>
           </InitAdminCard>

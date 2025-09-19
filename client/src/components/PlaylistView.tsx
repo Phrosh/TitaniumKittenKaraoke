@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { songAPI } from '../services/api';
 import { PlaylistResponse } from '../types';
 import websocketService, { PlaylistUpdateData } from '../services/websocket';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -115,6 +116,7 @@ const EmptyMessage = styled.div`
 `;
 
 const PlaylistView: React.FC = () => {
+  const { t } = useTranslation();
   const [playlistData, setPlaylistData] = useState<PlaylistResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +168,7 @@ const PlaylistView: React.FC = () => {
       setPlaylistData(response.data);
       setError(null);
     } catch (error: any) {
-      setError('Fehler beim Laden der Playlist');
+      setError(t('playlistView.errorLoadingPlaylist'));
       console.error('Error fetching playlist:', error);
     } finally {
       setLoading(false);
@@ -176,7 +178,7 @@ const PlaylistView: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingMessage>Lade Playlist...</LoadingMessage>
+        <LoadingMessage>{t('playlistView.loadingPlaylist')}</LoadingMessage>
       </Container>
     );
   }
@@ -197,15 +199,15 @@ const PlaylistView: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>🎤 Karaoke Playlist</Title>
-        <Subtitle>Live Song Requests</Subtitle>
+        <Title>🎤 {t('playlistView.karaokePlaylist')}</Title>
+        <Subtitle>{t('playlistView.liveSongRequests')}</Subtitle>
       </Header>
 
       <PlaylistContainer>
         {visiblePlaylist.length === 0 ? (
           <EmptyMessage>
-            <h3>🎵 Keine Songs in der Playlist</h3>
-            <p>Scanne den QR Code oder gehe zu /new um Songs hinzuzufügen!</p>
+            <h3>🎵 {t('playlistView.noSongsInPlaylist')}</h3>
+            <p>{t('playlistView.scanQrOrGoToNew')}</p>
           </EmptyMessage>
         ) : (
           visiblePlaylist.map((song) => {
@@ -221,7 +223,7 @@ const PlaylistView: React.FC = () => {
                 <SongTitle>{song.user_name}</SongTitle>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   {currentSong?.id === song.id && (
-                    <CurrentBadge>🎤 AKTUELL</CurrentBadge>
+                    <CurrentBadge>🎤 {t('playlistView.current')}</CurrentBadge>
                   )}
                   <Position>#{song.position}</Position>
                 </div>

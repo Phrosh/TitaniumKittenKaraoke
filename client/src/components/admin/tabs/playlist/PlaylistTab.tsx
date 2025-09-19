@@ -1,6 +1,7 @@
 import React from 'react';
 import { AdminDashboardData, Song } from '../../../../types';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cleanYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
@@ -50,6 +51,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   setActiveTab,
   handleDeviceIdClick,
 }) => {
+  const { t } = useTranslation();
+  
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -94,10 +97,10 @@ const filteredPlaylist = showPastSongs
     try {
       await adminAPI.setQRCodeOverlay(show);
       setShowQRCodeOverlay(show);
-      toast.success(show ? 'QR-Code Overlay aktiviert!' : 'QR-Code Overlay deaktiviert!');
+      toast.success(show ? t('playlist.overlayEnabled') : t('playlist.overlayDisabled'));
     } catch (error) {
       console.error('Error toggling QR code overlay:', error);
-      toast.error('Fehler beim Umschalten des QR-Code Overlays');
+      toast.error(t('playlist.overlayToggleError'));
     }
   };
 
@@ -157,7 +160,7 @@ const filteredPlaylist = showPastSongs
   };
 
   const handleClearAllSongs = async () => {
-    if (!window.confirm('Wirklich ALLE Songs aus der Playlist löschen? Diese Aktion kann nicht rückgängig gemacht werden!')) {
+    if (!window.confirm(t('playlist.confirmDeleteAll'))) {
       return;
     }
     
@@ -165,10 +168,10 @@ const filteredPlaylist = showPastSongs
     try {
       await adminAPI.clearAllSongs();
       await fetchDashboardData();
-      alert('Alle Songs wurden erfolgreich gelöscht!');
+      toast.success(t('playlist.allSongsDeleted'));
     } catch (error) {
       console.error('Error clearing all songs:', error);
-      alert('Fehler beim Löschen der Songs');
+      toast.error(t('playlist.deleteAllSongsError'));
     } finally {
       setActionLoading(false);
     }
@@ -230,10 +233,10 @@ const filteredPlaylist = showPastSongs
         targetIndex + 1
       );
       
-      toast.success('Playlist-Reihenfolge aktualisiert!');
+      toast.success(t('playlist.playlistReordered'));
     } catch (error) {
       console.error('Error reordering playlist:', error);
-      toast.error('Fehler beim Neuordnen der Playlist');
+      toast.error(t('playlist.playlistReorderError'));
       // Revert local state on error
       fetchDashboardData();
     } finally {
@@ -247,10 +250,10 @@ const filteredPlaylist = showPastSongs
     const textToCopy = `${song.artist} - ${song.title} Karaoke`;
     try {
       await navigator.clipboard.writeText(textToCopy);
-      toast.success(`"${textToCopy}" in die Zwischenablage kopiert!`);
+      toast.success(t('playlist.songCopied', { songTitle: textToCopy }));
     } catch (error) {
       console.error('Error copying to clipboard:', error);
-      toast.error('Fehler beim Kopieren in die Zwischenablage');
+      toast.error(t('playlist.copyError'));
     }
   };
 
@@ -276,11 +279,11 @@ const filteredPlaylist = showPastSongs
       // Only update if the URL has actually changed
       if (cleanedUrl !== currentUrl) {
         await adminAPI.updateYouTubeUrl(songId, cleanedUrl);
-        toast.success('YouTube-Link aktualisiert!');
+        toast.success(t('playlist.youtubeLinkUpdated'));
         
         // If it's a YouTube URL, show additional info
         if (cleanedUrl && (cleanedUrl.includes('youtube.com') || cleanedUrl.includes('youtu.be'))) {
-          toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
+          toast(t('playlist.youtubeDownloadStarted'), {
             icon: '⏳',
             duration: 3000,
           });
@@ -291,7 +294,7 @@ const filteredPlaylist = showPastSongs
       }
     } catch (error) {
       console.error('Error updating YouTube URL:', error);
-      toast.error('Fehler beim Aktualisieren des YouTube-Links');
+      toast.error(t('playlist.youtubeLinkUpdateError'));
     }
   };
 
@@ -308,7 +311,7 @@ const filteredPlaylist = showPastSongs
   };
 
   const handleDeleteSong = async (songId: number) => {
-    if (!window.confirm('Song wirklich löschen?')) return;
+    if (!window.confirm(t('playlist.confirmDeleteSong'))) return;
     
     setActionLoading(true);
     try {
@@ -327,10 +330,10 @@ const filteredPlaylist = showPastSongs
       const response = await adminAPI.refreshSongClassification(songId);
       
       if (response.data.updated) {
-        toast.success(`Song-Klassifizierung aktualisiert! Neuer Modus: ${response.data.newMode}`);
+        toast.success(t('playlist.songClassificationUpdated', { newMode: response.data.newMode }));
         await fetchDashboardData(); // Refresh the dashboard data
       } else {
-        toast('Keine lokalen Dateien gefunden. Song bleibt als YouTube.', {
+        toast(t('playlist.noLocalFiles'), {
           icon: 'ℹ️',
           style: {
             background: '#3498db',
@@ -340,7 +343,7 @@ const filteredPlaylist = showPastSongs
       }
     } catch (error) {
       console.error('Error refreshing song classification:', error);
-      toast.error('Fehler beim Aktualisieren der Song-Klassifizierung');
+      toast.error(t('playlist.classificationUpdateError'));
     } finally {
       setActionLoading(false);
     }
@@ -378,11 +381,11 @@ const filteredPlaylist = showPastSongs
       }
       
       // Show success message
-      toast.success('Song erfolgreich aktualisiert!');
+      toast.success(t('playlist.songUpdated'));
       
       // If it's a YouTube URL, show additional info
       if (formData.youtubeUrl && (formData.youtubeUrl.includes('youtube.com') || formData.youtubeUrl.includes('youtu.be'))) {
-        toast('📥 YouTube-Download wird im Hintergrund gestartet...', {
+        toast(t('playlist.youtubeDownloadStarted'), {
           icon: '⏳',
           duration: 3000,
         });
@@ -392,7 +395,7 @@ const filteredPlaylist = showPastSongs
       closeModal();
     } catch (error) {
       console.error('Error updating song:', error);
-      toast.error('Fehler beim Aktualisieren des Songs');
+      toast.error(t('playlist.songUpdateError'));
     } finally {
       setActionLoading(false);
     }
@@ -410,12 +413,12 @@ const filteredPlaylist = showPastSongs
 
   const handleAddSongSubmit = async () => {
     if (!addSongData.singerName.trim()) {
-      toast.error('Bitte gib einen Sänger-Namen ein');
+      toast.error(t('playlist.enterSingerName'));
       return;
     }
 
     if (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) {
-      toast.error('Bitte gib einen Interpret/Songtitel oder YouTube-Link ein');
+      toast.error(t('playlist.enterArtistOrYoutube'));
       return;
     }
 
@@ -433,7 +436,7 @@ const filteredPlaylist = showPastSongs
         songInput: songInput,
         deviceId: 'ADM' // Admin device ID
       });
-      toast.success('Song erfolgreich zur Playlist hinzugefügt!');
+      toast.success(t('playlist.songAdded'));
 
       handleCloseAddSongModal();
       
@@ -441,7 +444,7 @@ const filteredPlaylist = showPastSongs
       await fetchDashboardData();
     } catch (error: any) {
       console.error('Error adding song:', error);
-      toast.error(error.response?.data?.error || 'Fehler beim Hinzufügen des Songs');
+      toast.error(error.response?.data?.error || t('playlist.songAddError'));
     } finally {
       setActionLoading(false);
     }
@@ -460,7 +463,7 @@ const filteredPlaylist = showPastSongs
                 onClick={handleOpenAddSongModal}
                 style={{ background: '#28a745', marginRight: '15px' }}
               >
-                ➕ Song Hinzufügen
+                ➕ {t('playlist.addSong')}
               </Button>
             </div>
             <CenterButtons>
@@ -468,7 +471,7 @@ const filteredPlaylist = showPastSongs
                 $active={showQRCodeOverlay}
                 onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
               >
-                📱 {showQRCodeOverlay ? 'Overlay ausblenden' : 'Overlay anzeigen'}
+                📱 {showQRCodeOverlay ? t('playlist.overlayHide') : t('playlist.overlayShow')}
               </QRCodeToggleButton>
               
               {/* Control Buttons */}
@@ -476,21 +479,21 @@ const filteredPlaylist = showPastSongs
                 <ControlButton 
                   onClick={handlePreviousSong}
                   disabled={actionLoading}
-                  title="Zurück"
+                  title={t('playlist.previous')}
                 >
                   ⏮️
                 </ControlButton>
                 <ControlButton 
                   onClick={handleTogglePlayPause}
                   disabled={actionLoading}
-                  title="Pause/Play"
+                  title={t('playlist.playPause')}
                 >
                   {isPlaying ? '⏸️' : '▶️'}
                 </ControlButton>
                 <ControlButton 
                   onClick={handleRestartSong}
                   disabled={actionLoading}
-                  title="Song neu starten"
+                  title={t('playlist.restartSong')}
                 >
                   🔄
                 </ControlButton>
@@ -501,21 +504,21 @@ const filteredPlaylist = showPastSongs
                 onClick={handleNextSong}
                 disabled={actionLoading}
               >
-                ⏭️ Weiter
+                ⏭️ {t('playlist.next')}
               </Button>
             </CenterButtons>
             <RightButtons>
               <SmallButton 
                 onClick={() => setShowPastSongs(!showPastSongs)}
               >
-                📜 {showPastSongs ? 'Vergangene ausblenden' : 'Vergangene anzeigen'}
+                📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
               </SmallButton>
               <SmallButton 
                 variant="danger" 
                 onClick={handleClearAllSongs}
                 disabled={actionLoading}
               >
-                🗑️ Liste Leeren
+                🗑️ {t('playlist.clearList')}
               </SmallButton>
             </RightButtons>
           </ControlButtons>
@@ -523,7 +526,7 @@ const filteredPlaylist = showPastSongs
 
         {filteredPlaylist.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-            Keine Songs in der Playlist
+            {t('playlist.noSongsInPlaylist')}
           </div>
         ) : (
           <div>
@@ -566,7 +569,7 @@ const filteredPlaylist = showPastSongs
                         <DeviceId 
                           $isCurrent={song.id === currentSong?.id}
                           onClick={() => handleDeviceIdClick(song.device_id)}
-                          title="Klicken um zur Banlist hinzuzufügen"
+                          title={t('playlist.clickToBan')}
                         >
                           📱 {song.device_id}
                         </DeviceId>
@@ -603,7 +606,7 @@ const filteredPlaylist = showPastSongs
                         {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
                           <YouTubeField
                             type="url"
-                            placeholder="YouTube-Link hier eingeben..."
+                            placeholder={t('playlist.youtubeLinkPlaceholder')}
                             value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
                             onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
                             onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
@@ -627,7 +630,7 @@ const filteredPlaylist = showPastSongs
                             color: '#2e7d32',
                             fontWeight: '500'
                           }}>
-                            ✅ Im YouTube-Cache verfügbar
+                            ✅ {t('playlist.youtubeCacheAvailable')}
                           </div>
                         )}
                       </SongTitleRow>
@@ -668,7 +671,7 @@ const filteredPlaylist = showPastSongs
                           handleRefreshClassification(song.id);
                         }}
                         disabled={actionLoading}
-                        title="Song-Klassifizierung aktualisieren (prüft auf lokale Dateien)"
+                        title={t('playlist.refreshClassification')}
                       >
                         🔄
                       </Button>

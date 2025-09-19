@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import getFirstLetter from '../../utils/getFirstLetter';
 import {adminAPI} from '../../services/api';
 
@@ -44,6 +45,7 @@ const SongForm: React.FC<SongFormProps> = ({
     setUsdbResults,
     setUsdbLoading
   }) => {
+    const { t } = useTranslation();
     const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Debounced USDB search
@@ -112,11 +114,11 @@ const SongForm: React.FC<SongFormProps> = ({
             fontWeight: '500',
             color: '#333'
           }}>
-            Sänger-Name:
+            {t('songForm.singerName')}
           </label>
           <input
             type="text"
-            placeholder="Name des Teilnehmers"
+            placeholder={t('songForm.singerNamePlaceholder')}
             value={singerName}
             onChange={(e) => onSingerNameChange(e.target.value)}
             style={{
@@ -144,11 +146,11 @@ const SongForm: React.FC<SongFormProps> = ({
               fontWeight: '500',
               color: '#333'
             }}>
-              Interpret:
+              {t('songForm.artist')}
             </label>
             <input
               type="text"
-              placeholder="Interpret"
+              placeholder={t('songForm.artistPlaceholder')}
               value={artist}
               onChange={(e) => {
                 const value = e.target.value;
@@ -173,11 +175,11 @@ const SongForm: React.FC<SongFormProps> = ({
               fontWeight: '500',
               color: '#333'
             }}>
-              Songtitel:
+              {t('songForm.title')}
             </label>
             <input
               type="text"
-              placeholder="Songtitel"
+              placeholder={t('songForm.titlePlaceholder')}
               value={title}
               onChange={(e) => {
                 const value = e.target.value;
@@ -213,7 +215,7 @@ const SongForm: React.FC<SongFormProps> = ({
             fontSize: '14px', 
             fontWeight: '500' 
           }}>
-            oder
+            {t('songForm.or')}
           </span>
           <div style={{ 
             flex: 1, 
@@ -230,7 +232,7 @@ const SongForm: React.FC<SongFormProps> = ({
             fontWeight: '500',
             color: '#333'
           }}>
-            YouTube-Link:
+            {t('songForm.youtubeLink')}
           </label>
           <input
             type="text"
@@ -257,7 +259,7 @@ const SongForm: React.FC<SongFormProps> = ({
               style={{ transform: 'scale(1.2)' }}
             />
             <span style={{ fontSize: '14px', fontWeight: '500', color: '#333' }}>
-              Mit Hintergrundstimmen
+              {t('songForm.withBackgroundVocals')}
             </span>
           </label>
         </div>
@@ -272,12 +274,12 @@ const SongForm: React.FC<SongFormProps> = ({
               fontWeight: '500',
               color: '#333'
             }}>
-              Songliste:
+              {t('songForm.songList')}
             </label>
             
             <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
-              <div style={{ flex: 1, paddingRight: '10px' }}>INTERPRET</div>
-              <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>SONGTITEL</div>
+              <div style={{ flex: 1, paddingRight: '10px' }}>{t('songForm.interpret')}</div>
+              <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>{t('songForm.songTitle')}</div>
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
@@ -295,7 +297,7 @@ const SongForm: React.FC<SongFormProps> = ({
                     zIndex: 10,
                     borderBottom: '2px solid #218838'
                   }}>
-                    USDB ({usdbResults.length})
+                    {t('songForm.usdb', { count: usdbResults.length })}
                   </div>
                   {usdbResults.map((song, index) => (
                     <div
@@ -338,7 +340,7 @@ const SongForm: React.FC<SongFormProps> = ({
               {/* Loading indicator for USDB search */}
               {usdbLoading && (
                 <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                  🔍 USDB-Suche läuft...
+                  🔍 {t('songForm.usdbSearching')}
                 </div>
               )}
   
@@ -445,7 +447,7 @@ const SongForm: React.FC<SongFormProps> = ({
                       </div>
                     )) : (
                       <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                        Keine lokalen Songs gefunden
+                        {t('songForm.noLocalSongs')}
                       </div>
                     )}
                   </>
