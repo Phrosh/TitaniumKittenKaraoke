@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { showAPI, songAPI } from '../services/api';
 import websocketService, { ShowUpdateData } from '../services/websocket';
 import { boilDown } from '../utils/boilDown';
+import { useTranslation } from 'react-i18next';
 
 // Constants will be moved inside component to use dynamic settings
 
@@ -610,6 +611,7 @@ const LoadingMessage = styled.div`
 `;
 
 const ShowView: React.FC = () => {
+  const { t } = useTranslation();
   const [currentSong, setCurrentSong] = useState<CurrentSong | null>(null);
   const [nextSongs, setNextSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1468,7 +1470,7 @@ const ShowView: React.FC = () => {
       setLoading(false);
     } catch (error: any) {
       console.error('❌ Error fetching current song:', error);
-      setError('Fehler beim Laden des aktuellen Songs');
+      setError(t('showView.errorLoadingCurrentSong'));
       setCurrentSong(null);
       setNextSongs([]);
       setLoading(false);
@@ -2388,7 +2390,7 @@ const ShowView: React.FC = () => {
               e.stopPropagation();
               handlePreviousSong();
             }}
-            title="Zurück"
+            title={t('showView.previousSong')}
           >
             ⏮️
           </ControlButton>
@@ -2397,7 +2399,7 @@ const ShowView: React.FC = () => {
               e.stopPropagation();
               handleTogglePlayPause();
             }}
-            title="Pause/Play"
+            title={t('showView.pausePlay')}
           >
             {isPlaying ? '⏸️' : '▶️'}
           </ControlButton>
@@ -2406,7 +2408,7 @@ const ShowView: React.FC = () => {
               e.stopPropagation();
               handleRestartSong();
             }}
-            title="Song neu starten"
+            title={t('showView.restartSong')}
           >
             🔄
           </ControlButton>
@@ -2415,7 +2417,7 @@ const ShowView: React.FC = () => {
               e.stopPropagation();
               handleNextSong();
             }}
-            title="Nächster Song"
+            title={t('showView.nextSong')}
           >
             ⏭️
           </ControlButton>
@@ -2536,14 +2538,14 @@ const ShowView: React.FC = () => {
             </>
           ) : (
             <NoVideoMessage>
-              {currentSong ? '🎵 Kein Video verfügbar' : '🎤 Kein Song ausgewählt'}
+              {currentSong ? `🎵 ${t('showView.noVideoAvailable')}` : `🎤 ${t('showView.noSongSelected')}`}
             </NoVideoMessage>
           )}
         </VideoWrapper>
       ) : (
         <VideoWrapper>
           <NoVideoMessage>
-            {currentSong ? '🎵 Kein YouTube-Link verfügbar' : '🎤 Kein Song ausgewählt'}
+            {currentSong ? `🎵 ${t('showView.noYoutubeLinkAvailable')}` : `🎤 ${t('showView.noSongSelected')}`}
           </NoVideoMessage>
         </VideoWrapper>
       )}
@@ -2553,13 +2555,13 @@ const ShowView: React.FC = () => {
         <HeaderContent>
           <CurrentSongInfo>
             <SingerName>
-              {currentSong ? `🎵 ${currentSong.user_name}` : 'Warte auf Song...'}
+              {currentSong ? `🎵 ${currentSong.user_name}` : t('showView.waitingForSong')}
             </SingerName>
             <SongTitle>
               {currentSong ? (
                 currentSong.artist ? `${currentSong.artist} - ${currentSong.title}` : currentSong.title
               ) : (
-                'Kein Song in der Warteschlange'
+                t('showView.noSongInQueue')
               )}
             </SongTitle>
           </CurrentSongInfo>
@@ -2574,7 +2576,7 @@ const ShowView: React.FC = () => {
       {/* Footer Overlay */}
       <Footer>
         <FooterContent>
-          <NextSongsTitle>🎤 Nächste Songs:</NextSongsTitle>
+          <NextSongsTitle>🎤 {t('showView.nextSongs')}:</NextSongsTitle>
           <NextSongsList>
             {nextSongs.length > 0 ? (
               nextSongs.map((song, index) => (
@@ -2587,8 +2589,8 @@ const ShowView: React.FC = () => {
               ))
             ) : (
               <NextSongItem>
-                <NextSingerName>Keine weiteren Songs</NextSingerName>
-                <NextSongTitle>Warteschlange ist leer</NextSongTitle>
+                <NextSingerName>{t('showView.noMoreSongs')}</NextSingerName>
+                <NextSongTitle>{t('showView.queueIsEmpty')}</NextSongTitle>
               </NextSongItem>
             )}
           </NextSongsList>
@@ -2607,7 +2609,7 @@ const ShowView: React.FC = () => {
         <QRCodeHeader>{overlayTitle}</QRCodeHeader>
         <QRCodeContent>
           <QRCodeLeftSide>
-            <QRCodeTitle>🎤 Nächster Song</QRCodeTitle>
+            <QRCodeTitle>🎤 {t('showView.nextSong')}</QRCodeTitle>
             
             {(() => {
               const nextSong = currentSong ? 
@@ -2625,8 +2627,8 @@ const ShowView: React.FC = () => {
                 </QRCodeNextSongInfo>
               ) : (
                 <QRCodeNextSongInfo>
-                  <QRCodeNextSinger>Keine Songs in der Warteschlange</QRCodeNextSinger>
-                  <QRCodeNextSongTitle>Füge den ersten Song hinzu!</QRCodeNextSongTitle>
+                  <QRCodeNextSinger>{t('showView.noSongsInQueue')}</QRCodeNextSinger>
+                  <QRCodeNextSongTitle>{t('showView.addFirstSong')}</QRCodeNextSongTitle>
                 </QRCodeNextSongInfo>
               );
             })()}
@@ -2635,10 +2637,10 @@ const ShowView: React.FC = () => {
           <QRCodeRightSide>
             <QRCodeImageLarge 
               src={qrCodeUrl || ''}
-              alt="QR Code für Song-Anfrage"
+              alt={t('showView.qrCodeForSongRequest')}
             />
             <QRCodeTextLarge>
-              QR-Code scannen für neue Song-Anfragen
+              {t('showView.scanQrCodeForNewRequests')}
             </QRCodeTextLarge>
           </QRCodeRightSide>
         </QRCodeContent>

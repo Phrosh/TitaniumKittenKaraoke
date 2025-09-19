@@ -280,6 +280,25 @@
     "scanQrOrGoToNew": "Scan the QR code or go to /new to add songs!",
     "current": "CURRENT"
   },
+  "showView": {
+    "previousSong": "Previous",
+    "pausePlay": "Pause/Play",
+    "restartSong": "Restart Song",
+    "nextSong": "Next Song",
+    "waitingForSong": "Waiting for song...",
+    "noSongInQueue": "No song in queue",
+    "nextSongs": "Next Songs",
+    "noMoreSongs": "No more songs",
+    "queueIsEmpty": "Queue is empty",
+    "noSongsInQueue": "No songs in queue",
+    "addFirstSong": "Add the first song!",
+    "qrCodeForSongRequest": "QR Code for song request",
+    "scanQrCodeForNewRequests": "Scan QR code for new song requests",
+    "errorLoadingCurrentSong": "Error loading current song",
+    "noVideoAvailable": "No video available",
+    "noSongSelected": "No song selected",
+    "noYoutubeLinkAvailable": "No YouTube link available"
+  },
   "songs": {
     "title": "Song Management",
     "allSongs": "All Songs ({{count}})",

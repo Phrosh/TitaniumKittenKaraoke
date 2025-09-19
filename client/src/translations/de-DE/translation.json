@@ -280,6 +280,25 @@
     "scanQrOrGoToNew": "Scanne den QR Code oder gehe zu /new um Songs hinzuzufügen!",
     "current": "AKTUELL"
   },
+  "showView": {
+    "previousSong": "Zurück",
+    "pausePlay": "Pause/Play",
+    "restartSong": "Song neu starten",
+    "nextSong": "Nächster Song",
+    "waitingForSong": "Warte auf Song...",
+    "noSongInQueue": "Kein Song in der Warteschlange",
+    "nextSongs": "Nächste Songs",
+    "noMoreSongs": "Keine weiteren Songs",
+    "queueIsEmpty": "Warteschlange ist leer",
+    "noSongsInQueue": "Keine Songs in der Warteschlange",
+    "addFirstSong": "Füge den ersten Song hinzu!",
+    "qrCodeForSongRequest": "QR Code für Song-Anfrage",
+    "scanQrCodeForNewRequests": "QR-Code scannen für neue Song-Anfragen",
+    "errorLoadingCurrentSong": "Fehler beim Laden des aktuellen Songs",
+    "noVideoAvailable": "Kein Video verfügbar",
+    "noSongSelected": "Kein Song ausgewählt",
+    "noYoutubeLinkAvailable": "Kein YouTube-Link verfügbar"
+  },
   "songs": {
     "title": "Songverwaltung",
     "allSongs": "Alle Songs ({{count}})",

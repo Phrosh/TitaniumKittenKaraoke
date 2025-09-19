@@ -280,6 +280,25 @@
     "scanQrOrGoToNew": "¡Escanea el código QR o ve a /new para agregar canciones!",
     "current": "ACTUAL"
   },
+  "showView": {
+    "previousSong": "Anterior",
+    "pausePlay": "Pausa/Reproducir",
+    "restartSong": "Reiniciar Canción",
+    "nextSong": "Siguiente Canción",
+    "waitingForSong": "Esperando canción...",
+    "noSongInQueue": "No hay canción en cola",
+    "nextSongs": "Siguientes Canciones",
+    "noMoreSongs": "No hay más canciones",
+    "queueIsEmpty": "La cola está vacía",
+    "noSongsInQueue": "No hay canciones en cola",
+    "addFirstSong": "¡Agrega la primera canción!",
+    "qrCodeForSongRequest": "Código QR para solicitud de canción",
+    "scanQrCodeForNewRequests": "Escanea el código QR para nuevas solicitudes de canciones",
+    "errorLoadingCurrentSong": "Error al cargar la canción actual",
+    "noVideoAvailable": "No hay video disponible",
+    "noSongSelected": "No hay canción seleccionada",
+    "noYoutubeLinkAvailable": "No hay enlace de YouTube disponible"
+  },
   "songs": {
     "title": "Gestión de Canciones",
     "allSongs": "Todas las Canciones ({{count}})",
