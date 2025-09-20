@@ -252,11 +252,23 @@ function findUltrastarSong(artist, title) {
   console.log(`🔍 Searching for ultrastar song: "${artist}" - "${title}"`);
   console.log(`📁 Found ${songs.length} ultrastar songs total`);
   
-  // First try exact match
+  // Clean title from common tags like [DUET], [LIVE], etc.
+  const cleanTitle = title.replace(/\s*\[.*?\]\s*/g, '').trim();
+  console.log(`🧹 Cleaned title: "${cleanTitle}"`);
+  
+  // First try exact match with cleaned title
   let found = songs.find(song => 
     song.artist.toLowerCase() === artist.toLowerCase() &&
-    song.title.toLowerCase() === title.toLowerCase()
+    song.title.toLowerCase() === cleanTitle.toLowerCase()
   );
+  
+  // If not found, try exact match with original title
+  if (!found) {
+    found = songs.find(song => 
+      song.artist.toLowerCase() === artist.toLowerCase() &&
+      song.title.toLowerCase() === title.toLowerCase()
+    );
+  }
   
   if (found) {
     console.log(`✅ Found exact match: "${found.artist}" - "${found.title}"`);
@@ -266,15 +278,17 @@ function findUltrastarSong(artist, title) {
   // Try with boil down normalization
   if (!found) {
     found = songs.find(song => {
-      // Try individual artist/title matches
-      if (boilDownMatch(song.artist, artist) || boilDownMatch(song.title, title)) {
+      // Try combined match first (most reliable) with cleaned title
+      const boiledCombined = boilDown(`${artist} - ${cleanTitle}`);
+      const boiledSongCombined = boilDown(`${song.artist} - ${song.title}`);
+      if (boiledCombined === boiledSongCombined) {
         return true;
       }
       
-      // Try combined match
-      const boiledCombined = boilDown(`${artist} - ${title}`);
-      const boiledSongCombined = boilDown(`${song.artist} - ${song.title}`);
-      return boiledCombined === boiledSongCombined;
+      // Try individual artist AND title matches (both must match) with cleaned title
+      const artistMatch = boilDownMatch(song.artist, artist);
+      const titleMatch = boilDownMatch(song.title, cleanTitle);
+      return artistMatch && titleMatch;
     });
     
     if (found) {
@@ -283,16 +297,18 @@ function findUltrastarSong(artist, title) {
     }
   }
   
-  // Try more flexible matching (fallback)
+  // Try more flexible matching (fallback) - but require BOTH artist AND title to match
   found = songs.find(song => {
     const songArtist = song.artist.toLowerCase().trim();
     const songTitle = song.title.toLowerCase().trim();
     const searchArtist = artist.toLowerCase().trim();
-    const searchTitle = title.toLowerCase().trim();
+    const searchTitle = cleanTitle.toLowerCase().trim();
     
-    // Check if artist and title are contained in the song
-    return (songArtist.includes(searchArtist) || searchArtist.includes(songArtist)) &&
-           (songTitle.includes(searchTitle) || searchTitle.includes(songTitle));
+    // Both artist AND title must match (not OR)
+    const artistMatch = songArtist.includes(searchArtist) || searchArtist.includes(songArtist);
+    const titleMatch = songTitle.includes(searchTitle) || searchTitle.includes(songTitle);
+    
+    return artistMatch && titleMatch;
   });
   
   if (found) {
