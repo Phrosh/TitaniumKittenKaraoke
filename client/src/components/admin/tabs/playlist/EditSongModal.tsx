@@ -69,11 +69,17 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 </FormGroup>
                 
                 <ModalButtons>
-                <Button onClick={onClose}>{t('modals.editSong.cancel')}</Button>
                 <Button 
-                    variant="success" 
+                    onClick={onClose}
+                    type="default"
+                    size="small"
+                >
+                    {t('modals.editSong.cancel')}
+                </Button>
+                <Button 
                     onClick={onSave}
                     disabled={actionLoading}
+                    size="small"
                 >
                     {actionLoading ? t('modals.editSong.saving') : t('modals.editSong.save')}
                 </Button>
