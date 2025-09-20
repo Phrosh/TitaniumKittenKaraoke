@@ -6,6 +6,80 @@ const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcas
 
 const router = express.Router();
 
+// Helper function to update song priority based on neighboring songs
+async function updateSongPriorityBasedOnPosition(songId, newPosition) {
+  try {
+    const db = require('../config/database');
+    
+    // Get the song that was moved
+    const movedSong = await Song.getById(songId);
+    if (!movedSong) {
+      console.error('Song not found for priority update:', songId);
+      return;
+    }
+    
+    // Get songs before and after the new position
+    const [previousSong, nextSong] = await Promise.all([
+      new Promise((resolve, reject) => {
+        db.get(
+          'SELECT priority FROM songs WHERE position = ? AND id != ? ORDER BY position ASC LIMIT 1',
+          [newPosition - 1, songId],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      }),
+      new Promise((resolve, reject) => {
+        db.get(
+          'SELECT priority FROM songs WHERE position = ? AND id != ? ORDER BY position ASC LIMIT 1',
+          [newPosition + 1, songId],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      })
+    ]);
+    
+    let newPriority;
+    
+    if (previousSong && nextSong) {
+      // Song is in the middle - calculate average of neighboring priorities
+      newPriority = (previousSong.priority + nextSong.priority) / 2;
+    } else if (previousSong) {
+      // Song is at the end - copy previous song's priority
+      newPriority = previousSong.priority;
+    } else if (nextSong) {
+      // Song is at the beginning - copy next song's priority
+      newPriority = nextSong.priority;
+    } else {
+      // Song is the only one in playlist - keep current priority
+      newPriority = movedSong.priority;
+    }
+    
+    // Update the song's priority
+    await Song.updatePriority(songId, newPriority);
+    
+    console.log(`🎯 Updated priority for song ${songId} (${movedSong.artist} - ${movedSong.title}) to ${newPriority} (position ${newPosition})`);
+    
+    // Log the calculation details for debugging
+    if (previousSong && nextSong) {
+      console.log(`   📊 Calculated as average: (${previousSong.priority} + ${nextSong.priority}) / 2 = ${newPriority}`);
+    } else if (previousSong) {
+      console.log(`   📋 Copied from previous song: ${previousSong.priority}`);
+    } else if (nextSong) {
+      console.log(`   📋 Copied from next song: ${nextSong.priority}`);
+    } else {
+      console.log(`   🔒 Kept original priority: ${movedSong.priority}`);
+    }
+    
+  } catch (error) {
+    console.error('Error updating song priority based on position:', error);
+    // Don't throw error to avoid breaking the reorder operation
+  }
+}
+
 // Get full playlist with admin details
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -79,6 +153,9 @@ router.put('/reorder', verifyToken, async (req, res) => {
 
     // Update the song's position
     await Song.updatePosition(songId, newPosition);
+
+    // Calculate and update priority based on neighboring songs
+    await updateSongPriorityBasedOnPosition(songId, newPosition);
 
     // Broadcast playlist update via WebSocket
     const io = req.app.get('io');
