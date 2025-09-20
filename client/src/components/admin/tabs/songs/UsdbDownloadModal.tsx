@@ -4,6 +4,7 @@ import {adminAPI} from '../../../../services/api';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import Button from '../../../shared/Button';
 
 interface Progress {
   current: number;
@@ -361,40 +362,21 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                     }}>
                       {/* X Button */}
                       {usdbBatchUrls.length > 1 && (
-                        <button
+                        <Button
                           onClick={() => handleRemoveBatchUrlField(index)}
                           disabled={usdbBatchCurrentDownloading === index}
+                          type="danger"
+                          size="small"
                           style={{
                             width: '32px',
                             height: '32px',
-                            border: 'none',
-                            borderRadius: '6px',
-                            backgroundColor: usdbBatchDownloading ? '#f8f9fa' : '#dc3545',
-                            color: usdbBatchDownloading ? '#ccc' : 'white',
-                            cursor: usdbBatchDownloading ? 'not-allowed' : 'pointer',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
+                            padding: '0',
+                            minWidth: 'auto',
                             flexShrink: 0
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!usdbBatchDownloading) {
-                              e.currentTarget.style.backgroundColor = '#c82333';
-                              e.currentTarget.style.transform = 'scale(1.05)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!usdbBatchDownloading) {
-                              e.currentTarget.style.backgroundColor = '#dc3545';
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }
                           }}
                         >
                           ×
-                        </button>
+                        </Button>
                       )}
                       
                       {/* URL Input */}
@@ -452,35 +434,14 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   gap: '12px',
                   justifyContent: 'flex-end'
                 }}>
-                  <button
+                  <Button
                     onClick={handleBatchDownloadFromUSDB}
                     disabled={usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0}
-                    style={{
-                      padding: '12px 24px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      backgroundColor: usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0 ? '#ccc' : '#6f42c1',
-                      color: 'white',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: usdbBatchDownloading || usdbBatchUrls.filter(url => url.trim()).length === 0 ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!usdbBatchDownloading && usdbBatchUrls.filter(url => url.trim()).length > 0) {
-                        e.currentTarget.style.backgroundColor = '#5a2d91';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!usdbBatchDownloading && usdbBatchUrls.filter(url => url.trim()).length > 0) {
-                        e.currentTarget.style.backgroundColor = '#6f42c1';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }
-                    }}
+                    size="small"
+                    style={{ backgroundColor: '#6f42c1' }}
                   >
                     {usdbBatchDownloading ? `⏳ ${t('usdbDownloadModal.downloadsRunning')}` : `🌐 ${t('usdbDownloadModal.startBatchDownload')}`}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -564,34 +525,15 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                     </div>
                   </div>
 
-                  <button
+                  <Button
                     onClick={handleSearchUSDB}
                     disabled={usdbSearchLoading || (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim())}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      backgroundColor: usdbSearchLoading || (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim()) ? '#ccc' : '#28a745',
-                      color: 'white',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: usdbSearchLoading || (!usdbSearchInterpret.trim() && !usdbSearchTitle.trim()) ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!usdbSearchLoading && (usdbSearchInterpret.trim() || usdbSearchTitle.trim())) {
-                        e.currentTarget.style.backgroundColor = '#218838';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!usdbSearchLoading && (usdbSearchInterpret.trim() || usdbSearchTitle.trim())) {
-                        e.currentTarget.style.backgroundColor = '#28a745';
-                      }
-                    }}
+                    variant="success"
+                    size="small"
+                    style={{ width: '100%' }}
                   >
                     {usdbSearchLoading ? `⏳ ${t('usdbDownloadModal.searching')}` : `🔍 ${t('usdbDownloadModal.search')}`}
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Search Results */}
@@ -663,35 +605,14 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
               paddingTop: '20px',
               borderTop: '1px solid #e1e5e9'
             }}>
-              <button
+              <Button
                 onClick={handleCloseUsdbDialog}
                 disabled={usdbBatchDownloading}
-                style={{
-                  padding: '12px 24px',
-                  border: '2px solid #e1e5e9',
-                  borderRadius: '8px',
-                  backgroundColor: usdbBatchDownloading ? '#f8f9fa' : 'white',
-                  color: usdbBatchDownloading ? '#ccc' : '#666',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: usdbBatchDownloading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  if (!usdbBatchDownloading) {
-                    e.currentTarget.style.borderColor = '#ccc';
-                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!usdbBatchDownloading) {
-                    e.currentTarget.style.borderColor = '#e1e5e9';
-                    e.currentTarget.style.backgroundColor = 'white';
-                  }
-                }}
+                type="default"
+                size="small"
               >
                 {t('common.close')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

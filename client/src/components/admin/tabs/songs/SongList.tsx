@@ -7,7 +7,7 @@ import {
     SettingsLabel,
     SettingsDescription
 } from '../../../shared/style';
-import { Button } from '../../../shared';
+import Button from '../../../shared/Button';
 import getFirstLetter from '../../../../utils/getFirstLetter';
 import { hasMissingFiles } from '../../../../utils/helper';
 import DeleteModal from './DeleteModal';
@@ -484,36 +484,18 @@ const SongList: React.FC<SongListProps> = ({
                                                 {/* Processing button for songs with all required files */}
                                                 {hasMissingFiles(song) && (
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <button
+                                                        <Button
                                                             onClick={() => handleStartProcessing(song)}
                                                             disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`)}
+                                                            variant="success"
+                                                            size="small"
                                                             style={{
                                                                 fontSize: '12px',
-                                                                padding: '6px 12px',
-                                                                backgroundColor: processingSongs.has(`${song.artist}-${song.title}`) ? '#6c757d' : '#28a745',
-                                                                color: 'white',
-                                                                border: 'none',
-                                                                borderRadius: '4px',
-                                                                cursor: (actionLoading || processingSongs.has(`${song.artist}-${song.title}`)) ? 'not-allowed' : 'pointer',
-                                                                fontWeight: '500',
-                                                                opacity: (actionLoading || processingSongs.has(`${song.artist}-${song.title}`)) ? 0.6 : 1,
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                if (!actionLoading && !processingSongs.has(`${song.artist}-${song.title}`)) {
-                                                                    e.currentTarget.style.backgroundColor = '#218838';
-                                                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                                                }
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                if (!actionLoading && !processingSongs.has(`${song.artist}-${song.title}`)) {
-                                                                    e.currentTarget.style.backgroundColor = '#28a745';
-                                                                    e.currentTarget.style.transform = 'scale(1)';
-                                                                }
+                                                                padding: '6px 12px'
                                                             }}
                                                         >
                                                             {processingSongs.has(`${song.artist}-${song.title}`) ? `⏳ ${t('songList.processingRunning')}` : `🔧 ${t('songList.startProcessing')}`}
-                                                        </button>
+                                                        </Button>
                                                     </div>
                                                 )}
 
@@ -564,99 +546,46 @@ const SongList: React.FC<SongListProps> = ({
                                                 {/* Test button for all songs - always on the right */}
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     {/* Rename button for all song types */}
-                                                    <button
+                                                    <Button
                                                         onClick={() => handleRenameSong(song)}
                                                         disabled={actionLoading}
+                                                        size="small"
                                                         style={{
                                                             fontSize: '12px',
                                                             padding: '6px 12px',
                                                             backgroundColor: '#ffc107',
-                                                            color: '#212529',
-                                                            border: 'none',
-                                                            borderRadius: '4px',
-                                                            cursor: actionLoading ? 'not-allowed' : 'pointer',
-                                                            fontWeight: '500',
-                                                            opacity: actionLoading ? 0.6 : 1,
-                                                            transition: 'all 0.2s ease'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#e0a800';
-                                                                e.currentTarget.style.transform = 'scale(1.05)';
-                                                            }
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#ffc107';
-                                                                e.currentTarget.style.transform = 'scale(1)';
-                                                            }
+                                                            color: '#212529'
                                                         }}
                                                     >
                                                         ✏️ {t('songList.rename')}
-                                                    </button>
+                                                    </Button>
 
                                                     {/* Delete button for all song types */}
-                                                    <button
+                                                    <Button
                                                         onClick={() => handleDeleteSongFromLibrary(song)}
                                                         disabled={actionLoading}
+                                                        type="danger"
+                                                        size="small"
                                                         style={{
                                                             fontSize: '12px',
-                                                            padding: '6px 12px',
-                                                            backgroundColor: '#dc3545',
-                                                            color: 'white',
-                                                            border: 'none',
-                                                            borderRadius: '4px',
-                                                            cursor: actionLoading ? 'not-allowed' : 'pointer',
-                                                            fontWeight: '500',
-                                                            opacity: actionLoading ? 0.6 : 1,
-                                                            transition: 'all 0.2s ease'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#c82333';
-                                                                e.currentTarget.style.transform = 'scale(1.05)';
-                                                            }
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#dc3545';
-                                                                e.currentTarget.style.transform = 'scale(1)';
-                                                            }
+                                                            padding: '6px 12px'
                                                         }}
                                                     >
                                                         🗑️ {t('songList.delete')}
-                                                    </button>
+                                                    </Button>
 
-                                                    <button
+                                                    <Button
                                                         onClick={() => handleTestSong(song)}
                                                         disabled={actionLoading}
+                                                        size="small"
                                                         style={{
                                                             fontSize: '12px',
                                                             padding: '6px 12px',
-                                                            backgroundColor: '#17a2b8',
-                                                            color: 'white',
-                                                            border: 'none',
-                                                            borderRadius: '4px',
-                                                            cursor: actionLoading ? 'not-allowed' : 'pointer',
-                                                            fontWeight: '500',
-                                                            opacity: actionLoading ? 0.6 : 1,
-                                                            transition: 'all 0.2s ease'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#138496';
-                                                                e.currentTarget.style.transform = 'scale(1.05)';
-                                                            }
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            if (!actionLoading) {
-                                                                e.currentTarget.style.backgroundColor = '#17a2b8';
-                                                                e.currentTarget.style.transform = 'scale(1)';
-                                                            }
+                                                            backgroundColor: '#17a2b8'
                                                         }}
                                                     >
                                                         🎤 {t('songList.test')}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>

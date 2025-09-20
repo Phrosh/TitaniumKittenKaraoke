@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { songAPI } from '../services/api';
 import { SongRequestData } from '../types';
 import { useTranslation } from 'react-i18next';
+import Button from './shared/Button';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -73,28 +74,6 @@ const TextArea = styled.textarea`
   }
 `;
 
-const Button = styled.button`
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #5a6fd8;
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
 
 const Alert = styled.div<{ type: 'success' | 'error' | 'info' }>`
   padding: 15px;
@@ -126,23 +105,6 @@ const LocalSongsSection = styled.div`
   margin-top: 15px;
 `;
 
-const LocalSongsButton = styled.button`
-  background: #28a745;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 15px;
-
-  &:hover {
-    background: #218838;
-    transform: translateY(-1px);
-  }
-`;
 
 const SongListModal = styled.div<{ $isOpen: boolean }>`
   position: fixed;
@@ -179,17 +141,6 @@ const SongListTitle = styled.h3`
   color: #333;
 `;
 
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  
-  &:hover {
-    color: #333;
-  }
-`;
 
 const SearchInput = styled.input`
   width: 100%;
@@ -269,17 +220,6 @@ const FormatModalTitle = styled.h3`
   color: #333;
 `;
 
-const FormatModalCloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  
-  &:hover {
-    color: #333;
-  }
-`;
 
 const FormatModalBody = styled.div`
   margin-bottom: 20px;
@@ -322,37 +262,6 @@ const FormatModalButtons = styled.div`
   justify-content: flex-end;
 `;
 
-const FormatModalButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  ${props => props.$variant === 'primary' ? `
-    background: #667eea;
-    color: white;
-    
-    &:hover {
-      background: #5a6fd8;
-    }
-    
-    &:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-  ` : `
-    background: #f8f9fa;
-    color: #666;
-    border: 2px solid #e1e5e9;
-    
-    &:hover {
-      background: #e9ecef;
-    }
-  `}
-`;
 
 
 const SongRequest: React.FC = () => {
@@ -755,12 +664,15 @@ const SongRequest: React.FC = () => {
                 {t('songRequest.orSelectFromList')}
               </div>
             )}
-            <LocalSongsButton 
+            <Button 
               type="button" 
               onClick={handleOpenSongList}
+              variant="success"
+              size="small"
+              style={{ marginBottom: '15px' }}
             >
               🎵 {t('songRequest.openSongList')}
-            </LocalSongsButton>
+            </Button>
           </LocalSongsSection>
 
           {/* Background Vocals Checkbox - only show for Ultrastar songs with "choice" setting */}
@@ -811,7 +723,14 @@ const SongRequest: React.FC = () => {
         <SongListContent>
           <SongListHeader>
             <SongListTitle>🎵 {t('songRequest.allSongs')}</SongListTitle>
-            <CloseButton onClick={handleCloseSongList}>×</CloseButton>
+            <Button 
+              onClick={handleCloseSongList}
+              type="default"
+              size="small"
+              style={{ background: 'none', border: 'none', fontSize: '24px', padding: '0', minWidth: 'auto' }}
+            >
+              ×
+            </Button>
           </SongListHeader>
           
           <SearchInput
@@ -865,7 +784,14 @@ const SongRequest: React.FC = () => {
         <FormatModalContent>
           <FormatModalHeader>
             <FormatModalTitle>🎵 {t('songRequest.correctSongTitleFormat')}</FormatModalTitle>
-            <FormatModalCloseButton onClick={handleFormatModalCancel}>×</FormatModalCloseButton>
+            <Button 
+              onClick={handleFormatModalCancel}
+              type="default"
+              size="small"
+              style={{ background: 'none', border: 'none', fontSize: '24px', padding: '0', minWidth: 'auto' }}
+            >
+              ×
+            </Button>
           </FormatModalHeader>
           
           <FormatModalBody>
@@ -906,16 +832,20 @@ const SongRequest: React.FC = () => {
           </FormatModalBody>
           
           <FormatModalButtons>
-            <FormatModalButton onClick={handleFormatModalCancel}>
+            <Button 
+              onClick={handleFormatModalCancel}
+              type="default"
+              size="small"
+            >
               {t('songRequest.cancel')}
-            </FormatModalButton>
-            <FormatModalButton 
-              $variant="primary"
+            </Button>
+            <Button 
               onClick={handleFormatModalConfirm}
               disabled={!formatModalArtist.trim() || !formatModalTitle.trim()}
+              size="small"
             >
               {t('songRequest.correct')}
-            </FormatModalButton>
+            </Button>
           </FormatModalButtons>
         </FormatModalContent>
       </FormatModal>

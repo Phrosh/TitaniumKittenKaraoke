@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button } from '../../../shared';
+import Button from '../../../shared/Button';
 import toast from 'react-hot-toast';
 import { songAPI } from '../../../../services/api';
 import { useTranslation } from 'react-i18next';
@@ -155,99 +155,32 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
           gap: '12px',
           justifyContent: 'flex-end'
         }}>
-          <button
+          <Button
             onClick={onClose}
             disabled={downloadingVideo}
-            style={{
-              padding: '12px 24px',
-              border: '2px solid #e1e5e9',
-              borderRadius: '8px',
-              backgroundColor: 'white',
-              color: '#666',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: downloadingVideo ? 'not-allowed' : 'pointer',
-              opacity: downloadingVideo ? 0.6 : 1,
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (!downloadingVideo) {
-                e.currentTarget.style.borderColor = '#ccc';
-                e.currentTarget.style.backgroundColor = '#f8f9fa';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!downloadingVideo) {
-                e.currentTarget.style.borderColor = '#e1e5e9';
-                e.currentTarget.style.backgroundColor = 'white';
-              }
-            }}
+            type="default"
+            size="small"
           >
             {t('youtubeDownloadModal.cancel')}
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={onContinueWithoutVideo}
             disabled={downloadingVideo}
-            style={{
-              padding: '12px 24px',
-              border: '2px solid #28a745',
-              borderRadius: '8px',
-              backgroundColor: 'white',
-              color: '#28a745',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: downloadingVideo ? 'not-allowed' : 'pointer',
-              opacity: downloadingVideo ? 0.6 : 1,
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (!downloadingVideo) {
-                e.currentTarget.style.backgroundColor = '#28a745';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!downloadingVideo) {
-                e.currentTarget.style.backgroundColor = 'white';
-                e.currentTarget.style.color = '#28a745';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
+            variant="success"
+            size="small"
+            style={{ border: '2px solid #28a745', backgroundColor: 'white', color: '#28a745' }}
           >
             ⚡ {t('youtubeDownloadModal.continueWithoutVideo')}
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={handleYouTubeDownload}
             disabled={downloadingVideo || !youtubeUrl.trim()}
-            style={{
-              padding: '12px 24px',
-              border: 'none',
-              borderRadius: '8px',
-              backgroundColor: downloadingVideo || !youtubeUrl.trim() ? '#ccc' : '#667eea',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: downloadingVideo || !youtubeUrl.trim() ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (!downloadingVideo && youtubeUrl.trim()) {
-                e.currentTarget.style.backgroundColor = '#5a6fd8';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!downloadingVideo && youtubeUrl.trim()) {
-                e.currentTarget.style.backgroundColor = '#667eea';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
+            size="small"
           >
             {downloadingVideo ? `⏳ ${t('youtubeDownloadModal.downloadRunning')}` : `📥 ${t('youtubeDownloadModal.download')}`}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import Button from './shared/Button';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -58,28 +59,6 @@ const Input = styled.input`
   }
 `;
 
-const Button = styled.button`
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #5a6fd8;
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
 
 const Alert = styled.div<{ type: 'success' | 'error' }>`
   padding: 15px;
@@ -231,7 +210,7 @@ const AdminLogin: React.FC = () => {
             </Alert>
           )}
 
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} style={{ width: '100%' }}>
             {loading ? t('adminLogin.loggingIn') : t('adminLogin.login')}
           </Button>
         </Form>

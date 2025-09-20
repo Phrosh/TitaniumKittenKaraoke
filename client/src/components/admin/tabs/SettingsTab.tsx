@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { adminAPI, showAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
+import Button from '../../shared/Button';
 
 // Styled Components für SettingsTab
 const SettingsSection = styled.div`
@@ -51,28 +52,6 @@ const SettingsInput = styled.input`
   }
 `;
 
-const SettingsButton = styled.button`
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    background: #2980b9;
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
 
 const SettingsDescription = styled.div`
   font-size: 0.9rem;
@@ -166,16 +145,6 @@ const ButtonGroup = styled.div`
   flex-wrap: wrap;
 `;
 
-const TabButton = styled.button<{ $active: boolean }>`
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: ${props => props.$active ? '#007bff' : 'white'};
-  color: ${props => props.$active ? 'white' : '#333'};
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-`;
 
 const TabDescription = styled.div`
   font-size: 10px;
@@ -578,12 +547,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             value={regressionValue}
             onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
         />
-        <SettingsButton 
+        <Button 
           onClick={handleUpdateRegressionValue}
           disabled={settingsLoading}
+          size="small"
+          style={{ marginRight: '10px' }}
         >
           {settingsLoading ? t('settings.saving') : t('settings.save')}
-        </SettingsButton>
+        </Button>
         <SettingsDescription>
           {t('settings.regressionValueDescription')}
         </SettingsDescription>
@@ -606,15 +577,18 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               onChange={(e) => setCustomUrl(e.target.value)}
               style={{ minWidth: '300px' }}
             />
-            <SettingsButton 
+            <Button 
               onClick={handleUpdateCustomUrl}
               disabled={settingsLoading}
+              size="small"
+              style={{ marginRight: '10px' }}
             >
               {settingsLoading ? t('settings.saving') : t('settings.save')}
-            </SettingsButton>
-            <SettingsButton 
+            </Button>
+            <Button 
               onClick={handleCopyUrlToClipboard}
               disabled={!customUrl}
+              size="small"
               style={{ 
                 backgroundColor: '#6c757d',
                 color: 'white',
@@ -622,7 +596,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               }}
             >
               📋 {t('settings.copyUrl')}
-            </SettingsButton>
+            </Button>
           </InputGroup>
           <SettingsDescription style={{ color: '#0c5460' }}>
             {t('settings.customUrlDescription')}
@@ -633,31 +607,36 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
           <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>{t('settings.cloudflaredTunnel')}:</SettingsLabel>
           <ButtonGroup>
-            <SettingsButton 
+            <Button 
               onClick={handleInstallCloudflared}
               disabled={cloudflaredInstalled || cloudflaredInstallLoading}
+              variant="success"
+              size="small"
               style={{ 
                 backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
                 color: 'white',
-                opacity: cloudflaredInstalled ? 0.6 : 1
+                opacity: cloudflaredInstalled ? 0.6 : 1,
+                marginRight: '10px'
               }}
             >
               {cloudflaredInstallLoading ? t('settings.installing') : t('settings.setupCloudflared')}
-            </SettingsButton>
+            </Button>
             
-            <SettingsButton 
+            <Button 
               onClick={handleStartCloudflaredTunnel}
               disabled={!cloudflaredInstalled || cloudflaredStartLoading}
+              size="small"
               style={{ 
                 backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
                 color: 'white',
-                opacity: !cloudflaredInstalled ? 0.6 : 1
+                opacity: !cloudflaredInstalled ? 0.6 : 1,
+                marginRight: '10px'
               }}
             >
               {cloudflaredStartLoading ? t('settings.starting') : t('settings.startCloudflared')}
-            </SettingsButton>
+            </Button>
             
-            <SettingsButton 
+            <Button 
               onClick={handleStopCloudflaredTunnel}
               disabled={cloudflaredStopLoading}
               style={{ 
@@ -666,7 +645,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               }}
             >
               {cloudflaredStopLoading ? t('settings.stopping') : t('settings.stopTunnel')}
-            </SettingsButton>
+            </Button>
           </ButtonGroup>
           <SettingsDescription style={{ color: '#0c5460' }}>
             {t('settings.cloudflaredDescription')}
@@ -686,12 +665,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           onChange={(e) => setOverlayTitle(e.target.value)}
           style={{ minWidth: '300px' }}
         />
-        <SettingsButton 
+        <Button 
           onClick={handleUpdateOverlayTitle}
           disabled={settingsLoading}
+          size="small"
         >
           {settingsLoading ? t('settings.saving') : t('settings.save')}
-        </SettingsButton>
+        </Button>
         <SettingsDescription>
           {t('settings.overlayTitleDescription')}
         </SettingsDescription>
@@ -713,13 +693,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               {youtubeEnabled ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
-          <SettingsButton 
+          <Button 
             onClick={handleUpdateYouTubeEnabled}
             disabled={settingsLoading}
+            size="small"
             style={{ marginLeft: '10px' }}
           >
             {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </SettingsButton>
+          </Button>
         </CheckboxContainer>
         <SettingsDescription>
           {t('settings.youtubeEnabledDescription')}
@@ -742,13 +723,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               {autoApproveSongs ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
-          <SettingsButton 
+          <Button 
             onClick={handleUpdateAutoApproveSongs}
             disabled={settingsLoading}
+            size="small"
             style={{ marginLeft: '10px' }}
           >
             {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </SettingsButton>
+          </Button>
         </CheckboxContainer>
         <SettingsDescription>
           {t('settings.autoApproveSongsDescription')}
@@ -766,13 +748,15 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               <StatusTitle>✅ {t('settings.usdbCredentialsSaved')}</StatusTitle>
               <StatusText>{t('settings.username')}: {usdbCredentials.username}</StatusText>
             </StatusContainer>
-            <SettingsButton 
+            <Button 
               onClick={handleDeleteUSDBCredentials}
               disabled={usdbLoading}
-              style={{ backgroundColor: '#dc3545' }}
+              type="danger"
+              size="small"
+              style={{ marginRight: '10px' }}
             >
               {usdbLoading ? t('settings.deleting') : t('settings.deleteCredentials')}
-            </SettingsButton>
+            </Button>
           </div>
         ) : (
           <div style={{ marginBottom: '15px' }}>
@@ -791,12 +775,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
                 onChange={(e) => setUsdbPassword(e.target.value)}
                 style={{ minWidth: '200px' }}
               />
-              <SettingsButton 
+              <Button 
                 onClick={handleSaveUSDBCredentials}
                 disabled={usdbLoading}
+                size="small"
+                style={{ marginRight: '10px' }}
               >
                 {usdbLoading ? t('settings.saving') : t('settings.save')}
-              </SettingsButton>
+              </Button>
             </InputGroup>
           </div>
         )}
@@ -818,26 +804,31 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           style={{ minWidth: '300px' }}
         />
         <ButtonGroup>
-          <SettingsButton 
+          <Button 
             onClick={handleUpdateFileSongsFolder}
             disabled={settingsLoading}
+            size="small"
+            style={{ marginRight: '10px' }}
           >
             {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </SettingsButton>
-          <SettingsButton 
+          </Button>
+          <Button 
             onClick={handleRescanFileSongs}
             disabled={settingsLoading}
-            style={{ backgroundColor: '#17a2b8' }}
+            size="small"
+            style={{ backgroundColor: '#17a2b8', marginRight: '10px' }}
           >
             {settingsLoading ? t('settings.scanning') : t('settings.rescan')}
-          </SettingsButton>
-          <SettingsButton 
+          </Button>
+          <Button 
             onClick={handleRemoveFileSongs}
             disabled={settingsLoading}
-            style={{ backgroundColor: '#dc3545' }}
+            type="danger"
+            size="small"
+            style={{ marginRight: '10px' }}
           >
             {settingsLoading ? t('settings.removing') : t('settings.removeSongsFromList')}
-          </SettingsButton>
+          </Button>
         </ButtonGroup>
         <SettingsDescription>
           {t('settings.localSongFolderDescription')}
@@ -873,14 +864,22 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
                   { key: 'npx', label: 'NPX', desc: 'serve' },
                   { key: 'node', label: 'Node.js', desc: 'Native' }
                 ].map(({ key, label, desc }) => (
-                  <TabButton
+                  <Button
                     key={key}
-                    $active={localServerTab === key}
                     onClick={() => setLocalServerTab(key as any)}
+                    variant={localServerTab === key ? 'primary' : 'default'}
+                    size="small"
+                    style={{ 
+                      marginRight: '8px',
+                      marginBottom: '8px',
+                      backgroundColor: localServerTab === key ? '#007bff' : 'white',
+                      color: localServerTab === key ? 'white' : '#333',
+                      border: '1px solid #ccc'
+                    }}
                   >
                     {label}
                     <TabDescription>{desc}</TabDescription>
-                  </TabButton>
+                  </Button>
                 ))}
               </div>
             </div>

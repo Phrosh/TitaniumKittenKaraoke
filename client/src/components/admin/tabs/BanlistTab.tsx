@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { adminAPI } from '../../../services/api';
-import { Button } from '../../shared';
+import Button from '../../shared/Button';
 
 // Styled Components für BanlistTab
 const SettingsSection = styled.div`
@@ -51,28 +51,6 @@ const SettingsInput = styled.input`
   }
 `;
 
-const SettingsButton = styled.button`
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    background: #2980b9;
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
 
 const SettingsDescription = styled.div`
   font-size: 0.9rem;
@@ -181,12 +159,14 @@ const BanlistTab: React.FC<BanlistTabProps> = ({
             onChange={(e) => setNewBanReason(e.target.value)}
             style={{ minWidth: '200px' }}
           />
-          <SettingsButton 
+          <Button 
             onClick={handleAddToBanlist}
             disabled={actionLoading}
+            size="small"
+            style={{ marginRight: '10px' }}
           >
             {actionLoading ? t('banlist.adding') : t('banlist.add')}
-          </SettingsButton>
+          </Button>
         </div>
         <SettingsDescription>
           {t('banlist.description')}

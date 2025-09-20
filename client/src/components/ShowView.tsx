@@ -4,6 +4,7 @@ import { showAPI, songAPI } from '../services/api';
 import websocketService, { ShowUpdateData } from '../services/websocket';
 import { boilDown } from '../utils/boilDown';
 import { useTranslation } from 'react-i18next';
+import Button from './shared/Button';
 
 // Constants will be moved inside component to use dynamic settings
 
@@ -492,34 +493,8 @@ const QRCodeCloseButton = styled.button`
   }
 `;
 
-const FullscreenButton = styled.button`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  padding: 12px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 600;
-  z-index: 20;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.9);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-const ControlButtonsContainer = styled.div`
+const ButtonsContainer = styled.div`
   position: absolute;
   top: 20px;
   right: 80px;
@@ -528,32 +503,6 @@ const ControlButtonsContainer = styled.div`
   z-index: 20;
 `;
 
-const ControlButton = styled.button`
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  min-width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.9);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
 
 const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean }>`
   position: absolute;
@@ -2384,26 +2333,44 @@ const ShowView: React.FC = () => {
     >
       {/* Control Buttons - only show when not in fullscreen */}
       {!isFullscreen && (
-        <ControlButtonsContainer>
-          <ControlButton 
+        <ButtonsContainer>
+          <Button 
             onClick={(e) => {
               e.stopPropagation();
               handlePreviousSong();
             }}
             title={t('showView.previousSong')}
+            size="small"
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              minWidth: '40px',
+              height: '40px',
+              padding: '0'
+            }}
           >
             ⏮️
-          </ControlButton>
-          <ControlButton 
+          </Button>
+          <Button 
             onClick={(e) => {
               e.stopPropagation();
               handleTogglePlayPause();
             }}
             title={t('showView.pausePlay')}
+            size="small"
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              minWidth: '40px',
+              height: '40px',
+              padding: '0'
+            }}
           >
             {isPlaying ? '⏸️' : '▶️'}
-          </ControlButton>
-          <ControlButton 
+          </Button>
+          <Button 
             onClick={(e) => {
               e.stopPropagation();
               handleRestartSong();
@@ -2411,8 +2378,8 @@ const ShowView: React.FC = () => {
             title={t('showView.restartSong')}
           >
             🔄
-          </ControlButton>
-          <ControlButton 
+          </Button>
+          <Button 
             onClick={(e) => {
               e.stopPropagation();
               handleNextSong();
@@ -2420,15 +2387,23 @@ const ShowView: React.FC = () => {
             title={t('showView.nextSong')}
           >
             ⏭️
-          </ControlButton>
-        </ControlButtonsContainer>
+          </Button>
+        </ButtonsContainer>
       )}
 
       {/* Fullscreen Button */}
-        {isFullscreen ? '⤓' : <FullscreenButton onClick={(e) => {
+        {isFullscreen ? '⤓' : <Button onClick={(e) => {
         e.stopPropagation();
         toggleFullscreen();
-      }}>⤢</FullscreenButton>}
+      }} size="small" style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        background: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        border: '2px solid rgba(255, 255, 255, 0.3)',
+        zIndex: 20
+      }}>⤢</Button>}
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>

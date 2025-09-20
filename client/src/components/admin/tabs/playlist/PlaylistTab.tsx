@@ -28,7 +28,7 @@ import {
   YouTubeField,
   SongActions,
 } from './style';
-import { Button } from '../../../shared';
+import Button from '../../../shared/Button';
 import { isSongInYouTubeCache, DownloadStatus } from '../../../../utils/helper';
 import EditSongModal from './EditSongModal';
 import AddSongModal from './AddSongModal';
@@ -467,36 +467,44 @@ const filteredPlaylist = showPastSongs
               </Button>
             </div>
             <CenterButtons>
-              <QRCodeToggleButton 
-                $active={showQRCodeOverlay}
+              <Button 
                 onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
+                variant={showQRCodeOverlay ? 'success' : 'secondary'}
+                size="small"
+                style={{ marginRight: '10px' }}
               >
                 📱 {showQRCodeOverlay ? t('playlist.overlayHide') : t('playlist.overlayShow')}
-              </QRCodeToggleButton>
+              </Button>
               
               {/* Control Buttons */}
               <ControlButtonGroup>
-                <ControlButton 
+                <Button 
                   onClick={handlePreviousSong}
                   disabled={actionLoading}
                   title={t('playlist.previous')}
+                  size="small"
+                  style={{ marginRight: '8px' }}
                 >
                   ⏮️
-                </ControlButton>
-                <ControlButton 
+                </Button>
+                <Button 
                   onClick={handleTogglePlayPause}
                   disabled={actionLoading}
                   title={t('playlist.playPause')}
+                  size="small"
+                  style={{ marginRight: '8px' }}
                 >
                   {isPlaying ? '⏸️' : '▶️'}
-                </ControlButton>
-                <ControlButton 
+                </Button>
+                <Button 
                   onClick={handleRestartSong}
                   disabled={actionLoading}
                   title={t('playlist.restartSong')}
+                  size="small"
+                  style={{ marginRight: '8px' }}
                 >
                   🔄
-                </ControlButton>
+                </Button>
               </ControlButtonGroup>
               
               <Button 
@@ -508,18 +516,22 @@ const filteredPlaylist = showPastSongs
               </Button>
             </CenterButtons>
             <RightButtons>
-              <SmallButton 
+              <Button 
                 onClick={() => setShowPastSongs(!showPastSongs)}
+                size="small"
+                style={{ marginRight: '8px' }}
               >
                 📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
-              </SmallButton>
-              <SmallButton 
-                variant="danger" 
+              </Button>
+              <Button 
                 onClick={handleClearAllSongs}
                 disabled={actionLoading}
+                type="danger"
+                size="small"
+                style={{ marginRight: '8px' }}
               >
                 🗑️ {t('playlist.clearList')}
-              </SmallButton>
+              </Button>
             </RightButtons>
           </ControlButtons>
         </PlaylistHeader>

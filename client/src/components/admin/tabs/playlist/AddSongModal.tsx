@@ -76,18 +76,20 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 paddingBottom: '15px'
               }}>
                 <h3 style={{ margin: 0, color: '#333' }}>➕ {t('modals.addSong.title')}</h3>
-                <button
+                <Button
                   onClick={onClose}
+                  type="default"
+                  size="small"
                   style={{
                     background: 'none',
                     border: 'none',
                     fontSize: '24px',
-                    cursor: 'pointer',
-                    color: '#666'
+                    padding: '0',
+                    minWidth: 'auto'
                   }}
                 >
                   ×
-                </button>
+                </Button>
               </div>
   
               {/* Song Form */}
@@ -115,45 +117,26 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
   
               {/* Buttons */}
               <ModalButtons>
-                <button
+                <Button
                   onClick={() => {
                     onClose();
                   }}
                   disabled={actionLoading}
-                  style={{
-                    padding: '12px 24px',
-                    border: '2px solid #e1e5e9',
-                    borderRadius: '8px',
-                    backgroundColor: actionLoading ? '#f8f9fa' : 'white',
-                    color: actionLoading ? '#ccc' : '#666',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: actionLoading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  type="default"
+                  size="small"
                 >
                   {t('modals.addSong.cancel')}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => {
                     setActionLoading(true);
                     onSave();
                   }}
                   disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
-                    style={{
-                    padding: '12px 24px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    backgroundColor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? '#ccc' : '#28a745',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim()) ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  size="small"
                 >
                   {actionLoading ? t('modals.addSong.adding') : t('modals.addSong.add')}
-                </button>
+                </Button>
                 </ModalButtons>
               </div>
           </Modal>

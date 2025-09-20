@@ -14,6 +14,7 @@ import {
 import ModeBadge from '../../../shared/ModeBadge';
 import SongList from './SongList';
 import UsdbDownloadModal from './UsdbDownloadModal';
+import Button from '../../../shared/Button';
 
 interface SongsTabProps {
     fetchDashboardData: () => void;
@@ -207,63 +208,48 @@ const SongsTab: React.FC<SongsTabProps> = ({
                     {/* Song Tabs */}
                     <SettingsCard>
                         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                            <button
+                            <Button
                                 onClick={() => setSongTab('all')}
+                                variant={songTab === 'all' ? 'primary' : 'default'}
+                                size="small"
                                 style={{
-                                    padding: '10px 20px',
-                                    border: '2px solid',
                                     borderColor: songTab === 'all' ? '#667eea' : '#e1e5e9',
-                                    background: songTab === 'all' ? '#667eea' : 'white',
-                                    color: songTab === 'all' ? 'white' : '#333',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    fontSize: '14px',
-                                    transition: 'all 0.3s ease'
+                                    backgroundColor: songTab === 'all' ? '#667eea' : 'white',
+                                    color: songTab === 'all' ? 'white' : '#333'
                                 }}
                             >
                                 {t('songs.allSongs', { count: songs.length })}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={() => setSongTab('visible')}
+                                variant={songTab === 'visible' ? 'success' : 'default'}
+                                size="small"
                                 style={{
-                                    padding: '10px 20px',
-                                    border: '2px solid',
                                     borderColor: songTab === 'visible' ? '#28a745' : '#e1e5e9',
-                                    background: songTab === 'visible' ? '#28a745' : 'white',
-                                    color: songTab === 'visible' ? 'white' : '#333',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    fontSize: '14px',
-                                    transition: 'all 0.3s ease'
+                                    backgroundColor: songTab === 'visible' ? '#28a745' : 'white',
+                                    color: songTab === 'visible' ? 'white' : '#333'
                                 }}
                             >
                                 {t('songs.visibleSongs', { count: songs.filter(song => !invisibleSongs.some(invisible =>
                                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                                     invisible.title.toLowerCase() === song.title.toLowerCase()
                                 )).length })}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={() => setSongTab('invisible')}
+                                variant={songTab === 'invisible' ? 'danger' : 'default'}
+                                size="small"
                                 style={{
-                                    padding: '10px 20px',
-                                    border: '2px solid',
                                     borderColor: songTab === 'invisible' ? '#dc3545' : '#e1e5e9',
-                                    background: songTab === 'invisible' ? '#dc3545' : 'white',
-                                    color: songTab === 'invisible' ? 'white' : '#333',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontWeight: '600',
-                                    fontSize: '14px',
-                                    transition: 'all 0.3s ease'
+                                    backgroundColor: songTab === 'invisible' ? '#dc3545' : 'white',
+                                    color: songTab === 'invisible' ? 'white' : '#333'
                                 }}
                             >
                                 {t('songs.invisibleSongs', { count: songs.filter(song => invisibleSongs.some(invisible =>
                                     invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
                                     invisible.title.toLowerCase() === song.title.toLowerCase()
                                 )).length })}
-                            </button>
+                            </Button>
                         </div>
 
                         {/* Search songs */}
@@ -286,36 +272,18 @@ const SongsTab: React.FC<SongsTabProps> = ({
                     <SettingsCard>
                         <SettingsLabel>{t('songs.usdbDownload')}</SettingsLabel>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                            <button
+                            <Button
                                 type="button"
                                 onClick={handleOpenUsdbDialog}
+                                size="small"
                                 style={{
-                                    background: '#6f42c1',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '12px 20px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
+                                    backgroundColor: '#6f42c1',
                                     width: '100%',
                                     justifyContent: 'center'
                                 }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#5a2d91';
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#6f42c1';
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                }}
                             >
                                 🌐 {t('songs.usdbLoadSong')}
-                            </button>
+                            </Button>
                         </div>
                         <SettingsDescription>
                             {t('songs.usdbDescription')} (
