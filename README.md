@@ -12,9 +12,9 @@ Titanium Kitten Karaoke is a professional karaoke management system specifically
 
 ## 🎯 What is Titanium Kitten Karaoke?
 
-Titanium Kitten Karaoke is a complete karaoke system accessible through a web browser. It works best on a web server with a static IP or custom domain, but can also be operated from home using ngrok. Both administration and live videos are accessible through any modern web browser.
+Titanium Kitten Karaoke is a complete karaoke system accessible through a web browser. It works best on a web server with a static IP or custom domain, but can also be operated from home using Cloudflare Tunnel. Both administration and live videos are accessible through any modern web browser.
 
-**💡 Tip:** Use a web server with a custom domain or a powerful desktop PC with ngrok as server. During the live karaoke show, you then access it with a laptop through the browser.
+**💡 Tip:** Use a web server with a custom domain or a powerful desktop PC with Cloudflare Tunnel as server. During the live karaoke show, you then access it with a laptop through the browser.
 
 ## ✨ Features
 
@@ -85,7 +85,7 @@ cd ..
 
 ### Starting the Server
 1. **Run `start.bat`** - Starts the complete system
-2. **Optional**: Start ngrok on port 5000 for remote access
+2. **Optional**: Start Cloudflare Tunnel for remote access (see Cloudflare Tunnel Setup below)
 
 ### URLs and Access
 - **`localhost:5000`** - Display current playlist
@@ -102,6 +102,36 @@ cd ..
 ### ⚙️ Important Configuration
 - **Public Address**: Specify the public server address in the admin dashboard so the QR code works
 - **Open Ports**: Make sure the required ports (3000, 5000, 6000, 4000) are available
+
+## 🌐 Cloudflare Tunnel Integration
+
+For remote access without exposing your local network, Titanium Kitten Karaoke includes built-in Cloudflare Tunnel support:
+
+### Easy Setup via Admin Panel
+1. **Access Admin Dashboard** at `localhost:5000/admin`
+2. **Navigate to Settings** section
+3. **Find Cloudflare Tunnel** integration
+4. **Click "Install & Start"** button - The system handles everything automatically
+
+### Benefits of Built-in Cloudflare Tunnel
+- **One-click installation** and setup
+- **No manual configuration** required
+- **Automatic HTTPS** with Cloudflare certificates
+- **DDoS protection** included
+- **Global CDN** for better performance
+- **No port forwarding** required
+- **Free tier** available
+
+### Manual Configuration (Advanced)
+If you prefer manual setup or need custom configuration:
+
+1. **Download cloudflared** from [Cloudflare Tunnel Downloads](https://github.com/cloudflare/cloudflared/releases)
+2. **Login to Cloudflare**:
+   ```bash
+   cloudflared tunnel login
+   ```
+3. **Create and configure tunnel** as needed
+4. **Add DNS records** in your Cloudflare dashboard
 
 ## 🧠 Fairness Algorithm
 
