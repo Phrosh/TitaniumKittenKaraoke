@@ -30,10 +30,17 @@ function parseUltrastarFile(filePath) {
       gap: 0,
       background: '',
       notes: [],
-      version: '1.0.0' // Default version
+      version: '1.0.0', // Default version
+      isDuet: false,
+      singers: [
+        { notes: [], lines: [] }, // Singer 0 (P1)
+        { notes: [], lines: [] }  // Singer 1 (P2)
+      ]
     };
 
-    // Parse header attributes
+    // Parse header attributes and notes
+    let currentSinger = null; // null = no singer specified yet, 'P1' = singer 1, 'P2' = singer 2
+    
     for (const line of lines) {
       if (line.startsWith('#')) {
         const [key, ...valueParts] = line.substring(1).split(':');
@@ -85,31 +92,69 @@ function parseUltrastarFile(filePath) {
             songData.version = value;
             break;
         }
+      } else if (line.trim() === 'P1') {
+        // Player 1 delimiter - switch to singer 1
+        currentSinger = 'P1';
+        songData.isDuet = true;
+      } else if (line.trim() === 'P2') {
+        // Player 2 delimiter - switch to singer 2
+        currentSinger = 'P2';
+        songData.isDuet = true;
       } else if (line.match(/^[:*\-FERG]\s+\d+/)) {
         // Parse note lines - starts with note type followed by space and number
         const note = parseNoteLine(line);
-        let merge = false;
-        let lastNote = null;
         if (note) {
+          // Add singer information to note
+          note.singer = currentSinger;
+          
+          let merge = false;
+          let lastNote = null;
+          
           if (note.text.trim() === '~') {
-            lastNote = songData.notes[songData.notes.length - 1];
+            // Find the last note for the current singer
+            let singerNotes;
+            if (currentSinger === 'P1') {
+              singerNotes = songData.singers[0].notes;
+            } else if (currentSinger === 'P2') {
+              singerNotes = songData.singers[1].notes;
+            } else {
+              singerNotes = songData.notes;
+            }
+            lastNote = singerNotes[singerNotes.length - 1];
             if (lastNote) {
               if (lastNote.type !== '-') {
                 merge = true;
               }
             }
           }
-        }
-        if (merge) {
-          lastNote.duration = note.startBeat - (lastNote.startBeat + lastNote.duration) + note.duration;
-        } else {
-          songData.notes.push(note);
+          
+          if (merge) {
+            lastNote.duration = note.startBeat - (lastNote.startBeat + lastNote.duration) + note.duration;
+          } else {
+            // Add note to appropriate singer's collection
+            if (currentSinger === 'P1') {
+              songData.singers[0].notes.push(note);
+            } else if (currentSinger === 'P2') {
+              songData.singers[1].notes.push(note);
+            } else {
+              // No singer specified - add to general notes (for backward compatibility)
+              songData.notes.push(note);
+            }
+          }
         }
       }
     }
     
     // Group notes into lines (separated by end-of-phrase notes)
     songData.lines = groupNotesIntoLines(songData.notes);
+    
+    // If it's a duett, create separate lines for each singer
+    if (songData.isDuet) {
+      songData.singers[0].lines = groupNotesIntoLines(songData.singers[0].notes);
+      songData.singers[1].lines = groupNotesIntoLines(songData.singers[1].notes);
+      
+      console.log(`🎤 Duett erkannt: "${songData.title}" - Sänger 1: ${songData.singers[0].notes.length} Noten, Sänger 2: ${songData.singers[1].notes.length} Noten`);
+    }
     
     return songData;
   } catch (error) {

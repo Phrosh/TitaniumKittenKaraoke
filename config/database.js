@@ -147,6 +147,47 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add duet support columns to existing songs table
+  db.run(`
+    ALTER TABLE songs ADD COLUMN is_duet INTEGER DEFAULT 0
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  db.run(`
+    ALTER TABLE songs ADD COLUMN singer1_notes TEXT
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  db.run(`
+    ALTER TABLE songs ADD COLUMN singer2_notes TEXT
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  db.run(`
+    ALTER TABLE songs ADD COLUMN singer1_lines TEXT
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
+  db.run(`
+    ALTER TABLE songs ADD COLUMN singer2_lines TEXT
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Migration: Add approved_at and rejected_at columns to song_approvals table
   db.run(`
     ALTER TABLE song_approvals ADD COLUMN approved_at DATETIME

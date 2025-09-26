@@ -17,16 +17,45 @@ class Song {
     });
   }
 
-  static createFromUSDB(artist, title, folderName, source = 'USDB', userId = null) {
+  static createFromUSDB(artist, title, folderName, source = 'USDB', userId = null, songData = null) {
     return new Promise((resolve, reject) => {
+      // Prepare duet data if available
+      let isDuet = 0;
+      let singer1Notes = null;
+      let singer2Notes = null;
+      let singer1Lines = null;
+      let singer2Lines = null;
+      
+      if (songData && songData.isDuet) {
+        isDuet = 1;
+        singer1Notes = JSON.stringify(songData.singer1Notes);
+        singer2Notes = JSON.stringify(songData.singer2Notes);
+        singer1Lines = JSON.stringify(songData.singer1Lines);
+        singer2Lines = JSON.stringify(songData.singer2Lines);
+      }
+      
       db.run(
-        'INSERT INTO songs (user_id, artist, title, folder_name, source, mode, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [userId, artist, title, folderName, source, 'ultrastar', 'ready'],
+        'INSERT INTO songs (user_id, artist, title, folder_name, source, mode, status, is_duet, singer1_notes, singer2_notes, singer1_lines, singer2_lines) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, artist, title, folderName, source, 'ultrastar', 'ready', isDuet, singer1Notes, singer2Notes, singer1Lines, singer2Lines],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, user_id: userId, artist, title, folder_name: folderName, source, mode: 'ultrastar', status: 'ready' });
+            resolve({ 
+              id: this.lastID, 
+              user_id: userId, 
+              artist, 
+              title, 
+              folder_name: folderName, 
+              source, 
+              mode: 'ultrastar', 
+              status: 'ready',
+              is_duet: Boolean(isDuet),
+              singer1_notes: singer1Notes,
+              singer2_notes: singer2Notes,
+              singer1_lines: singer1Lines,
+              singer2_lines: singer2Lines
+            });
           }
         }
       );
@@ -44,11 +73,32 @@ class Song {
         if (err) {
           reject(err);
         } else {
-          // Convert with_background_vocals from integer to boolean
-          const processedRows = rows.map(row => ({
-            ...row,
-            with_background_vocals: Boolean(row.with_background_vocals)
-          }));
+          // Convert with_background_vocals from integer to boolean and parse duett data
+          const processedRows = rows.map(row => {
+            const processedRow = {
+              ...row,
+              with_background_vocals: Boolean(row.with_background_vocals),
+              is_duett: Boolean(row.is_duett)
+            };
+            
+            // Parse duett data if available
+            if (row.is_duett) {
+              try {
+                processedRow.singer1_notes = row.singer1_notes ? JSON.parse(row.singer1_notes) : [];
+                processedRow.singer2_notes = row.singer2_notes ? JSON.parse(row.singer2_notes) : [];
+                processedRow.singer1_lines = row.singer1_lines ? JSON.parse(row.singer1_lines) : [];
+                processedRow.singer2_lines = row.singer2_lines ? JSON.parse(row.singer2_lines) : [];
+              } catch (parseError) {
+                console.error('Error parsing duett data for song:', row.id, parseError);
+                processedRow.singer1_notes = [];
+                processedRow.singer2_notes = [];
+                processedRow.singer1_lines = [];
+                processedRow.singer2_lines = [];
+              }
+            }
+            
+            return processedRow;
+          });
           resolve(processedRows);
         }
       });
@@ -204,6 +254,23 @@ class Song {
           if (row) {
             // Convert with_background_vocals from integer to boolean
             row.with_background_vocals = Boolean(row.with_background_vocals);
+            row.is_duett = Boolean(row.is_duett);
+            
+            // Parse duett data if available
+            if (row.is_duett) {
+              try {
+                row.singer1_notes = row.singer1_notes ? JSON.parse(row.singer1_notes) : [];
+                row.singer2_notes = row.singer2_notes ? JSON.parse(row.singer2_notes) : [];
+                row.singer1_lines = row.singer1_lines ? JSON.parse(row.singer1_lines) : [];
+                row.singer2_lines = row.singer2_lines ? JSON.parse(row.singer2_lines) : [];
+              } catch (parseError) {
+                console.error('Error parsing duett data for song:', songId, parseError);
+                row.singer1_notes = [];
+                row.singer2_notes = [];
+                row.singer1_lines = [];
+                row.singer2_lines = [];
+              }
+            }
           }
           resolve(row);
         }

@@ -1401,6 +1401,19 @@ function findVideoFile(folderPath, specifiedVideo) {
       return res.status(500).json({ message: 'Error parsing Ultrastar file' });
     }
     
+    // Convert new singer structure to legacy format for compatibility
+    if (songData.singers && songData.singers.length >= 2) {
+      songData.singer1Notes = songData.singers[0].notes;
+      songData.singer1Lines = songData.singers[0].lines;
+      songData.singer2Notes = songData.singers[1].notes;
+      songData.singer2Lines = songData.singers[1].lines;
+    }
+    
+    // Log duet information if detected
+    if (songData.isDuet) {
+      console.log(`🎤 Duet-Song erkannt: "${songData.title}" - Sänger 1: ${songData.singer1Notes?.length || 0} Noten, Sänger 2: ${songData.singer2Notes?.length || 0} Noten`);
+    }
+    
     // Find audio file with HP2/HP5 preference
     // First check if there's a saved preference in the database
     const savedPreference = await getSavedAudioPreference(songData.artist, songData.title);

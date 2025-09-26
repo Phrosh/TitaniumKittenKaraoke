@@ -1,570 +1,56 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styled from 'styled-components';
-import { showAPI, songAPI } from '../services/api';
-import websocketService, { ShowUpdateData } from '../services/websocket';
-import { boilDown } from '../utils/boilDown';
+import { showAPI, songAPI } from '../../services/api';
+import websocketService, { ShowUpdateData } from '../../services/websocket';
+import { boilDown } from '../../utils/boilDown';
 import { useTranslation } from 'react-i18next';
-import Button from './shared/Button';
-
-// Constants will be moved inside component to use dynamic settings
+import { 
+  CurrentSong, 
+  ShowData, 
+  Song, 
+  UltrastarNote, 
+  UltrastarLine,
+  UltrastarSongData 
+} from './types';
+import { 
+  UNSUNG_COLOR, 
+  CURRENT_LINE_OPACITY,
+   NEXT_LINE_OPACITY, 
+   NEXT_NEXT_LINE_OPACITY, 
+   LYRICS_FADE_DURATION,
+   COUNTDOWN_SECONDS,
+   UPDATE_THROTTLE_MS,
+   HIGHLIGHT_COLOR,
+   FADE_OUT_THRESHOLD_MS,
+   FADE_IN_THRESHOLD_MS,
+   FADE_IN_DURATION_SECONDS,
+   FADE_IN_ATTACK_SECONDS
+  } from './constants';
+import { 
+  ShowContainer, 
+  VideoWrapper, 
+  VideoIframe, 
+  VideoElement, 
+  BackgroundVideo,
+  BackgroundImage, 
+  AudioElement,
+  ProgressOverlay, 
+  ProgressBarContainer, 
+  ProgressBarFill, 
+  NoVideoMessage, 
+} from './style';
+import Overlay from './Overlay';
+import Footer from './Footer';
+import Header from './Header';
+import ControlButtons from './ControlButtons';
 
 let globalUltrastarData: UltrastarSongData | null = null;
-
-interface CurrentSong {
-  id: number;
-  user_name: string;
-  artist: string;
-  title: string;
-  youtube_url: string;
-  mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
-  position: number;
-  duration_seconds: number | null;
-  with_background_vocals: boolean;
-}
-
-interface ShowData {
-  currentSong: CurrentSong | null;
-  nextSongs: Song[];
-  showQRCodeOverlay: boolean;
-  qrCodeDataUrl: string | null;
-  overlayTitle: string;
-}
-
-interface Song {
-  id: number;
-  user_name: string;
-  artist: string;
-  title: string;
-  position: number;
-}
-
-interface UltrastarNote {
-  type: string;
-  startBeat: number;
-  duration: number;
-  pitch: number;
-  text: string;
-  line: string;
-}
-
-interface UltrastarLine {
-  startBeat: number;
-  endBeat: number;
-  notes: UltrastarNote[];
-}
-
-interface UltrastarSongData {
-  title: string;
-  artist: string;
-  language: string;
-  edition: string;
-  genre: string;
-  year: string;
-  mp3: string;
-  cover: string;
-  video: string;
-  videogap: number;
-  bpm: number;
-  gap: number;
-  background: string;
-  notes: UltrastarNote[];
-  lines: UltrastarLine[];
-  version: string;
-  audioUrl?: string;
-  videoUrl?: string;
-  backgroundImageUrl?: string;
-}
-
-const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
-
-const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  cursor: ${props => props.$cursorVisible ? 'default' : 'none'};
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-`;
-
-const VideoWrapper = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-`;
-
-
-const VideoElement = styled.video`
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: black;
-`;
-
-const VideoIframe = styled.iframe`
-  width: 100%;
-  height: 100%;
-  border: none;
-`;
-
-const AudioElement = styled.audio`
-  position: absolute;
-  top: 50px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
-  max-width: 600px;
-  height: 60px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 10px;
-  padding: 10px;
-  z-index: 33;
-`;
-
-const BackgroundVideo = styled.video`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
-`;
-
-const BackgroundImage = styled.div<{ $imageUrl: string }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url(${props => props.$imageUrl});
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(8px);
-  transform: scale(1.1);
-  z-index: 1;
-`;
-
-// createLyricsDisplay removed - now using inline styles
-
-// createCurrentLyric removed - now using inline styles
-
-const PreviewLyric = styled.div`
-  font-size: 3rem;
-  color: #ffffff;
-  text-align: center;
-  margin-bottom: 5px;
-  text-shadow: 4px 4px 8px rgba(0, 0, 0, 1);
-  min-height: 3.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const HighlightedSyllable = styled.span`
-  background: linear-gradient(45deg, #ff6b6b, #ffd700);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 900;
-  text-shadow: 4px 4px px rgba(0, 0, 0, 1);
-`;
-
-const CurrentSyllable = styled.span`
-  color: #ffffff;
-  font-weight: bold;
-  transform: scale(1.1);
-  transition: transform 0.2s ease-in-out;
-  display: inline-block;
-`;
-
-
-const Header = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  padding: 20px 40px;
-  z-index: 10;
-`;
-
-const HeaderContent = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-`;
-
-const CurrentSongInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-`;
-
-const SingerName = styled.div`
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const SongTitle = styled.div`
-  font-size: 1.2rem;
-  color: #ffd700;
-  font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const TimerDisplay = styled.div`
-  font-size: 1rem;
-  color: #fff;
-  font-weight: 600;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 5px 10px;
-  border-radius: 15px;
-  margin-left: 20px;
-`;
-
-const Footer = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  padding: 20px 40px;
-  z-index: 10;
-`;
-
-const FooterContent = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-`;
-
-const NextSongsTitle = styled.div`
-  font-size: 1rem;
-  color: #ccc;
-  margin-bottom: 10px;
-  font-weight: 600;
-`;
-
-const NextSongsList = styled.div`
-  display: flex;
-  gap: 20px;
-  width: 100%;
-`;
-
-const NextSongItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-`;
-
-const NextSingerName = styled.div`
-  font-size: 0.9rem;
-  color: #fff;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const NextSongTitle = styled.div`
-  font-size: 0.8rem;
-  color: #ffd700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const TransitionOverlay = styled.div<{ $isVisible: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
-  transition: all 0.5s ease;
-`;
-
-const TransitionContent = styled.div`
-  text-align: center;
-  max-width: 800px;
-  padding: 40px;
-`;
-
-const TransitionTitle = styled.h1`
-  font-size: 3rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 30px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-`;
-
-const NextSongInfo = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 30px;
-  margin-bottom: 40px;
-  backdrop-filter: blur(10px);
-`;
-
-const NextSinger = styled.div`
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 15px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-`;
-
-const NextSong = styled.div`
-  font-size: 1.8rem;
-  color: #fff;
-  font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-`;
-
-const QRCodeContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-`;
-
-const QRCodeImage = styled.img`
-  width: 200px;
-  height: 200px;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-`;
-
-const QRCodeText = styled.div`
-  font-size: 1.2rem;
-  color: #fff;
-  text-align: center;
-  max-width: 400px;
-  line-height: 1.5;
-`;
-
-// QR Code Overlay Components
-const QRCodeOverlay = styled.div<{ $isVisible: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.95);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 200;
-  padding: 40px;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
-  transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
-`;
-
-const QRCodeHeader = styled.h1`
-  position: absolute;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 3rem;
-  margin: 0;
-  font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  text-align: center;
-  z-index: 201;
-`;
-
-const QRCodeContent = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 60px;
-  max-width: 1200px;
-  width: 100%;
-`;
-
-const QRCodeLeftSide = styled.div`
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-`;
-
-const QRCodeTitle = styled.h1`
-  color: #fff;
-  font-size: 4rem;
-  margin: 0 0 40px 0;
-  font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-`;
-
-const QRCodeNextSongInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  align-items: center;
-`;
-
-const QRCodeNextSinger = styled.h2`
-  font-size: 3rem;
-  margin: 0;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-`;
-
-const QRCodeNextSongTitle = styled.h3`
-  font-size: 2.5rem;
-  margin: 0;
-  font-weight: normal;
-  color: #ffd700;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-`;
-
-const QRCodeRightSide = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-`;
-
-const QRCodeImageLarge = styled.img`
-  width: 300px;
-  height: 300px;
-  border-radius: 15px;
-  border: 20px solid white;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-`;
-
-const QRCodeTextLarge = styled.p`
-  color: #fff;
-  font-size: 1.4rem;
-  margin: 0;
-  text-align: center;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  max-width: 300px;
-`;
-
-const QRCodeCloseButton = styled.button`
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 15px 30px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-top: 30px;
-
-  &:hover {
-    background: #c0392b;
-  }
-`;
-
-
-const ButtonsContainer = styled.div`
-  position: absolute;
-  top: 20px;
-  right: 80px;
-  display: flex;
-  gap: 8px;
-  z-index: 20;
-`;
-
-
-const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean }>`
-  position: absolute;
-  top: calc(50vh - 200px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
-  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-`;
-
-const ProgressBarContainer = styled.div<{ $isUltrastar: boolean }>`
-  width: 50vw;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 4px;
-  border: 5px solid ${HIGHLIGHT_COLOR};
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 1);
-  transform: ${props => props.$isUltrastar ? 'scale(1)' : 'scale(0)'};
-  transition: transform 0.3s ease-in-out;
-`;
-
-const ProgressBarFill = styled.div<{ $progress: number }>`
-  width: ${props => props.$progress}%;
-  height: 100%;
-  background: ${HIGHLIGHT_COLOR};
-  border-radius: 0px;
-  transition: width 0.1s ease-out;
-  box-shadow: 0 0 10px rgba(78, 145, 201, 0.5);
-`;
-
-const NoVideoMessage = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  font-size: 1.2rem;
-  color: #666;
-  background: #f8f9fa;
-  border-radius: 15px;
-  border: 2px dashed #dee2e6;
-`;
-
-const LoadingMessage = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  font-size: 1.2rem;
-  color: #666;
-  background: #f8f9fa;
-  border-radius: 15px;
-`;
 
 const ShowView: React.FC = () => {
   const { t } = useTranslation();
   const [currentSong, setCurrentSong] = useState<CurrentSong | null>(null);
   const [nextSongs, setNextSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
   const lastSongIdRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -585,13 +71,8 @@ const ShowView: React.FC = () => {
   const [cursorVisible, setCursorVisible] = useState(true);
   const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Fullscreen state
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  
   // Ultrastar-specific state
   const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -600,21 +81,7 @@ const ShowView: React.FC = () => {
   const nextNextLyricRef = useRef<HTMLDivElement | null>(null);
   const lastLoggedText = useRef<string>('');
   const lastUpdateTime = useRef<number>(0);
-  const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions
-  
-  // Constants for display settings
-  const UNSUNG_COLOR = '#ffffff';
-  const CURRENT_LINE_OPACITY = 1;
-  const NEXT_LINE_OPACITY = 0.7;
-  const NEXT_NEXT_LINE_OPACITY = 0.3;
-  const LYRICS_FADE_DURATION = '4s';
-  const COUNTDOWN_SECONDS = 3;
-  const FADE_IN_ATTACK_SECONDS = 10;
-  const FADE_IN_DURATION_SECONDS = 4;
-  
-  // Constants for fade-out/fade-in timing
-  const FADE_OUT_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-out if pause > 5s
-  const FADE_IN_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-in if next line starts within 5s
+
   const [showLyrics, setShowLyrics] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
@@ -1235,7 +702,7 @@ const ShowView: React.FC = () => {
       const songData = response.data.songData;
       
       setUltrastarData(songData);
-      setCurrentNoteIndex(0);
+      // setCurrentNoteIndex(0);
       
       // Reset all states atomically to prevent race conditions
       setShowLyrics(false);
@@ -1378,7 +845,7 @@ const ShowView: React.FC = () => {
         setCurrentSong(normalizedSong);
         setLastSongId(normalizedSong?.id || null);
         lastSongIdRef.current = normalizedSong?.id || null;
-        setError(null);
+        // setError(null);
         
         // Automatically hide overlay when song changes
         if (showQRCodeOverlay) {
@@ -1416,13 +883,13 @@ const ShowView: React.FC = () => {
       }
       
       setNextSongs(nextSongs);
-      setLoading(false);
+      // setLoading(false);
     } catch (error: any) {
       console.error('❌ Error fetching current song:', error);
-      setError(t('showView.errorLoadingCurrentSong'));
+      // setError(t('showView.errorLoadingCurrentSong'));
       setCurrentSong(null);
       setNextSongs([]);
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
@@ -1505,7 +972,7 @@ const ShowView: React.FC = () => {
       setCurrentSong(normalizedSong);
       setLastSongId(normalizedSong?.id || null);
       lastSongIdRef.current = normalizedSong?.id || null;
-      setError(null);
+      // setError(null);
       
       // Automatically hide overlay when song changes
       if (showQRCodeOverlay) {
@@ -1544,7 +1011,7 @@ const ShowView: React.FC = () => {
     }
     
     setNextSongs(nextSongs);
-    setLoading(false);
+    // setLoading(false);
   }, [showAPI, stopUltrastarTiming, stopProgress]);
 
   useEffect(() => {
@@ -1724,13 +1191,6 @@ const ShowView: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
-
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // Function to get YouTube embed URL
   const getYouTubeEmbedUrl = (url: string): string => {
@@ -1941,7 +1401,7 @@ const ShowView: React.FC = () => {
     
     // Check if this was a test song and restore original song
     try {
-      const { adminAPI } = await import('../services/api');
+      const { adminAPI } = await import('../../services/api');
       await adminAPI.restoreOriginalSong();
       console.log('🎤 Test song ended - original song restored');
     } catch (error) {
@@ -1994,189 +1454,6 @@ const ShowView: React.FC = () => {
     }
   }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused, restartLyricsAnimation]);
 
-  // Control button handlers
-  const handlePreviousSong = useCallback(async () => {
-    console.log('⏮️ ShowView previous song button clicked');
-    
-    // Send action to admin dashboard
-    websocketService.emit('show-action', {
-      action: 'previous-song',
-      timestamp: new Date().toISOString(),
-      currentSong: currentSong ? {
-        id: currentSong.id,
-        artist: currentSong.artist,
-        title: currentSong.title,
-        mode: currentSong.mode
-      } : null
-    });
-    
-    try {
-      const { playlistAPI } = await import('../services/api');
-      await playlistAPI.previousSong();
-    } catch (error) {
-      console.error('Error moving to previous song:', error);
-    }
-  }, [currentSong]);
-
-  const handleTogglePlayPause = useCallback(async () => {
-    // Mark that user has interacted (allows autoplay for future songs)
-    setHasUserInteracted(true);
-    
-    console.log('⏯️ ShowView play/pause button clicked');
-    
-    // Send action to admin dashboard
-    websocketService.emit('show-action', {
-      action: 'toggle-play-pause',
-      timestamp: new Date().toISOString(),
-      currentSong: currentSong ? {
-        id: currentSong.id,
-        artist: currentSong.artist,
-        title: currentSong.title,
-        mode: currentSong.mode
-      } : null,
-      isPlaying: !isPlaying
-    });
-    
-    try {
-      const { playlistAPI } = await import('../services/api');
-      await playlistAPI.togglePlayPause();
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
-    }
-  }, [currentSong, isPlaying]);
-
-  const handleRestartSong = useCallback(async () => {
-    // Mark that user has interacted (allows autoplay for future songs)
-    setHasUserInteracted(true);
-    
-    console.log('🔄 ShowView restart button clicked, currentSong:', currentSong);
-    console.log('🔄 Audio ref:', audioRef.current);
-    console.log('🔄 Video ref:', videoRef.current);
-    console.log('🔄 Ultrastar data:', ultrastarData);
-    
-    // Handle local restart logic first
-    if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
-      console.log('🎤 Ultrastar restart via ShowView button');
-      
-      // Restart audio
-      console.log('🎵 Audio currentTime before:', audioRef.current.currentTime);
-      audioRef.current.currentTime = 0;
-      console.log('🎵 Audio currentTime after:', audioRef.current.currentTime);
-      audioRef.current.play().then(() => {
-        console.log('🎵 Audio play() successful');
-      }).catch(error => {
-        console.error('🎵 Error restarting playback:', error);
-      });
-      
-      // Also restart video if present
-      if (videoRef.current) {
-        console.log('🎬 Ultrastar video restart via ShowView button');
-        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
-        videoRef.current.currentTime = 0;
-        console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
-        videoRef.current.play().then(() => {
-          console.log('🎬 Video play() successful');
-        }).catch(error => {
-          console.error('🎬 Error restarting video playback:', error);
-        });
-      } else {
-        console.log('🎬 No video ref found for Ultrastar song');
-      }
-      
-      setIsPlaying(true);
-      // Restart complete Ultrastar timing and lyrics
-      setTimeout(() => {
-        console.log('🎤 Restarting complete Ultrastar timing');
-        startUltrastarTiming(ultrastarData, new Set());
-      }, 100); // Small delay to ensure audio is playing
-    } else if (currentSong?.mode === 'youtube') {
-      console.log('📺 YouTube restart via ShowView button');
-      // YouTube embed - restart by reloading iframe
-      setYoutubeCurrentTime(0);
-      setIframeKey(prev => prev + 1);
-      setYoutubeIsPaused(false);
-    } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
-      console.log('🎬 Video restart via ShowView button');
-      console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
-      videoRef.current.currentTime = 0;
-      console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
-      videoRef.current.play().then(() => {
-        console.log('🎬 Video play() successful');
-      }).catch(error => {
-        console.error('🎬 Error restarting video playback:', error);
-      });
-      setIsPlaying(true);
-      console.log('🎬 Video play() called, isPlaying set to true');
-    } else if (currentSong?.mode === 'server_video' || currentSong?.mode === 'file' || currentSong?.mode === 'youtube_cache') {
-      console.log('🎬 Server/File/YouTube-Cache video restart via ShowView button');
-      if (videoRef.current) {
-        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
-        videoRef.current.currentTime = 0;
-        console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
-        videoRef.current.play().then(() => {
-          console.log('🎬 Video play() successful');
-        }).catch(error => {
-          console.error('🎬 Error restarting video playback:', error);
-        });
-        setIsPlaying(true);
-        console.log('🎬 Video play() called, isPlaying set to true');
-      } else {
-        console.log('❌ Video ref is null for server/file/youtube-cache video');
-      }
-    } else {
-      console.log('❌ No restart logic executed - conditions not met');
-      console.log('❌ Mode:', currentSong?.mode);
-      console.log('❌ Has audioRef:', !!audioRef.current);
-      console.log('❌ Has videoRef:', !!videoRef.current);
-      console.log('❌ Has ultrastarData:', !!ultrastarData);
-    }
-    
-    // Send action to admin dashboard
-    websocketService.emit('show-action', {
-      action: 'restart-song',
-      timestamp: new Date().toISOString(),
-      currentSong: currentSong ? {
-        id: currentSong.id,
-        artist: currentSong.artist,
-        title: currentSong.title,
-        mode: currentSong.mode
-      } : null
-    });
-    
-    try {
-      const { playlistAPI } = await import('../services/api');
-      await playlistAPI.restartSong();
-    } catch (error) {
-      console.error('Error restarting song:', error);
-    }
-  }, [currentSong, ultrastarData, startUltrastarTiming]);
-
-  const handleNextSong = useCallback(async () => {
-    // Mark that user has interacted (allows autoplay for future songs)
-    setHasUserInteracted(true);
-    
-    console.log('⏭️ ShowView next song button clicked');
-    
-    // Send action to admin dashboard
-    websocketService.emit('show-action', {
-      action: 'next-song',
-      timestamp: new Date().toISOString(),
-      currentSong: currentSong ? {
-        id: currentSong.id,
-        artist: currentSong.artist,
-        title: currentSong.title,
-        mode: currentSong.mode
-      } : null
-    });
-    
-    try {
-      const { playlistAPI } = await import('../services/api');
-      await playlistAPI.nextSong();
-    } catch (error) {
-      console.error('Error moving to next song:', error);
-    }
-  }, [currentSong]);
-
   // Cursor management functions
   const hideCursor = useCallback(() => {
     setCursorVisible(false);
@@ -2195,38 +1472,6 @@ const ShowView: React.FC = () => {
   const handleMouseMove = useCallback(() => {
     showCursor();
   }, [showCursor]);
-
-  // Fullscreen functions
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      // Enter fullscreen
-      document.documentElement.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch((err) => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
-    } else {
-      // Exit fullscreen
-      document.exitFullscreen().then(() => {
-        setIsFullscreen(false);
-      }).catch((err) => {
-        console.error('Error attempting to exit fullscreen:', err);
-      });
-    }
-  }, []);
-
-  // Listen for fullscreen changes
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
 
   // Reset YouTube embed state when song changes
   useEffect(() => {
@@ -2332,78 +1577,19 @@ const ShowView: React.FC = () => {
       $cursorVisible={cursorVisible}
     >
       {/* Control Buttons - only show when not in fullscreen */}
-      {!isFullscreen && (
-        <ButtonsContainer>
-          <Button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePreviousSong();
-            }}
-            title={t('showView.previousSong')}
-            size="small"
-            style={{
-              background: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              minWidth: '40px',
-              height: '40px',
-              padding: '0'
-            }}
-          >
-            ⏮️
-          </Button>
-          <Button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTogglePlayPause();
-            }}
-            title={t('showView.pausePlay')}
-            size="small"
-            style={{
-              background: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              minWidth: '40px',
-              height: '40px',
-              padding: '0'
-            }}
-          >
-            {isPlaying ? '⏸️' : '▶️'}
-          </Button>
-          <Button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRestartSong();
-            }}
-            title={t('showView.restartSong')}
-          >
-            🔄
-          </Button>
-          <Button 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNextSong();
-            }}
-            title={t('showView.nextSong')}
-          >
-            ⏭️
-          </Button>
-        </ButtonsContainer>
-      )}
-
-      {/* Fullscreen Button */}
-        {isFullscreen ? '⤓' : <Button onClick={(e) => {
-        e.stopPropagation();
-        toggleFullscreen();
-      }} size="small" style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        background: 'rgba(0, 0, 0, 0.7)',
-        color: 'white',
-        border: '2px solid rgba(255, 255, 255, 0.3)',
-        zIndex: 20
-      }}>⤢</Button>}
+      <ControlButtons
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        setHasUserInteracted={setHasUserInteracted}
+        audioRef={audioRef}
+        videoRef={videoRef}
+        ultrastarData={ultrastarData}
+        startUltrastarTiming={startUltrastarTiming}
+        setYoutubeCurrentTime={setYoutubeCurrentTime}
+        setIframeKey={setIframeKey}
+        setYoutubeIsPaused={setYoutubeIsPaused}
+        setIsPlaying={setIsPlaying}
+      />
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper>
@@ -2456,7 +1642,7 @@ const ShowView: React.FC = () => {
                 
                   // Check if this was a test song and restore original song
                   try {
-                    const { adminAPI } = await import('../services/api');
+                    const { adminAPI } = await import('../../services/api');
                     await adminAPI.restoreOriginalSong();
                     console.log('🎤 Test song ended - original song restored');
                   } catch (error) {
@@ -2526,51 +1712,15 @@ const ShowView: React.FC = () => {
       )}
 
       {/* Header Overlay */}
-      <Header>
-        <HeaderContent>
-          <CurrentSongInfo>
-            <SingerName>
-              {currentSong ? `🎵 ${currentSong.user_name}` : t('showView.waitingForSong')}
-            </SingerName>
-            <SongTitle>
-              {currentSong ? (
-                currentSong.artist ? `${currentSong.artist} - ${currentSong.title}` : currentSong.title
-              ) : (
-                t('showView.noSongInQueue')
-              )}
-            </SongTitle>
-          </CurrentSongInfo>
-          {timeRemaining !== null && (
-            <TimerDisplay>
-              ⏱️ {formatTime(timeRemaining)}
-            </TimerDisplay>
-          )}
-        </HeaderContent>
-      </Header>
+      <Header
+        currentSong={currentSong}
+        timeRemaining={timeRemaining}
+      />
 
       {/* Footer Overlay */}
-      <Footer>
-        <FooterContent>
-          <NextSongsTitle>🎤 {t('showView.nextSongs')}:</NextSongsTitle>
-          <NextSongsList>
-            {nextSongs.length > 0 ? (
-              nextSongs.map((song, index) => (
-                <NextSongItem key={song.id}>
-                  <NextSingerName>{song.user_name}</NextSingerName>
-                  <NextSongTitle>
-                    {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                  </NextSongTitle>
-                </NextSongItem>
-              ))
-            ) : (
-              <NextSongItem>
-                <NextSingerName>{t('showView.noMoreSongs')}</NextSingerName>
-                <NextSongTitle>{t('showView.queueIsEmpty')}</NextSongTitle>
-              </NextSongItem>
-            )}
-          </NextSongsList>
-        </FooterContent>
-      </Footer>
+      <Footer
+        nextSongs={nextSongs}
+      />
 
       {/* Progress Bar Overlay */}
       <ProgressOverlay $isVisible={progressVisible} $isUltrastar={isUltrastar}>
@@ -2580,46 +1730,13 @@ const ShowView: React.FC = () => {
       </ProgressOverlay>
 
       {/* QR Code Overlay */}
-      <QRCodeOverlay $isVisible={showQRCodeOverlay}>
-        <QRCodeHeader>{overlayTitle}</QRCodeHeader>
-        <QRCodeContent>
-          <QRCodeLeftSide>
-            <QRCodeTitle>🎤 {t('showView.nextSong')}</QRCodeTitle>
-            
-            {(() => {
-              const nextSong = currentSong ? 
-                nextSongs.find(song => song.position > currentSong.position) :
-                nextSongs.find(song => song.position === 1);
-              
-              return nextSong ? (
-                <QRCodeNextSongInfo>
-                  <QRCodeNextSinger>
-                    {nextSong.user_name}
-                  </QRCodeNextSinger>
-                  <QRCodeNextSongTitle>
-                    {nextSong.artist ? `${nextSong.artist} - ${nextSong.title}` : nextSong.title}
-                  </QRCodeNextSongTitle>
-                </QRCodeNextSongInfo>
-              ) : (
-                <QRCodeNextSongInfo>
-                  <QRCodeNextSinger>{t('showView.noSongsInQueue')}</QRCodeNextSinger>
-                  <QRCodeNextSongTitle>{t('showView.addFirstSong')}</QRCodeNextSongTitle>
-                </QRCodeNextSongInfo>
-              );
-            })()}
-          </QRCodeLeftSide>
-          
-          <QRCodeRightSide>
-            <QRCodeImageLarge 
-              src={qrCodeUrl || ''}
-              alt={t('showView.qrCodeForSongRequest')}
-            />
-            <QRCodeTextLarge>
-              {t('showView.scanQrCodeForNewRequests')}
-            </QRCodeTextLarge>
-          </QRCodeRightSide>
-        </QRCodeContent>
-      </QRCodeOverlay>
+      <Overlay
+        show={showQRCodeOverlay}
+        overlayTitle={overlayTitle}
+        currentSong={currentSong}
+        nextSongs={nextSongs}
+        qrCodeUrl={qrCodeUrl}
+      />
     </ShowContainer>
   );
 };

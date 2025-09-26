@@ -6,7 +6,7 @@ import SongRequest from './components/SongRequest';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 import PlaylistView from './components/PlaylistView';
-import ShowView from './components/ShowView';
+import ShowView from './components/show/ShowView';
 
 const AppContainer = styled.div`
   min-height: 100vh;
