@@ -426,7 +426,7 @@ export const QRCodeCloseButton = styled.button`
 export const ButtonsContainer = styled.div`
   position: absolute;
   top: 20px;
-  right: 80px;
+  right: 20px;
   display: flex;
   gap: 8px;
   z-index: 20;
