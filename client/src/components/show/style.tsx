@@ -7,7 +7,8 @@ import {
     TIMER_BACKGROUND,
     GRAY,
     OVERLAY_BACKGROUND,
-    NEXT_SONG_INFO_BACKGROUND
+    NEXT_SONG_INFO_BACKGROUND,
+    UNSUNG_COLOR
 } from './constants';
 
 export const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
@@ -422,6 +423,18 @@ export const QRCodeCloseButton = styled.button`
   }
 `;
 
+export const previewLyricStyle = {
+  fontSize: '3rem',
+  color: UNSUNG_COLOR,
+  textAlign: 'center' as const,
+  marginBottom: '5px',
+  opacity: 0.7,
+  textShadow: '4px 4px 8px rgba(0, 0, 0, 1)',
+  minHeight: '3.5rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+};
 
 export const ButtonsContainer = styled.div`
   position: absolute;
@@ -433,9 +446,9 @@ export const ButtonsContainer = styled.div`
 `;
 
 
-export const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean }>`
+export const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean; $isSecond: boolean }>`
   position: absolute;
-  top: calc(50vh - 200px);
+  ${props => props.$isSecond ? 'bottom' : 'top'}: calc(50vh - 200px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;

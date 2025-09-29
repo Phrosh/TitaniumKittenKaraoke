@@ -1,4 +1,5 @@
 export const HIGHLIGHT_COLOR = '#4e91c9'; // Default helles Blau
+export const SECONDARY_COLOR = '#c9774e';
 export const BLACK_BACKGROUND = 'rgba(0, 0, 0, 0.8)';
 export const TIMER_BACKGROUND = 'rgba(0, 0, 0, 0.3)';
 export const WHITE = '#ffffff';

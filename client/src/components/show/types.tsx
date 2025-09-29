@@ -55,10 +55,30 @@ export interface CurrentSong {
     bpm: number;
     gap: number;
     background: string;
-    notes: UltrastarNote[];
-    lines: UltrastarLine[];
+    notes: UltrastarNote[] | UltrastarNote[][]; // For duets: [P1_notes, P2_notes]
+    lines: UltrastarLine[] | UltrastarLine[][]; // For duets: [P1_lines, P2_lines]
     version: string;
+    isDuet?: boolean;
     audioUrl?: string;
     videoUrl?: string;
     backgroundImageUrl?: string;
+  }
+
+  export interface Singer {
+    notes: UltrastarNote[];
+    lines: UltrastarLine[];
+    singer: string;
+    refs: {
+      currentLyricRef: React.RefObject<HTMLDivElement>;
+      nextLyricRef: React.RefObject<HTMLDivElement>;
+      nextNextLyricRef: React.RefObject<HTMLDivElement>;
+      animationFrameRef: React.MutableRefObject<number | null>; // for lyrics animation
+    };
+    setShowLyrics: (show: boolean) => void;
+    progress: {
+      visible: boolean;
+      value: number;
+      intervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
+      setValue: (value: number) => void;
+    };
   }

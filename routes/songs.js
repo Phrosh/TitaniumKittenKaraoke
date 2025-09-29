@@ -1401,18 +1401,27 @@ function findVideoFile(folderPath, specifiedVideo) {
       return res.status(500).json({ message: 'Error parsing Ultrastar file' });
     }
     
-    // Convert new singer structure to legacy format for compatibility
-    if (songData.singers && songData.singers.length >= 2) {
-      songData.singer1Notes = songData.singers[0].notes;
-      songData.singer1Lines = songData.singers[0].lines;
-      songData.singer2Notes = songData.singers[1].notes;
-      songData.singer2Lines = songData.singers[1].lines;
+    // For duets, structure lines and notes as [P1_data, P2_data]
+    if (songData.isDuet && songData.singers && songData.singers.length >= 2) {
+      // Get lines and notes from both singers
+      const singer1Lines = songData.singers[0].lines || [];
+      const singer2Lines = songData.singers[1].lines || [];
+      const singer1Notes = songData.singers[0].notes || [];
+      const singer2Notes = songData.singers[1].notes || [];
+      
+      // Structure as [P1_data, P2_data]
+      songData.lines = [singer1Lines, singer2Lines];
+      songData.notes = [singer1Notes, singer2Notes];
+      
+      console.log(`🎤 Duet-Song erkannt: "${songData.title}" - Sänger 1: ${singer1Lines.length} Zeilen, ${singer1Notes.length} Noten, Sänger 2: ${singer2Lines.length} Zeilen, ${singer2Notes.length} Noten`);
     }
     
-    // Log duet information if detected
-    if (songData.isDuet) {
-      console.log(`🎤 Duet-Song erkannt: "${songData.title}" - Sänger 1: ${songData.singer1Notes?.length || 0} Noten, Sänger 2: ${songData.singer2Notes?.length || 0} Noten`);
-    }
+    // Remove legacy properties and singers array
+    delete songData.singer1Notes;
+    delete songData.singer1Lines;
+    delete songData.singer2Notes;
+    delete songData.singer2Lines;
+    delete songData.singers;
     
     // Find audio file with HP2/HP5 preference
     // First check if there's a saved preference in the database
