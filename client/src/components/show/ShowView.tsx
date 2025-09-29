@@ -200,7 +200,6 @@ const ShowView: React.FC = () => {
     top: '65%',
   }
 
-
   const currentLyricStyle = {
     fontSize: '5rem',
     fontWeight: 'bold',
@@ -226,6 +225,8 @@ const ShowView: React.FC = () => {
     alignItems: 'center',
     justifyContent: 'center'
   };
+
+  console.log(progressVisible1, progressVisible2);
 
   // Helper functions for lyrics display
   const getLineText = useCallback((line: any) => {
@@ -339,7 +340,6 @@ const ShowView: React.FC = () => {
     // Also stop progress when stopping ultrastar timing
     stopProgress();
   }, [stopProgress]);
-
 
   const getSingers = useCallback((ultrastarData: UltrastarSongData | null) => {
     if (!ultrastarData) return [];
@@ -456,7 +456,7 @@ const ShowView: React.FC = () => {
     }
   }, [ultrastarData, getSingers]);
 
-  const startUltrastarTiming = useCallback((songData: UltrastarSongData, fadeOutIndices: Set<number>) => {
+  const startUltrastarTiming = useCallback((songData: UltrastarSongData, fadeOutIndices: Set<number>[]) => {
     // Clear existing interval
     stopUltrastarTiming();
 
@@ -473,6 +473,7 @@ const ShowView: React.FC = () => {
     // Use requestAnimationFrame for smooth 60fps updates
     for (const singer of singers) {
       const updateLyrics = (singer: Singer) => {
+        const singerIndex = singer.singer === "P1" ? 0 : 1;
         if (!audioRef.current) return;
 
         // Note: We don't check for paused here to allow initial animation start
@@ -649,11 +650,11 @@ const ShowView: React.FC = () => {
 
           // Update next lines using helper function (but keep current line with syllable logic)
           // Check if next line (Zeile 2) is a fade-out line - hide only next next line (Zeile 3)
-          if (fadeOutIndices.has(currentLineIndex + 1)) {
+          if (fadeOutIndices[singerIndex].has(currentLineIndex + 1)) {
             console.log('🎵 Zeile 2 ist Fade-out-Zeile - verstecke nur Zeile 3');
             setLyricContent(singer.refs.nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
             setLyricContent(singer.refs.nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
-          } else if (fadeOutIndices.has(currentLineIndex)) {
+          } else if (fadeOutIndices[singerIndex].has(currentLineIndex)) {
             // Current line (Zeile 1) is a fade-out line - hide next lines (Zeile 2 und 3)
             console.log('🎵 Zeile 1 ist Fade-out-Zeile - verstecke Zeile 2 und 3');
             setLyricContent(singer.refs.nextLyricRef, null, UNSUNG_COLOR, NEXT_LINE_OPACITY);
@@ -679,12 +680,12 @@ const ShowView: React.FC = () => {
           }
 
           // Check if any of the preview lines is a fade-out line
-          if (fadeOutIndices.has(nextLineIndex + 1)) {
+          if (fadeOutIndices[singerIndex]?.has(nextLineIndex + 1)) {
             // Next line (Preview-Zeile 1) is a fade-out line - show next line, hide line after fade-out
             // setIsFadeOutMode(true);
             // setFadeOutLineIndex(nextLineIndex + 1);
             updateLyricsDisplay(singer.refs, nextLine, nextNextLine, null, false);
-          } else if (fadeOutIndices.has(nextLineIndex)) {
+          } else if (fadeOutIndices[singerIndex].has(nextLineIndex)) {
             // Current preview line is a fade-out line - show only this line
             updateLyricsDisplay(singer.refs, nextLine, null, null, false);
           } else {
@@ -707,13 +708,13 @@ const ShowView: React.FC = () => {
           }
 
           // Check if any of the first lines is a fade-out line
-          if (fadeOutIndices.has(1)) {
+          if (fadeOutIndices[singerIndex].has(1)) {
             // Second line is a fade-out line - show first and second line, hide third line
             console.log('🎵 Zweite Zeile ist Fade-out-Zeile (Index 1) - zeige erste und zweite Zeile, verstecke dritte');
             // setIsFadeOutMode(true);
             // setFadeOutLineIndex(1);
             updateLyricsDisplay(singer.refs, firstLine, secondLine, null, false);
-          } else if (fadeOutIndices.has(0)) {
+          } else if (fadeOutIndices[singerIndex].has(0)) {
             // First line is a fade-out line - show only first line
             console.log('🎵 Erste Zeile ist Fade-out-Zeile (Index 0) - zeige nur erste Zeile');
             updateLyricsDisplay(singer.refs, firstLine, null, null, false);
@@ -729,7 +730,7 @@ const ShowView: React.FC = () => {
           if (timeSinceLastLine <= 3000) {
             // Show last line for 3 seconds with fade-out styling
 
-            const highlightColor = singer.singer === "P1" ? PRIMARY_COLOR : SECONDARY_COLOR;
+            const highlightColor = singer.singer === "P1" ? HIGHLIGHT_COLOR : SECONDARY_COLOR;
 
             const currentLyricElement = singer.refs.currentLyricRef.current;
             if (currentLyricElement) {
@@ -765,48 +766,54 @@ const ShowView: React.FC = () => {
     }
   }, [stopUltrastarTiming/*, getSingers, nextLyricRef1, nextNextLyricRef1, currentLyricRef1, nextLyricRef2, nextNextLyricRef2, currentLyricRef2*/]);
 
-  const analyzeFadeOutLines = useCallback((songData: UltrastarSongData): Set<number> => {
-    if (!songData.lines || songData.lines.length === 0) {
-      return new Set();
-    }
-
-    const beatDuration = (60000 / songData.bpm) / 4; // Beat duration in milliseconds (quarter notes)
-    const fadeOutLines: Array<{ index: number, text: string, timeUntilNext: number }> = [];
-
-
-    // Handle both single singer and duet cases
-    const lines = Array.isArray(songData.lines[0]) ? songData.lines[0] as UltrastarLine[] : songData.lines as UltrastarLine[];
-    
-    for (let i = 0; i < lines.length - 1; i++) {
-      const currentLine = lines[i];
-      const nextLine = lines[i + 1];
-
-      if (currentLine && nextLine && 'startBeat' in currentLine && 'endBeat' in currentLine && 'startBeat' in nextLine && 'endBeat' in nextLine) {
-        // Calculate pause between end of current line and start of next line
-        const pauseBetweenLines = (nextLine.startBeat - currentLine.endBeat) * beatDuration;
-
-
-        // If there's more than FADE_OUT_THRESHOLD_MS gap, this is a fade-out line
-        if (pauseBetweenLines > FADE_OUT_THRESHOLD_MS) {
-          const lineText = getLineText(currentLine);
-          fadeOutLines.push({
-            index: i,
-            text: lineText,
-            timeUntilNext: pauseBetweenLines
-          });
+  const analyzeFadeOutLines = useCallback((songData: UltrastarSongData): Set<number>[] => {
+    const singers = getSingers(songData);
+    let fadeOutIndices = [];
+    for (const singer of singers) {
+      if (!singer.lines || singer.lines.length === 0) {
+        fadeOutIndices.push(new Set<number>());
+        continue;
+      }
+  
+      const beatDuration = (60000 / songData.bpm) / 4; // Beat duration in milliseconds (quarter notes)
+      const fadeOutLines: Array<{ index: number, text: string, timeUntilNext: number }> = [];
+  
+      // Handle both single singer and duet cases
+      const lines = singer.lines;//Array.isArray(singer.lines[0]) ? singer.lines[0] as UltrastarLine[] : singer.lines as UltrastarLine[];
+      
+      for (let i = 0; i < lines.length - 1; i++) {
+        const currentLine = lines[i];
+        const nextLine = lines[i + 1];
+  
+        if (currentLine && nextLine && 'startBeat' in currentLine && 'endBeat' in currentLine && 'startBeat' in nextLine && 'endBeat' in nextLine) {
+          // Calculate pause between end of current line and start of next line
+          const pauseBetweenLines = (nextLine.startBeat - currentLine.endBeat) * beatDuration;
+  
+          // If there's more than FADE_OUT_THRESHOLD_MS gap, this is a fade-out line
+          if (pauseBetweenLines > FADE_OUT_THRESHOLD_MS) {
+            const lineText = getLineText(currentLine);
+            fadeOutLines.push({
+              index: i,
+              text: lineText,
+              timeUntilNext: pauseBetweenLines
+            });
+          }
         }
       }
+  
+      if (fadeOutLines.length > 0) {
+        const thisFadeOutIndices = new Set<number>();
+        fadeOutLines.forEach((fadeOutLine, index) => {
+          thisFadeOutIndices.add(fadeOutLine.index);
+        });
+        fadeOutIndices.push(thisFadeOutIndices);
+        continue;
+      } else {
+        fadeOutIndices.push(new Set<number>());
+        continue;
+      }
     }
-
-    if (fadeOutLines.length > 0) {
-      const fadeOutIndices = new Set<number>();
-      fadeOutLines.forEach((fadeOutLine, index) => {
-        fadeOutIndices.add(fadeOutLine.index);
-      });
-      return fadeOutIndices;
-    } else {
-      return new Set();
-    }
+    return fadeOutIndices;
 
   }, [getLineText]);
 
@@ -833,7 +840,7 @@ const ShowView: React.FC = () => {
       setIsDuet(songData.isDuet);
 
       // Analyze and log all fade-out lines
-      const fadeOutIndices = analyzeFadeOutLines(songData);
+      // const fadeOutIndices = analyzeFadeOutLines(songData);
 
       // Don't start timing immediately - wait for audio to be ready
       // Timing will be started in handleAudioCanPlay when audio is fully loaded
@@ -1215,7 +1222,7 @@ const ShowView: React.FC = () => {
         setIsPlaying(true);
         // Restart complete Ultrastar timing and lyrics
         setTimeout(() => {
-          startUltrastarTiming(ultrastarData, new Set());
+          startUltrastarTiming(ultrastarData, [new Set<number>()]);
         }, 100); // Small delay to ensure audio is playing
       } else if (currentSong?.mode === 'youtube') {
         // YouTube embed - restart by reloading iframe

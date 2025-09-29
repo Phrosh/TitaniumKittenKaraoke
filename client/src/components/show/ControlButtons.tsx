@@ -13,7 +13,7 @@ interface ControlButtonsProps {
   audioRef: React.RefObject<HTMLAudioElement>;
   videoRef: React.RefObject<HTMLVideoElement>;
   ultrastarData: any;
-  startUltrastarTiming: (ultrastarData: any, fadeOutLineIndices: Set<number>) => void;
+  startUltrastarTiming: (ultrastarData: any, fadeOutLineIndices: Set<number>[]) => void;
   setYoutubeCurrentTime: (youtubeCurrentTime: number) => void;
   setIframeKey: (iframeKey: number) => void;
   setYoutubeIsPaused: (youtubeIsPaused: boolean) => void;
