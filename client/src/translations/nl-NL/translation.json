@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "Fout bij laden huidig lied",
     "noVideoAvailable": "Geen video beschikbaar",
     "noSongSelected": "Geen lied geselecteerd",
-    "noYoutubeLinkAvailable": "Geen YouTube-link beschikbaar"
+    "noYoutubeLinkAvailable": "Geen YouTube-link beschikbaar",
+    "start": "start"
   },
   "songs": {
     "title": "Liedbeheer",

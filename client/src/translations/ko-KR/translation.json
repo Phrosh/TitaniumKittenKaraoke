@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "현재 곡 로드 중 오류",
     "noVideoAvailable": "사용 가능한 비디오가 없습니다",
     "noSongSelected": "선택된 곡이 없습니다",
-    "noYoutubeLinkAvailable": "사용 가능한 YouTube 링크가 없습니다"
+    "noYoutubeLinkAvailable": "사용 가능한 YouTube 링크가 없습니다",
+    "start": "시작"
   },
   "songs": {
     "title": "곡 관리",

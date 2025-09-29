@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "Error loading current song",
     "noVideoAvailable": "No video available",
     "noSongSelected": "No song selected",
-    "noYoutubeLinkAvailable": "No YouTube link available"
+    "noYoutubeLinkAvailable": "No YouTube link available",
+    "start": "start"
   },
   "songs": {
     "title": "Song Management",

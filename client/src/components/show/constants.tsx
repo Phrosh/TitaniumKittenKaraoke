@@ -23,3 +23,21 @@ export const FADE_IN_DURATION_SECONDS = 4;
 // Constants for fade-out/fade-in timing
 export const FADE_OUT_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-out if pause > 5s
 export const FADE_IN_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-in if next line starts within 5s
+
+// Start button modes
+export const START_BUTTON_MODE = {
+  NORMAL: 'normal', // Song wird neu geladen und spielt automatisch
+  PAUSE: 'pause'    // Song wird neu geladen, dann pausiert und QR-Overlay gezeigt
+} as const;
+
+export type StartButtonMode = typeof START_BUTTON_MODE[keyof typeof START_BUTTON_MODE];
+
+// Current start button mode - set to START_BUTTON_MODE.PAUSE for pause mode
+// 
+// NORMAL: Song wird neu geladen und spielt automatisch (Standard-Verhalten)
+// PAUSE: Song wird neu geladen, dann pausiert und QR-Code-Overlay wird angezeigt
+//
+// Um den Modus zu ändern, setze CURRENT_START_MODE auf:
+// - START_BUTTON_MODE.NORMAL für normales Verhalten
+// - START_BUTTON_MODE.PAUSE für Pause-Modus mit QR-Overlay
+export const CURRENT_START_MODE: StartButtonMode = START_BUTTON_MODE.PAUSE;

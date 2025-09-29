@@ -24,7 +24,9 @@ import {
   FADE_IN_ATTACK_SECONDS,
   FADE_IN_DURATION_SECONDS,
   FADE_OUT_THRESHOLD_MS,
-  FADE_IN_THRESHOLD_MS
+  FADE_IN_THRESHOLD_MS,
+  START_BUTTON_MODE,
+  CURRENT_START_MODE
  } from './constants';
 import { 
   ProgressOverlay, 
@@ -43,61 +45,10 @@ import { UltrastarSongData } from './types';
 import Footer from './Footer';
 import Header from './Header';
 import Overlay from './Overlay';
+import StartOverlay from './StartOverlay';
 import ControlButtons from './ControlButtons';
 
 let globalUltrastarData: UltrastarSongData | null = null;
-
-// Start Overlay Components
-const StartOverlay = styled.div<{ $isVisible: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.95);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 300;
-  padding: 40px;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
-  transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
-`;
-
-const StartButton = styled.button`
-  background: linear-gradient(45deg, #ff6b6b, #ffd700);
-  color: white;
-  border: none;
-  padding: 30px 60px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 3rem;
-  font-weight: 700;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s ease-in-out;
-  min-width: 300px;
-
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-const StartTitle = styled.h1`
-  color: #fff;
-  font-size: 4rem;
-  margin: 0 0 40px 0;
-  font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-  text-align: center;
-`;
 
 const ShowView: React.FC = () => {
   const { t } = useTranslation();
@@ -1596,6 +1547,26 @@ const ShowView: React.FC = () => {
     try {
       const { playlistAPI } = await import('../../services/api');
       await playlistAPI.restartSong();
+
+      // Check if we're in pause mode
+      if (CURRENT_START_MODE === START_BUTTON_MODE.PAUSE) {
+        console.log('🎤 Pause mode: Song restarted, now pausing and showing QR overlay');
+        
+        // Wait a moment for the song to load, then pause
+        setTimeout(async () => {
+          try {
+            // Pause the song
+            await playlistAPI.togglePlayPause();
+            
+            // Show QR code overlay
+            await showAPI.toggleQRCodeOverlay(true);
+            
+            console.log('🎤 Pause mode: Song paused and QR overlay shown');
+          } catch (error) {
+            console.error('Error in pause mode:', error);
+          }
+        }, 1000); // Wait 1 second for song to load
+      }
     } catch (error) {
       console.error('Error restarting song:', error);
     }
@@ -1917,12 +1888,10 @@ const ShowView: React.FC = () => {
       />
 
       {/* Start Overlay */}
-      <StartOverlay $isVisible={showStartOverlay}>
-        <StartTitle>🎤 Karaoke</StartTitle>
-        <StartButton onClick={handleStartButtonClick}>
-          START
-        </StartButton>
-      </StartOverlay>
+      <StartOverlay
+        show={showStartOverlay}
+        onStartClick={handleStartButtonClick}
+      />
     </ShowContainer>
   );
 };

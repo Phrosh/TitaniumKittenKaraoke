@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "加载当前歌曲时出错",
     "noVideoAvailable": "没有可用视频",
     "noSongSelected": "未选择歌曲",
-    "noYoutubeLinkAvailable": "没有可用的YouTube链接"
+    "noYoutubeLinkAvailable": "没有可用的YouTube链接",
+    "start": "开始"
   },
   "songs": {
     "title": "歌曲管理",

@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "Fel vid laddning av aktuell låt",
     "noVideoAvailable": "Ingen video tillgänglig",
     "noSongSelected": "Ingen låt vald",
-    "noYoutubeLinkAvailable": "Ingen YouTube-länk tillgänglig"
+    "noYoutubeLinkAvailable": "Ingen YouTube-länk tillgänglig",
+    "start": "start"
   },
   "songs": {
     "title": "Låthantering",

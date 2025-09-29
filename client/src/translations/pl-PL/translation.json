@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "Błąd podczas ładowania aktualnej piosenki",
     "noVideoAvailable": "Brak dostępnego wideo",
     "noSongSelected": "Nie wybrano piosenki",
-    "noYoutubeLinkAvailable": "Brak dostępnego linku YouTube"
+    "noYoutubeLinkAvailable": "Brak dostępnego linku YouTube",
+    "start": "start"
   },
   "songs": {
     "title": "Zarządzanie Piosenkami",

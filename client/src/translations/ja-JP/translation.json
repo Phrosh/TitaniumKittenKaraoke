@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "現在の楽曲の読み込みエラー",
     "noVideoAvailable": "利用可能なビデオがありません",
     "noSongSelected": "楽曲が選択されていません",
-    "noYoutubeLinkAvailable": "利用可能なYouTubeリンクがありません"
+    "noYoutubeLinkAvailable": "利用可能なYouTubeリンクがありません",
+    "start": "開始"
   },
   "songs": {
     "title": "楽曲管理",

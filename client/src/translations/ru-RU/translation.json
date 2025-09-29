@@ -297,7 +297,8 @@
     "errorLoadingCurrentSong": "Ошибка при загрузке текущей песни",
     "noVideoAvailable": "Видео недоступно",
     "noSongSelected": "Песня не выбрана",
-    "noYoutubeLinkAvailable": "Ссылка YouTube недоступна"
+    "noYoutubeLinkAvailable": "Ссылка YouTube недоступна",
+    "start": "начать"
   },
   "songs": {
     "title": "Управление Песнями",
