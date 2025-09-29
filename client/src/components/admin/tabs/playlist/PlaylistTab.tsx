@@ -1,9 +1,10 @@
 import React from 'react';
 import { AdminDashboardData, Song } from '../../../../types';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cleanYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../../../../services/api';
+import websocketService from '../../../../services/websocket';
 import toast from 'react-hot-toast';
 import loadAllSongs from '../../../../utils/loadAllSongs';
 import {
@@ -42,6 +43,8 @@ interface PlaylistTabProps {
   setDashboardData: (data: AdminDashboardData) => void;
   setActiveTab: (tab: string) => void;
   handleDeviceIdClick: (deviceId: string) => void;
+  showQRCodeOverlay: boolean;
+  setShowQRCodeOverlay: (show: boolean) => void;
 }
 
 const PlaylistTab: React.FC<PlaylistTabProps> = ({
@@ -50,11 +53,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   setDashboardData,
   setActiveTab,
   handleDeviceIdClick,
+  showQRCodeOverlay,
+  setShowQRCodeOverlay,
 }) => {
   const { t } = useTranslation();
 
   const [showAddSongModal, setShowAddSongModal] = useState(false);
-  const [showQRCodeOverlay, setShowQRCodeOverlay] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [youtubeLinks, setYoutubeLinks] = useState<Record<string, string>>({});
@@ -80,6 +84,20 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   });
   const [manualSongList, setManualSongList] = useState<any[]>([]);
 
+  // WebSocket listener for QR overlay updates
+  useEffect(() => {
+    const handleQROverlayUpdate = (data: { showQRCodeOverlay: boolean; overlayTitle: string }) => {
+      console.log('📱 PlaylistTab: Received QR overlay update:', data);
+      setShowQRCodeOverlay(data.showQRCodeOverlay);
+    };
+
+    // Listen for QR overlay changes from ShowView
+    websocketService.on('qr-overlay-changed', handleQROverlayUpdate);
+
+    return () => {
+      websocketService.off('qr-overlay-changed', handleQROverlayUpdate);
+    };
+  }, [setShowQRCodeOverlay]);
 
   // Filter playlist based on showPastSongs setting
   const filteredPlaylist = showPastSongs

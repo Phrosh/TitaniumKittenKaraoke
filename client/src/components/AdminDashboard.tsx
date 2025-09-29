@@ -579,15 +579,13 @@ const AdminDashboard: React.FC = () => {
         <TabContent>
           {activeTab === 'playlist' && (
             <PlaylistTab
+              fetchDashboardData={fetchDashboardData}
+              dashboardData={dashboardData}
+              setDashboardData={setDashboardData}
+              setActiveTab={setActiveTab}
+              handleDeviceIdClick={handleDeviceIdClick}
               showQRCodeOverlay={showQRCodeOverlay}
               setShowQRCodeOverlay={setShowQRCodeOverlay}
-              setDashboardData={setDashboardData}
-              fetchDashboardData={fetchDashboardData}
-              isPlaying={isPlaying}
-              actionLoading={actionLoading}
-              setActionLoading={setActionLoading}
-              dashboardData={dashboardData}
-              handleDeviceIdClick={handleDeviceIdClick}
             />
           )}
           
