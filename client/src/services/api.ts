@@ -64,6 +64,9 @@ export const songAPI = {
     api.get('/songs/youtube-songs'), // Public endpoint for YouTube cache songs
   
   getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
+  getUSDBSearchEnabled: () => api.get('/songs/usdb-search-enabled'), // Public endpoint for USDB search enabled setting
+  searchUSDB: (interpret?: string, title?: string, limit?: number) =>
+    api.post('/songs/usdb-search', { interpret, title, limit }), // Public endpoint for USDB search
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
   getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings
   
@@ -161,6 +164,9 @@ export const adminAPI = {
   
   updateAutoApproveSongs: (autoApproveSongs: boolean) =>
     api.put('/admin/settings/auto-approve-songs', { autoApproveSongs }),
+  
+  updateUSDBSearchEnabled: (usdbSearchEnabled: boolean) =>
+    api.put('/admin/settings/usdb-search-enabled', { usdbSearchEnabled }),
   
   // Song Approval Management
   getSongApprovals: () =>

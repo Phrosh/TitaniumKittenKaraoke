@@ -119,7 +119,11 @@
     "songsRemoveError": "移除歌曲时出错",
     "pleaseSpecifySongFolder": "请先指定歌曲文件夹",
     "commandCopiedSuccess": "命令已复制到剪贴板！",
-    "commandCopyError": "复制命令时出错"
+    "commandCopyError": "复制命令时出错",
+    "usdbSearchEnabled": "在歌曲请求中启用USDB搜索:",
+    "usdbSearchEnabledUpdated": "USDB搜索设置已成功更新！",
+    "usdbSearchEnabledError": "更新USDB搜索设置时出错",
+    "usdbSearchEnabledDescription": "启用后，在歌曲请求中搜索歌曲时，也会搜索并显示USDB（UltraStar Database）中的歌曲。"
   },
   "users": {
     "title": "用户管理",
@@ -230,7 +234,9 @@
     "correct": "修正",
     "submittedForApproval": "歌曲请求已提交批准！",
     "songAddedSuccessfully": "歌曲\"{{songTitle}}\"已成功添加到播放列表！",
-    "errorAddingSong": "添加歌曲时出错"
+    "errorAddingSong": "添加歌曲时出错",
+    "usdbSearching": "USDB搜索中...",
+    "usdbResults": "USDB结果（{{count}}）"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "请输入YouTube URL",

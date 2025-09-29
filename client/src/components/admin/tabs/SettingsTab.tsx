@@ -182,6 +182,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [autoApproveSongs, setAutoApproveSongs] = useState(true);
+  const [usdbSearchEnabled, setUsdbSearchEnabled] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
   // Cloudflared State
@@ -226,6 +227,9 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       }
       if (settingsResponse.data.settings.auto_approve_songs !== undefined) {
         setAutoApproveSongs(settingsResponse.data.settings.auto_approve_songs === 'true');
+      }
+      if (settingsResponse.data.settings.usdb_search_enabled !== undefined) {
+        setUsdbSearchEnabled(settingsResponse.data.settings.usdb_search_enabled === 'true');
       }
       
       // Load file songs folder setting
@@ -408,6 +412,19 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     } catch (error) {
       console.error('Error updating auto approve songs:', error);
       toast.error(t('settings.autoApproveSongsError'));
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUpdateUSDBSearchEnabled = async () => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateUSDBSearchEnabled(usdbSearchEnabled);
+      toast.success(t('settings.usdbSearchEnabledUpdated'));
+    } catch (error) {
+      console.error('Error updating USDB search enabled:', error);
+      toast.error(t('settings.usdbSearchEnabledError'));
     } finally {
       setSettingsLoading(false);
     }
@@ -739,7 +756,35 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       
       <HorizontalDivider />
       
-      {/* USDB Credentials */}
+      {/* USDB Search Enabled Setting */}
+      <SettingsCard>
+        <SettingsLabel>{t('settings.usdbSearchEnabled')}</SettingsLabel>
+        <CheckboxContainer>
+          <CheckboxLabel>
+            <CheckboxInput
+              type="checkbox"
+              checked={usdbSearchEnabled}
+              onChange={(e) => setUsdbSearchEnabled(e.target.checked)}
+            />
+            <CheckboxText>
+              {usdbSearchEnabled ? t('settings.enabled') : t('settings.disabled')}
+            </CheckboxText>
+          </CheckboxLabel>
+          <Button 
+            onClick={handleUpdateUSDBSearchEnabled}
+            disabled={settingsLoading}
+            size="small"
+            style={{ marginLeft: '10px' }}
+          >
+            {settingsLoading ? t('settings.saving') : t('settings.save')}
+          </Button>
+        </CheckboxContainer>
+        <SettingsDescription>
+          {t('settings.usdbSearchEnabledDescription')}
+        </SettingsDescription>
+      </SettingsCard>
+      
+      <HorizontalDivider />
       <SettingsCard>
         <SettingsLabel>{t('settings.usdbCredentials')}:</SettingsLabel>
         {usdbCredentials ? (

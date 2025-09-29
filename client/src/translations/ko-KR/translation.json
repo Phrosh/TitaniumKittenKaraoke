@@ -119,7 +119,11 @@
     "songsRemoveError": "곡 제거 중 오류",
     "pleaseSpecifySongFolder": "먼저 곡 폴더를 지정하세요",
     "commandCopiedSuccess": "명령이 클립보드에 복사되었습니다!",
-    "commandCopyError": "명령 복사 중 오류"
+    "commandCopyError": "명령 복사 중 오류",
+    "usdbSearchEnabled": "곡 요청에서 USDB 검색 활성화:",
+    "usdbSearchEnabledUpdated": "USDB 검색 설정이 성공적으로 업데이트되었습니다!",
+    "usdbSearchEnabledError": "USDB 검색 설정 업데이트 중 오류",
+    "usdbSearchEnabledDescription": "활성화되면 곡 요청에서 곡을 검색할 때 USDB(UltraStar Database)의 곡도 검색되고 표시됩니다."
   },
   "users": {
     "title": "사용자 관리",
@@ -230,7 +234,9 @@
     "correct": "수정",
     "submittedForApproval": "곡 요청이 승인을 위해 제출되었습니다!",
     "songAddedSuccessfully": "곡 \"{{songTitle}}\"이(가) 재생 목록에 성공적으로 추가되었습니다!",
-    "errorAddingSong": "곡 추가 중 오류"
+    "errorAddingSong": "곡 추가 중 오류",
+    "usdbSearching": "USDB 검색 중...",
+    "usdbResults": "USDB 결과 ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "YouTube URL을 입력하세요",

@@ -119,7 +119,11 @@
     "songsRemoveError": "Virhe kappaleiden poistamisessa",
     "pleaseSpecifySongFolder": "Määritä ensin kappalekansio",
     "commandCopiedSuccess": "Komento kopioitu leikepöydälle!",
-    "commandCopyError": "Virhe komennon kopioimisessa"
+    "commandCopyError": "Virhe komennon kopioimisessa",
+    "usdbSearchEnabled": "Ota käyttöön USDB-haku kappalepyynnöissä:",
+    "usdbSearchEnabledUpdated": "USDB-hakuasetus päivitetty onnistuneesti!",
+    "usdbSearchEnabledError": "Virhe USDB-hakuasetuksen päivittämisessä",
+    "usdbSearchEnabledDescription": "Kun käytössä, USDB:n (UltraStar Database) kappaleita haetaan ja näytetään myös kappalepyyntöjen hakemisessa."
   },
   "users": {
     "title": "Käyttäjien hallinta",
@@ -230,7 +234,9 @@
     "correct": "Korjaa",
     "submittedForApproval": "Kappalepyyntö lähetetty hyväksyntään!",
     "songAddedSuccessfully": "Kappale \"{{songTitle}}\" lisätty onnistuneesti soittolistaan!",
-    "errorAddingSong": "Virhe kappaleen lisäämisessä"
+    "errorAddingSong": "Virhe kappaleen lisäämisessä",
+    "usdbSearching": "USDB-haku käynnissä...",
+    "usdbResults": "USDB-tulokset ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Anna YouTube-URL",

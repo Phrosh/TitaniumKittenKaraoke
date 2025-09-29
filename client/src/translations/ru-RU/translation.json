@@ -119,7 +119,11 @@
     "songsRemoveError": "Ошибка при удалении песен",
     "pleaseSpecifySongFolder": "Пожалуйста, сначала укажите папку песен",
     "commandCopiedSuccess": "Команда скопирована в буфер обмена!",
-    "commandCopyError": "Ошибка при копировании команды"
+    "commandCopyError": "Ошибка при копировании команды",
+    "usdbSearchEnabled": "Включить поиск USDB в запросах песен:",
+    "usdbSearchEnabledUpdated": "Настройка поиска USDB успешно обновлена!",
+    "usdbSearchEnabledError": "Ошибка при обновлении настройки поиска USDB",
+    "usdbSearchEnabledDescription": "Когда включено, песни из USDB (UltraStar Database) также будут искаться и отображаться при поиске песен в запросах песен."
   },
   "users": {
     "title": "Управление Пользователями",
@@ -230,7 +234,9 @@
     "correct": "Исправить",
     "submittedForApproval": "Запрос песни отправлен на одобрение!",
     "songAddedSuccessfully": "Песня \"{{songTitle}}\" успешно добавлена в плейлист!",
-    "errorAddingSong": "Ошибка при добавлении песни"
+    "errorAddingSong": "Ошибка при добавлении песни",
+    "usdbSearching": "Поиск USDB выполняется...",
+    "usdbResults": "Результаты USDB ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Пожалуйста, введите URL YouTube",

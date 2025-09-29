@@ -119,7 +119,11 @@
         "songsRemoveError": "Fehler beim Entfernen der Songs",
         "pleaseSpecifySongFolder": "Bitte zuerst einen Song-Ordner angeben",
         "commandCopiedSuccess": "Befehl in die Zwischenablage kopiert!",
-        "commandCopyError": "Fehler beim Kopieren des Befehls"
+        "commandCopyError": "Fehler beim Kopieren des Befehls",
+        "usdbSearchEnabled": "USDB-Suche in Song-Wünschen aktivieren:",
+        "usdbSearchEnabledUpdated": "USDB-Suche Einstellung erfolgreich aktualisiert!",
+        "usdbSearchEnabledError": "Fehler beim Aktualisieren der USDB-Suche Einstellung",
+        "usdbSearchEnabledDescription": "Wenn aktiviert, werden bei der Song-Suche in den Song-Wünschen auch Songs aus der USDB (UltraStar Database) mit durchsucht und angezeigt."
       },
   "users": {
     "title": "Nutzerverwaltung",
@@ -230,7 +234,9 @@
     "correct": "Korrigieren",
     "submittedForApproval": "Songwunsch wurde zur Bestätigung eingereicht!",
     "songAddedSuccessfully": "Song \"{{songTitle}}\" wurde erfolgreich zur Playlist hinzugefügt!",
-    "errorAddingSong": "Fehler beim Hinzufügen des Songs"
+    "errorAddingSong": "Fehler beim Hinzufügen des Songs",
+    "usdbSearching": "USDB-Suche läuft...",
+    "usdbResults": "USDB-Ergebnisse ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Bitte gib eine YouTube-URL ein",

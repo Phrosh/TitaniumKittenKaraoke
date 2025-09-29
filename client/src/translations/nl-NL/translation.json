@@ -119,7 +119,11 @@
     "songsRemoveError": "Fout bij verwijderen liederen",
     "pleaseSpecifySongFolder": "Specificeer eerst een liedmap",
     "commandCopiedSuccess": "Commando gekopieerd naar klembord!",
-    "commandCopyError": "Fout bij kopiëren commando"
+    "commandCopyError": "Fout bij kopiëren commando",
+    "usdbSearchEnabled": "USDB-zoekfunctie inschakelen in liedverzoeken:",
+    "usdbSearchEnabledUpdated": "USDB-zoekinstelling succesvol bijgewerkt!",
+    "usdbSearchEnabledError": "Fout bij bijwerken USDB-zoekinstelling",
+    "usdbSearchEnabledDescription": "Wanneer ingeschakeld, worden liederen van USDB (UltraStar Database) ook gezocht en weergegeven bij het zoeken naar liederen in liedverzoeken."
   },
   "users": {
     "title": "Gebruikersbeheer",
@@ -230,7 +234,9 @@
     "correct": "Corrigeren",
     "submittedForApproval": "Liedverzoek ingediend voor goedkeuring!",
     "songAddedSuccessfully": "Lied \"{{songTitle}}\" succesvol toegevoegd aan afspeellijst!",
-    "errorAddingSong": "Fout bij toevoegen lied"
+    "errorAddingSong": "Fout bij toevoegen lied",
+    "usdbSearching": "USDB-zoekfunctie loopt...",
+    "usdbResults": "USDB-resultaten ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Voer een YouTube-URL in",

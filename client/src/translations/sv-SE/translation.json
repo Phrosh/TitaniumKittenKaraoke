@@ -119,7 +119,11 @@
     "songsRemoveError": "Fel vid borttagning av låtar",
     "pleaseSpecifySongFolder": "Specificera först en låtmapp",
     "commandCopiedSuccess": "Kommando kopierat till urklipp!",
-    "commandCopyError": "Fel vid kopiering av kommando"
+    "commandCopyError": "Fel vid kopiering av kommando",
+    "usdbSearchEnabled": "Aktivera USDB-sökning i låtförfrågningar:",
+    "usdbSearchEnabledUpdated": "USDB-sökning inställning uppdaterad framgångsrikt!",
+    "usdbSearchEnabledError": "Fel vid uppdatering av USDB-sökning inställning",
+    "usdbSearchEnabledDescription": "När aktiverat kommer låtar från USDB (UltraStar Database) också att sökas och visas när man söker efter låtar i låtförfrågningar."
   },
   "users": {
     "title": "Användarhantering",
@@ -230,7 +234,9 @@
     "correct": "Korrigera",
     "submittedForApproval": "Låtförfrågan skickad för godkännande!",
     "songAddedSuccessfully": "Låt \"{{songTitle}}\" lagd till framgångsrikt i spellistan!",
-    "errorAddingSong": "Fel vid tillägg av låt"
+    "errorAddingSong": "Fel vid tillägg av låt",
+    "usdbSearching": "USDB-sökning pågår...",
+    "usdbResults": "USDB-resultat ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Ange en YouTube-URL",

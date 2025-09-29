@@ -119,7 +119,11 @@
         "songsRemoveError": "Error removing songs",
         "pleaseSpecifySongFolder": "Please specify a song folder first",
         "commandCopiedSuccess": "Command copied to clipboard!",
-        "commandCopyError": "Error copying command"
+        "commandCopyError": "Error copying command",
+        "usdbSearchEnabled": "Enable USDB search in song requests:",
+        "usdbSearchEnabledUpdated": "USDB search setting successfully updated!",
+        "usdbSearchEnabledError": "Error updating USDB search setting",
+        "usdbSearchEnabledDescription": "When enabled, songs from USDB (UltraStar Database) will also be searched and displayed when searching for songs in song requests."
       },
   "users": {
     "title": "User Management",
@@ -230,7 +234,9 @@
     "correct": "Correct",
     "submittedForApproval": "Song request has been submitted for approval!",
     "songAddedSuccessfully": "Song \"{{songTitle}}\" has been successfully added to the playlist!",
-    "errorAddingSong": "Error adding song"
+    "errorAddingSong": "Error adding song",
+    "usdbSearching": "USDB search running...",
+    "usdbResults": "USDB Results ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Please enter a YouTube URL",

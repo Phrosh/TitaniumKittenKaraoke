@@ -551,6 +551,37 @@ router.put('/settings/auto-approve-songs', [
   }
 });
 
+// Update USDB Search Enabled setting
+router.put('/settings/usdb-search-enabled', [
+  body('usdbSearchEnabled').isBoolean().withMessage('USDB Search Enabled muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { usdbSearchEnabled } = req.body;
+
+    // Store USDB Search Enabled setting in settings
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['usdb_search_enabled', usdbSearchEnabled ? 'true' : 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    res.json({ message: 'USDB-Suche Einstellung erfolgreich aktualisiert', usdbSearchEnabled });
+  } catch (error) {
+    console.error('Error updating USDB search enabled setting:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get pending song approvals
 router.get('/song-approvals', async (req, res) => {
   try {

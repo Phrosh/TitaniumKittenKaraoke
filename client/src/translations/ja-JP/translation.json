@@ -119,7 +119,11 @@
     "songsRemoveError": "楽曲の削除エラー",
     "pleaseSpecifySongFolder": "まず楽曲フォルダを指定してください",
     "commandCopiedSuccess": "コマンドがクリップボードにコピーされました！",
-    "commandCopyError": "コマンドのコピーエラー"
+    "commandCopyError": "コマンドのコピーエラー",
+    "usdbSearchEnabled": "楽曲リクエストでUSDB検索を有効にする:",
+    "usdbSearchEnabledUpdated": "USDB検索設定が正常に更新されました！",
+    "usdbSearchEnabledError": "USDB検索設定の更新エラー",
+    "usdbSearchEnabledDescription": "有効にすると、楽曲リクエストで楽曲を検索する際に、USDB（UltraStar Database）の楽曲も検索・表示されます。"
   },
   "users": {
     "title": "ユーザー管理",
@@ -230,7 +234,9 @@
     "correct": "修正",
     "submittedForApproval": "楽曲リクエストが承認のために送信されました！",
     "songAddedSuccessfully": "楽曲「{{songTitle}}」がプレイリストに正常に追加されました！",
-    "errorAddingSong": "楽曲の追加エラー"
+    "errorAddingSong": "楽曲の追加エラー",
+    "usdbSearching": "USDB検索中...",
+    "usdbResults": "USDB結果（{{count}}）"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "YouTube URLを入力してください",

@@ -281,8 +281,14 @@ const SongRequest: React.FC = () => {
   const [fileSongs, setFileSongs] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
+  const [usdbSearchEnabled, setUsdbSearchEnabled] = useState(false);
   const [withBackgroundVocals, setWithBackgroundVocals] = useState(false);
   const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+  
+  // USDB Search State
+  const [usdbResults, setUsdbResults] = useState<any[]>([]);
+  const [usdbLoading, setUsdbLoading] = useState(false);
+  const [usdbTimeout, setUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // Modal states für Format-Korrektur
   const [showFormatModal, setShowFormatModal] = useState(false);
@@ -290,6 +296,7 @@ const SongRequest: React.FC = () => {
   const [formatModalTitle, setFormatModalTitle] = useState('');
   const [pendingSongInput, setPendingSongInput] = useState('');
   const [randomExampleSong, setRandomExampleSong] = useState({ artist: 'Queen', title: 'Bohemian Rhapsody' });
+
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -324,6 +331,17 @@ const SongRequest: React.FC = () => {
         console.error('Error loading YouTube setting:', error);
         // Default to true if error
         setYoutubeEnabled(true);
+      }
+
+      // Load USDB search enabled setting
+      try {
+        const usdbResponse = await songAPI.getUSDBSearchEnabled();
+        const usdbSearchEnabledValue = usdbResponse.data.settings.usdb_search_enabled;
+        setUsdbSearchEnabled(usdbSearchEnabledValue === 'true');
+      } catch (error) {
+        console.error('Error loading USDB search setting:', error);
+        // Default to false if error
+        setUsdbSearchEnabled(false);
       }
 
       // Load songs for random examples
@@ -474,6 +492,108 @@ const SongRequest: React.FC = () => {
     return { artist: 'Queen', title: 'Bohemian Rhapsody' }; // Fallback
   };
 
+  // USDB Search Functions
+  const triggerUSDBSearch = (searchTerm: string) => {
+    if (!usdbSearchEnabled || !searchTerm.trim()) {
+      setUsdbResults([]);
+      return;
+    }
+
+    // Clear existing timeout
+    if (usdbTimeout) {
+      clearTimeout(usdbTimeout);
+    }
+
+    // Show loading state immediately
+    setUsdbLoading(true);
+    setUsdbResults([]);
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      performUSDBSearch(searchTerm);
+    }, 1000); // 1 second delay
+
+    setUsdbTimeout(timeout);
+  };
+
+  const performUSDBSearch = async (searchTerm: string) => {
+    if (!usdbSearchEnabled || !searchTerm.trim()) {
+      setUsdbResults([]);
+      setUsdbLoading(false);
+      return;
+    }
+
+    try {
+      // Use public songAPI for USDB search instead of adminAPI
+      console.log('🌐 Starting USDB search for artist and title:', searchTerm);
+      
+      // Perform two separate searches: one for artist, one for title
+      const [artistResponse, titleResponse] = await Promise.all([
+        songAPI.searchUSDB(
+          searchTerm.trim(),
+          undefined, // No specific title
+          10 // Limit to 10 results per search
+        ),
+        songAPI.searchUSDB(
+          undefined, // No specific artist
+          searchTerm.trim(),
+          10 // Limit to 10 results per search
+        )
+      ]);
+
+      console.log('🎤 Artist search results:', artistResponse.data.songs?.length || 0);
+      console.log('🎵 Title search results:', titleResponse.data.songs?.length || 0);
+
+      // Combine results and remove duplicates
+      const artistSongs = artistResponse.data.songs || [];
+      const titleSongs = titleResponse.data.songs || [];
+      
+      // Create a map to track unique songs by artist-title combination
+      const uniqueSongs = new Map();
+      
+      // Add artist search results
+      artistSongs.forEach((song: any) => {
+        const key = `${song.artist}-${song.title}`.toLowerCase();
+        uniqueSongs.set(key, song);
+      });
+      
+      // Add title search results (will overwrite duplicates)
+      titleSongs.forEach((song: any) => {
+        const key = `${song.artist}-${song.title}`.toLowerCase();
+        uniqueSongs.set(key, song);
+      });
+      
+      // Convert back to array and limit to 20 total results
+      const combinedResults = Array.from(uniqueSongs.values()).slice(0, 20);
+      
+      console.log('🎯 Combined USDB results:', combinedResults.length);
+      setUsdbResults(combinedResults);
+    } catch (error) {
+      console.error('💥 Error searching USDB:', error);
+      setUsdbResults([]);
+    } finally {
+      setUsdbLoading(false);
+    }
+  };
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (usdbTimeout) {
+        clearTimeout(usdbTimeout);
+      }
+    };
+  }, [usdbTimeout]);
+
+  // USDB search for song list
+  useEffect(() => {
+    if (usdbSearchEnabled && searchTerm.trim()) {
+      triggerUSDBSearch(searchTerm);
+    } else {
+      setUsdbResults([]);
+    }
+  }, [searchTerm, usdbSearchEnabled]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -553,6 +673,13 @@ const SongRequest: React.FC = () => {
     handleCloseSongList();
   };
 
+  const handleSelectUSDBSong = (song: any) => {
+    const songInput = `${song.artist} - ${song.title}`;
+    setFormData(prev => ({ ...prev, songInput }));
+    setWithBackgroundVocals(false); // Reset checkbox when selecting new song
+    setUsdbResults([]); // Clear USDB results after selection
+  };
+
   // Handler für Format-Modal
   const handleFormatModalConfirm = () => {
     if (formatModalArtist.trim() && formatModalTitle.trim()) {
@@ -580,7 +707,15 @@ const SongRequest: React.FC = () => {
     );
   };
 
-  const filteredVideos = serverVideos.filter(video =>
+  // Combine all songs including USDB results
+  const allSongs = [...serverVideos, ...ultrastarSongs, ...fileSongs];
+  
+  // Add USDB results if search is active
+  const songsWithUSDB = searchTerm.trim() && usdbSearchEnabled 
+    ? [...allSongs, ...usdbResults] 
+    : allSongs;
+  
+  const filteredVideos = songsWithUSDB.filter(video =>
     video.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
     video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     `${video.artist} - ${video.title}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -658,6 +793,7 @@ const SongRequest: React.FC = () => {
             )}
           </FormGroup>
 
+
           <LocalSongsSection>
             {youtubeEnabled && (
               <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
@@ -665,7 +801,6 @@ const SongRequest: React.FC = () => {
               </div>
             )}
             <Button 
-              type="button" 
               onClick={handleOpenSongList}
               variant="success"
               size="small"
@@ -704,7 +839,6 @@ const SongRequest: React.FC = () => {
           )}
 
           <Button 
-            type="submit" 
             disabled={loading || !formData.name.trim() || !formData.songInput.trim()}
           >
             {loading ? t('songRequest.adding') : t('songRequest.addSong')}
@@ -740,6 +874,28 @@ const SongRequest: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           
+          {/* USDB Search Status */}
+          {usdbSearchEnabled && searchTerm.trim() && (
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              marginBottom: '10px',
+              padding: '8px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              textAlign: 'center'
+            }}>
+              {usdbLoading ? (
+                <>🔍 {t('songRequest.usdbSearching')}</>
+              ) : usdbResults.length > 0 ? (
+                <>✅ {t('songRequest.usdbResults', { count: usdbResults.length })}</>
+              ) : (
+                <>ℹ️ Keine USDB-Ergebnisse gefunden</>
+              )}
+            </div>
+          )}
+          
           <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
             <div style={{ flex: 1, paddingRight: '10px' }}>{t('songRequest.artist').toUpperCase()}</div>
             <div style={{ flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>{t('songRequest.songTitle').toUpperCase()}</div>
@@ -762,12 +918,27 @@ const SongRequest: React.FC = () => {
                   }}>
                     {letter}
                   </div>
-                  {groupedSongs[letter].map((video, index) => (
-                    <SongItem key={`${letter}-${index}`} onClick={() => handleSelectSong(video)}>
-                      <SongArtist>{video.artist}</SongArtist>
-                      <SongTitle>{video.title}</SongTitle>
-                    </SongItem>
-                  ))}
+                  {groupedSongs[letter].map((video: any, index: number) => {
+                    const isUSDBSong = usdbResults.some(usdbSong => 
+                      usdbSong.artist === video.artist && usdbSong.title === video.title
+                    );
+                    return (
+                      <SongItem 
+                        key={`${letter}-${index}`} 
+                        onClick={() => handleSelectSong(video)}
+                        style={{
+                          backgroundColor: isUSDBSong ? '#e3f2fd' : undefined,
+                          borderLeft: isUSDBSong ? '4px solid #2196f3' : undefined
+                        }}
+                      >
+                        <SongArtist>
+                          {video.artist}
+                          {isUSDBSong && <span style={{ fontSize: '10px', color: '#2196f3', marginLeft: '5px' }}>🌐</span>}
+                        </SongArtist>
+                        <SongTitle>{video.title}</SongTitle>
+                      </SongItem>
+                    );
+                  })}
                 </div>
               ))
             ) : (

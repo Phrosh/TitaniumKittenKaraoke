@@ -119,7 +119,11 @@
     "songsRemoveError": "Błąd podczas usuwania piosenek",
     "pleaseSpecifySongFolder": "Proszę najpierw określić folder piosenek",
     "commandCopiedSuccess": "Komenda skopiowana do schowka!",
-    "commandCopyError": "Błąd podczas kopiowania komendy"
+    "commandCopyError": "Błąd podczas kopiowania komendy",
+    "usdbSearchEnabled": "Włącz wyszukiwanie USDB w prośbach o piosenki:",
+    "usdbSearchEnabledUpdated": "Ustawienie wyszukiwania USDB pomyślnie zaktualizowane!",
+    "usdbSearchEnabledError": "Błąd podczas aktualizacji ustawienia wyszukiwania USDB",
+    "usdbSearchEnabledDescription": "Gdy włączone, piosenki z USDB (UltraStar Database) będą również wyszukiwane i wyświetlane podczas wyszukiwania piosenek w prośbach o piosenki."
   },
   "users": {
     "title": "Zarządzanie Użytkownikami",
@@ -230,7 +234,9 @@
     "correct": "Popraw",
     "submittedForApproval": "Prośba o piosenkę została przesłana do zatwierdzenia!",
     "songAddedSuccessfully": "Piosenka \"{{songTitle}}\" została pomyślnie dodana do listy odtwarzania!",
-    "errorAddingSong": "Błąd podczas dodawania piosenki"
+    "errorAddingSong": "Błąd podczas dodawania piosenki",
+    "usdbSearching": "Wyszukiwanie USDB w toku...",
+    "usdbResults": "Wyniki USDB ({{count}})"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Proszę wprowadzić URL YouTube",
