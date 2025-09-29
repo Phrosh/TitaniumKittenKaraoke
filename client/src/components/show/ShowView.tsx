@@ -123,9 +123,6 @@ const ShowView: React.FC = () => {
   const [cursorVisible, setCursorVisible] = useState(true);
   const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fullscreen state
-  // const [isFullscreen, setIsFullscreen] = useState(false);
-
   // Ultrastar-specific state
   const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
   const [isApiLoadedSong, setIsApiLoadedSong] = useState(false);
@@ -135,25 +132,10 @@ const ShowView: React.FC = () => {
   const lastUpdateTimeP2 = useRef<number>(0);
   const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions
 
-  // Constants for display settings
-  // const UNSUNG_COLOR = '#ffffff';
-  // const CURRENT_LINE_OPACITY = 1;
-  // const NEXT_LINE_OPACITY = 0.7;
-  // const NEXT_NEXT_LINE_OPACITY = 0.3;
-  // const LYRICS_FADE_DURATION = '4s';
-  // const COUNTDOWN_SECONDS = 3;
-  // const FADE_IN_ATTACK_SECONDS = 10;
-  // const FADE_IN_DURATION_SECONDS = 4;
-
-  // // Constants for fade-out/fade-in timing
-  // const FADE_OUT_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-out if pause > 5s
-  // const FADE_IN_THRESHOLD_MS = 5000; // 5 seconds - trigger fade-in if next line starts within 5s
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [canAutoPlay, setCanAutoPlay] = useState(false);
-  // const [lyricsScale, setLyricsScale] = useState<number>(1);
-  // const [lyricsTransitionEnabled, setLyricsTransitionEnabled] = useState(false);
 
   const [lyricsScaleP1, setLyricsScaleP1] = useState<number>(1);
   const [lyricsScaleP2, setLyricsScaleP2] = useState<number>(1);
@@ -747,12 +729,14 @@ const ShowView: React.FC = () => {
           if (timeSinceLastLine <= 3000) {
             // Show last line for 3 seconds with fade-out styling
 
+            const highlightColor = singer.singer === "P1" ? PRIMARY_COLOR : SECONDARY_COLOR;
+
             const currentLyricElement = singer.refs.currentLyricRef.current;
             if (currentLyricElement) {
               requestAnimationFrame(() => {
                 if (singer.refs.currentLyricRef.current) {
                   singer.refs.currentLyricRef.current.innerHTML = '';
-                  singer.refs.currentLyricRef.current.style.color = HIGHLIGHT_COLOR;
+                  singer.refs.currentLyricRef.current.style.color = highlightColor;
                   singer.refs.currentLyricRef.current.style.fontWeight = 'bold';
                   singer.refs.currentLyricRef.current.style.opacity = '1';
                   singer.refs.currentLyricRef.current.textContent = getLineText(lastLine);
