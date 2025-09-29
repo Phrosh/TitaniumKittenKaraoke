@@ -226,8 +226,6 @@ const ShowView: React.FC = () => {
     justifyContent: 'center'
   };
 
-  console.log(progressVisible1, progressVisible2);
-
   // Helper functions for lyrics display
   const getLineText = useCallback((line: any) => {
     return line.notes.map((note: any) => note.text).join('');
@@ -280,16 +278,13 @@ const ShowView: React.FC = () => {
   };
 
   // Progress bar functions
-  const stopProgress = useCallback(() => {
-    const singers = getSingers(ultrastarData);
-    for (const singer of singers) {
-      if (singer.progress.intervalRef.current) {
-        clearInterval(singer.progress.intervalRef.current);
-        singer.progress.intervalRef.current = null;
-      }
-      singer.progress.visible = false;
-      singer.progress.setValue(0);
+  const stopProgress = useCallback((singer: Singer) => {
+    if (singer.progress.intervalRef.current) {
+      clearInterval(singer.progress.intervalRef.current);
+      singer.progress.intervalRef.current = null;
     }
+    singer.progress.setVisible(false);
+    singer.progress.setValue(0);
   }, []);
 
   const startProgress = useCallback((secondsUntilNextLine: number, singer: Singer) => {
@@ -301,10 +296,10 @@ const ShowView: React.FC = () => {
     console.log('🎵 Starting progress bar:', { secondsUntilNextLine });
 
     // Clear any existing progress
-    stopProgress();
+    stopProgress(singer);
 
     singer.progress.setValue(100); // Start at 100%
-    singer.progress.visible = true;
+    singer.progress.setVisible(true);
 
     // Start progress animation: full → empty
     const startTime = Date.now();
@@ -319,7 +314,7 @@ const ShowView: React.FC = () => {
       singer.progress.setValue(emptyProgress);
 
       if (progress >= 1) {
-        stopProgress();
+        stopProgress(singer);
       }
     }, 50); // Update every 50ms for smooth animation
   }, [stopProgress]);
@@ -336,9 +331,9 @@ const ShowView: React.FC = () => {
         cancelAnimationFrame(singer.refs.animationFrameRef.current);
         singer.refs.animationFrameRef.current = null;
       }
+      // Also stop progress when stopping ultrastar timing
+      stopProgress(singer);
     }
-    // Also stop progress when stopping ultrastar timing
-    stopProgress();
   }, [stopProgress]);
 
   const getSingers = useCallback((ultrastarData: UltrastarSongData | null) => {
@@ -361,7 +356,8 @@ const ShowView: React.FC = () => {
         visible: progressVisible1,
         value: progressValue1,
         intervalRef: progressIntervalRef1,
-        setValue: setProgressValue1
+        setValue: setProgressValue1,
+        setVisible: setProgressVisible1
       }
     }];
 
@@ -384,7 +380,8 @@ const ShowView: React.FC = () => {
           visible: progressVisible2,
           value: progressValue2,
           intervalRef: progressIntervalRef2,
-          setValue: setProgressValue2
+          setValue: setProgressValue2,
+          setVisible: setProgressVisible2
         }
       });
     } else {
@@ -540,7 +537,7 @@ const ShowView: React.FC = () => {
 
         if (currentLineIndex >= 0) {
           // Stop progress when we're actively singing a line
-          stopProgress();
+          stopProgress(singer);
 
           const currentLine = singer.lines[currentLineIndex];
           const nextLine = singer.lines[currentLineIndex + 1];
@@ -651,12 +648,10 @@ const ShowView: React.FC = () => {
           // Update next lines using helper function (but keep current line with syllable logic)
           // Check if next line (Zeile 2) is a fade-out line - hide only next next line (Zeile 3)
           if (fadeOutIndices[singerIndex].has(currentLineIndex + 1)) {
-            console.log('🎵 Zeile 2 ist Fade-out-Zeile - verstecke nur Zeile 3');
             setLyricContent(singer.refs.nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
             setLyricContent(singer.refs.nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
           } else if (fadeOutIndices[singerIndex].has(currentLineIndex)) {
             // Current line (Zeile 1) is a fade-out line - hide next lines (Zeile 2 und 3)
-            console.log('🎵 Zeile 1 ist Fade-out-Zeile - verstecke Zeile 2 und 3');
             setLyricContent(singer.refs.nextLyricRef, null, UNSUNG_COLOR, NEXT_LINE_OPACITY);
             setLyricContent(singer.refs.nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
           } else {
@@ -682,8 +677,6 @@ const ShowView: React.FC = () => {
           // Check if any of the preview lines is a fade-out line
           if (fadeOutIndices[singerIndex]?.has(nextLineIndex + 1)) {
             // Next line (Preview-Zeile 1) is a fade-out line - show next line, hide line after fade-out
-            // setIsFadeOutMode(true);
-            // setFadeOutLineIndex(nextLineIndex + 1);
             updateLyricsDisplay(singer.refs, nextLine, nextNextLine, null, false);
           } else if (fadeOutIndices[singerIndex].has(nextLineIndex)) {
             // Current preview line is a fade-out line - show only this line
@@ -710,13 +703,9 @@ const ShowView: React.FC = () => {
           // Check if any of the first lines is a fade-out line
           if (fadeOutIndices[singerIndex].has(1)) {
             // Second line is a fade-out line - show first and second line, hide third line
-            console.log('🎵 Zweite Zeile ist Fade-out-Zeile (Index 1) - zeige erste und zweite Zeile, verstecke dritte');
-            // setIsFadeOutMode(true);
-            // setFadeOutLineIndex(1);
             updateLyricsDisplay(singer.refs, firstLine, secondLine, null, false);
           } else if (fadeOutIndices[singerIndex].has(0)) {
             // First line is a fade-out line - show only first line
-            console.log('🎵 Erste Zeile ist Fade-out-Zeile (Index 0) - zeige nur erste Zeile');
             updateLyricsDisplay(singer.refs, firstLine, null, null, false);
           } else {
             // No fade-out line in first lines - normal mode
@@ -833,10 +822,11 @@ const ShowView: React.FC = () => {
       // Reset all states atomically to prevent race conditions
       setShowLyrics1(false);
       setShowLyrics2(false);
-      // setLyricsScale(0);
       setLyricsScaleP1(0);
       setLyricsScaleP2(0);
-      stopProgress();
+      for (const singer of getSingers(songData)) {
+        stopProgress(singer);
+      }
       setIsDuet(songData.isDuet);
 
       // Analyze and log all fade-out lines
@@ -990,7 +980,8 @@ const ShowView: React.FC = () => {
         } else {
           // Clear ultrastar data for non-ultrastar songs - do this atomically
           stopUltrastarTiming();
-          stopProgress();
+          // stopProgress();
+          setProgressVisible1(false);
 
           // Reset all states atomically to prevent race conditions
           setUltrastarData(null);
@@ -1110,7 +1101,10 @@ const ShowView: React.FC = () => {
       } else {
         // Clear ultrastar data for non-ultrastar songs - do this atomically
         stopUltrastarTiming();
-        stopProgress();
+        setProgressVisible1(false);
+        setProgressValue1(0);
+        setProgressVisible2(false);
+        setProgressValue2(0);
 
         // Reset all states atomically to prevent race conditions
         setUltrastarData(null);
@@ -1408,7 +1402,7 @@ const ShowView: React.FC = () => {
       }
     }
     setSongChanged(false);
-  }, [ultrastarData?.gap, songChanged, playing, getSingers, setShowLyrics1, setShowLyrics2, startProgress]);
+  }, [ultrastarData?.gap, songChanged, playing]);
 
   const handleAudioPlay = useCallback(async () => {
     setShowLyrics1(false);
@@ -1601,7 +1595,10 @@ const ShowView: React.FC = () => {
     if (currentSong?.id !== lastSongId) {
       // Stop all timing and progress first
       stopUltrastarTiming();
-      stopProgress();
+      setProgressVisible1(false);
+      setProgressValue1(0);
+      setProgressVisible2(false);
+      setProgressValue2(0);
 
       // Reset all states atomically to prevent race conditions
       setAudioLoaded(false);
@@ -1791,15 +1788,15 @@ const ShowView: React.FC = () => {
       />
 
       {/* Progress Bar Overlay */}
-      <ProgressOverlay $isVisible={progressVisible1} $isUltrastar={isUltrastar} $isSecond={false}>
-        <ProgressBarContainer $isUltrastar={isUltrastar}>
-          <ProgressBarFill $progress={progressValue1} />
+      <ProgressOverlay $isVisible={progressVisible1} $isUltrastar={isUltrastar} $isSecond={false} $isDuet={isDuet}>
+        <ProgressBarContainer $isUltrastar={isUltrastar} $isSecond={false}>
+          <ProgressBarFill $progress={progressValue1} $isSecond={false} />
         </ProgressBarContainer>
       </ProgressOverlay>
       {isDuet && (
-        <ProgressOverlay $isVisible={progressVisible2} $isUltrastar={isUltrastar} $isSecond={true}>
-          <ProgressBarContainer $isUltrastar={isUltrastar}>
-            <ProgressBarFill $progress={progressValue2} />
+        <ProgressOverlay $isVisible={progressVisible2} $isUltrastar={isUltrastar} $isSecond={true} $isDuet={isDuet}>
+          <ProgressBarContainer $isUltrastar={isUltrastar} $isSecond={true}>
+            <ProgressBarFill $progress={progressValue2} $isSecond={true} />
           </ProgressBarContainer>
         </ProgressOverlay>
       )}

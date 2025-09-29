@@ -8,7 +8,8 @@ import {
     GRAY,
     OVERLAY_BACKGROUND,
     NEXT_SONG_INFO_BACKGROUND,
-    UNSUNG_COLOR
+    UNSUNG_COLOR,
+    SECONDARY_COLOR
 } from './constants';
 
 export const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
@@ -446,33 +447,33 @@ export const ButtonsContainer = styled.div`
 `;
 
 
-export const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean; $isSecond: boolean }>`
+export const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean; $isSecond: boolean; $isDuet: boolean }>`
   position: absolute;
-  ${props => props.$isSecond ? 'bottom' : 'top'}: calc(50vh - 200px);
+  opacity: 1; ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  ${props => props.$isSecond ? 'bottom' : 'top'}: calc(50vh - ${props => props.$isDuet ? '420' : '200'}px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
-  opacity: ${props => props.$isVisible ? 1 : 0};
-  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
   transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
 `;
 
-export const ProgressBarContainer = styled.div<{ $isUltrastar: boolean }>`
+export const ProgressBarContainer = styled.div<{ $isUltrastar: boolean, $isSecond: boolean }>`
   width: 50vw;
   height: 40px;
   background: ${BLACK_BACKGROUND};
   border-radius: 4px;
-  border: 5px solid ${HIGHLIGHT_COLOR};
+  border: 5px solid ${props => props.$isSecond ? SECONDARY_COLOR : HIGHLIGHT_COLOR};
   overflow: hidden;
   box-shadow: 0 0 20px rgba(0, 0, 0, 1);
   transform: ${props => props.$isUltrastar ? 'scale(1)' : 'scale(0)'};
   transition: transform 0.3s ease-in-out;
 `;
 
-export const ProgressBarFill = styled.div<{ $progress: number }>`
+export const ProgressBarFill = styled.div<{ $progress: number, $isSecond: boolean }>`
   width: ${props => props.$progress}%;
   height: 100%;
-  background: ${HIGHLIGHT_COLOR};
+  background: ${props => props.$isSecond ? SECONDARY_COLOR : HIGHLIGHT_COLOR};
   border-radius: 0px;
   transition: width 0.1s ease-out;
 `;

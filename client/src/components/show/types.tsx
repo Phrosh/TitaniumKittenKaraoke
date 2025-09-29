@@ -82,5 +82,6 @@ export interface CurrentSong {
       value: number;
       intervalRef: React.MutableRefObject<NodeJS.Timeout | null>;
       setValue: (value: number) => void;
+      setVisible: (visible: boolean) => void;
     };
   }
