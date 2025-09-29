@@ -551,15 +551,15 @@ const ShowView: React.FC = () => {
 
                     noteSpan.style.position = 'relative';
                     noteSpan.style.display = 'inline-block';
-                    noteSpan.style.transform = 'scale(1.0)';
+                    // noteSpan.style.transform = 'scale(1.0)';
                     noteSpan.style.transition = 'transform 0.5s ease-in-out';
 
-                    // Apply scaling after DOM is ready
-                    setTimeout(() => {
-                      if (noteSpan.parentNode) {
-                        noteSpan.style.transform = 'scale(1.1)';
-                      }
-                    }, 0);
+                    // // Apply scaling after DOM is ready
+                    // setTimeout(() => {
+                    //   if (noteSpan.parentNode) {
+                    //     noteSpan.style.transform = 'scale(1.1)';
+                    //   }
+                    // }, 0);
 
                     const whiteSpan = document.createElement('span');
                     whiteSpan.style.color = UNSUNG_COLOR;
