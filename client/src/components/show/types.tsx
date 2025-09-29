@@ -67,6 +67,8 @@ export interface CurrentSong {
   export interface Singer {
     notes: UltrastarNote[];
     lines: UltrastarLine[];
+    setLyricsTransitionEnabled: (enabled: boolean) => void;
+    setLyricsScale: (scale: number) => void;
     singer: string;
     refs: {
       currentLyricRef: React.RefObject<HTMLDivElement>;

@@ -152,8 +152,13 @@ const ShowView: React.FC = () => {
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [canAutoPlay, setCanAutoPlay] = useState(false);
-  const [lyricsScale, setLyricsScale] = useState<number>(1);
-  const [lyricsTransitionEnabled, setLyricsTransitionEnabled] = useState(false);
+  // const [lyricsScale, setLyricsScale] = useState<number>(1);
+  // const [lyricsTransitionEnabled, setLyricsTransitionEnabled] = useState(false);
+
+  const [lyricsScaleP1, setLyricsScaleP1] = useState<number>(1);
+  const [lyricsScaleP2, setLyricsScaleP2] = useState<number>(1);
+  const [lyricsTransitionEnabledP1, setLyricsTransitionEnabledP1] = useState(false);
+  const [lyricsTransitionEnabledP2, setLyricsTransitionEnabledP2] = useState(false);
 
   const [progressVisible1, setProgressVisible1] = useState(false);
   const [progressValue1, setProgressValue1] = useState(0);
@@ -183,7 +188,6 @@ const ShowView: React.FC = () => {
     top: '55%',
     left: 0,
     right: 0,
-    transform: `translateY(-50%) scale(${lyricsScale})`,
     width: '100%',
     height: `334px`,
     background: 'rgba(0, 0, 0, 0.8)',
@@ -195,8 +199,9 @@ const ShowView: React.FC = () => {
     alignItems: 'center',
     justifyContent: 'center',
     opacity: showLyrics1 ? 1 : 0,
-    transition: `${lyricsTransitionEnabled ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
     whiteSpace: 'pre' as const,
+    transform: `translateY(-50%) scale(${lyricsScaleP1})`,
+    transition: `${lyricsTransitionEnabledP1 ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
     overflow: 'hidden' as const
   };
 
@@ -208,6 +213,8 @@ const ShowView: React.FC = () => {
   const lyricsDisplayStyle2 = {
     ...lyricsDisplayStyle,
     opacity: showLyrics2 ? 1 : 0,
+    transform: `translateY(-50%) scale(${lyricsScaleP2})`,
+    transition: `${lyricsTransitionEnabledP2 ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
     top: '65%',
   }
 
@@ -366,6 +373,8 @@ const ShowView: React.FC = () => {
         animationFrameRef: animationFrameRef1
       },
       setShowLyrics: setShowLyrics1,
+      setLyricsScale: setLyricsScaleP1,
+      setLyricsTransitionEnabled: setLyricsTransitionEnabledP1,
       progress: {
         visible: progressVisible1,
         value: progressValue1,
@@ -378,6 +387,8 @@ const ShowView: React.FC = () => {
       singers[0].lines = ultrastarData.lines[0] as UltrastarLine[];
       singers.push({
         singer: "P2",
+        setLyricsScale: setLyricsScaleP2,
+        setLyricsTransitionEnabled: setLyricsTransitionEnabledP2,
         lines: ultrastarData.lines[1] as UltrastarLine[],
         notes: ultrastarData.notes[1] as UltrastarNote[],
         refs: {
@@ -399,7 +410,7 @@ const ShowView: React.FC = () => {
       singers[0].notes = ultrastarData.notes as UltrastarNote[];
     }
     return singers;
-  }, [ultrastarData, currentLyricRef1, nextLyricRef1, nextNextLyricRef1, animationFrameRef1, currentLyricRef2, nextLyricRef2, nextNextLyricRef2, animationFrameRef2]);
+  }, [ultrastarData, currentLyricRef1, nextLyricRef1, nextNextLyricRef1, animationFrameRef1, currentLyricRef2, nextLyricRef2, nextNextLyricRef2, animationFrameRef2, setLyricsScaleP1, setLyricsScaleP2, setLyricsTransitionEnabledP1, setLyricsTransitionEnabledP2]);
 
   // Function to restart lyrics animation when audio resumes
   const restartLyricsAnimation = useCallback(() => {
@@ -506,13 +517,6 @@ const ShowView: React.FC = () => {
         }
         // Find current note based on time
         const currentBeat = songTime / beatDuration;
-
-        // Find notes that should be active now
-        // const activeNotes = singer.notes.filter((note: UltrastarNote) => {
-        //   const noteStartTime = note.startBeat * beatDuration;
-        //   const noteEndTime = (note.startBeat + note.duration) * beatDuration;
-        //   return currentBeat >= note.startBeat && currentBeat < note.startBeat + note.duration;
-        // });
 
         // Find current line and update display
         const currentLineIndex = singer.lines.findIndex((line: UltrastarLine) =>
@@ -838,7 +842,9 @@ const ShowView: React.FC = () => {
       // Reset all states atomically to prevent race conditions
       setShowLyrics1(false);
       setShowLyrics2(false);
-      setLyricsScale(0);
+      // setLyricsScale(0);
+      setLyricsScaleP1(0);
+      setLyricsScaleP2(0);
       stopProgress();
       setIsDuet(songData.isDuet);
 
@@ -999,7 +1005,8 @@ const ShowView: React.FC = () => {
           setUltrastarData(null);
           setShowLyrics1(false);
           setShowLyrics2(false);
-          setLyricsScale(0);
+          setLyricsScaleP1(0);
+          setLyricsScaleP2(0);
         }
 
         // Start timer for new song
@@ -1118,7 +1125,8 @@ const ShowView: React.FC = () => {
         setUltrastarData(null);
         setShowLyrics1(false);
         setShowLyrics2(false);
-        setLyricsScale(0);
+        setLyricsScaleP1(0);
+        setLyricsScaleP2(0);
       }
 
       // Start timer for new song
@@ -1379,50 +1387,37 @@ const ShowView: React.FC = () => {
   useEffect(() => {
     if (!songChanged || !playing || typeof ultrastarData?.gap === 'undefined') return;
     const singers = getSingers(ultrastarData);
-    if (ultrastarData && singers[0]?.lines && singers[0]?.lines.length > 0) {
-      const firstLine = [];
-      const beatDuration = (60000 / ultrastarData.bpm) / 4; // Beat duration in milliseconds
-      const firstLineStartTime = [];
-      const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS; // 4 seconds
-      const showTime = [];
-      const timeUntilFirstLine = [];
-      const secondsUntilFirstLine: number[] = [];
-      for (let i = 0; i < singers.length; i++) {
-        firstLine[i] = singers[i].lines[0];
-        firstLineStartTime[i] = ultrastarData.gap + (firstLine[i].startBeat * beatDuration);
-        showTime[i] = Math.max(0, firstLineStartTime[i] - 1000 * FADE_IN_ATTACK_SECONDS); // 10 seconds before first line
+    for (const singer of singers) {
+      if (ultrastarData && singer.lines && singer.lines.length > 0) {
+        const beatDuration = (60000 / ultrastarData.bpm) / 4; // Beat duration in milliseconds
+        const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS; // 4 seconds
+        const firstLine = singer.lines[0];
+        const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
+        const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS); // 10 seconds before first line
 
         // Calculate time until first line starts (for progress bar)
-        timeUntilFirstLine[i] = firstLineStartTime[i];
-        secondsUntilFirstLine[i] = timeUntilFirstLine[i] / 1000;
-      }
-      
-      const minShowTime = Math.min(...showTime);
-
-      if (minShowTime<= fadeInDuration) {
-        // Show immediately if not enough time for fade-in
-        setLyricsTransitionEnabled(false);
-        setLyricsScale(1);
-        setShowLyrics1(true);
-        setShowLyrics2(true);
-      } else {
-        setLyricsTransitionEnabled(true);
-        setTimeout(() => {
-          setLyricsScale(1);
-          setShowLyrics1(true);
-          setShowLyrics2(true);
-
-          // Start progress bar for first lyrics if there's enough time
-          for (let i = 0; i < singers.length; i++) {
+        const timeUntilFirstLine = firstLineStartTime;
+        const secondsUntilFirstLine = timeUntilFirstLine / 1000;
+  
+        if (showTime <= fadeInDuration) {
+          // Show immediately if not enough time for fade-in
+          singer.setLyricsTransitionEnabled(false);
+          singer.setLyricsScale(1);
+          singer.setShowLyrics(true);
+        } else {
+          singer.setLyricsTransitionEnabled(true);
+          setTimeout(() => {
+            singer.setLyricsScale(1);
+            singer.setShowLyrics(true);
             setTimeout(() => {
-              startProgress(secondsUntilFirstLine[i], singers[i]);
+              startProgress(secondsUntilFirstLine, singer);
             }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
-          }
-        }, minShowTime);
+          }, showTime);
+        }
       }
     }
     setSongChanged(false);
-  }, [ultrastarData?.gap, songChanged, playing, setLyricsScale, setShowLyrics1, setShowLyrics2, setLyricsTransitionEnabled, startProgress]);
+  }, [ultrastarData?.gap, songChanged, playing, getSingers, setShowLyrics1, setShowLyrics2, startProgress]);
 
   const handleAudioPlay = useCallback(async () => {
     setShowLyrics1(false);
