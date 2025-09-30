@@ -22,16 +22,20 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
         const boiledYoutubeArtist = boilDown(youtubeSong.artist || '');
         const boiledYoutubeTitle = boilDown(youtubeSong.title);
         
-        // Try individual artist/title matches
-        if (boilDownMatch(youtubeSong.artist || '', song.artist || '') || 
+        // Try combined match first (most precise)
+        const boiledCombined = boilDown(`${song.artist} - ${song.title}`);
+        const boiledYoutubeCombined = boilDown(`${youtubeSong.artist} - ${youtubeSong.title}`);
+        if (boiledCombined === boiledYoutubeCombined) {
+          return true;
+        }
+        
+        // Try both artist AND title match (both must match, not just one)
+        if (boilDownMatch(youtubeSong.artist || '', song.artist || '') && 
             boilDownMatch(youtubeSong.title, song.title)) {
           return true;
         }
         
-        // Try combined match
-        const boiledCombined = boilDown(`${song.artist} - ${song.title}`);
-        const boiledYoutubeCombined = boilDown(`${youtubeSong.artist} - ${youtubeSong.title}`);
-        return boiledCombined === boiledYoutubeCombined;
+        return false;
       });
     }
     

@@ -84,15 +84,19 @@ function findLocalVideo(artist, title) {
   // Try with boil down normalization
   if (!found) {
     found = videos.find(video => {
-      // Try individual artist/title matches
-      if (boilDownMatch(video.artist, artist) || boilDownMatch(video.title, title)) {
+      // Try combined match first (most precise)
+      const boiledCombined = boilDown(`${artist} - ${title}`);
+      const boiledVideoCombined = boilDown(`${video.artist} - ${video.title}`);
+      if (boiledCombined === boiledVideoCombined) {
         return true;
       }
       
-      // Try combined match
-      const boiledCombined = boilDown(`${artist} - ${title}`);
-      const boiledVideoCombined = boilDown(`${video.artist} - ${video.title}`);
-      return boiledCombined === boiledVideoCombined;
+      // Try both artist AND title match (both must match, not just one)
+      if (boilDownMatch(video.artist, artist) && boilDownMatch(video.title, title)) {
+        return true;
+      }
+      
+      return false;
     });
     
     if (found) {
@@ -101,16 +105,23 @@ function findLocalVideo(artist, title) {
     }
   }
   
-  // Try more flexible matching (fallback)
+  // Try more flexible matching (fallback) - but be more strict
   found = videos.find(video => {
     const videoArtist = video.artist.toLowerCase().trim();
     const videoTitle = video.title.toLowerCase().trim();
     const searchArtist = artist.toLowerCase().trim();
     const searchTitle = title.toLowerCase().trim();
     
+    // Clean search title from common tags like [DUET], [LIVE], etc.
+    const cleanSearchTitle = searchTitle.replace(/\s*\[.*?\]\s*/g, '').trim();
+    
     // Check if artist and title are contained in the video
-    return (videoArtist.includes(searchArtist) || searchArtist.includes(videoArtist)) &&
-           (videoTitle.includes(searchTitle) || searchTitle.includes(videoTitle));
+    // But require that the search title is contained in the video title (not the other way around)
+    // This prevents "Phantom of the Opera" from matching "Phantom of the Opera (live) [duet]"
+    const artistMatch = videoArtist.includes(searchArtist) || searchArtist.includes(videoArtist);
+    const titleMatch = videoTitle.includes(cleanSearchTitle);
+    
+    return artistMatch && titleMatch;
   });
   
   if (found) {
