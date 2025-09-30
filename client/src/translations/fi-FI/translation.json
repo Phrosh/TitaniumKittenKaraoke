@@ -443,5 +443,14 @@
     "success": "Onnistui",
     "warning": "Varoitus",
     "info": "Info"
+  },
+  "badges": {
+    "server": "Palvelin",
+    "file": "Tiedosto",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "YouTube-välimuisti",
+    "backgroundVocals": "BG",
+    "duett": "Duetto"
   }
 }

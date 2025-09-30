@@ -444,5 +444,14 @@
     "success": "Успех",
     "warning": "Предупреждение",
     "info": "Информация"
+  },
+  "badges": {
+    "server": "Сервер",
+    "file": "Файл",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "Кэш YouTube",
+    "backgroundVocals": "BG",
+    "duett": "Дуэт"
   }
 }

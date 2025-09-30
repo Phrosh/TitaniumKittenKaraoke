@@ -40,7 +40,7 @@ import SmallModeBadge from '../../../shared/SmallModeBadge';
 interface PlaylistTabProps {
   fetchDashboardData: () => void;
   dashboardData: AdminDashboardData;
-  setDashboardData: (data: AdminDashboardData) => void;
+  setDashboardData: (data: AdminDashboardData | null) => void;
   setActiveTab: (tab: string) => void;
   handleDeviceIdClick: (deviceId: string) => void;
   showQRCodeOverlay: boolean;
@@ -574,9 +574,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                 <SongItem
                   $isCurrent={isCurrent}
                   $hasNoYoutube={song.mode === 'youtube' && !song.youtube_url}
-                  $isPast={isPast}
+                  $isPast={isPast || false}
                   $isDragging={isDragging}
-                  $isDropTarget={isDropTarget}
+                  $isDropTarget={isDropTarget || false}
                   draggable
                   onDragStart={(e) => handleDragStart(e, song.id)}
                   onDragOver={(e) => handleDragOver(e, song.id)}
@@ -596,7 +596,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                       {song.user_name}
                       <DeviceId
                         $isCurrent={song.id === currentSong?.id}
-                        onClick={() => handleDeviceIdClick(song.device_id)}
+                        onClick={() => handleDeviceIdClick(song.device_id || '')}
                         title={t('playlist.clickToBan')}
                       >
                         📱 {song.device_id}
@@ -610,26 +610,38 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           handleCopyToClipboard(song);
                         }}
                       >
-                        {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                        {song.modes ? (
-                          song.modes.map((mode, index) => (
-                            <React.Fragment key={index}>
-                              <SmallModeBadge mode={mode} modes={[mode]} />
-                              {mode === 'ultrastar' && song.with_background_vocals && (
-                                // <HP5Badge>🎤 BG Vocals</HP5Badge>
-                                <SmallModeBadge mode="hp2" />
+                        {(() => {
+                          // Check if title contains [DUET] and clean it for display
+                          const isDuett = song.title.includes('[DUET]');
+                          const cleanTitle = isDuett ? song.title.replace(/\s*\[DUET\]\s*/gi, '').trim() : song.title;
+                          const displayTitle = song.artist ? `${song.artist} - ${cleanTitle}` : cleanTitle;
+                          
+                          return (
+                            <>
+                              {displayTitle}
+                              {song.modes ? (
+                                song.modes.map((mode, index) => (
+                                  <React.Fragment key={index}>
+                                    <SmallModeBadge mode={mode} modes={[mode]} />
+                                    {mode === 'ultrastar' && song.with_background_vocals && (
+                                      // <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                      <SmallModeBadge mode="hp2" />
+                                    )}
+                                  </React.Fragment>
+                                ))
+                              ) : (
+                                <>
+                                  <SmallModeBadge mode={song.mode || 'youtube'} modes={[song.mode || 'youtube']} />
+                                  {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
+                                    // <HP5Badge>🎤 BG Vocals</HP5Badge>
+                                    <SmallModeBadge mode="hp2" />
+                                  )}
+                                </>
                               )}
-                            </React.Fragment>
-                          ))
-                        ) : (
-                          <>
-                            <SmallModeBadge mode={song.mode || 'youtube'} modes={[song.mode || 'youtube']} />
-                            {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
-                              // <HP5Badge>🎤 BG Vocals</HP5Badge>
-                              <SmallModeBadge mode="hp2" />
-                            )}
-                          </>
-                        )}
+                              {isDuett && <SmallModeBadge mode="duett" />}
+                            </>
+                          );
+                        })()}
                       </SongTitle>
                       {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
                         <YouTubeField
@@ -729,13 +741,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     {/* modals */}
 
     <EditSongModal
-      show={showModal && formData}
+      show={showModal && !!formData}
       onClose={closeModal}
       onSave={handleSaveSong}
       modalType={modalType}
       formData={formData}
       setFormData={setFormData}
-      actionLoading={actionLoading}
     />
     <AddSongModal
       show={showAddSongModal}

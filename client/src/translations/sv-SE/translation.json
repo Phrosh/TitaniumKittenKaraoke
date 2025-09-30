@@ -444,5 +444,14 @@
     "success": "Framgång",
     "warning": "Varning",
     "info": "Info"
+  },
+  "badges": {
+    "server": "Server",
+    "file": "Fil",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "YouTube-cache",
+    "backgroundVocals": "BG",
+    "duett": "Duett"
   }
 }

@@ -444,5 +444,14 @@
     "success": "成功",
     "warning": "警告",
     "info": "信息"
+  },
+  "badges": {
+    "server": "服务器",
+    "file": "文件",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "YouTube缓存",
+    "backgroundVocals": "BG",
+    "duett": "二重唱"
   }
 }

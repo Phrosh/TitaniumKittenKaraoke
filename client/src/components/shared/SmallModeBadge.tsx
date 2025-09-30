@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useTranslation } from 'react-i18next';
 
 interface SmallModeBadgeProps {
   mode: string;
@@ -14,42 +15,50 @@ const SmallBadge = styled.span<{ $color: string; $background: string }>`
   border-radius: 4px;
   font-weight: 500;
   white-space: nowrap;
+  font-variant-emoji: text;
 `;
 
 const SmallModeBadge: React.FC<SmallModeBadgeProps> = ({
   mode,
   modes
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div style={{ display: 'flex', gap: '4px' }}>
       {modes?.includes('server_video') && (
         <SmallBadge $color="#28a745" $background="#d4edda">
-          🟢 Server
+          🟢 {t('badges.server')}
         </SmallBadge>
       )}
       {modes?.includes('file') && (
         <SmallBadge $color="#007bff" $background="#cce7ff">
-          🔵 Datei
+          🔵 {t('badges.file')}
         </SmallBadge>
       )}
       {modes?.includes('ultrastar') && (
         <SmallBadge $color="#8e44ad" $background="#e8d5f2">
-          ⭐ Ultrastar
+          ⭐ {t('badges.ultrastar')}
         </SmallBadge>
       )}
       {mode === 'youtube' && (
         <SmallBadge $color="#dc3545" $background="#f8d7da">
-          🔴 YouTube
+          🔴 {t('badges.youtube')}
         </SmallBadge>
       )}
       {modes?.includes('youtube_cache') && (
         <SmallBadge $color="#dc3545" $background="#f8d7da">
-          🎬 YouTube Cache
+          🎬 {t('badges.youtubeCache')}
         </SmallBadge> 
       )}
       {mode === 'hp2' && (
         <SmallBadge $color="#fd7e14" $background="#fff3cd">
-          🎤 BG
+          🎤 {t('badges.backgroundVocals')}
+        </SmallBadge>
+      )}
+      {mode === 'duett' && (
+        <SmallBadge $color="#0066cc" $background="#e6f3ff">
+          🎤🎤 {t('badges.duett')}
         </SmallBadge>
       )}
     </div>

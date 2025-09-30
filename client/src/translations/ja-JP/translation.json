@@ -444,5 +444,14 @@
     "success": "成功",
     "warning": "警告",
     "info": "情報"
+  },
+  "badges": {
+    "server": "サーバー",
+    "file": "ファイル",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "YouTubeキャッシュ",
+    "backgroundVocals": "BG",
+    "duett": "デュエット"
   }
 }

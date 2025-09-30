@@ -444,5 +444,14 @@
     "success": "성공",
     "warning": "경고",
     "info": "정보"
+  },
+  "badges": {
+    "server": "서버",
+    "file": "파일",
+    "ultrastar": "Ultrastar",
+    "youtube": "YouTube",
+    "youtubeCache": "YouTube 캐시",
+    "backgroundVocals": "BG",
+    "duett": "듀엣"
   }
 }

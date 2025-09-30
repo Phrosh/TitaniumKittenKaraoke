@@ -448,20 +448,31 @@ const SongList: React.FC<SongListProps> = ({
                                                 {/* Left side: Song info */}
                                                 <div style={{ flex: 1 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                        <div
-                                                            style={{
-                                                                fontWeight: '600',
-                                                                fontSize: '16px',
-                                                                color: '#333',
-                                                                cursor: 'pointer',
-                                                                userSelect: 'none'
-                                                            }}
-                                                            onClick={() => handleToggleSongVisibility(song)}
-                                                            title={t('songList.toggleVisibility')}
-                                                        >
-                                                            {song.artist} - {song.title}
-                                                        </div>
-                                                        <SmallModeBadge mode={song.mode} modes={song.modes} />
+                                                        {(() => {
+                                                            const isDuett = song.title.includes('[DUET]');
+                                                            const cleanTitle = isDuett ? song.title.replace(/\s*\[DUET\]\s*/gi, '').trim() : song.title;
+                                                            const displayTitle = song.artist ? `${song.artist} - ${cleanTitle}` : cleanTitle;
+                                                            
+                                                            return (
+                                                                <>
+                                                                    <div
+                                                                        style={{
+                                                                            fontWeight: '600',
+                                                                            fontSize: '16px',
+                                                                            color: '#333',
+                                                                            cursor: 'pointer',
+                                                                            userSelect: 'none'
+                                                                        }}
+                                                                        onClick={() => handleToggleSongVisibility(song)}
+                                                                        title={t('songList.toggleVisibility')}
+                                                                    >
+                                                                        {displayTitle}
+                                                                    </div>
+                                                                    <SmallModeBadge mode={song.mode} modes={song.modes} />
+                                                                    {isDuett && <SmallModeBadge mode="duett" />}
+                                                                </>
+                                                            );
+                                                        })()}
                                                         {hasMissingFiles(song) && (
                                                                 <span
                                                                     style={{
