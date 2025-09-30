@@ -529,7 +529,18 @@ const AdminDashboard: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>🎤 {t('adminDashboard.title')}</Title>
+        <Title>
+          <img 
+            src="/tkk-logo.png" 
+            alt="TKK Logo" 
+            style={{ 
+              height: '60px', 
+              marginRight: '15px',
+              verticalAlign: 'middle'
+            }} 
+          />
+          {t('adminDashboard.title')}
+        </Title>
         <LogoutButton onClick={handleLogout}>{t('adminDashboard.logout')}</LogoutButton>
       </Header>
 
