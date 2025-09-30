@@ -875,7 +875,7 @@ const SongRequest: React.FC = () => {
           />
           
           {/* USDB Search Status */}
-          {usdbSearchEnabled && searchTerm.trim() && (
+          {/* {usdbSearchEnabled && searchTerm.trim() && (
             <div style={{ 
               fontSize: '12px', 
               color: '#666', 
@@ -894,7 +894,7 @@ const SongRequest: React.FC = () => {
                 <>ℹ️ Keine USDB-Ergebnisse gefunden</>
               )}
             </div>
-          )}
+          )} */}
           
           <div style={{ display: 'flex', padding: '8px 10px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '10px', fontSize: '12px', fontWeight: '600', color: '#666' }}>
             <div style={{ flex: 1, paddingRight: '10px' }}>{t('songRequest.artist').toUpperCase()}</div>
