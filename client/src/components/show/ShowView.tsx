@@ -26,7 +26,8 @@ import {
   FADE_OUT_THRESHOLD_MS,
   FADE_IN_THRESHOLD_MS,
   START_BUTTON_MODE,
-  CURRENT_START_MODE
+  CURRENT_START_MODE,
+  BLACK_BACKGROUND
  } from './constants';
 import { 
   ProgressOverlay, 
@@ -115,24 +116,24 @@ const ShowView: React.FC = () => {
 
   const [isDuet, setIsDuet] = useState(false);
 
-  // CSS styles using constants
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
     top: '55%',
     left: 0,
     right: 0,
     width: '100%',
-    height: `334px`,
+    height: '25vh',
     background: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 0,
-    padding: '40px 20px',
+    padding: '4vh',
     zIndex: 10,
-    display: 'flex', //lyricsDisplay,
+    display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
     opacity: showLyrics1 ? 1 : 0,
     whiteSpace: 'pre' as const,
+    boxShadow: `0px 0px 20px ${BLACK_BACKGROUND}`,
     transform: `translateY(-50%) scale(${lyricsScaleP1})`,
     transition: `${lyricsTransitionEnabledP1 ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
     overflow: 'hidden' as const
@@ -152,26 +153,28 @@ const ShowView: React.FC = () => {
   }
 
   const currentLyricStyle = {
-    fontSize: '5rem',
+    fontSize: '7vh',
+    lineHeight: '7vh',
     fontWeight: 'bold',
     color: UNSUNG_COLOR,
     textAlign: 'center' as const,
     marginBottom: '10px',
     textShadow: '4px 4px 8px rgba(0, 0, 0, 1)',
-    minHeight: '5.5rem',
+    minHeight: '8vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   };
 
   const previewLyricStyle = {
-    fontSize: '3rem',
+    fontSize: '4vh',
+    lineHeight: '4vh',
     color: UNSUNG_COLOR,
     textAlign: 'center' as const,
     marginBottom: '5px',
     opacity: 0.7,
     textShadow: '4px 4px 8px rgba(0, 0, 0, 1)',
-    minHeight: '3.5rem',
+    minHeight: '5vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -1705,6 +1708,17 @@ const ShowView: React.FC = () => {
       }
     };
   }, [showCursor]);
+
+  // Handle window resize for responsive font sizes
+  useEffect(() => {
+    const handleResize = () => {
+      // Force re-render to update font sizes
+      setCurrentSong(prev => prev ? { ...prev } : null);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <ShowContainer

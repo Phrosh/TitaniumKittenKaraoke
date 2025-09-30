@@ -446,12 +446,11 @@ export const ButtonsContainer = styled.div`
   z-index: 20;
 `;
 
-
 export const ProgressOverlay = styled.div<{ $isVisible: boolean; $isUltrastar: boolean; $isSecond: boolean; $isDuet: boolean }>`
   position: absolute;
-  opacity: 1; ${props => props.$isVisible ? 1 : 0};
+  opacity: ${props => props.$isVisible ? 1 : 0};
   visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
-  ${props => props.$isSecond ? 'bottom' : 'top'}: calc(50vh - ${props => props.$isDuet ? '420' : '200'}px);
+  ${props => props.$isSecond ? 'bottom' : 'top'}: ${props => props.$isDuet ? '15vh' : '30vh'};
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
