@@ -1,10 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { adminAPI, showAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 import Button from '../../shared/Button';
+
+// Custom hook für Debouncing
+const useDebounce = (value: any, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 // Styled Components für SettingsTab
 const SettingsSection = styled.div`
@@ -185,6 +202,21 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [usdbSearchEnabled, setUsdbSearchEnabled] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
   
+  // Debounced values für Auto-Save
+  const debouncedRegressionValue = useDebounce(regressionValue, 2000);
+  const debouncedCustomUrl = useDebounce(customUrl, 2000);
+  const debouncedOverlayTitle = useDebounce(overlayTitle, 2000);
+  
+  // Flags um zu verhindern, dass Auto-Save beim ersten Laden ausgelöst wird
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Initiale Werte tracken um Änderungen zu erkennen
+  const [initialValues, setInitialValues] = useState({
+    regressionValue: 0.1,
+    customUrl: '',
+    overlayTitle: 'Willkommen beim Karaoke'
+  });
+  
   // Cloudflared State
   const [cloudflaredInstalled, setCloudflaredInstalled] = useState(false);
   const [cloudflaredInstallLoading, setCloudflaredInstallLoading] = useState(false);
@@ -205,23 +237,69 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
 
   // Load settings when component mounts
   useEffect(() => {
-    loadSettings();
+    loadSettings().then(() => {
+      // Nach dem Laden der Settings Auto-Save aktivieren
+      setTimeout(() => setIsInitialLoad(false), 1000);
+    });
   }, []);
+
+  // Auto-save für debounced Textfelder
+  useEffect(() => {
+    if (!isInitialLoad && debouncedRegressionValue !== initialValues.regressionValue) {
+      handleUpdateRegressionValue(debouncedRegressionValue, true);
+    }
+  }, [debouncedRegressionValue, isInitialLoad, initialValues.regressionValue]);
+
+  useEffect(() => {
+    if (!isInitialLoad && debouncedCustomUrl !== initialValues.customUrl) {
+      handleUpdateCustomUrl(debouncedCustomUrl, true);
+    }
+  }, [debouncedCustomUrl, isInitialLoad, initialValues.customUrl]);
+
+  useEffect(() => {
+    if (!isInitialLoad && debouncedOverlayTitle !== initialValues.overlayTitle) {
+      handleUpdateOverlayTitle(debouncedOverlayTitle, true);
+    }
+  }, [debouncedOverlayTitle, isInitialLoad, initialValues.overlayTitle]);
+
+  // Auto-save für Checkboxen (sofort)
+  const handleYouTubeEnabledChange = (checked: boolean) => {
+    setYoutubeEnabled(checked);
+    handleUpdateYouTubeEnabled(checked);
+  };
+
+  const handleAutoApproveSongsChange = (checked: boolean) => {
+    setAutoApproveSongs(checked);
+    handleUpdateAutoApproveSongs(checked);
+  };
+
+  const handleUsdbSearchEnabledChange = (checked: boolean) => {
+    setUsdbSearchEnabled(checked);
+    handleUpdateUSDBSearchEnabled(checked);
+  };
 
   // Load all settings
   const loadSettings = useCallback(async () => {
     try {
       // Fetch settings including regression value and custom URL
       const settingsResponse = await adminAPI.getSettings();
-      if (settingsResponse.data.settings.regression_value) {
-        setRegressionValue(parseFloat(settingsResponse.data.settings.regression_value));
-      }
-      if (settingsResponse.data.settings.custom_url) {
-        setCustomUrl(settingsResponse.data.settings.custom_url);
-      }
-      if (settingsResponse.data.settings.overlay_title) {
-        setOverlayTitle(settingsResponse.data.settings.overlay_title);
-      }
+      
+      // Setze die geladenen Werte
+      const loadedRegressionValue = settingsResponse.data.settings.regression_value ? 
+        parseFloat(settingsResponse.data.settings.regression_value) : 0.1;
+      const loadedCustomUrl = settingsResponse.data.settings.custom_url || '';
+      const loadedOverlayTitle = settingsResponse.data.settings.overlay_title || 'Willkommen beim Karaoke';
+      
+      setRegressionValue(loadedRegressionValue);
+      setCustomUrl(loadedCustomUrl);
+      setOverlayTitle(loadedOverlayTitle);
+      
+      // Setze die initialen Werte für Vergleich
+      setInitialValues({
+        regressionValue: loadedRegressionValue,
+        customUrl: loadedCustomUrl,
+        overlayTitle: loadedOverlayTitle
+      });
       if (settingsResponse.data.settings.youtube_enabled !== undefined) {
         setYoutubeEnabled(settingsResponse.data.settings.youtube_enabled === 'true');
       }
@@ -270,11 +348,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   };
 
   // Settings Management Functions
-  const handleUpdateRegressionValue = async () => {
+  const handleUpdateRegressionValue = async (value?: number, showToast: boolean = true) => {
+    const valueToSave = value !== undefined ? value : regressionValue;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateRegressionValue(regressionValue);
-      toast.success(t('settings.regressionValueUpdated'));
+      await adminAPI.updateRegressionValue(valueToSave);
+      if (showToast) {
+        toast.success(t('settings.regressionValueUpdated'));
+      }
     } catch (error) {
       console.error('Error updating regression value:', error);
       toast.error(t('settings.regressionValueError'));
@@ -283,11 +364,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
-  const handleUpdateCustomUrl = async () => {
+  const handleUpdateCustomUrl = async (value?: string, showToast: boolean = true) => {
+    const valueToSave = value !== undefined ? value : customUrl;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateCustomUrl(customUrl);
-      toast.success(t('settings.customUrlUpdated'));
+      await adminAPI.updateCustomUrl(valueToSave);
+      if (showToast) {
+        toast.success(t('settings.customUrlUpdated'));
+      }
     } catch (error) {
       console.error('Error updating custom URL:', error);
       toast.error(t('settings.customUrlError'));
@@ -378,11 +462,14 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
-  const handleUpdateOverlayTitle = async () => {
+  const handleUpdateOverlayTitle = async (value?: string, showToast: boolean = true) => {
+    const valueToSave = value !== undefined ? value : overlayTitle;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateOverlayTitle(overlayTitle);
-      toast.success(t('settings.overlayTitleUpdated'));
+      await adminAPI.updateOverlayTitle(valueToSave);
+      if (showToast) {
+        toast.success(t('settings.overlayTitleUpdated'));
+      }
     } catch (error) {
       console.error('Error updating overlay title:', error);
       toast.error(t('settings.overlayTitleError'));
@@ -391,10 +478,11 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
-  const handleUpdateYouTubeEnabled = async () => {
+  const handleUpdateYouTubeEnabled = async (value?: boolean) => {
+    const valueToSave = value !== undefined ? value : youtubeEnabled;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateYouTubeEnabled(youtubeEnabled);
+      await adminAPI.updateYouTubeEnabled(valueToSave);
       toast.success(t('settings.youtubeEnabledUpdated'));
     } catch (error) {
       console.error('Error updating YouTube setting:', error);
@@ -404,10 +492,11 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
-  const handleUpdateAutoApproveSongs = async () => {
+  const handleUpdateAutoApproveSongs = async (value?: boolean) => {
+    const valueToSave = value !== undefined ? value : autoApproveSongs;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateAutoApproveSongs(autoApproveSongs);
+      await adminAPI.updateAutoApproveSongs(valueToSave);
       toast.success(t('settings.autoApproveSongsUpdated'));
     } catch (error) {
       console.error('Error updating auto approve songs:', error);
@@ -417,10 +506,11 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
-  const handleUpdateUSDBSearchEnabled = async () => {
+  const handleUpdateUSDBSearchEnabled = async (value?: boolean) => {
+    const valueToSave = value !== undefined ? value : usdbSearchEnabled;
     setSettingsLoading(true);
     try {
-      await adminAPI.updateUSDBSearchEnabled(usdbSearchEnabled);
+      await adminAPI.updateUSDBSearchEnabled(valueToSave);
       toast.success(t('settings.usdbSearchEnabledUpdated'));
     } catch (error) {
       console.error('Error updating USDB search enabled:', error);
@@ -564,16 +654,8 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             value={regressionValue}
             onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
         />
-        <Button 
-          onClick={handleUpdateRegressionValue}
-          disabled={settingsLoading}
-          size="small"
-          style={{ marginRight: '10px' }}
-        >
-          {settingsLoading ? t('settings.saving') : t('settings.save')}
-        </Button>
         <SettingsDescription>
-          {t('settings.regressionValueDescription')}
+          {t('settings.regressionValueDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
         </SettingsDescription>
       </SettingsCard>
       
@@ -595,14 +677,6 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               style={{ minWidth: '300px' }}
             />
             <Button 
-              onClick={handleUpdateCustomUrl}
-              disabled={settingsLoading}
-              size="small"
-              style={{ marginRight: '10px' }}
-            >
-              {settingsLoading ? t('settings.saving') : t('settings.save')}
-            </Button>
-            <Button 
               onClick={handleCopyUrlToClipboard}
               disabled={!customUrl}
               size="small"
@@ -616,7 +690,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             </Button>
           </InputGroup>
           <SettingsDescription style={{ color: '#0c5460' }}>
-            {t('settings.customUrlDescription')}
+            {t('settings.customUrlDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
           </SettingsDescription>
         </div>
         
@@ -682,15 +756,8 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           onChange={(e) => setOverlayTitle(e.target.value)}
           style={{ minWidth: '300px' }}
         />
-        <Button 
-          onClick={handleUpdateOverlayTitle}
-          disabled={settingsLoading}
-          size="small"
-        >
-          {settingsLoading ? t('settings.saving') : t('settings.save')}
-        </Button>
         <SettingsDescription>
-          {t('settings.overlayTitleDescription')}
+          {t('settings.overlayTitleDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
         </SettingsDescription>
       </SettingsCard>
       
@@ -704,20 +771,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             <CheckboxInput
               type="checkbox"
               checked={youtubeEnabled}
-              onChange={(e) => setYoutubeEnabled(e.target.checked)}
+              onChange={(e) => handleYouTubeEnabledChange(e.target.checked)}
             />
             <CheckboxText>
               {youtubeEnabled ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
-          <Button 
-            onClick={handleUpdateYouTubeEnabled}
-            disabled={settingsLoading}
-            size="small"
-            style={{ marginLeft: '10px' }}
-          >
-            {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </Button>
+          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
         </CheckboxContainer>
         <SettingsDescription>
           {t('settings.youtubeEnabledDescription')}
@@ -734,20 +794,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             <CheckboxInput
               type="checkbox"
               checked={autoApproveSongs}
-              onChange={(e) => setAutoApproveSongs(e.target.checked)}
+              onChange={(e) => handleAutoApproveSongsChange(e.target.checked)}
             />
             <CheckboxText>
               {autoApproveSongs ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
-          <Button 
-            onClick={handleUpdateAutoApproveSongs}
-            disabled={settingsLoading}
-            size="small"
-            style={{ marginLeft: '10px' }}
-          >
-            {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </Button>
+          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
         </CheckboxContainer>
         <SettingsDescription>
           {t('settings.autoApproveSongsDescription')}
@@ -764,20 +817,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             <CheckboxInput
               type="checkbox"
               checked={usdbSearchEnabled}
-              onChange={(e) => setUsdbSearchEnabled(e.target.checked)}
+              onChange={(e) => handleUsdbSearchEnabledChange(e.target.checked)}
             />
             <CheckboxText>
               {usdbSearchEnabled ? t('settings.enabled') : t('settings.disabled')}
             </CheckboxText>
           </CheckboxLabel>
-          <Button 
-            onClick={handleUpdateUSDBSearchEnabled}
-            disabled={settingsLoading}
-            size="small"
-            style={{ marginLeft: '10px' }}
-          >
-            {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </Button>
+          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
         </CheckboxContainer>
         <SettingsDescription>
           {t('settings.usdbSearchEnabledDescription')}
