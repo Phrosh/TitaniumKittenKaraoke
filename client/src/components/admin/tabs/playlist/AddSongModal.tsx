@@ -8,8 +8,8 @@ interface AddSongModalProps {
   show: boolean;
   onClose: () => void;
   onSave: () => void;
-  addSongData: { singerName: string; artist: string; title: string; youtubeUrl: string };
-  setAddSongData: (data: { singerName: string; artist: string; title: string; youtubeUrl: string }) => void;
+  addSongData: { singerName: string; artist: string; title: string; youtubeUrl: string; withBackgroundVocals: boolean };
+  setAddSongData: (data: { singerName: string; artist: string; title: string; youtubeUrl: string; withBackgroundVocals: boolean }) => void;
   manualSongList: any[];
 }
 
@@ -98,13 +98,13 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
               artist={addSongData.artist}
               title={addSongData.title}
               youtubeUrl={addSongData.youtubeUrl}
-              withBackgroundVocals={false}
+              withBackgroundVocals={Boolean((addSongData as any).withBackgroundVocals)}
               onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
               songData={addSongData}
               setSongData={setAddSongData}
               setSongSearchTerm={setAddSongSearchTerm}
               onYoutubeUrlChange={(value) => setAddSongData(prev => ({ ...prev, youtubeUrl: value }))}
-              onWithBackgroundVocalsChange={() => {}} // Not used in Add Song Modal
+              onWithBackgroundVocalsChange={(checked) => setAddSongData(prev => ({ ...prev, withBackgroundVocals: checked }))}
               showSongList={true}
               songList={filteredAddSongs}
               onSongSelect={handleSelectAddSong}

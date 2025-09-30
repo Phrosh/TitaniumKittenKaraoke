@@ -87,6 +87,21 @@ cd ..
 - **macOS**: `brew install ffmpeg`
 - **Linux**: `sudo apt-get install ffmpeg` (or use your distribution's package manager)
 
+#### Windows: Add FFmpeg to PATH (step-by-step)
+1. Download the latest FFmpeg release and extract the archive (e.g., to `C:\ffmpeg`).
+2. Locate the `bin` folder, e.g., `C:\ffmpeg\bin`.
+3. Press `Win` and search for "Environment Variables", open "Edit the system environment variables".
+4. Click "Environment Variables...".
+5. Under "System variables", select `Path` and click "Edit".
+6. Click "New" and paste the path to your `bin` folder (e.g., `C:\ffmpeg\bin`).
+7. Confirm all dialogs with "OK" and restart your terminal or IDE.
+
+To verify installation, run in a new terminal:
+```bash
+ffmpeg -version
+```
+You should see version information instead of a "not recognized" error.
+
 ## 🎮 Usage
 
 ### Starting the Server

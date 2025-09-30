@@ -80,7 +80,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     singerName: '',
     artist: '',
     title: '',
-    youtubeUrl: ''
+    youtubeUrl: '',
+    withBackgroundVocals: false
   });
   const [manualSongList, setManualSongList] = useState<any[]>([]);
 
@@ -240,8 +241,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       const [reorderedItem] = newPlaylist.splice(draggedIndex, 1);
       newPlaylist.splice(targetIndex, 0, reorderedItem);
 
-      setDashboardData(prev => prev ? {
-        ...prev,
+      setDashboardData(dashboardData ? {
+        ...dashboardData,
         playlist: newPlaylist
       } : null);
 
@@ -425,7 +426,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       singerName: '',
       artist: '',
       title: '',
-      youtubeUrl: ''
+      youtubeUrl: '',
+      withBackgroundVocals: false
     });
   };
 
@@ -453,6 +455,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         name: addSongData.singerName,
         songInput: songInput,
         deviceId: 'ADM' // Admin device ID
+        ,
+        withBackgroundVocals: addSongData.withBackgroundVocals
       });
       toast.success(t('playlist.songAdded'));
 
@@ -482,14 +486,13 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             </Button>
           </div>
           <CenterButtons>
-            <Button
+            <QRCodeToggleButton
               onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
-              variant={showQRCodeOverlay ? 'secondary' : 'default'}
-              size="small"
+              $active={showQRCodeOverlay}
               style={{ marginRight: '10px' }}
             >
               📱 {showQRCodeOverlay ? t('playlist.overlayHide') : t('playlist.overlayShow')}
-            </Button>
+            </QRCodeToggleButton>
 
             {/* Control Buttons */}
             <ControlButtonGroup>
