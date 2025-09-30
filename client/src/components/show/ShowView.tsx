@@ -1243,6 +1243,12 @@ const ShowView: React.FC = () => {
         setPlaying(true);
         setSongChanged(true);
         
+        // Reset timer for restart
+        if (currentSong && currentSong.duration_seconds) {
+          setVideoStartTime(Date.now());
+          setTimeRemaining(currentSong.duration_seconds);
+        }
+        
         // Show preview lyrics immediately after reset
         setTimeout(() => {
           if (ultrastarData.isDuet) {
@@ -1293,6 +1299,12 @@ const ShowView: React.FC = () => {
           console.error('🎬 Error restarting video playback:', error);
         });
         setIsPlaying(true);
+        
+        // Reset timer for restart
+        if (currentSong && currentSong.duration_seconds) {
+          setVideoStartTime(Date.now());
+          setTimeRemaining(currentSong.duration_seconds);
+        }
       } else if (currentSong?.mode === 'server_video' || currentSong?.mode === 'file' || currentSong?.mode === 'youtube_cache') {
         if (videoRef.current) {
           console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
@@ -1303,6 +1315,12 @@ const ShowView: React.FC = () => {
           });
           setIsPlaying(true);
           console.log('🎬 Video play() called, isPlaying set to true');
+          
+          // Reset timer for restart
+          if (currentSong && currentSong.duration_seconds) {
+            setVideoStartTime(Date.now());
+            setTimeRemaining(currentSong.duration_seconds);
+          }
         } else {
           console.log('❌ Video ref is null for server/file/youtube-cache video');
         }
