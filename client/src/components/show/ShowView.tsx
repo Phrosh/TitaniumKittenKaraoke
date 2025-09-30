@@ -1709,16 +1709,32 @@ const ShowView: React.FC = () => {
     };
   }, [showCursor]);
 
-  // Handle window resize for responsive font sizes
+  // Handle window resize for responsive font sizes and ref cleanup
   useEffect(() => {
     const handleResize = () => {
       // Force re-render to update font sizes
       setCurrentSong(prev => prev ? { ...prev } : null);
+      
+      // Restart ultrastar timing if currently playing to refresh refs
+      if (ultrastarData && audioRef.current && !audioRef.current.paused && isPlaying) {
+        console.log('🔄 Resize detected - restarting ultrastar timing to refresh refs');
+        
+        // Stop current timing
+        stopUltrastarTiming();
+        
+        // Restart timing with fresh refs after a short delay
+        setTimeout(() => {
+          if (ultrastarData && audioRef.current && !audioRef.current.paused) {
+            const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
+            startUltrastarTiming(ultrastarData, fadeOutIndices);
+          }
+        }, 100);
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [ultrastarData, isPlaying, stopUltrastarTiming, startUltrastarTiming, analyzeFadeOutLines]);
 
   return (
     <ShowContainer
