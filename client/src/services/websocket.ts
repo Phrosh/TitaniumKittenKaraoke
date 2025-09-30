@@ -36,6 +36,8 @@ export interface AdminUpdateData {
     mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
+    status?: string;
+    download_status?: string;
   }>;
   currentSong: {
     id: number;
@@ -65,6 +67,8 @@ export interface PlaylistUpdateData {
     mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
     youtube_url: string;
     with_background_vocals: boolean;
+    status?: string;
+    download_status?: string;
   }>;
   currentSong: {
     id: number;
