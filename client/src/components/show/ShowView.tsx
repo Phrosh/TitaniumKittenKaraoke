@@ -117,6 +117,9 @@ const ShowView: React.FC = () => {
 
   // Progress bar state
   const timingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Timer ref for song duration
+  const songTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isDuet, setIsDuet] = useState(false);
 
@@ -1245,6 +1248,11 @@ const ShowView: React.FC = () => {
         
         // Reset timer for restart
         if (currentSong && currentSong.duration_seconds) {
+          // Clear existing timer first
+          if (songTimerRef.current) {
+            clearInterval(songTimerRef.current);
+            songTimerRef.current = null;
+          }
           setVideoStartTime(Date.now());
           setTimeRemaining(currentSong.duration_seconds);
         }
@@ -1302,6 +1310,11 @@ const ShowView: React.FC = () => {
         
         // Reset timer for restart
         if (currentSong && currentSong.duration_seconds) {
+          // Clear existing timer first
+          if (songTimerRef.current) {
+            clearInterval(songTimerRef.current);
+            songTimerRef.current = null;
+          }
           setVideoStartTime(Date.now());
           setTimeRemaining(currentSong.duration_seconds);
         }
@@ -1318,6 +1331,11 @@ const ShowView: React.FC = () => {
           
           // Reset timer for restart
           if (currentSong && currentSong.duration_seconds) {
+            // Clear existing timer first
+            if (songTimerRef.current) {
+              clearInterval(songTimerRef.current);
+              songTimerRef.current = null;
+            }
             setVideoStartTime(Date.now());
             setTimeRemaining(currentSong.duration_seconds);
           }
@@ -1344,7 +1362,13 @@ const ShowView: React.FC = () => {
   useEffect(() => {
     if (!videoStartTime || !timeRemaining) return;
 
-    const timer = setInterval(() => {
+    // Clear any existing timer
+    if (songTimerRef.current) {
+      clearInterval(songTimerRef.current);
+      songTimerRef.current = null;
+    }
+
+    songTimerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - videoStartTime) / 1000);
       const remaining = Math.max(0, timeRemaining - elapsed);
 
@@ -1354,10 +1378,19 @@ const ShowView: React.FC = () => {
       if (remaining <= 0) {
         setVideoStartTime(null);
         setTimeRemaining(null);
+        if (songTimerRef.current) {
+          clearInterval(songTimerRef.current);
+          songTimerRef.current = null;
+        }
       }
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      if (songTimerRef.current) {
+        clearInterval(songTimerRef.current);
+        songTimerRef.current = null;
+      }
+    };
   }, [videoStartTime, timeRemaining, currentSong?.duration_seconds]);
 
 
