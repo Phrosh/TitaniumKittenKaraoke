@@ -20,11 +20,13 @@ import sys
 import logging
 import argparse
 import json
+import re
 from pathlib import Path
 import torch
 import whisper
 import soundfile as sf
 import numpy as np
+from mutagen import File as MutagenFile
 
 # Setup logging
 logging.basicConfig(
@@ -196,14 +198,15 @@ class MusicToLyrics:
             logger.error(f"Fehler bei der Transkription: {e}")
             raise
     
-    def save_lyrics(self, transcription_result, output_path, format="txt"):
+    def save_lyrics(self, transcription_result, output_path, format="txt", audio_path=None):
         """
         Speichert Lyrics in verschiedenen Formaten
         
         Args:
             transcription_result (dict): Whisper-Transkriptionsergebnis
             output_path (str): Ausgabepfad (ohne Extension)
-            format (str): Format ("txt", "json", "srt", "vtt")
+            format (str): Format ("txt", "json", "srt", "vtt", "ultrastar")
+            audio_path (str): Pfad zur Original-Audiodatei für Metadaten
         """
         try:
             logger.info(f"Speichere Lyrics in Format: {format}")
@@ -216,10 +219,15 @@ class MusicToLyrics:
                 self._save_srt(transcription_result, f"{output_path}.srt")
             elif format == "vtt":
                 self._save_vtt(transcription_result, f"{output_path}.vtt")
+            elif format == "ultrastar":
+                self._save_ultrastar(transcription_result, f"{output_path}_ultrastar.txt", audio_path)
             else:
                 raise ValueError(f"Unbekanntes Format: {format}")
             
-            logger.info(f"Lyrics gespeichert: {output_path}.{format}")
+            if format == "ultrastar":
+                logger.info(f"Lyrics gespeichert: {output_path}_ultrastar.txt")
+            else:
+                logger.info(f"Lyrics gespeichert: {output_path}.{format}")
             
         except Exception as e:
             logger.error(f"Fehler beim Speichern der Lyrics: {e}")
@@ -293,6 +301,241 @@ class MusicToLyrics:
         secs = seconds % 60
         return f"{hours:02d}:{minutes:02d}:{secs:06.3f}"
     
+    def _extract_metadata(self, audio_path):
+        """Extrahiert Metadaten aus der Audiodatei"""
+        try:
+            audio_file = MutagenFile(audio_path)
+            if audio_file is None:
+                return self._extract_metadata_from_filename(audio_path)
+            
+            # Extrahiere Metadaten
+            title = None
+            artist = None
+            
+            # Versuche verschiedene Tag-Felder
+            if 'TIT2' in audio_file:  # ID3v2 Title
+                title = str(audio_file['TIT2'][0])
+            elif 'TITLE' in audio_file:  # Vorbis Title
+                title = str(audio_file['TITLE'][0])
+            elif 'TIT1' in audio_file:  # ID3v2 Content Type
+                title = str(audio_file['TIT1'][0])
+            
+            if 'TPE1' in audio_file:  # ID3v2 Artist
+                artist = str(audio_file['TPE1'][0])
+            elif 'ARTIST' in audio_file:  # Vorbis Artist
+                artist = str(audio_file['ARTIST'][0])
+            elif 'TPE2' in audio_file:  # ID3v2 Album Artist
+                artist = str(audio_file['TPE2'][0])
+            
+            # Fallback auf Dateinamen
+            if not title or not artist:
+                filename_title, filename_artist = self._extract_metadata_from_filename(audio_path)
+                title = title or filename_title
+                artist = artist or filename_artist
+            
+            return title, artist
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Extrahieren der Metadaten: {e}")
+            return self._extract_metadata_from_filename(audio_path)
+    
+    def _extract_metadata_from_filename(self, audio_path):
+        """Extrahiert Titel und Interpret aus dem Dateinamen"""
+        try:
+            filename = os.path.splitext(os.path.basename(audio_path))[0]
+            
+            # Versuche "Artist - Title" Format
+            if ' - ' in filename:
+                parts = filename.split(' - ', 1)
+                artist = parts[0].strip()
+                title = parts[1].strip()
+            else:
+                # Fallback: Dateiname als Titel, "Unknown" als Artist
+                title = filename
+                artist = "Unknown"
+            
+            return title, artist
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Extrahieren aus Dateinamen: {e}")
+            return "Unknown Title", "Unknown Artist"
+    
+    def _save_ultrastar(self, result, output_path, audio_path):
+        """Speichert Lyrics als UltraStar-Datei"""
+        try:
+            # Extrahiere Metadaten
+            title, artist = self._extract_metadata(audio_path) if audio_path else ("Unknown Title", "Unknown Artist")
+            
+            # Berechne BPM (geschätzt basierend auf Segment-Längen)
+            bpm = self._estimate_bpm(result)
+            
+            # Finde die erste Note und berechne GAP
+            first_note_time = None
+            if result.get('segments') and len(result['segments']) > 0:
+                for segment in result['segments']:
+                    words = segment.get('words', [])
+                    if words:
+                        first_note_time = words[0]['start']
+                        break
+                    elif segment['text'].strip():
+                        first_note_time = segment['start']
+                        break
+            
+            # Berechne GAP basierend auf erster Note
+            gap = 0
+            if first_note_time is not None:
+                # GAP = Zeit bis zur ersten Note in Millisekunden
+                gap = int(first_note_time * 1000)
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                # UltraStar Header
+                f.write(f"#TITLE:{title}\n")
+                f.write(f"#ARTIST:{artist}\n")
+                f.write(f"#LANGUAGE:{result.get('language', 'English')}\n")
+                f.write(f"#GENRE:Pop\n")
+                f.write(f"#YEAR:2024\n")
+                f.write(f"#MP3:{os.path.basename(audio_path) if audio_path else 'audio.mp3'}\n")
+                f.write(f"#BPM:{bpm}\n")
+                f.write(f"#GAP:{gap}\n")
+                f.write(f"#VERSION:1.1.0\n")
+                f.write("\n")
+                
+                # Konvertiere Whisper-Segmente zu UltraStar-Noten
+                current_beat = 0
+                note_id = 0
+                is_first_note = True
+                
+                for segment in result.get('segments', []):
+                    segment_start = segment['start']
+                    segment_text = segment['text'].strip()
+                    
+                    if not segment_text:
+                        continue
+                    
+                    # Teile Segment in Wörter auf
+                    words = segment.get('words', [])
+                    if not words:
+                        # Fallback: Teile Text manuell
+                        word_texts = segment_text.split()
+                        word_duration = (segment['end'] - segment['start']) / len(word_texts) if word_texts else 1.0
+                        
+                        for i, word_text in enumerate(word_texts):
+                            word_start = segment_start + (i * word_duration)
+                            word_end = word_start + word_duration
+                            
+                            # Konvertiere zu Beats (relativ zur ersten Note)
+                            if is_first_note:
+                                start_beat = 0
+                                is_first_note = False
+                            else:
+                                start_beat = int(self._seconds_to_beats(word_start - first_note_time, bpm))
+                            
+                            duration_beats = int(self._seconds_to_beats(word_end - first_note_time, bpm)) - start_beat
+                            
+                            # Mindestdauer für UltraStar
+                            if duration_beats <= 0:
+                                duration_beats = 1
+                            
+                            # UltraStar Note mit korrektem Leerzeichen
+                            if is_first_note or start_beat == 0:
+                                f.write(f": {start_beat} {duration_beats} 60 {word_text}\n")
+                            else:
+                                f.write(f": {start_beat} {duration_beats} 60  {word_text}\n")
+                            note_id += 1
+                    else:
+                        # Verwende Word-Timestamps
+                        for word in words:
+                            word_start = word['start']
+                            word_end = word['end']
+                            word_text = word['word'].strip()
+                            
+                            if not word_text:
+                                continue
+                            
+                            # Konvertiere zu Beats (relativ zur ersten Note)
+                            if is_first_note:
+                                start_beat = 0
+                                is_first_note = False
+                            else:
+                                start_beat = int(self._seconds_to_beats(word_start - first_note_time, bpm))
+                            
+                            duration_beats = int(self._seconds_to_beats(word_end - first_note_time, bpm)) - start_beat
+                            
+                            # Mindestdauer für UltraStar
+                            if duration_beats <= 0:
+                                duration_beats = 1
+                            
+                            # UltraStar Note mit korrektem Leerzeichen
+                            if is_first_note or start_beat == 0:
+                                f.write(f": {start_beat} {duration_beats} 60 {word_text}\n")
+                            else:
+                                f.write(f": {start_beat} {duration_beats} 60  {word_text}\n")
+                            note_id += 1
+                    
+                    # Zeilenumbruch nach Segment
+                    if segment['end'] < result.get('segments', [{}])[-1].get('end', 0):
+                        end_beat = int(self._seconds_to_beats(segment['end'] - first_note_time, bpm))
+                        f.write(f"- {end_beat}\n")
+                
+                # Ende der Datei
+                f.write("E\n")
+            
+            logger.info(f"UltraStar-Datei erstellt: {output_path}")
+            logger.info(f"  Titel: {title}")
+            logger.info(f"  Interpret: {artist}")
+            logger.info(f"  BPM: {bpm}")
+            logger.info(f"  GAP: {gap}ms")
+            logger.info(f"  Noten: {note_id}")
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Erstellen der UltraStar-Datei: {e}")
+            raise
+    
+    def _estimate_bpm(self, result):
+        """Schätzt BPM basierend auf Segment-Längen"""
+        try:
+            segments = result.get('segments', [])
+            if not segments:
+                return 120  # Default BPM
+            
+            # Berechne durchschnittliche Segment-Länge
+            total_duration = 0
+            segment_count = 0
+            
+            for segment in segments:
+                duration = segment['end'] - segment['start']
+                if duration > 0.5:  # Ignoriere sehr kurze Segmente
+                    total_duration += duration
+                    segment_count += 1
+            
+            if segment_count == 0:
+                return 120
+            
+            avg_segment_duration = total_duration / segment_count
+            
+            # Schätze BPM basierend auf typischer Segment-Länge
+            # Typische Lieder haben 2-4 Sekunden pro Segment
+            if avg_segment_duration < 1.5:
+                return 140  # Schnelles Lied
+            elif avg_segment_duration < 2.5:
+                return 120  # Mittleres Tempo
+            elif avg_segment_duration < 4.0:
+                return 100  # Langsameres Lied
+            else:
+                return 80   # Sehr langsames Lied
+                
+        except Exception as e:
+            logger.warning(f"Fehler bei BPM-Schätzung: {e}")
+            return 120
+    
+    def _seconds_to_beats(self, seconds, bpm):
+        """Konvertiert Sekunden zu UltraStar-Beats"""
+        # UltraStar verwendet 1/4 Beats
+        # 1 Beat = 60 / BPM Sekunden
+        # 1/4 Beat = 15 / BPM Sekunden
+        # Umgekehrte Formel: Beats = Sekunden * BPM / 15
+        return seconds * bpm / 15
+    
     def process_audio(self, audio_path, model_type="HP5", language=None, output_formats=["txt", "json"]):
         """
         Hauptfunktion: Verarbeitet Audio zu Lyrics
@@ -321,14 +564,14 @@ class MusicToLyrics:
             output_base = os.path.join(output_dir, f"{base_name}_lyrics")
             
             for format in output_formats:
-                self.save_lyrics(transcription_result, output_base, format)
+                self.save_lyrics(transcription_result, output_base, format, audio_path)
             
             result = {
                 "success": True,
                 "audio_path": audio_path,
                 "vocals_path": vocals_path,
                 "instrumental_path": instrumental_path,
-                "output_files": [f"{output_base}.{fmt}" for fmt in output_formats],
+                "output_files": [f"{output_base}.{fmt}" if fmt != "ultrastar" else f"{output_base}_ultrastar.txt" for fmt in output_formats],
                 "language": transcription_result.get('language'),
                 "word_count": sum(len(segment.get('words', [])) for segment in transcription_result.get('segments', [])),
                 "duration": transcription_result.get('segments', [{}])[-1].get('end', 0) if transcription_result.get('segments') else 0
@@ -388,9 +631,9 @@ Beispiele:
     parser.add_argument(
         "--formats",
         nargs="+",
-        choices=["txt", "json", "srt", "vtt"],
-        default=["txt", "json"],
-        help="Ausgabeformate (Standard: txt json)"
+        choices=["txt", "json", "srt", "vtt", "ultrastar"],
+        default=["txt", "json", "ultrastar"],
+        help="Ausgabeformate (Standard: txt json ultrastar)"
     )
     
     parser.add_argument(
