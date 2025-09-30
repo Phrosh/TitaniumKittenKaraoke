@@ -469,9 +469,6 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   };
 
 
-
-
-
   return <>
     <PlaylistContainer>
       <PlaylistHeader>
@@ -487,7 +484,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           <CenterButtons>
             <Button
               onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
-              variant={showQRCodeOverlay ? 'success' : 'secondary'}
+              variant={showQRCodeOverlay ? 'secondary' : 'default'}
               size="small"
               style={{ marginRight: '10px' }}
             >
@@ -537,6 +534,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             <Button
               onClick={() => setShowPastSongs(!showPastSongs)}
               size="small"
+              variant={showPastSongs ? 'secondary' : 'default'}
               style={{ marginRight: '8px' }}
             >
               📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
