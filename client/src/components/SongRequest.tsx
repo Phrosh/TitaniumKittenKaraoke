@@ -715,10 +715,32 @@ const SongRequest: React.FC = () => {
     ? [...allSongs, ...usdbResults] 
     : allSongs;
   
-  const filteredVideos = songsWithUSDB.filter(video =>
-    video.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${video.artist} - ${video.title}`.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredVideos = songsWithUSDB.filter(video => {
+    const searchLower = searchTerm.toLowerCase();
+    const fullSongName = `${video.artist} - ${video.title}`.toLowerCase();
+    
+    // Check if search term contains " - " (interpret - songtitel format)
+    if (searchLower.includes(' - ')) {
+      // For "interpret - songtitel" format, require both artist AND title to match
+      const [searchArtist, searchTitle] = searchLower.split(' - ').map(s => s.trim());
+      const videoArtist = video.artist.toLowerCase();
+      const videoTitle = video.title.toLowerCase();
+      
+      return videoArtist.includes(searchArtist) && videoTitle.includes(searchTitle);
+    } else {
+      // For single terms, search in artist, title, or full name
+      return video.artist.toLowerCase().includes(searchLower) ||
+             video.title.toLowerCase().includes(searchLower) ||
+             fullSongName.includes(searchLower);
+    }
+  });
+
+  // Remove duplicates based on artist and title combination
+  const uniqueFilteredVideos = filteredVideos.filter((video, index, self) => 
+    index === self.findIndex(v => 
+      v.artist.toLowerCase() === video.artist.toLowerCase() && 
+      v.title.toLowerCase() === video.title.toLowerCase()
+    )
   );
 
   // Group songs by first letter of artist
@@ -733,14 +755,14 @@ const SongRequest: React.FC = () => {
     }
   };
 
-  const groupedSongs = filteredVideos.reduce((groups, song) => {
+  const groupedSongs = uniqueFilteredVideos.reduce((groups, song) => {
     const letter = getFirstLetter(song.artist);
     if (!groups[letter]) {
       groups[letter] = [];
     }
     groups[letter].push(song);
     return groups;
-  }, {} as Record<string, typeof filteredVideos>);
+  }, {} as Record<string, typeof uniqueFilteredVideos>);
 
   const sortedGroups = Object.keys(groupedSongs).sort();
 
@@ -902,7 +924,7 @@ const SongRequest: React.FC = () => {
           </div>
           
           <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            {filteredVideos.length > 0 ? (
+            {uniqueFilteredVideos.length > 0 ? (
               sortedGroups.map((letter) => (
                 <div key={letter}>
                   <div style={{
