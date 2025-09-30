@@ -115,4 +115,5 @@ __pycache__/
 songs/videos/
 songs/ultrastar/
 songs/youtube/
+songs/test/
 ai-services/venv/
