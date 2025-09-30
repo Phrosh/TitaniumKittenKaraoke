@@ -144,6 +144,8 @@ const ShowView: React.FC = () => {
     top: '35%',
   }
 
+  // console.log(showLyrics1, showLyrics2, lyricsScaleP1, lyricsScaleP2);
+
   const lyricsDisplayStyle2 = {
     ...lyricsDisplayStyle,
     opacity: showLyrics2 ? 1 : 0,
@@ -154,7 +156,7 @@ const ShowView: React.FC = () => {
 
   const currentLyricStyle = {
     fontSize: '7vh',
-    lineHeight: '7vh',
+    lineHeight: '10vh',
     fontWeight: 'bold',
     color: UNSUNG_COLOR,
     textAlign: 'center' as const,
@@ -572,10 +574,10 @@ const ShowView: React.FC = () => {
 
           // Update next lines using helper function (but keep current line with syllable logic)
           // Check if next line (Zeile 2) is a fade-out line - hide only next next line (Zeile 3)
-          if (fadeOutIndices[singerIndex].has(currentLineIndex + 1)) {
+          if (fadeOutIndices[singerIndex]?.has(currentLineIndex + 1)) {
             setLyricContent(singer.refs.nextLyricRef, nextLine, UNSUNG_COLOR, NEXT_LINE_OPACITY);
             setLyricContent(singer.refs.nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
-          } else if (fadeOutIndices[singerIndex].has(currentLineIndex)) {
+          } else if (fadeOutIndices[singerIndex]?.has(currentLineIndex)) {
             // Current line (Zeile 1) is a fade-out line - hide next lines (Zeile 2 und 3)
             setLyricContent(singer.refs.nextLyricRef, null, UNSUNG_COLOR, NEXT_LINE_OPACITY);
             setLyricContent(singer.refs.nextNextLyricRef, null, UNSUNG_COLOR, NEXT_NEXT_LINE_OPACITY);
@@ -603,7 +605,7 @@ const ShowView: React.FC = () => {
           if (fadeOutIndices[singerIndex]?.has(nextLineIndex + 1)) {
             // Next line (Preview-Zeile 1) is a fade-out line - show next line, hide line after fade-out
             updateLyricsDisplay(singer.refs, nextLine, nextNextLine, null, false);
-          } else if (fadeOutIndices[singerIndex].has(nextLineIndex)) {
+          } else if (fadeOutIndices[singerIndex]?.has(nextLineIndex)) {
             // Current preview line is a fade-out line - show only this line
             updateLyricsDisplay(singer.refs, nextLine, null, null, false);
           } else {
@@ -626,10 +628,10 @@ const ShowView: React.FC = () => {
           }
 
           // Check if any of the first lines is a fade-out line
-          if (fadeOutIndices[singerIndex].has(1)) {
+          if (fadeOutIndices[singerIndex]?.has(1)) {
             // Second line is a fade-out line - show first and second line, hide third line
             updateLyricsDisplay(singer.refs, firstLine, secondLine, null, false);
-          } else if (fadeOutIndices[singerIndex].has(0)) {
+          } else if (fadeOutIndices[singerIndex]?.has(0)) {
             // First line is a fade-out line - show only first line
             updateLyricsDisplay(singer.refs, firstLine, null, null, false);
           } else {
@@ -1053,6 +1055,7 @@ const ShowView: React.FC = () => {
       setLastSongId(normalizedSong?.id || null);
       lastSongIdRef.current = normalizedSong?.id || null;
       // setError(null);
+      setSongChanged(true);
 
       // Automatically hide overlay when song changes
       if (showQRCodeOverlay) {
@@ -1344,91 +1347,33 @@ const ShowView: React.FC = () => {
 
   useEffect(() => {
     if (!songChanged || !playing || typeof ultrastarData?.gap === 'undefined') return;
-    
-    // Handle both single singer and duet cases
-    if (ultrastarData.isDuet) {
-      // Duet case - handle both singers
-      const lines1 = ultrastarData.lines[0] as UltrastarLine[];
-      const lines2 = ultrastarData.lines[1] as UltrastarLine[];
-      
-      if (lines1.length > 0) {
-        const beatDuration = (60000 / ultrastarData.bpm) / 4;
-        const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS;
-        const firstLine = lines1[0];
-        const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
-        const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS);
-        const timeUntilFirstLine = firstLineStartTime;
-        const secondsUntilFirstLine = timeUntilFirstLine / 1000;
-        
-        if (showTime <= fadeInDuration) {
-          setLyricsTransitionEnabledP1(false);
-          setLyricsScaleP1(1);
-          setShowLyrics1(true);
-        } else {
-          setLyricsTransitionEnabledP1(true);
+
+    const singers = getSingers(ultrastarData);
+    const beatDuration = (60000 / ultrastarData.bpm) / 4;
+    const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS;
+
+    for (const singer of singers) {
+      const lines = singer.lines as UltrastarLine[];
+      const firstLine = lines[0];
+      const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
+      const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS);
+      const timeUntilFirstLine = firstLineStartTime;
+      const secondsUntilFirstLine = timeUntilFirstLine / 1000;
+      if (showTime <= fadeInDuration) {
+        singer.setLyricsTransitionEnabled(false);
+        singer.setLyricsScale(1);
+        singer.setShowLyrics(true);
+      } else {
+        singer.setLyricsTransitionEnabled(true);
+        setTimeout(() => {
+          singer.setLyricsScale(1);
+          singer.setShowLyrics(true);
           setTimeout(() => {
-            setLyricsScaleP1(1);
-            setShowLyrics1(true);
-            setTimeout(() => {
-              startProgress(secondsUntilFirstLine, { singer: "P1", progress: { setVisible: setProgressVisible1, setValue: setProgressValue1, intervalRef: progressIntervalRef1 } } as Singer);
-            }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
-          }, showTime);
-        }
-      }
-      
-      if (lines2.length > 0) {
-        const beatDuration = (60000 / ultrastarData.bpm) / 4;
-        const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS;
-        const firstLine = lines2[0];
-        const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
-        const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS);
-        const timeUntilFirstLine = firstLineStartTime;
-        const secondsUntilFirstLine = timeUntilFirstLine / 1000;
-        
-        if (showTime <= fadeInDuration) {
-          setLyricsTransitionEnabledP2(false);
-          setLyricsScaleP2(1);
-          setShowLyrics2(true);
-        } else {
-          setLyricsTransitionEnabledP2(true);
-          setTimeout(() => {
-            setLyricsScaleP2(1);
-            setShowLyrics2(true);
-            setTimeout(() => {
-              startProgress(secondsUntilFirstLine, { singer: "P2", progress: { setVisible: setProgressVisible2, setValue: setProgressValue2, intervalRef: progressIntervalRef2 } } as Singer);
-            }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
-          }, showTime);
-        }
-      }
-    } else {
-      // Single singer case
-      const lines = ultrastarData.lines as UltrastarLine[];
-      if (lines.length > 0) {
-        const beatDuration = (60000 / ultrastarData.bpm) / 4;
-        const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS;
-        const firstLine = lines[0];
-        const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
-        const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS);
-        const timeUntilFirstLine = firstLineStartTime;
-        const secondsUntilFirstLine = timeUntilFirstLine / 1000;
-        
-        if (showTime <= fadeInDuration) {
-          setLyricsTransitionEnabledP1(false);
-          setLyricsScaleP1(1);
-          setShowLyrics1(true);
-        } else {
-          setLyricsTransitionEnabledP1(true);
-          setTimeout(() => {
-            setLyricsScaleP1(1);
-            setShowLyrics1(true);
-            setTimeout(() => {
-              startProgress(secondsUntilFirstLine, { singer: "P1", progress: { setVisible: setProgressVisible1, setValue: setProgressValue1, intervalRef: progressIntervalRef1 } } as Singer);
-            }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
-          }, showTime);
-        }
+            startProgress(secondsUntilFirstLine, singer);
+          }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
+        }, showTime);
       }
     }
-    
     setSongChanged(false);
   }, [ultrastarData?.gap, songChanged, playing]);
 
