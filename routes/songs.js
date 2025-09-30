@@ -1689,6 +1689,7 @@ router.put('/qr-overlay', [
     // Broadcast QR code toggle via WebSocket
     const io = req.app.get('io');
     if (io) {
+      console.log('📱 Songs route: Broadcasting QR overlay toggle:', show);
       await broadcastQRCodeToggle(io, show);
       await broadcastAdminUpdate(io);
     }

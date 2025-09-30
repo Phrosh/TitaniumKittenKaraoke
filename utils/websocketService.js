@@ -159,6 +159,10 @@ async function broadcastSongChange(io, newSong) {
 async function broadcastQRCodeToggle(io, show) {
   try {
     await broadcastShowUpdate(io);
+    
+    // Send specific QR overlay toggle event for autonomous overlay
+    io.emit('qr-overlay-toggle', { show });
+    
     console.log(`📱 Broadcasted QR code overlay toggle: ${show}`);
   } catch (error) {
     console.error('Error broadcasting QR code toggle:', error);

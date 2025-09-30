@@ -46,6 +46,7 @@ import { UltrastarSongData } from './types';
 import Footer from './Footer';
 import Header from './Header';
 import Overlay from './Overlay';
+import AutonomousQRCodeOverlay from './AutonomousQRCodeOverlay';
 import StartOverlay from './StartOverlay';
 import ControlButtons from './ControlButtons';
 
@@ -1574,6 +1575,7 @@ const ShowView: React.FC = () => {
             await playlistAPI.togglePlayPause();
             
             // Show QR code overlay
+            console.log('🎤 Pause mode: Calling showAPI.toggleQRCodeOverlay(true)');
             await showAPI.toggleQRCodeOverlay(true);
             
             console.log('🎤 Pause mode: Song paused and QR overlay shown');
@@ -1920,13 +1922,10 @@ const ShowView: React.FC = () => {
         </ProgressOverlay>
       )}
 
-      {/* QR Code Overlay */}
-      <Overlay
-        show={showQRCodeOverlay}
-        overlayTitle={overlayTitle}
+      {/* Autonomous QR Code Overlay */}
+      <AutonomousQRCodeOverlay
         currentSong={currentSong}
         nextSongs={nextSongs}
-        qrCodeUrl={qrCodeUrl}
       />
 
       {/* Start Overlay */}

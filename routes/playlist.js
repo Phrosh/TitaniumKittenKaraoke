@@ -207,6 +207,13 @@ router.put('/current', verifyToken, async (req, res) => {
       await broadcastSongChange(io, song);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+      
+      // Broadcast song start event to auto-hide QR overlay
+      io.emit('song-action', {
+        action: 'song-started',
+        timestamp: new Date().toISOString(),
+        song: song
+      });
     }
     
     res.json({ message: 'Current song updated', song });
@@ -255,6 +262,13 @@ router.post('/next', verifyToken, async (req, res) => {
       await broadcastSongChange(io, nextSong);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+      
+      // Broadcast song start event to auto-hide QR overlay
+      io.emit('song-action', {
+        action: 'song-started',
+        timestamp: new Date().toISOString(),
+        song: nextSong
+      });
     }
     
     res.json({ message: 'Moved to next song', song: nextSong });
@@ -303,6 +317,13 @@ router.post('/previous', verifyToken, async (req, res) => {
       await broadcastSongChange(io, previousSong);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+      
+      // Broadcast song start event to auto-hide QR overlay
+      io.emit('song-action', {
+        action: 'song-started',
+        timestamp: new Date().toISOString(),
+        song: previousSong
+      });
     }
     
     res.json({ message: 'Moved to previous song', song: previousSong });
@@ -360,6 +381,13 @@ router.post('/restart', verifyToken, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       await broadcastRestartSong(io, currentSong);
+      
+      // Broadcast song restart event to auto-hide QR overlay
+      io.emit('song-action', {
+        action: 'song-restarted',
+        timestamp: new Date().toISOString(),
+        song: currentSong
+      });
     }
     
     res.json({ message: 'Song restarted', song: currentSong });

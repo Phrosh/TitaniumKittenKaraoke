@@ -90,16 +90,16 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
   // WebSocket listener for QR overlay updates
   useEffect(() => {
-    const handleQROverlayUpdate = (data: { showQRCodeOverlay: boolean; overlayTitle: string }) => {
-      console.log('📱 PlaylistTab: Received QR overlay update:', data);
-      setShowQRCodeOverlay(data.showQRCodeOverlay);
+    const handleQROverlayToggle = (data: { show: boolean }) => {
+      console.log('📱 PlaylistTab: Received QR overlay toggle:', data.show);
+      setShowQRCodeOverlay(data.show);
     };
 
-    // Listen for QR overlay changes from ShowView
-    websocketService.on('qr-overlay-changed', handleQROverlayUpdate);
+    // Listen for QR overlay toggle events
+    websocketService.on('qr-overlay-toggle', handleQROverlayToggle);
 
     return () => {
-      websocketService.off('qr-overlay-changed', handleQROverlayUpdate);
+      websocketService.off('qr-overlay-toggle', handleQROverlayToggle);
     };
   }, [setShowQRCodeOverlay]);
 
@@ -117,6 +117,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
   const handleToggleQRCodeOverlay = async (show: boolean) => {
     try {
+      console.log('📱 PlaylistTab: Toggling QR overlay to:', show);
       await adminAPI.setQRCodeOverlay(show);
       setShowQRCodeOverlay(show);
       toast.success(show ? t('playlist.overlayEnabled') : t('playlist.overlayDisabled'));

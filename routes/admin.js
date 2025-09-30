@@ -451,6 +451,41 @@ router.put('/settings/custom-url', [
       );
     });
 
+    // Generate new QR code with updated URL
+    const QRCode = require('qrcode');
+    let qrUrl;
+    if (customUrl && customUrl.trim()) {
+      // Use custom URL + /new
+      qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
+    } else {
+      // Use same domain for QR code generation
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      qrUrl = `${protocol}://${host}/new`;
+    }
+
+    const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
+      quality: 0.92,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      },
+      width: 300
+    });
+
+    // Broadcast QR code update via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('qr-code-update', {
+        qrCodeDataUrl: qrCodeDataUrl,
+        qrUrl: qrUrl,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({ message: 'Custom URL erfolgreich aktualisiert', customUrl: customUrl || '' });
   } catch (error) {
     console.error('Error updating custom URL:', error);
@@ -1475,8 +1510,34 @@ router.post('/cloudflared/start', async (req, res) => {
               else resolve();
             }
           );
-        }).then(() => {
+        }).then(async () => {
           console.log('Tunnel URL saved to database:', tunnelUrl);
+          
+          // Generate new QR code with tunnel URL
+          const QRCode = require('qrcode');
+          const qrUrl = tunnelUrl + '/new';
+          const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+            errorCorrectionLevel: 'M',
+            type: 'image/png',
+            quality: 0.92,
+            margin: 1,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            },
+            width: 300
+          });
+
+          // Broadcast QR code update via WebSocket
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('qr-code-update', {
+              qrCodeDataUrl: qrCodeDataUrl,
+              qrUrl: qrUrl,
+              timestamp: new Date().toISOString()
+            });
+          }
+          
           // Don't kill the process - let it continue running
           // The tunnel needs to stay active to remain accessible
         }).catch((dbError) => {
@@ -1510,8 +1571,34 @@ router.post('/cloudflared/start', async (req, res) => {
               else resolve();
             }
           );
-        }).then(() => {
+        }).then(async () => {
           console.log('Tunnel URL saved to database:', tunnelUrl);
+          
+          // Generate new QR code with tunnel URL
+          const QRCode = require('qrcode');
+          const qrUrl = tunnelUrl + '/new';
+          const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+            errorCorrectionLevel: 'M',
+            type: 'image/png',
+            quality: 0.92,
+            margin: 1,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            },
+            width: 300
+          });
+
+          // Broadcast QR code update via WebSocket
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('qr-code-update', {
+              qrCodeDataUrl: qrCodeDataUrl,
+              qrUrl: qrUrl,
+              timestamp: new Date().toISOString()
+            });
+          }
+          
           // Don't kill the process - let it continue running
           // The tunnel needs to stay active to remain accessible
         }).catch((dbError) => {

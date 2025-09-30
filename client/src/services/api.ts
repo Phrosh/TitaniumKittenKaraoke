@@ -261,6 +261,9 @@ export const showAPI = {
   getCurrentSong: () =>
     api.get('/show'),
   
+  getQRCode: () =>
+    api.get('/songs/qr-data'),
+  
   toggleQRCodeOverlay: (show: boolean) =>
     api.put('/songs/qr-overlay', { show }),
 };
