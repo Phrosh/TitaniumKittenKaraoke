@@ -1169,6 +1169,37 @@ const ShowView: React.FC = () => {
 
       if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
 
+        // Stop and reset all timing/UI first to ensure clean restart
+        stopUltrastarTiming();
+        // Clear animation frames
+        if (animationFrameRef1.current) {
+          cancelAnimationFrame(animationFrameRef1.current);
+          animationFrameRef1.current = null;
+        }
+        if (animationFrameRef2.current) {
+          cancelAnimationFrame(animationFrameRef2.current);
+          animationFrameRef2.current = null;
+        }
+        // Reset lyric containers and visibility
+        setShowLyrics1(false);
+        setShowLyrics2(false);
+        setLyricsScaleP1(0);
+        setLyricsScaleP2(0);
+        setLyricsTransitionEnabledP1(false);
+        setLyricsTransitionEnabledP2(false);
+        clearAllLyrics();
+        // Reset progress bars and internal intervals
+        setProgressVisible1(false);
+        setProgressValue1(0);
+        setProgressVisible2(false);
+        setProgressValue2(0);
+        if (progressIntervalRef1.current) { clearInterval(progressIntervalRef1.current); progressIntervalRef1.current = null; }
+        if (progressIntervalRef2.current) { clearInterval(progressIntervalRef2.current); progressIntervalRef2.current = null; }
+        // Reset throttling refs for timing
+        lastUpdateTimeP1.current = 0;
+        lastUpdateTimeP2.current = 0;
+        lastLoggedText.current = '';
+
         // Restart audio
         audioRef.current.currentTime = 0;
         audioRef.current.play().then(() => {
@@ -1179,7 +1210,7 @@ const ShowView: React.FC = () => {
 
         // Also restart video if present
         if (videoRef.current) {
-          videoRef.current.currentTime = 0;
+          videoRef.current.currentTime = ultrastarData.videogap || 0;
           videoRef.current.play().then(() => {
             console.log('🎬 Video play() successful');
           }).catch(error => {
@@ -1190,9 +1221,45 @@ const ShowView: React.FC = () => {
         }
 
         setIsPlaying(true);
-        // Restart complete Ultrastar timing and lyrics
+        setPlaying(true);
+        setSongChanged(true);
+        
+        // Show preview lyrics immediately after reset
         setTimeout(() => {
-          startUltrastarTiming(ultrastarData, [new Set<number>()]);
+          if (ultrastarData.isDuet) {
+            // Duet case - show lyrics for both singers
+            const lines1 = ultrastarData.lines[0] as UltrastarLine[];
+            const lines2 = ultrastarData.lines[1] as UltrastarLine[];
+            
+            if (lines1.length > 0) {
+              const firstLine = lines1[0];
+              const secondLine = lines1[1];
+              const thirdLine = lines1[2];
+              updateLyricsDisplay({ currentLyricRef: currentLyricRef1, nextLyricRef: nextLyricRef1, nextNextLyricRef: nextNextLyricRef1 }, firstLine, secondLine, thirdLine, false);
+            }
+            
+            if (lines2.length > 0) {
+              const firstLine = lines2[0];
+              const secondLine = lines2[1];
+              const thirdLine = lines2[2];
+              updateLyricsDisplay({ currentLyricRef: currentLyricRef2, nextLyricRef: nextLyricRef2, nextNextLyricRef: nextNextLyricRef2 }, firstLine, secondLine, thirdLine, false);
+            }
+          } else {
+            // Single singer case
+            const lines = ultrastarData.lines as UltrastarLine[];
+            if (lines.length > 0) {
+              const firstLine = lines[0];
+              const secondLine = lines[1];
+              const thirdLine = lines[2];
+              updateLyricsDisplay({ currentLyricRef: currentLyricRef1, nextLyricRef: nextLyricRef1, nextNextLyricRef: nextNextLyricRef1 }, firstLine, secondLine, thirdLine, false);
+            }
+          }
+        }, 50); // Small delay to ensure DOM is ready
+        
+        // Restart Ultrastar timing with fresh fade-out analysis
+        setTimeout(() => {
+          const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
+          startUltrastarTiming(ultrastarData, fadeOutIndices);
         }, 100); // Small delay to ensure audio is playing
       } else if (currentSong?.mode === 'youtube') {
         // YouTube embed - restart by reloading iframe
