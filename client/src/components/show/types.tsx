@@ -67,6 +67,7 @@ export interface CurrentSong {
   export interface Singer {
     notes: UltrastarNote[];
     lines: UltrastarLine[];
+    timeouts: NodeJS.Timeout[];
     setLyricsTransitionEnabled: (enabled: boolean) => void;
     setLyricsScale: (scale: number) => void;
     singer: string;

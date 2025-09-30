@@ -52,6 +52,9 @@ import ControlButtons from './ControlButtons';
 
 let globalUltrastarData: UltrastarSongData | null = null;
 
+let p1Timeouts: NodeJS.Timeout[] = [];
+let p2Timeouts: NodeJS.Timeout[] = [];
+
 const ShowView: React.FC = () => {
   const { t } = useTranslation();
   const [currentSong, setCurrentSong] = useState<CurrentSong | null>(null);
@@ -313,6 +316,7 @@ const ShowView: React.FC = () => {
 
     const singers: Singer[] = [{
       singer: "P1",
+      timeouts: p1Timeouts,
       lines: [] as UltrastarLine[],
       notes: [] as UltrastarNote[],
       refs: {
@@ -339,6 +343,7 @@ const ShowView: React.FC = () => {
         singer: "P2",
         setLyricsScale: setLyricsScaleP2,
         setLyricsTransitionEnabled: setLyricsTransitionEnabledP2,
+        timeouts: p2Timeouts,
         lines: ultrastarData.lines[1] as UltrastarLine[],
         notes: ultrastarData.notes[1] as UltrastarNote[],
         refs: {
@@ -1056,6 +1061,13 @@ const ShowView: React.FC = () => {
       setLastSongId(normalizedSong?.id || null);
       lastSongIdRef.current = normalizedSong?.id || null;
       // setError(null);
+      
+      for (const timeouts of [p1Timeouts, p2Timeouts]) {
+        for (const timeout of timeouts) {
+          clearTimeout(timeout);
+        }
+      }
+      
       setSongChanged(true);
 
       // Automatically hide overlay when song changes
@@ -1219,6 +1231,12 @@ const ShowView: React.FC = () => {
           });
         } else {
           console.log('🎬 No video ref found for Ultrastar song');
+        }
+        
+        for (const timeouts of [p1Timeouts, p2Timeouts]) {
+          for (const timeout of timeouts) {
+            clearTimeout(timeout);
+          }
         }
 
         setIsPlaying(true);
@@ -1421,6 +1439,10 @@ const ShowView: React.FC = () => {
     const fadeInDuration = 1000 * FADE_IN_DURATION_SECONDS;
 
     for (const singer of singers) {
+      for (const timeout of singer.timeouts) {
+        clearTimeout(timeout);
+      }
+      singer.timeouts = [];
       const lines = singer.lines as UltrastarLine[];
       const firstLine = lines[0];
       const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
@@ -1433,13 +1455,14 @@ const ShowView: React.FC = () => {
         singer.setShowLyrics(true);
       } else {
         singer.setLyricsTransitionEnabled(true);
-        setTimeout(() => {
+        singer.timeouts = [];
+        singer.timeouts.push(setTimeout(() => {
           singer.setLyricsScale(1);
           singer.setShowLyrics(true);
-          setTimeout(() => {
+          singer.timeouts.push(setTimeout(() => {
             startProgress(secondsUntilFirstLine, singer);
-          }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000);
-        }, showTime);
+          }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000));
+        }, showTime));
       }
     }
     setSongChanged(false);
