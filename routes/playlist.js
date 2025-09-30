@@ -377,12 +377,50 @@ router.post('/restart', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'No current song to restart' });
     }
 
+    // Automatically hide QR overlay when song restarts
+    const db = require('../config/database');
+    const overlaySetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['show_qr_overlay'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const showQRCodeOverlay = overlaySetting ? overlaySetting.value === 'true' : false;
+    
+    if (showQRCodeOverlay) {
+      // Hide QR overlay in database
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+          ['show_qr_overlay', 'false'],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      
+      console.log('📱 QR overlay automatically hidden on song restart');
+    }
+
     // Broadcast restart event
     const io = req.app.get('io');
     if (io) {
       await broadcastRestartSong(io, currentSong);
       
-      // Broadcast song restart event to auto-hide QR overlay
+      // Broadcast QR overlay change if it was hidden
+      if (showQRCodeOverlay) {
+        const { broadcastQRCodeToggle } = require('../utils/websocketService');
+        await broadcastQRCodeToggle(io, false);
+        await broadcastAdminUpdate(io);
+      }
+      
+      // Broadcast song restart event
       io.emit('song-action', {
         action: 'song-restarted',
         timestamp: new Date().toISOString(),
