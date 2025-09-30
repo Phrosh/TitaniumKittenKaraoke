@@ -47,6 +47,7 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 ### Server Requirements
 - **Node.js** (Version 18 or higher) with npm
 - **Python 3.10** or higher (for AI features)
+- **FFmpeg** (current version) installed and available in `PATH`
 - **CUDA** (for hardware acceleration with AI features)
 - **Free Ports**: 3000, 5000, 6000, 4000 (for local files)
 
@@ -80,6 +81,11 @@ venv\Scripts\activate
 pip install -r requirements.txt
 cd ..
 ```
+
+### Install FFmpeg
+- **Windows**: Download FFmpeg from the official website, extract it, and add the `bin` folder to your `PATH` environment variable ([FFmpeg Downloads](https://ffmpeg.org/download.html)).
+- **macOS**: `brew install ffmpeg`
+- **Linux**: `sudo apt-get install ffmpeg` (or use your distribution's package manager)
 
 ## 🎮 Usage
 
