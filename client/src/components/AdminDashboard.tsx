@@ -24,7 +24,7 @@ const AdminDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true); // Default to true - assume song is playing when dashboard loads
 
   
   // Song Approval System State
@@ -597,6 +597,8 @@ const AdminDashboard: React.FC = () => {
               handleDeviceIdClick={handleDeviceIdClick}
               showQRCodeOverlay={showQRCodeOverlay}
               setShowQRCodeOverlay={setShowQRCodeOverlay}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
             />
           )}
           

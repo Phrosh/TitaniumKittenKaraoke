@@ -15,7 +15,7 @@ interface ControlButtonsProps {
   ultrastarData: any;
   startUltrastarTiming: (ultrastarData: any, fadeOutLineIndices: Set<number>[]) => void;
   setYoutubeCurrentTime: (youtubeCurrentTime: number) => void;
-  setIframeKey: (iframeKey: number) => void;
+  setIframeKey: React.Dispatch<React.SetStateAction<number>>;
   setYoutubeIsPaused: (youtubeIsPaused: boolean) => void;
   setIsPlaying: (isPlaying: boolean) => void;
 }
@@ -26,7 +26,8 @@ const buttonStyle = {
   border: '2px solid rgba(255, 255, 255, 0.3)',
   minWidth: '40px',
   height: '40px',
-  padding: '0'
+  padding: '0',
+  fontVariantEmoji: 'text' as const
 };
 
 const ControlButtons: React.FC<ControlButtonsProps> = ({
@@ -198,13 +199,13 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
       // Restart complete Ultrastar timing and lyrics
       setTimeout(() => {
         console.log('🎤 Restarting complete Ultrastar timing');
-        startUltrastarTiming(ultrastarData, new Set());
+        startUltrastarTiming(ultrastarData, [new Set<number>()]);
       }, 100); // Small delay to ensure audio is playing
     } else if (currentSong?.mode === 'youtube') {
       console.log('📺 YouTube restart via ShowView button');
       // YouTube embed - restart by reloading iframe
       setYoutubeCurrentTime(0);
-      setIframeKey(prev => prev + 1);
+      setIframeKey((prev: number) => prev + 1);
       setYoutubeIsPaused(false);
     } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
       console.log('🎬 Video restart via ShowView button');
@@ -286,9 +287,19 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
         }}
         title={t('showView.pausePlay')}
         size="small"
-        style={buttonStyle}
+        style={{
+          ...buttonStyle,
+          ...(isPlaying ? {} : {
+            background: 'rgba(0, 0, 0, 0.35)',
+            color: '#bbbbbb',
+            filter: 'grayscale(100%)',
+            opacity: 0.6,
+            border: '2px solid rgba(255, 255, 255, 0.15)'
+          })
+        }}
+        disabled={!isPlaying}
       >
-        {isPlaying ? '⏸️' : '▶️'}
+        ⏸️
       </Button>
       <Button 
         onClick={(e) => {

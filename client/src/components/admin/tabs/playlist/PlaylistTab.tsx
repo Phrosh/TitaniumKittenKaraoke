@@ -45,6 +45,8 @@ interface PlaylistTabProps {
   handleDeviceIdClick: (deviceId: string) => void;
   showQRCodeOverlay: boolean;
   setShowQRCodeOverlay: (show: boolean) => void;
+  isPlaying: boolean;
+  setIsPlaying: (isPlaying: boolean) => void;
 }
 
 const PlaylistTab: React.FC<PlaylistTabProps> = ({
@@ -55,12 +57,13 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   handleDeviceIdClick,
   showQRCodeOverlay,
   setShowQRCodeOverlay,
+  isPlaying,
+  setIsPlaying,
 }) => {
   const { t } = useTranslation();
 
   const [showAddSongModal, setShowAddSongModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [youtubeLinks, setYoutubeLinks] = useState<Record<string, string>>({});
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -170,6 +173,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     setActionLoading(true);
     try {
       await playlistAPI.restartSong();
+      setIsPlaying(true); // Song is playing after restart
       await fetchDashboardData();
     } catch (error) {
       console.error('Error restarting song:', error);
@@ -480,7 +484,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           <div>
             <Button
               onClick={handleOpenAddSongModal}
-              style={{ background: '#28a745', marginRight: '15px' }}
+              style={{ background: '#28a745', marginRight: '15px', fontVariantEmoji: 'text' as const }}
             >
               ➕ {t('playlist.addSong')}
             </Button>
@@ -501,25 +505,35 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                 disabled={actionLoading}
                 title={t('playlist.previous')}
                 size="small"
-                style={{ marginRight: '8px' }}
+                style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
               >
                 ⏮️
               </Button>
               <Button
                 onClick={handleTogglePlayPause}
-                disabled={actionLoading}
+                disabled={actionLoading || !isPlaying}
                 title={t('playlist.playPause')}
                 size="small"
-                style={{ marginRight: '8px' }}
+                style={{
+                  marginRight: '8px',
+                  fontVariantEmoji: 'text' as const,
+                  ...(isPlaying ? {} : {
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    color: '#bbbbbb',
+                    filter: 'grayscale(100%)',
+                    opacity: 0.6,
+                    border: '2px solid rgba(255, 255, 255, 0.15)'
+                  })
+                }}
               >
-                {isPlaying ? '⏸️' : '▶️'}
+                ⏸️
               </Button>
               <Button
                 onClick={handleRestartSong}
                 disabled={actionLoading}
                 title={t('playlist.restartSong')}
                 size="small"
-                style={{ marginRight: '8px' }}
+                style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
               >
                 🔄
               </Button>
@@ -529,6 +543,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               variant="success"
               onClick={handleNextSong}
               disabled={actionLoading}
+              style={{ fontVariantEmoji: 'text' as const }}
             >
               ⏭️ {t('playlist.next')}
             </Button>
@@ -538,7 +553,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               onClick={() => setShowPastSongs(!showPastSongs)}
               size="small"
               variant={showPastSongs ? 'secondary' : 'default'}
-              style={{ marginRight: '8px' }}
+              style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
             >
               📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
             </Button>
@@ -547,7 +562,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               disabled={actionLoading}
               type="danger"
               size="small"
-              style={{ marginRight: '8px' }}
+              style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
             >
               🗑️ {t('playlist.clearList')}
             </Button>
