@@ -1541,46 +1541,46 @@ const ShowView: React.FC = () => {
   }, [currentSong?.id, currentSong?.title, stopUltrastarTiming]);
 
   // Handle click on screen to toggle play/pause
-  const handleScreenClick = useCallback(() => {
-    // Mark that user has interacted (allows autoplay for future songs)
-    setHasUserInteracted(true);
+  // const handleScreenClick = useCallback(() => {
+  //   // Mark that user has interacted (allows autoplay for future songs)
+  //   setHasUserInteracted(true);
 
-    if (isUltrastar && audioRef.current) {
-      if (audioRef.current.paused) {
-        audioRef.current.play().catch(error => {
-          console.error('🎵 Error resuming playback:', error);
-        });
-        setIsPlaying(true);
-        // Restart lyrics animation when audio resumes
-        setTimeout(() => {
-          restartLyricsAnimation();
-        }, 100); // Small delay to ensure audio is playing
-      } else {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        // Stop lyrics animation when audio is paused
-        for (const singer of getSingers(ultrastarData)) {
-          if (singer.refs.animationFrameRef.current) {
-            cancelAnimationFrame(singer.refs.animationFrameRef.current);
-            singer.refs.animationFrameRef.current = null;
-          }
-        }
-      }
-    } else if (currentSong?.mode === 'youtube') {
-      // YouTube embed - toggle pause state
-      setYoutubeIsPaused(!youtubeIsPaused);
-    } else if (!isUltrastar && videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play().catch(error => {
-          console.error('🎬 Error resuming video playback:', error);
-        });
-        setIsPlaying(true);
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      }
-    }
-  }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused, restartLyricsAnimation]);
+  //   if (isUltrastar && audioRef.current) {
+  //     if (audioRef.current.paused) {
+  //       audioRef.current.play().catch(error => {
+  //         console.error('🎵 Error resuming playback:', error);
+  //       });
+  //       setIsPlaying(true);
+  //       // Restart lyrics animation when audio resumes
+  //       setTimeout(() => {
+  //         restartLyricsAnimation();
+  //       }, 100); // Small delay to ensure audio is playing
+  //     } else {
+  //       audioRef.current.pause();
+  //       setIsPlaying(false);
+  //       // Stop lyrics animation when audio is paused
+  //       for (const singer of getSingers(ultrastarData)) {
+  //         if (singer.refs.animationFrameRef.current) {
+  //           cancelAnimationFrame(singer.refs.animationFrameRef.current);
+  //           singer.refs.animationFrameRef.current = null;
+  //         }
+  //       }
+  //     }
+  //   } else if (currentSong?.mode === 'youtube') {
+  //     // YouTube embed - toggle pause state
+  //     setYoutubeIsPaused(!youtubeIsPaused);
+  //   } else if (!isUltrastar && videoRef.current) {
+  //     if (videoRef.current.paused) {
+  //       videoRef.current.play().catch(error => {
+  //         console.error('🎬 Error resuming video playback:', error);
+  //       });
+  //       setIsPlaying(true);
+  //     } else {
+  //       videoRef.current.pause();
+  //       setIsPlaying(false);
+  //     }
+  //   }
+  // }, [isUltrastar, currentSong?.id, currentSong?.title, currentSong?.mode, youtubeIsPaused, restartLyricsAnimation]);
 
   const handleStartButtonClick = useCallback(async () => {
     // Mark that user has interacted (allows autoplay for future songs)
@@ -1793,7 +1793,7 @@ const ShowView: React.FC = () => {
 
   return (
     <ShowContainer
-      onClick={handleScreenClick}
+      // onClick={handleScreenClick}
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
