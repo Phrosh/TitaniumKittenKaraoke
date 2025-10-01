@@ -184,6 +184,12 @@ class MusicToLyrics:
                 verbose=False
             )
             
+            # Post-Processing: Entferne Halluzinationen
+            result = self._filter_hallucinations(result)
+            
+            # Post-Processing: Unterteile lange Segmente für Karaoke
+            result = self._split_long_segments(result)
+            
             logger.info("Transkription erfolgreich abgeschlossen")
             logger.info(f"Erkannte Sprache: {result.get('language', 'unbekannt')}")
             logger.info(f"Anzahl Segmente: {len(result.get('segments', []))}")
@@ -240,8 +246,12 @@ class MusicToLyrics:
             f.write(f"# Sprache: {result.get('language', 'unbekannt')}\n")
             f.write(f"# Modell: {self.whisper_model}\n\n")
             
-            for segment in result.get('segments', []):
-                f.write(f"## Segment {segment['id']} ({segment['start']:.2f}s - {segment['end']:.2f}s)\n")
+            for i, segment in enumerate(result.get('segments', [])):
+                # Prüfe ob Segment künstlich getrennt wurde
+                is_split = segment.get('is_split', False)
+                split_marker = " [GETRENNT]" if is_split else ""
+                
+                f.write(f"## Segment {i} ({segment['start']:.2f}s - {segment['end']:.2f}s){split_marker}\n")
                 f.write(f"# Text: {segment['text'].strip()}\n\n")
                 
                 for word in segment.get('words', []):
@@ -536,6 +546,846 @@ class MusicToLyrics:
         # Umgekehrte Formel: Beats = Sekunden * BPM / 15
         return seconds * bpm / 15
     
+    def _filter_hallucinations(self, result):
+        """
+        Filtert bekannte Whisper-Halluzinationen aus dem Ergebnis
+        
+        Args:
+            result (dict): Whisper-Transkriptionsergebnis
+            
+        Returns:
+            dict: Bereinigtes Ergebnis
+        """
+        try:
+            # Bekannte Halluzinations-Phrasen
+            hallucination_phrases = [
+                "thank you.",
+                "thanks.",
+                "goodbye.",
+                "bye.",
+                "see you later.",
+                "that's all.",
+                "the end.",
+                "fin",
+                "fin.",
+                "subtitles",
+                "subtitles by",
+                "subtitles by the",
+                "subtitles by the amara",
+                "subtitles by the amara.org",
+                "subtitles by the amara.org community",
+                "by the amara",
+                "by the amara.org",
+                "by the amara.org community",
+                "amara.org",
+                "amara.org community",
+                "captions",
+                "captions by",
+                "captions by the",
+                "captions by the amara",
+                "captions by the amara.org",
+                "captions by the amara.org community",
+
+                # Weitere Halluzinationen aus GitHub-Diskussion
+                "thanks for watching",
+                "thanks for watching!",
+                "thank you for watching",
+                "thank you for watching!",
+                "merci d'avoir regardé cette vidéo",
+                "merci d'avoir regardé cette vidéo!",
+                "merci d'avoir regardé la vidéo",
+                "j'espère que vous avez apprécié la vidéo",
+                "je vous remercie de vous abonner",
+                "sous-titres réalisés para la communauté d'amara.org",
+                "merci d'avoir regardé!",
+                "❤️ par soustitreur.com",
+                "— sous-titrage st'501 —",
+                "ondertitels ingediend door de amara.org gemeenschap",
+                "ondertiteld door de amara.org gemeenschap",
+                "ondertiteling door de amara.org gemeenschap",
+                "untertitelung aufgrund der amara.org-community",
+                "untertitel im auftrag des zdf für funk, 2017",
+                "untertitel von stephanie geiges",
+                "untertitel der amara.org-community",
+                "untertitel im auftrag des zdf, 2017",
+                "untertitel im auftrag des zdf, 2020",
+                "untertitel im auftrag des zdf, 2018",
+                "untertitel im auftrag des zdf, 2021",
+                "untertitelung im auftrag des zdf, 2021",
+                "copyright wdr 2021",
+                "legendas pela comunidade amara.org",
+                "sottotitoli e revisione a cura di qtss",
+                "ming pao canada",
+                "ming pao toronto",
+                "ccosp4",
+                "figure skating",
+                "ice skating",
+                # Arabische Zeichen und unmögliche Phrasen
+                "mother mother",
+                "mother mother سو",
+                "mother mother temporyon",
+                "mother mother سоält",
+                "mother mother سو تو onions",
+                "mother mother سو fois",
+                "سو",
+                "temporyon",
+                "سоält",
+                "تو",
+                "onions",
+                "fois",
+                # Weitere Halluzinationen
+                "bah bah bah",
+            ]
+            
+            # Filtere Segmente
+            filtered_segments = []
+            removed_count = 0
+            
+            for segment in result.get('segments', []):
+                segment_text = segment.get('text', '').strip().lower()
+                
+                # Prüfe ob Segment eine Halluzination ist
+                is_hallucination = False
+                for phrase in hallucination_phrases:
+                    if phrase in segment_text:
+                        is_hallucination = True
+                        break
+                
+                # Prüfe auf unmögliche Word-Timestamps (alle Wörter haben gleiche Timestamps)
+                if not is_hallucination:
+                    words = segment.get('words', [])
+                    if words and len(words) > 1:
+                        # Prüfe ob alle Wörter den gleichen Start-Zeitpunkt haben
+                        word_starts = [w.get('start', 0) for w in words]
+                        word_ends = [w.get('end', 0) for w in words]
+                        
+                        # Prüfe ob alle Wörter die gleiche End-Zeit haben
+                        if len(set(word_ends)) == 1:
+                            is_hallucination = True
+                            logger.info(f"Entfernt unmögliche Word-Timestamps (gleiche End-Zeit): '{segment.get('text', '').strip()}'")
+                        # Prüfe ob alle Wörter außer dem ersten und letzten dieselbe End-Zeit haben
+                        elif len(words) > 3:
+                            middle_words = words[1:-1]  # Alle Wörter außer erstem und letztem
+                            middle_word_ends = [w.get('end', 0) for w in middle_words]
+                            if len(set(middle_word_ends)) == 1:
+                                is_hallucination = True
+                                logger.info(f"Entfernt unmögliche Word-Timestamps (gleiche mittlere End-Zeit): '{segment.get('text', '').strip()}'")
+                
+                # Zusätzliche Prüfung: Sehr kurze Segmente am Ende
+                if not is_hallucination and len(segment_text) <= 3:
+                    # Prüfe ob es am Ende der Transkription ist
+                    total_duration = result.get('segments', [{}])[-1].get('end', 0)
+                    segment_end = segment.get('end', 0)
+                    
+                    # Wenn Segment in den letzten 10% der Transkription ist
+                    if segment_end > total_duration * 0.9:
+                        is_hallucination = True
+                
+                if not is_hallucination:
+                    filtered_segments.append(segment)
+                else:
+                    removed_count += 1
+                    logger.info(f"Entfernt Halluzination: '{segment.get('text', '').strip()}'")
+            
+            # Aktualisiere Ergebnis
+            result['segments'] = filtered_segments
+            
+            # Aktualisiere Gesamttext
+            if 'text' in result:
+                result['text'] = ' '.join(segment.get('text', '').strip() for segment in filtered_segments)
+            
+            if removed_count > 0:
+                logger.info(f"Entfernt {removed_count} Halluzination(en)")
+            
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Filtern von Halluzinationen: {e}")
+            return result
+    
+    def _split_long_segments(self, result):
+        """
+        Unterteilt lange Segmente für bessere Karaoke-Darstellung
+        
+        Args:
+            result (dict): Whisper-Transkriptionsergebnis
+            
+        Returns:
+            dict: Ergebnis mit unterteilten Segmenten
+        """
+        try:
+            # Konstanten
+            SEG_MAX = 4.0  # Maximale Segment-Dauer in Sekunden (wenn überschritten, wird geteilt)
+            SEG_SHORT = 3.0  # Maximale Dauer der resultierenden Segmente
+            CHAR_MAX = 30  # Maximale Zeichen pro Segment
+            
+            segments = result.get('segments', [])
+            if not segments:
+                return result
+            
+            new_segments = []
+            split_count = 0
+            
+            for segment in segments:
+                segment_duration = segment['end'] - segment['start']
+                
+                # Prüfe ob Segment länger als SEG_MAX ist
+                if segment_duration > SEG_MAX:
+                    # Berechne Anzahl der benötigten Segmente
+                    num_segments = int(segment_duration / SEG_SHORT) + 1
+                    split_segments = self._split_segment_simple(segment, num_segments)
+                    new_segments.extend(split_segments)
+                    split_count += len(split_segments) - 1
+                else:
+                    new_segments.append(segment)
+            
+            # Zweite Runde: Optimiere Segmente mit zu vielen Zeichen
+            new_segments = self._optimize_segment_lengths(new_segments, CHAR_MAX)
+            
+            # Dritte Runde: Optimiere Segmente basierend auf Großbuchstaben (nur für englische Texte)
+            if result.get('language', '').lower() == 'en':
+                new_segments = self._optimize_capitalization_segments(new_segments)
+            
+            # Vierte Runde: Entferne Punkte-Wörter und leere Segmente
+            new_segments = self._clean_segments(new_segments)
+            
+            # Aktualisiere Ergebnis
+            result['segments'] = new_segments
+            
+            # Aktualisiere Gesamttext
+            if 'text' in result:
+                result['text'] = ' '.join(segment.get('text', '').strip() for segment in new_segments)
+            
+            if split_count > 0:
+                logger.info(f"Unterteilt {split_count} Segment(e) für bessere Karaoke-Darstellung")
+            
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Unterteilen von Segmenten: {e}")
+            return result
+    
+    def _split_segment_simple(self, segment, num_segments):
+        """
+        Teilt ein Segment in gleichgroße Teile auf
+        
+        Args:
+            segment (dict): Original-Segment
+            num_segments (int): Anzahl der gewünschten Segmente
+            
+        Returns:
+            list: Liste der aufgeteilten Segmente
+        """
+        try:
+            start_time = segment['start']
+            end_time = segment['end']
+            duration = end_time - start_time
+            segment_duration = duration / num_segments
+            
+            words = segment.get('words', [])
+            if not words:
+                # Fallback: Teile nur die Zeit auf
+                split_segments = []
+                for i in range(num_segments):
+                    seg_start = start_time + (i * segment_duration)
+                    seg_end = start_time + ((i + 1) * segment_duration)
+                    
+                    new_segment = {
+                        'id': segment.get('id', 0) + i,
+                        'seek': segment.get('seek', 0),
+                        'start': seg_start,
+                        'end': seg_end,
+                        'text': segment.get('text', '').strip(),
+                        'tokens': segment.get('tokens', []),
+                        'temperature': segment.get('temperature', 0.0),
+                        'avg_logprob': segment.get('avg_logprob', 0.0),
+                        'compression_ratio': segment.get('compression_ratio', 0.0),
+                        'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                        'words': [],
+                        'is_split': True
+                    }
+                    split_segments.append(new_segment)
+                return split_segments
+            
+            # Teile Wörter gleichmäßig auf
+            words_per_segment = len(words) / num_segments
+            split_segments = []
+            
+            for i in range(num_segments):
+                word_start_idx = int(i * words_per_segment)
+                word_end_idx = int((i + 1) * words_per_segment)
+                
+                # Letztes Segment bekommt alle restlichen Wörter
+                if i == num_segments - 1:
+                    word_end_idx = len(words)
+                
+                segment_words = words[word_start_idx:word_end_idx]
+                
+                if segment_words:
+                    seg_start = segment_words[0]['start']
+                    seg_end = segment_words[-1]['end']
+                    seg_text = ' '.join(w['word'].strip() for w in segment_words)
+                else:
+                    # Fallback für leere Segmente
+                    seg_start = start_time + (i * segment_duration)
+                    seg_end = start_time + ((i + 1) * segment_duration)
+                    seg_text = ""
+                
+                new_segment = {
+                    'id': segment.get('id', 0) + i,
+                    'seek': segment.get('seek', 0),
+                    'start': seg_start,
+                    'end': seg_end,
+                    'text': seg_text,
+                    'tokens': segment.get('tokens', []),
+                    'temperature': segment.get('temperature', 0.0),
+                    'avg_logprob': segment.get('avg_logprob', 0.0),
+                    'compression_ratio': segment.get('compression_ratio', 0.0),
+                    'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                    'words': segment_words,
+                    'is_split': True
+                }
+                split_segments.append(new_segment)
+            
+            return split_segments
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Aufteilen des Segments: {e}")
+            return [segment]
+
+    def _optimize_segment_lengths(self, segments, char_max):
+        """
+        Optimiert Segmente, die zu viele Zeichen haben
+        
+        Args:
+            segments (list): Liste der Segmente
+            char_max (int): Maximale Zeichen pro Segment
+            
+        Returns:
+            list: Optimierte Segmente
+        """
+        try:
+            optimized_segments = []
+            
+            for i, segment in enumerate(segments):
+                segment_text = segment.get('text', '').strip()
+                segment_length = len(segment_text)
+                
+                if segment_length <= char_max:
+                    optimized_segments.append(segment)
+                    continue
+                
+                # Segment hat zu viele Zeichen - versuche Wörter zu verschieben
+                words = segment.get('words', [])
+                if not words or len(words) <= 1:
+                    optimized_segments.append(segment)
+                    continue
+                
+                # Versuche erstes Wort zum vorherigen Segment zu verschieben
+                if i > 0 and len(words) > 1:
+                    prev_segment = optimized_segments[-1]
+                    first_word = words[0]
+                    remaining_words = words[1:]
+                    
+                    # Prüfe ob Verschiebung sinnvoll ist
+                    prev_text = prev_segment.get('text', '').strip()
+                    new_prev_length = len(prev_text + ' ' + first_word['word'].strip())
+                    new_current_length = len(' '.join(w['word'].strip() for w in remaining_words))
+                    
+                    if (new_prev_length <= char_max and 
+                        new_current_length <= char_max and
+                        new_prev_length < segment_length):
+                        
+                        # Verschiebe erstes Wort zum vorherigen Segment
+                        prev_segment['text'] = prev_text + ' ' + first_word['word'].strip()
+                        prev_segment['words'].append(first_word)
+                        prev_segment['end'] = first_word['end']
+                        prev_segment['is_split'] = True
+                        
+                        # Aktualisiere aktuelles Segment
+                        segment['text'] = ' '.join(w['word'].strip() for w in remaining_words)
+                        segment['words'] = remaining_words
+                        segment['start'] = remaining_words[0]['start'] if remaining_words else segment['start']
+                        segment['is_split'] = True
+                        
+                        optimized_segments.append(segment)
+                        continue
+                
+                # Versuche letztes Wort zum nächsten Segment zu verschieben
+                if i < len(segments) - 1 and len(words) > 1:
+                    next_segment = segments[i + 1]
+                    last_word = words[-1]
+                    remaining_words = words[:-1]
+                    
+                    # Prüfe ob Verschiebung sinnvoll ist
+                    next_text = next_segment.get('text', '').strip()
+                    new_next_length = len(last_word['word'].strip() + ' ' + next_text)
+                    new_current_length = len(' '.join(w['word'].strip() for w in remaining_words))
+                    
+                    if (new_next_length <= char_max and 
+                        new_current_length <= char_max and
+                        new_current_length < segment_length):
+                        
+                        # Verschiebe letztes Wort zum nächsten Segment
+                        next_segment['text'] = last_word['word'].strip() + ' ' + next_text
+                        next_segment['words'].insert(0, last_word)
+                        next_segment['start'] = last_word['start']
+                        next_segment['is_split'] = True
+                        
+                        # Aktualisiere aktuelles Segment
+                        segment['text'] = ' '.join(w['word'].strip() for w in remaining_words)
+                        segment['words'] = remaining_words
+                        segment['end'] = remaining_words[-1]['end'] if remaining_words else segment['end']
+                        segment['is_split'] = True
+                        
+                        optimized_segments.append(segment)
+                        continue
+                
+                # Wenn Verschiebung nicht möglich, teile das Segment weiter
+                if len(words) > 2:
+                    # Teile in zwei Hälften
+                    mid_point = len(words) // 2
+                    first_half = words[:mid_point]
+                    second_half = words[mid_point:]
+                    
+                    # Erstelle zwei neue Segmente
+                    first_segment = {
+                        'id': segment.get('id', 0),
+                        'seek': segment.get('seek', 0),
+                        'start': first_half[0]['start'],
+                        'end': first_half[-1]['end'],
+                        'text': ' '.join(w['word'].strip() for w in first_half),
+                        'tokens': segment.get('tokens', []),
+                        'temperature': segment.get('temperature', 0.0),
+                        'avg_logprob': segment.get('avg_logprob', 0.0),
+                        'compression_ratio': segment.get('compression_ratio', 0.0),
+                        'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                        'words': first_half,
+                        'is_split': True
+                    }
+                    
+                    second_segment = {
+                        'id': segment.get('id', 0) + 1,
+                        'seek': segment.get('seek', 0),
+                        'start': second_half[0]['start'],
+                        'end': second_half[-1]['end'],
+                        'text': ' '.join(w['word'].strip() for w in second_half),
+                        'tokens': segment.get('tokens', []),
+                        'temperature': segment.get('temperature', 0.0),
+                        'avg_logprob': segment.get('avg_logprob', 0.0),
+                        'compression_ratio': segment.get('compression_ratio', 0.0),
+                        'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                        'words': second_half,
+                        'is_split': True
+                    }
+                    
+                    optimized_segments.extend([first_segment, second_segment])
+                else:
+                    # Segment hat nur 1-2 Wörter, behalte es
+                    optimized_segments.append(segment)
+            
+            return optimized_segments
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Optimieren der Segment-Längen: {e}")
+            return segments
+
+    def _clean_segments(self, segments):
+        """
+        Entfernt Punkte-Wörter und leere Segmente
+        
+        Args:
+            segments (list): Liste der Segmente
+            
+        Returns:
+            list: Bereinigte Segmente
+        """
+        try:
+            cleaned_segments = []
+            
+            for segment in segments:
+                words = segment.get('words', [])
+                if not words:
+                    continue
+                
+                # Filtere Punkte-Wörter heraus
+                filtered_words = []
+                for word in words:
+                    word_text = word.get('word', '').strip()
+                    # Prüfe ob Wort nur aus Punkten besteht
+                    if word_text and not word_text.replace('.', '').replace(' ', ''):
+                        logger.info(f"Entfernt Punkte-Wort: '{word_text}'")
+                        continue
+                    filtered_words.append(word)
+                
+                # Prüfe ob Segment nach Filterung leer ist
+                if not filtered_words:
+                    logger.info(f"Entfernt leeres Segment: '{segment.get('text', '')}'")
+                    continue
+                
+                # Aktualisiere Segment
+                segment['words'] = filtered_words
+                segment['text'] = ' '.join(w['word'].strip() for w in filtered_words).strip()
+                
+                # Prüfe ob Text leer ist
+                if not segment['text']:
+                    logger.info(f"Entfernt Segment mit leerem Text")
+                    continue
+                
+                # Aktualisiere Start- und End-Zeit
+                if filtered_words:
+                    segment['start'] = filtered_words[0]['start']
+                    segment['end'] = filtered_words[-1]['end']
+                
+                cleaned_segments.append(segment)
+            
+            return cleaned_segments
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Bereinigen der Segmente: {e}")
+            return segments
+
+    def _optimize_capitalization_segments(self, segments):
+        """
+        Optimiert Segmente basierend auf Großbuchstaben (nur für englische Texte)
+        
+        Args:
+            segments (list): Liste der Segmente
+            
+        Returns:
+            list: Optimierte Segmente
+        """
+        try:
+            optimized_segments = []
+            
+            for i, segment in enumerate(segments):
+                words = segment.get('words', [])
+                if not words or len(words) <= 1:
+                    optimized_segments.append(segment)
+                    continue
+                
+                # Prüfe das letzte Wort
+                last_word = words[-1]
+                last_word_text = last_word.get('word', '').strip()
+                
+                # Prüfe ob letztes Wort mit Großbuchstaben anfängt und mehr als einen Buchstaben hat
+                if (len(last_word_text) > 1 and 
+                    last_word_text[0].isupper() and 
+                    i < len(segments) - 1):  # Es gibt ein nächstes Segment
+                    
+                    # Entferne letztes Wort aus aktuellem Segment
+                    remaining_words = words[:-1]
+                    next_segment = segments[i + 1]
+                    next_words = next_segment.get('words', [])
+                    
+                    # Füge das Wort an den Anfang des nächsten Segments hinzu
+                    next_words.insert(0, last_word)
+                    
+                    # Aktualisiere aktuelles Segment
+                    if remaining_words:
+                        segment['words'] = remaining_words
+                        segment['text'] = ' '.join(w['word'].strip() for w in remaining_words).strip()
+                        segment['end'] = remaining_words[-1]['end']
+                        segment['is_split'] = True
+                    else:
+                        # Segment wird leer, überspringe es
+                        continue
+                    
+                    # Aktualisiere nächstes Segment
+                    next_segment['words'] = next_words
+                    next_segment['text'] = ' '.join(w['word'].strip() for w in next_words).strip()
+                    next_segment['start'] = next_words[0]['start']
+                    next_segment['is_split'] = True
+                    
+                    logger.info(f"Verschoben Wort '{last_word_text}' von Segment {i} zu Segment {i+1}")
+                
+                optimized_segments.append(segment)
+            
+            return optimized_segments
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Optimieren der Großbuchstaben-Segmente: {e}")
+            return segments
+
+    def _split_segment(self, segment, max_duration, max_length, min_length):
+        """
+        Unterteilt ein einzelnes Segment in kleinere Teile
+        
+        Args:
+            segment (dict): Zu unterteilendes Segment
+            max_duration (float): Maximale Dauer pro Teil
+            max_length (int): Maximale Zeichen-Länge pro Teil
+            min_length (int): Minimale Zeichen-Länge pro Teil
+            
+        Returns:
+            list: Liste von unterteilten Segmenten
+        """
+        words = segment.get('words', [])
+        if not words:
+            # Fallback: Teile Text manuell
+            return self._split_segment_by_text(segment, max_duration, max_length, min_length)
+        
+        split_segments = []
+        current_start = segment['start']
+        current_words = []
+        current_text_length = 0
+        segment_id = segment.get('id', 0)
+        
+        for i, word in enumerate(words):
+            word_start = word['start']
+            word_end = word['end']
+            word_text = word['word'].strip()
+            word_length = len(word_text)
+            
+            # Prüfe ob aktuelles Segment zu lang wird (Zeit oder Zeichen)
+            time_exceeded = current_words and (word_end - current_start) > max_duration
+            length_exceeded = current_words and (current_text_length + word_length + 1) > max_length  # +1 für Leerzeichen
+            
+            # Prüfe ob Segment mindestens min_length Zeichen hat
+            current_segment_text = ' '.join(w['word'].strip() for w in current_words)
+            current_segment_length = len(current_segment_text)
+            
+            if time_exceeded or length_exceeded:
+                # Prüfe ob aktuelles Segment mindestens min_length Zeichen hat
+                if current_segment_length >= min_length:
+                    # Erstelle Segment aus aktuellen Wörtern
+                    split_segment = self._create_segment_from_words(
+                        current_words, current_start, segment_id, len(split_segments)
+                    )
+                    split_segments.append(split_segment)
+                    
+                    # Starte neues Segment
+                    current_start = word_start
+                    current_words = [word]
+                    current_text_length = word_length
+                else:
+                    # Segment zu kurz, füge Wort hinzu
+                    current_words.append(word)
+                    current_text_length += word_length + (1 if current_text_length > 0 else 0)
+            else:
+                current_words.append(word)
+                current_text_length += word_length + (1 if current_text_length > 0 else 0)  # +1 für Leerzeichen
+        
+        # Füge letztes Segment hinzu
+        if current_words:
+            split_segment = self._create_segment_from_words(
+                current_words, current_start, segment_id, len(split_segments)
+            )
+            split_segments.append(split_segment)
+        
+        return split_segments
+    
+    def _split_segment_by_text(self, segment, max_duration, max_length, min_length):
+        """
+        Fallback: Unterteilt Segment basierend auf Text-Länge
+        
+        Args:
+            segment (dict): Zu unterteilendes Segment
+            max_duration (float): Maximale Dauer pro Teil
+            max_length (int): Maximale Zeichen-Länge pro Teil
+            min_length (int): Minimale Zeichen-Länge pro Teil
+            
+        Returns:
+            list: Liste von unterteilten Segmenten
+        """
+        text = segment.get('text', '').strip()
+        if not text:
+            return [segment]
+        
+        # Teile Text in Wörter
+        words = text.split()
+        if len(words) <= 1:
+            return [segment]
+        
+        split_segments = []
+        segment_id = segment.get('id', 0)
+        segment_duration = segment['end'] - segment['start']
+        
+        current_words = []
+        current_text_length = 0
+        
+        for word in words:
+            word_length = len(word)
+            
+            # Prüfe ob aktuelles Segment zu lang wird (Zeit oder Zeichen)
+            time_exceeded = current_words and (len(current_words) * segment_duration / len(words)) > max_duration
+            length_exceeded = current_words and (current_text_length + word_length + 1) > max_length  # +1 für Leerzeichen
+            
+            # Prüfe ob Segment mindestens min_length Zeichen hat
+            current_segment_text = ' '.join(current_words)
+            current_segment_length = len(current_segment_text)
+            
+            if time_exceeded or length_exceeded:
+                # Prüfe ob aktuelles Segment mindestens min_length Zeichen hat
+                if current_segment_length >= min_length:
+                    # Erstelle Segment aus aktuellen Wörtern
+                    segment_text = ' '.join(current_words)
+                    segment_ratio = len(current_words) / len(words)
+                    segment_start = segment['start'] + (segment_duration * (len(split_segments) * len(current_words)) / len(words))
+                    segment_end = segment['start'] + (segment_duration * ((len(split_segments) + 1) * len(current_words)) / len(words))
+                    
+                    split_segment = {
+                        'id': segment_id + len(split_segments),
+                        'seek': segment.get('seek', 0),
+                        'start': segment_start,
+                        'end': segment_end,
+                        'text': segment_text,
+                        'tokens': segment.get('tokens', []),
+                        'temperature': segment.get('temperature', 0.0),
+                        'avg_logprob': segment.get('avg_logprob', 0.0),
+                        'compression_ratio': segment.get('compression_ratio', 0.0),
+                        'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                        'words': [],  # Keine Word-Timestamps verfügbar
+                        'is_split': True  # Markiere als künstlich getrennt
+                    }
+                    
+                    split_segments.append(split_segment)
+                    
+                    # Starte neues Segment
+                    current_words = [word]
+                    current_text_length = word_length
+                else:
+                    # Segment zu kurz, füge Wort hinzu
+                    current_words.append(word)
+                    current_text_length += word_length + (1 if current_text_length > 0 else 0)
+            else:
+                current_words.append(word)
+                current_text_length += word_length + (1 if current_text_length > 0 else 0)  # +1 für Leerzeichen
+        
+        # Füge letztes Segment hinzu
+        if current_words:
+            segment_text = ' '.join(current_words)
+            segment_ratio = len(current_words) / len(words)
+            segment_start = segment['start'] + (segment_duration * (len(split_segments) * len(current_words)) / len(words))
+            segment_end = segment['end']
+            
+            split_segment = {
+                'id': segment_id + len(split_segments),
+                'seek': segment.get('seek', 0),
+                'start': segment_start,
+                'end': segment_end,
+                'text': segment_text,
+                'tokens': segment.get('tokens', []),
+                'temperature': segment.get('temperature', 0.0),
+                'avg_logprob': segment.get('avg_logprob', 0.0),
+                'compression_ratio': segment.get('compression_ratio', 0.0),
+                'no_speech_prob': segment.get('no_speech_prob', 0.0),
+                'words': [],  # Keine Word-Timestamps verfügbar
+                'is_split': True  # Markiere als künstlich getrennt
+            }
+            
+            split_segments.append(split_segment)
+        
+        return split_segments
+    
+    def _create_segment_from_words(self, words, start_time, original_id, segment_index):
+        """
+        Erstellt ein neues Segment aus einer Liste von Wörtern
+        
+        Args:
+            words (list): Liste von Wörtern
+            start_time (float): Startzeit des Segments
+            original_id (int): Originale Segment-ID
+            segment_index (int): Index des neuen Segments
+            
+        Returns:
+            dict: Neues Segment
+        """
+        if not words:
+            return None
+        
+        end_time = words[-1]['end']
+        segment_text = ' '.join(word['word'].strip() for word in words)
+        
+        return {
+            'id': original_id + segment_index,
+            'seek': 0,
+            'start': start_time,
+            'end': end_time,
+            'text': segment_text,
+            'tokens': [],
+            'temperature': 0.0,
+            'avg_logprob': 0.0,
+            'compression_ratio': 0.0,
+            'no_speech_prob': 0.0,
+            'words': words,
+            'is_split': True  # Markiere als künstlich getrennt
+        }
+    
+    def _redistribute_last_segment(self, segments, min_duration):
+        """
+        Verteilt das letzte Segment neu, falls es zu kurz ist
+        
+        Args:
+            segments (list): Liste von Segmenten
+            min_duration (float): Minimale Segment-Dauer
+            
+        Returns:
+            list: Neu verteilte Segmente
+        """
+        if not segments:
+            return segments
+        
+        last_segment = segments[-1]
+        last_duration = last_segment['end'] - last_segment['start']
+        
+        # Wenn letztes Segment zu kurz ist
+        if last_duration < min_duration and len(segments) > 1:
+            # Entferne letztes Segment
+            segments_without_last = segments[:-1]
+            
+            # Verteile Wörter des letzten Segments auf vorherige Segmente
+            last_words = last_segment.get('words', [])
+            if last_words:
+                # Verteile Wörter gleichmäßig auf vorherige Segmente
+                words_per_segment = len(last_words) // len(segments_without_last)
+                remaining_words = len(last_words) % len(segments_without_last)
+                
+                word_index = 0
+                for i, segment in enumerate(segments_without_last):
+                    # Berechne Anzahl Wörter für dieses Segment
+                    words_to_add = words_per_segment
+                    if i < remaining_words:
+                        words_to_add += 1
+                    
+                    # Füge Wörter hinzu
+                    if words_to_add > 0:
+                        segment['words'].extend(last_words[word_index:word_index + words_to_add])
+                        word_index += words_to_add
+                        
+                        # Aktualisiere Segment-Ende
+                        if segment['words']:
+                            segment['end'] = segment['words'][-1]['end']
+                            segment['text'] = ' '.join(word['word'].strip() for word in segment['words'])
+            
+            logger.info(f"Letztes Segment ({last_duration:.2f}s) neu verteilt")
+            return segments_without_last
+        
+        return segments
+    
+    def _clean_empty_segments(self, segments):
+        """
+        Entfernt leere Segmente aus der Liste
+        
+        Args:
+            segments (list): Liste von Segmenten
+            
+        Returns:
+            list: Bereinigte Segmente
+        """
+        cleaned_segments = []
+        
+        for segment in segments:
+            # Prüfe ob Segment leer ist
+            text = segment.get('text', '').strip()
+            words = segment.get('words', [])
+            
+            # Behalte Segment nur wenn es Text oder Wörter hat
+            if text or words:
+                cleaned_segments.append(segment)
+        
+        return cleaned_segments
+    
     def process_audio(self, audio_path, model_type="HP5", language=None, output_formats=["txt", "json"]):
         """
         Hauptfunktion: Verarbeitet Audio zu Lyrics
@@ -611,7 +1461,7 @@ Beispiele:
     
     parser.add_argument(
         "--model",
-        choices=["tiny", "base", "small", "medium", "large"],
+        choices=["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
         default="base",
         help="Whisper-Modell-Größe (Standard: base)"
     )
