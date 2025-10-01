@@ -349,15 +349,33 @@ class MusicToLyrics:
                 title = title or filename_title
                 artist = artist or filename_artist
             
-            return title, artist
+            # Extrahiere Cover falls vorhanden
+            cover_path = self._extract_cover(audio_file, audio_path)
+            
+            return title, artist, cover_path
             
         except Exception as e:
             logger.warning(f"Fehler beim Extrahieren der Metadaten: {e}")
-            return self._extract_metadata_from_filename(audio_path)
+            title, artist = self._extract_metadata_from_filename(audio_path)
+            return title, artist, None
     
     def _extract_metadata_from_filename(self, audio_path):
-        """Extrahiert Titel und Interpret aus dem Dateinamen"""
+        """Extrahiert Titel und Interpret aus dem Unterordner oder Dateinamen"""
         try:
+            # Versuche zuerst den Unterordner zu verwenden
+            parent_dir = os.path.basename(os.path.dirname(audio_path))
+            
+            # Prüfe ob es ein magic-* Ordner ist
+            if parent_dir.startswith('magic-'):
+                # Für magic-* Ordner: verwende den Unterordner des Unterordners
+                grandparent_dir = os.path.basename(os.path.dirname(os.path.dirname(audio_path)))
+                if ' - ' in grandparent_dir:
+                    parts = grandparent_dir.split(' - ', 1)
+                    artist = parts[0].strip()
+                    title = parts[1].strip()
+                    return title, artist
+            
+            # Fallback: Dateiname verwenden
             filename = os.path.splitext(os.path.basename(audio_path))[0]
             
             # Versuche "Artist - Title" Format
@@ -376,11 +394,73 @@ class MusicToLyrics:
             logger.warning(f"Fehler beim Extrahieren aus Dateinamen: {e}")
             return "Unknown Title", "Unknown Artist"
     
+    def _extract_cover(self, audio_file, audio_path):
+        """Extrahiert Cover aus Audiodatei-Metadaten"""
+        try:
+            # Suche nach Cover in verschiedenen Tag-Feldern
+            cover_data = None
+            
+            # ID3v2 APIC (Album Picture)
+            if 'APIC:' in audio_file:
+                cover_data = audio_file['APIC:'].data
+            elif 'APIC' in audio_file:
+                cover_data = audio_file['APIC'].data
+            
+            # Vorbis METADATA_BLOCK_PICTURE
+            elif 'METADATA_BLOCK_PICTURE' in audio_file:
+                import base64
+                cover_data = base64.b64decode(audio_file['METADATA_BLOCK_PICTURE'][0])
+            
+            if cover_data:
+                # Bestimme Dateierweiterung basierend auf MIME-Type
+                mime_type = None
+                if 'APIC:' in audio_file:
+                    mime_type = audio_file['APIC:'].mime
+                elif 'APIC' in audio_file:
+                    mime_type = audio_file['APIC'].mime
+                
+                # Bestimme Dateierweiterung
+                if mime_type:
+                    if 'jpeg' in mime_type or 'jpg' in mime_type:
+                        ext = '.jpg'
+                    elif 'png' in mime_type:
+                        ext = '.png'
+                    elif 'gif' in mime_type:
+                        ext = '.gif'
+                    else:
+                        ext = '.jpg'  # Fallback
+                else:
+                    ext = '.jpg'  # Fallback
+                
+                # Speichere Cover
+                output_dir = os.path.dirname(audio_path)
+                cover_path = os.path.join(output_dir, f"cover{ext}")
+                
+                with open(cover_path, 'wb') as f:
+                    f.write(cover_data)
+                
+                logger.info(f"Cover extrahiert: {cover_path}")
+                return cover_path
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Fehler beim Extrahieren des Covers: {e}")
+            return None
+    
     def _save_ultrastar(self, result, output_path, audio_path):
         """Speichert Lyrics als UltraStar-Datei"""
         try:
             # Extrahiere Metadaten
-            title, artist = self._extract_metadata(audio_path) if audio_path else ("Unknown Title", "Unknown Artist")
+            if audio_path:
+                metadata_result = self._extract_metadata(audio_path)
+                if len(metadata_result) == 3:
+                    title, artist, cover_path = metadata_result
+                else:
+                    title, artist = metadata_result
+                    cover_path = None
+            else:
+                title, artist, cover_path = "Unknown Title", "Unknown Artist", None
             
             # Verwende feste BPM
             bpm = 400  # ULTRSTAR_BPM
@@ -1480,7 +1560,7 @@ class MusicToLyrics:
         
         return cleaned_segments
     
-    def process_audio(self, audio_path, model_type="HP5", language=None, output_formats=["txt", "json"]):
+    def process_audio(self, audio_path, model_type="HP5", language=None, output_formats=["ultrastar"]):
         """
         Hauptfunktion: Verarbeitet Audio zu Lyrics
         
@@ -1576,8 +1656,8 @@ Beispiele:
         "--formats",
         nargs="+",
         choices=["txt", "json", "srt", "vtt", "ultrastar"],
-        default=["txt", "json", "ultrastar"],
-        help="Ausgabeformate (Standard: txt json ultrastar)"
+        default=["ultrastar"],
+        help="Ausgabeformate (Standard: ultrastar)"
     )
     
     parser.add_argument(
