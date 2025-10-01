@@ -140,6 +140,9 @@ class MusicToLyrics:
             logger.info(f"Speichere Vocals: {vocals_path}")
             sf.write(vocals_path, vocal_data.T, sample_rate)
             
+            # Speichere Vocals-Pfad für spätere Lautstärke-Analyse
+            self._last_vocals_path = vocals_path
+            
             # Speichere Instrumental als MP3
             logger.info(f"Speichere Instrumental: {instrumental_path}")
             inst_wav_path = os.path.join(folder_path, f"{base_name}_instrumental_temp.wav")
@@ -189,6 +192,9 @@ class MusicToLyrics:
             
             # Post-Processing: Unterteile lange Segmente für Karaoke
             result = self._split_long_segments(result)
+            
+            # Post-Processing: Entferne Halluzinationen nach Segment-Splitting
+            result = self._filter_hallucinations(result)
             
             logger.info("Transkription erfolgreich abgeschlossen")
             logger.info(f"Erkannte Sprache: {result.get('language', 'unbekannt')}")
@@ -376,8 +382,8 @@ class MusicToLyrics:
             # Extrahiere Metadaten
             title, artist = self._extract_metadata(audio_path) if audio_path else ("Unknown Title", "Unknown Artist")
             
-            # Berechne BPM (geschätzt basierend auf Segment-Längen)
-            bpm = self._estimate_bpm(result)
+            # Verwende feste BPM
+            bpm = 400  # ULTRSTAR_BPM
             
             # Finde die erste Note und berechne GAP
             first_note_time = None
@@ -448,9 +454,9 @@ class MusicToLyrics:
                             
                             # UltraStar Note mit korrektem Leerzeichen
                             if is_first_note or start_beat == 0:
-                                f.write(f": {start_beat} {duration_beats} 60 {word_text}\n")
+                                f.write(f": {start_beat} {duration_beats} 0 {word_text}\n")
                             else:
-                                f.write(f": {start_beat} {duration_beats} 60  {word_text}\n")
+                                f.write(f": {start_beat} {duration_beats} 0  {word_text}\n")
                             note_id += 1
                     else:
                         # Verwende Word-Timestamps
@@ -477,9 +483,9 @@ class MusicToLyrics:
                             
                             # UltraStar Note mit korrektem Leerzeichen
                             if is_first_note or start_beat == 0:
-                                f.write(f": {start_beat} {duration_beats} 60 {word_text}\n")
+                                f.write(f": {start_beat} {duration_beats} 0 {word_text}\n")
                             else:
-                                f.write(f": {start_beat} {duration_beats} 60  {word_text}\n")
+                                f.write(f": {start_beat} {duration_beats} 0  {word_text}\n")
                             note_id += 1
                     
                     # Zeilenumbruch nach Segment
@@ -659,17 +665,16 @@ class MusicToLyrics:
                         word_starts = [w.get('start', 0) for w in words]
                         word_ends = [w.get('end', 0) for w in words]
                         
-                        # Prüfe ob alle Wörter die gleiche End-Zeit haben
-                        if len(set(word_ends)) == 1:
+                        # Prüfe ob mindestens zwei Wörter dieselbe End-Zeit haben
+                        end_time_counts = {}
+                        for end_time in word_ends:
+                            end_time_counts[end_time] = end_time_counts.get(end_time, 0) + 1
+                        
+                        # Wenn mindestens zwei Wörter dieselbe End-Zeit haben, ist es eine Halluzination
+                        max_count = max(end_time_counts.values())
+                        if max_count >= 2:
                             is_hallucination = True
-                            logger.info(f"Entfernt unmögliche Word-Timestamps (gleiche End-Zeit): '{segment.get('text', '').strip()}'")
-                        # Prüfe ob alle Wörter außer dem ersten und letzten dieselbe End-Zeit haben
-                        elif len(words) > 3:
-                            middle_words = words[1:-1]  # Alle Wörter außer erstem und letztem
-                            middle_word_ends = [w.get('end', 0) for w in middle_words]
-                            if len(set(middle_word_ends)) == 1:
-                                is_hallucination = True
-                                logger.info(f"Entfernt unmögliche Word-Timestamps (gleiche mittlere End-Zeit): '{segment.get('text', '').strip()}'")
+                            logger.info(f"Entfernt unmögliche Word-Timestamps ({max_count}/{len(words)} gleiche End-Zeit): '{segment.get('text', '').strip()}'")
                 
                 # Zusätzliche Prüfung: Sehr kurze Segmente am Ende
                 if not is_hallucination and len(segment_text) <= 3:
@@ -719,6 +724,10 @@ class MusicToLyrics:
             SEG_SHORT = 3.0  # Maximale Dauer der resultierenden Segmente
             CHAR_MAX = 30  # Maximale Zeichen pro Segment
             
+            # Konstanten für UltraStar
+            ULTRSTAR_BPM = 400  # Feste BPM für UltraStar-Dateien
+            ULTRSTAR_PITCH = 0  # Fester Pitch für alle Noten
+            
             segments = result.get('segments', [])
             if not segments:
                 return result
@@ -746,7 +755,11 @@ class MusicToLyrics:
             if result.get('language', '').lower() == 'en':
                 new_segments = self._optimize_capitalization_segments(new_segments)
             
-            # Vierte Runde: Entferne Punkte-Wörter und leere Segmente
+            # Vierte Runde: Prüfe Lautstärke der Segmente (nur wenn vocals_path verfügbar)
+            if hasattr(self, '_last_vocals_path') and self._last_vocals_path:
+                new_segments = self._filter_by_volume(new_segments, self._last_vocals_path)
+            
+            # Fünfte Runde: Entferne Punkte-Wörter und leere Segmente
             new_segments = self._clean_segments(new_segments)
             
             # Aktualisiere Ergebnis
@@ -1069,8 +1082,12 @@ class MusicToLyrics:
                 last_word_text = last_word.get('word', '').strip()
                 
                 # Prüfe ob letztes Wort mit Großbuchstaben anfängt und mehr als einen Buchstaben hat
+                # Aber nicht wenn es mit Satzzeichen endet
+                has_punctuation = any(last_word_text.endswith(p) for p in ['.', '!', '?', ',', ';', ':'])
+                
                 if (len(last_word_text) > 1 and 
                     last_word_text[0].isupper() and 
+                    not has_punctuation and
                     i < len(segments) - 1):  # Es gibt ein nächstes Segment
                     
                     # Entferne letztes Wort aus aktuellem Segment
@@ -1105,6 +1122,83 @@ class MusicToLyrics:
             
         except Exception as e:
             logger.warning(f"Fehler beim Optimieren der Großbuchstaben-Segmente: {e}")
+            return segments
+
+    def _filter_by_volume(self, segments, vocals_path):
+        """
+        Filtert Segmente basierend auf der Lautstärke der Vocals
+        
+        Args:
+            segments (list): Liste der Segmente
+            vocals_path (str): Pfad zur Vocals-Datei
+            
+        Returns:
+            list: Gefilterte Segmente
+        """
+        try:
+            import subprocess
+            import json
+            
+            filtered_segments = []
+            volume_threshold = -30.0  # dB Schwellwert für minimale Lautstärke
+            
+            for segment in segments:
+                start_time = segment.get('start', 0)
+                end_time = segment.get('end', 0)
+                duration = end_time - start_time
+                
+                if duration <= 0:
+                    continue
+                
+                # FFmpeg-Befehl für Lautstärke-Analyse
+                cmd = [
+                    'ffmpeg',
+                    '-i', vocals_path,
+                    '-ss', str(start_time),
+                    '-t', str(duration),
+                    '-af', 'volumedetect',
+                    '-f', 'null',
+                    '-'
+                ]
+                
+                try:
+                    # Führe FFmpeg-Befehl aus
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    
+                    # Parse FFmpeg-Ausgabe für mittlere Lautstärke
+                    output = result.stderr
+                    mean_volume = None
+                    
+                    for line in output.split('\n'):
+                        if 'mean_volume:' in line:
+                            # Extrahiere dB-Wert
+                            parts = line.split('mean_volume:')
+                            if len(parts) > 1:
+                                volume_str = parts[1].strip().split()[0]
+                                try:
+                                    mean_volume = float(volume_str.replace('dB', ''))
+                                    break
+                                except ValueError:
+                                    continue
+                    
+                    # Prüfe Lautstärke
+                    if mean_volume is not None and mean_volume > volume_threshold:
+                        filtered_segments.append(segment)
+                        logger.info(f"Segment beibehalten (Lautstärke: {mean_volume:.1f}dB): '{segment.get('text', '').strip()}'")
+                    else:
+                        logger.info(f"Entfernt Segment (zu leise: {mean_volume}dB): '{segment.get('text', '').strip()}'")
+                        
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"FFmpeg-Timeout für Segment: '{segment.get('text', '').strip()}'")
+                    filtered_segments.append(segment)  # Bei Timeout behalten
+                except Exception as e:
+                    logger.warning(f"FFmpeg-Fehler für Segment: {e}")
+                    filtered_segments.append(segment)  # Bei Fehler behalten
+            
+            return filtered_segments
+            
+        except Exception as e:
+            logger.warning(f"Fehler bei Lautstärke-Filterung: {e}")
             return segments
 
     def _split_segment(self, segment, max_duration, max_length, min_length):
