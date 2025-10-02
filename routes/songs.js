@@ -337,35 +337,39 @@ router.post('/request', [
         title = metadata.title;
         artist = metadata.artist || 'Unknown Artist';
         
-        // Try to download YouTube video to songs/youtube folder
-        console.log(`📥 Attempting to download YouTube video: ${artist} - ${title}`);
-        downloadStatus = 'downloading';
-        const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
+        // Try to download YouTube video to songs/youtube folder (skip for magic mode)
+        if (youtubeMode !== 'magic') {
+          console.log(`📥 Attempting to download YouTube video: ${artist} - ${title}`);
+          downloadStatus = 'downloading';
+          const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
         
-        if (downloadResult.success) {
-          console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-          downloadStatus = 'downloaded';
-          
-          // Add to invisible songs list
-          try {
-            const db = require('../config/database');
-            await new Promise((resolve, reject) => {
-              db.run(
-                'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                [artist, title],
-                function(err) {
-                  if (err) reject(err);
-                  else resolve();
-                }
-              );
-            });
-            console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
-          } catch (error) {
-            console.error('Error adding to invisible songs:', error);
+          if (downloadResult.success) {
+            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+            downloadStatus = 'downloaded';
+            
+            // Add to invisible songs list
+            try {
+              const db = require('../config/database');
+              await new Promise((resolve, reject) => {
+                db.run(
+                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                  [artist, title],
+                  function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                  }
+                );
+              });
+              console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+            } catch (error) {
+              console.error('Error adding to invisible songs:', error);
+            }
+          } else {
+            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+            downloadStatus = 'failed';
           }
         } else {
-          console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
-          downloadStatus = 'failed';
+          console.log(`✨ Skipping normal YouTube download for magic mode: ${artist} - ${title}`);
         }
       } catch (error) {
         console.error('Failed to extract YouTube metadata:', error.message);
@@ -663,7 +667,9 @@ router.post('/request', [
     }
 
     // Create song with priority, duration, mode and background vocals preference
-    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, mode, withBackgroundVocals || false);
+    // For magic YouTube mode, use ultrastar mode to avoid creating in songs/youtube
+    const finalMode = (mode === 'youtube' && youtubeMode === 'magic') ? 'ultrastar' : mode;
+    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, finalMode, withBackgroundVocals || false);
     
     // Update download status if this was a YouTube download
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
