@@ -22,6 +22,7 @@ export interface Song {
   user_name?: string;
   device_id?: string;
   with_background_vocals?: boolean;
+  magic?: boolean;
 }
 
 export interface ServerVideo {

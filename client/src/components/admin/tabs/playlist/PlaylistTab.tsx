@@ -667,7 +667,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                               {song.modes ? (
                                 song.modes.map((mode, index) => (
                                   <React.Fragment key={index}>
-                                    <SmallModeBadge mode={mode} modes={[mode]} />
+                                    {/* Show magic badge instead of ultrastar badge for magic songs */}
+                                    {song.magic && mode === 'ultrastar' ? (
+                                      <SmallModeBadge mode="magic-youtube" modes={['magic-youtube']} />
+                                    ) : (
+                                      <SmallModeBadge mode={mode} modes={[mode]} />
+                                    )}
                                     {mode === 'ultrastar' && song.with_background_vocals && (
                                       // <HP5Badge>🎤 BG Vocals</HP5Badge>
                                       <SmallModeBadge mode="hp2" />
@@ -676,7 +681,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                                 ))
                               ) : (
                                 <>
-                                  <SmallModeBadge mode={song.mode || 'youtube'} modes={[song.mode || 'youtube']} />
+                                  {/* Show magic badge instead of ultrastar badge for magic songs */}
+                                  {song.magic && (song.mode || 'youtube') === 'ultrastar' ? (
+                                    <SmallModeBadge mode="magic-youtube" modes={['magic-youtube']} />
+                                  ) : (
+                                    <SmallModeBadge mode={song.mode || 'youtube'} modes={[song.mode || 'youtube']} />
+                                  )}
                                   {(song.mode || 'youtube') === 'ultrastar' && song.with_background_vocals && (
                                     // <HP5Badge>🎤 BG Vocals</HP5Badge>
                                     <SmallModeBadge mode="hp2" />

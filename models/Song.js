@@ -78,8 +78,14 @@ class Song {
             const processedRow = {
               ...row,
               with_background_vocals: Boolean(row.with_background_vocals),
-              is_duett: Boolean(row.is_duett)
+              is_duett: Boolean(row.is_duett),
+              magic: false // Default to false
             };
+            
+            // Check if this is a magic song by examining the youtube_url
+            if (row.youtube_url && row.youtube_url.includes('/api/magic-')) {
+              processedRow.magic = true;
+            }
             
             // Parse duett data if available
             if (row.is_duett) {
