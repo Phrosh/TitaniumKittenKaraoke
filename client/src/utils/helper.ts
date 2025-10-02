@@ -82,7 +82,7 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
     return found;
   }
 
-  export type DownloadStatus = 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none' | 'ready' | 'pending';
+  export type DownloadStatus = 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none' | 'ready' | 'pending' | 'magic-processing' | 'magic-downloading' | 'magic-separating' | 'magic-transcribing' | 'magic-completed' | 'magic-failed';
 
   export const getDownloadStatusText = (status: DownloadStatus) => {
     switch (status) {
@@ -98,6 +98,18 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
         return 'Ready';
       case 'pending':
         return 'Pending';
+      case 'magic-processing':
+        return '✨ Processing...';
+      case 'magic-downloading':
+        return '📥 Downloading...';
+      case 'magic-separating':
+        return '🎵 Creating Karaoke Music...';
+      case 'magic-transcribing':
+        return '📝 Creating Karaoke Text...';
+      case 'magic-completed':
+        return '✨ Magic Complete!';
+      case 'magic-failed':
+        return '❌ Magic Failed';
       case 'none':
         return '';
     }

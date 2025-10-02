@@ -174,7 +174,18 @@ const SongList: React.FC<SongListProps> = ({
         try {
             const folderName = song.folderName || `${song.artist} - ${song.title}`;
 
-            // First check if video is needed
+            // Check if this is a magic song/video
+            if (song.modes?.includes('magic-songs')) {
+                await startMagicSongProcessing(song, songKey, folderName);
+                return;
+            }
+
+            if (song.modes?.includes('magic-videos')) {
+                await startMagicVideoProcessing(song, songKey, folderName);
+                return;
+            }
+
+            // For regular ultrastar songs, check if video is needed
             const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
 
             if (videoCheckResponse.data.needsVideo) {
@@ -216,6 +227,70 @@ const SongList: React.FC<SongListProps> = ({
         } catch (error: any) {
             console.error('Error starting processing:', error);
             toast.error(error.response?.data?.error || t('songList.processingError'));
+            // Remove from processing state on error
+            setProcessingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+            });
+        }
+    };
+
+    const startMagicSongProcessing = async (song: any, songKey: string, folderName: string) => {
+        // Mark song as processing
+        setProcessingSongs(prev => new Set(prev).add(songKey));
+
+        try {
+            const response = await songAPI.processMagicSong(folderName);
+
+            if (response.data.success) {
+                toast.success(t('songList.magicProcessingStarted', { artist: song.artist, title: song.title }));
+                console.log('Magic song processing started:', response.data);
+                // Keep in processing state - will be removed later when job completes
+            } else {
+                toast.error(response.data.error || t('songList.magicProcessingError'));
+                // Remove from processing state on error
+                setProcessingSongs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(songKey);
+                    return newSet;
+                });
+            }
+        } catch (error: any) {
+            console.error('Error starting magic song processing:', error);
+            toast.error(error.response?.data?.error || t('songList.magicProcessingError'));
+            // Remove from processing state on error
+            setProcessingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+            });
+        }
+    };
+
+    const startMagicVideoProcessing = async (song: any, songKey: string, folderName: string) => {
+        // Mark song as processing
+        setProcessingSongs(prev => new Set(prev).add(songKey));
+
+        try {
+            const response = await songAPI.processMagicVideo(folderName);
+
+            if (response.data.success) {
+                toast.success(t('songList.magicProcessingStarted', { artist: song.artist, title: song.title }));
+                console.log('Magic video processing started:', response.data);
+                // Keep in processing state - will be removed later when job completes
+            } else {
+                toast.error(response.data.error || t('songList.magicProcessingError'));
+                // Remove from processing state on error
+                setProcessingSongs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(songKey);
+                    return newSet;
+                });
+            }
+        } catch (error: any) {
+            console.error('Error starting magic video processing:', error);
+            toast.error(error.response?.data?.error || t('songList.magicProcessingError'));
             // Remove from processing state on error
             setProcessingSongs(prev => {
                 const newSet = new Set(prev);
@@ -493,7 +568,7 @@ const SongList: React.FC<SongListProps> = ({
                                                 </div>
 
                                                 {/* Processing button for songs with all required files */}
-                                                {hasMissingFiles(song) && (
+                                                {(hasMissingFiles(song) || (song.modes?.includes('magic-songs') && !song.hasUltrastar) || (song.modes?.includes('magic-videos') && !song.hasUltrastar)) && (
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <Button
                                                             onClick={() => handleStartProcessing(song)}

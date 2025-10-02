@@ -1220,7 +1220,7 @@ class MusicToLyrics:
             import json
             
             filtered_segments = []
-            volume_threshold = -30.0  # dB Schwellwert für minimale Lautstärke
+            volume_threshold = -45.0  # dB Schwellwert für minimale Lautstärke
             
             for segment in segments:
                 start_time = segment.get('start', 0)

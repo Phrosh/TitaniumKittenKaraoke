@@ -9,9 +9,11 @@ interface SongFormProps {
     artist: string;
     title: string;
     youtubeUrl: string;
+    youtubeMode?: 'karaoke' | 'magic';
     withBackgroundVocals: boolean;
     onSingerNameChange: (value: string) => void;
     onYoutubeUrlChange: (value: string) => void;
+    onYoutubeModeChange?: (mode: 'karaoke' | 'magic') => void;
     onWithBackgroundVocalsChange: (checked: boolean) => void;
     showSongList?: boolean;
     songList?: any[];
@@ -19,7 +21,7 @@ interface SongFormProps {
     usdbResults?: any[];
     usdbLoading?: boolean;
     songData: {artist: string, title: string};
-    setSongData: (data: {artist: string, title: string, singerName: string, youtubeUrl: string	}) => void;
+    setSongData: (data: {artist: string, title: string, singerName: string, youtubeUrl: string, youtubeMode?: 'karaoke' | 'magic'}) => void;
     setSongSearchTerm: (term: string) => void;
     setUsdbResults: (results: any[]) => void;
     setUsdbLoading: (loading: boolean) => void;
@@ -30,9 +32,11 @@ const SongForm: React.FC<SongFormProps> = ({
     artist,
     title,
     youtubeUrl,
+    youtubeMode = 'karaoke',
     withBackgroundVocals,
     onSingerNameChange,
     onYoutubeUrlChange,
+    onYoutubeModeChange,
     onWithBackgroundVocalsChange,
     showSongList = false,
     songList = [],
@@ -248,6 +252,36 @@ const SongForm: React.FC<SongFormProps> = ({
             }}
           />
         </div>
+
+        {youtubeUrl && (
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+              {t('modals.editSong.youtubeMode')}:
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="youtubeMode"
+                  value="karaoke"
+                  checked={youtubeMode === 'karaoke'}
+                  onChange={(e) => onYoutubeModeChange?.(e.target.value as 'karaoke' | 'magic')}
+                />
+                <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="youtubeMode"
+                  value="magic"
+                  checked={youtubeMode === 'magic'}
+                  onChange={(e) => onYoutubeModeChange?.(e.target.value as 'karaoke' | 'magic')}
+                />
+                <span>{t('modals.editSong.youtubeModeMagic')}</span>
+              </label>
+            </div>
+          </div>
+        )}
   
         {/* Background Vocals Checkbox */}
         <div style={{ marginBottom: '20px' }}>

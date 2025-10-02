@@ -153,6 +153,112 @@ router.put('/song/:songId/youtube', [
   }
 });
 
+// Process Magic YouTube for a song
+router.post('/song/:songId/magic-youtube', [
+  body('youtubeUrl').isURL().withMessage('Valid YouTube URL required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { songId } = req.params;
+    const { youtubeUrl } = req.body;
+
+    const song = await Song.getById(songId);
+    if (!song) {
+      return res.status(404).json({ message: 'Song not found' });
+    }
+
+    // Clean the YouTube URL before saving
+    const cleanedUrl = cleanYouTubeUrl(youtubeUrl);
+    
+    // Update the YouTube URL in database
+    await Song.updateYoutubeUrl(songId, cleanedUrl);
+    
+    // Set magic processing status
+    await Song.updateDownloadStatus(songId, 'magic-processing', new Date().toISOString());
+    
+    // Start magic YouTube processing via AI services
+    try {
+      const https = require('http');
+      const url = require('url');
+      
+      const pythonServerUrl = 'http://localhost:6000';
+      const magicUrl = `${pythonServerUrl}/process_magic_youtube/${encodeURIComponent(song.artist)} - ${encodeURIComponent(song.title)}`;
+      
+      console.log('✨ Starting Magic YouTube processing:', {
+        songId,
+        artist: song.artist,
+        title: song.title,
+        youtubeUrl: cleanedUrl,
+        magicUrl
+      });
+      
+      const parsedUrl = url.parse(magicUrl);
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port,
+        path: parsedUrl.path,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
+      
+      const proxyReq = https.request(options, (proxyRes) => {
+        let data = '';
+        
+        proxyRes.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        proxyRes.on('end', () => {
+          try {
+            const responseData = JSON.parse(data);
+            console.log('✨ Magic YouTube processing response:', {
+              statusCode: proxyRes.statusCode,
+              responseData,
+              timestamp: new Date().toISOString()
+            });
+            
+            if (proxyRes.statusCode === 200) {
+              // Update song mode to ultrastar (magic-youtube)
+              Song.updateMode(songId, 'ultrastar').catch(console.error);
+              Song.updateDownloadStatus(songId, 'magic-completed').catch(console.error);
+            } else {
+              Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+            }
+          } catch (error) {
+            console.error('✨ Error parsing Magic YouTube response:', error);
+            Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+          }
+        });
+      });
+      
+      proxyReq.on('error', (error) => {
+        console.error('✨ Error processing Magic YouTube:', error);
+        Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+      });
+      
+      // Send the YouTube URL in the request body
+      proxyReq.write(JSON.stringify({ youtubeUrl: cleanedUrl }));
+      proxyReq.setTimeout(300000); // 5 minutes timeout for magic processing
+      proxyReq.end();
+      
+    } catch (error) {
+      console.error('✨ Error starting Magic YouTube processing:', error);
+      await Song.updateDownloadStatus(songId, 'magic-failed');
+    }
+    
+    res.json({ message: 'Magic YouTube processing started successfully' });
+  } catch (error) {
+    console.error('Magic YouTube processing error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get song details for editing
 router.get('/song/:songId', async (req, res) => {
   try {
@@ -2274,7 +2380,7 @@ router.post('/song/test', async (req, res) => {
     let finalMode = mode || 'youtube';
     let finalYoutubeUrl = youtubeUrl;
     
-    // Check for songs in priority order: file > server_video > ultrastar > youtube
+    // Check for songs in priority order: file > server_video > ultrastar > magic-songs > magic-videos > magic-youtube > youtube
     if (!youtubeUrl) {
       // First check file songs (highest priority)
       const db = require('../config/database');
@@ -2314,6 +2420,39 @@ router.post('/song/test', async (req, res) => {
           finalMode = 'ultrastar';
           finalYoutubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
           console.log(`🎤 Test song classified as ultrastar: ${ultrastarSong.folderName}`);
+        }
+      }
+      
+      // If no ultrastar song found, check magic songs
+      if (finalMode === 'youtube') {
+        const { findMagicSong } = require('../utils/magicSongs');
+        const magicSong = findMagicSong(artist, title);
+        if (magicSong) {
+          finalMode = 'ultrastar';
+          finalYoutubeUrl = `/api/magic-songs/${encodeURIComponent(magicSong.folderName)}`;
+          console.log(`🎵 Test song classified as magic-songs: ${magicSong.folderName}`);
+        }
+      }
+      
+      // If no magic song found, check magic videos
+      if (finalMode === 'youtube') {
+        const { findMagicVideo } = require('../utils/magicVideos');
+        const magicVideo = findMagicVideo(artist, title);
+        if (magicVideo) {
+          finalMode = 'ultrastar';
+          finalYoutubeUrl = `/api/magic-videos/${encodeURIComponent(magicVideo.folderName)}`;
+          console.log(`🎬 Test song classified as magic-videos: ${magicVideo.folderName}`);
+        }
+      }
+      
+      // If no magic video found, check magic YouTube videos
+      if (finalMode === 'youtube') {
+        const { findMagicYouTubeVideo } = require('../utils/magicYouTube');
+        const magicYouTubeVideo = findMagicYouTubeVideo(artist, title);
+        if (magicYouTubeVideo) {
+          finalMode = 'ultrastar';
+          finalYoutubeUrl = `/api/magic-youtube/${encodeURIComponent(magicYouTubeVideo.folderName)}`;
+          console.log(`🎬 Test song classified as magic-youtube: ${magicYouTubeVideo.folderName}`);
         }
       }
     } else {

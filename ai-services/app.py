@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 KARAOKE_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)))
 ULTRASTAR_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'ultrastar')
 YOUTUBE_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'youtube')
+MAGIC_SONGS_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'magic-songs')
+MAGIC_VIDEOS_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'magic-videos')
+MAGIC_YOUTUBE_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'magic-youtube')
 
 def sanitize_filename(filename):
     """
@@ -1182,6 +1185,340 @@ def download_youtube_video_to_youtube_folder(folder_name):
         
     except Exception as e:
         logger.error(f"Error downloading YouTube video: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Magic-Songs API Routes
+@app.route('/magic-songs', methods=['GET'])
+def get_magic_songs():
+    """Get all magic songs"""
+    try:
+        songs = []
+        if os.path.exists(MAGIC_SONGS_DIR):
+            for folder_name in os.listdir(MAGIC_SONGS_DIR):
+                folder_path = os.path.join(MAGIC_SONGS_DIR, folder_name)
+                if os.path.isdir(folder_path):
+                    # Check for audio files
+                    audio_files = []
+                    ultrastar_files = []
+                    cover_files = []
+                    
+                    for file in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, file)
+                        if os.path.isfile(file_path):
+                            if file.lower().endswith(('.mp3', '.wav', '.flac', '.m4a', '.aac')):
+                                audio_files.append(file)
+                            elif file.endswith('_ultrastar.txt'):
+                                ultrastar_files.append(file)
+                            elif file.lower().startswith('cover') and file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                                cover_files.append(file)
+                    
+                    if audio_files:
+                        songs.append({
+                            'folder_name': folder_name,
+                            'audio_files': audio_files,
+                            'ultrastar_files': ultrastar_files,
+                            'cover_files': cover_files,
+                            'has_ultrastar': len(ultrastar_files) > 0,
+                            'has_cover': len(cover_files) > 0
+                        })
+        
+        return jsonify({'songs': songs})
+    
+    except Exception as e:
+        logger.error(f"Error getting magic songs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/magic-songs/<folder_name>/process', methods=['POST'])
+def process_magic_song(folder_name):
+    """Process magic song to generate UltraStar file"""
+    try:
+        folder_path = os.path.join(MAGIC_SONGS_DIR, folder_name)
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        
+        # Find audio file
+        audio_file = None
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(('.mp3', '.wav', '.flac', '.m4a', '.aac')):
+                audio_file = os.path.join(folder_path, file)
+                break
+        
+        if not audio_file:
+            return jsonify({'error': 'No audio file found'}), 400
+        
+        # Process with magic processor
+        from magic_processor import MagicProcessor
+        processor = MagicProcessor()
+        
+        result = processor.mtl.process_audio(audio_file)
+        
+        if result["success"]:
+            return jsonify({
+                'success': True,
+                'message': 'Magic song processed successfully',
+                'output_files': result['output_files']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error processing magic song: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Magic-Videos API Routes
+@app.route('/magic-videos', methods=['GET'])
+def get_magic_videos():
+    """Get all magic videos"""
+    try:
+        videos = []
+        if os.path.exists(MAGIC_VIDEOS_DIR):
+            for folder_name in os.listdir(MAGIC_VIDEOS_DIR):
+                folder_path = os.path.join(MAGIC_VIDEOS_DIR, folder_name)
+                if os.path.isdir(folder_path):
+                    # Check for video files
+                    video_files = []
+                    ultrastar_files = []
+                    remuxed_files = []
+                    
+                    for file in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, file)
+                        if os.path.isfile(file_path):
+                            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv')):
+                                if file.endswith('_remuxed.mp4'):
+                                    remuxed_files.append(file)
+                                else:
+                                    video_files.append(file)
+                            elif file.endswith('_ultrastar.txt'):
+                                ultrastar_files.append(file)
+                    
+                    if video_files:
+                        videos.append({
+                            'folder_name': folder_name,
+                            'video_files': video_files,
+                            'remuxed_files': remuxed_files,
+                            'ultrastar_files': ultrastar_files,
+                            'has_ultrastar': len(ultrastar_files) > 0,
+                            'is_remuxed': len(remuxed_files) > 0
+                        })
+        
+        return jsonify({'videos': videos})
+    
+    except Exception as e:
+        logger.error(f"Error getting magic videos: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/magic-videos/<folder_name>/process', methods=['POST'])
+def process_magic_video(folder_name):
+    """Process magic video to generate UltraStar file"""
+    try:
+        folder_path = os.path.join(MAGIC_VIDEOS_DIR, folder_name)
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        
+        # Find video file
+        video_file = None
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv')) and not file.endswith('_remuxed.mp4'):
+                video_file = os.path.join(folder_path, file)
+                break
+        
+        if not video_file:
+            return jsonify({'error': 'No video file found'}), 400
+        
+        # Process with magic processor
+        from magic_processor import MagicProcessor
+        processor = MagicProcessor()
+        
+        # Extract audio first
+        audio_path = processor._extract_audio_from_video(video_file)
+        if not audio_path:
+            return jsonify({'error': 'Audio extraction failed'}), 500
+        
+        # Process audio
+        result = processor.mtl.process_audio(audio_path)
+        
+        if result["success"]:
+            # Remux video
+            processor._remux_video_with_mp3(video_file, audio_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Magic video processed successfully',
+                'output_files': result['output_files']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error processing magic video: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Magic-YouTube API Routes
+@app.route('/magic-youtube', methods=['GET'])
+def get_magic_youtube():
+    """Get all magic YouTube videos"""
+    try:
+        videos = []
+        if os.path.exists(MAGIC_YOUTUBE_DIR):
+            for folder_name in os.listdir(MAGIC_YOUTUBE_DIR):
+                folder_path = os.path.join(MAGIC_YOUTUBE_DIR, folder_name)
+                if os.path.isdir(folder_path):
+                    # Check for video files
+                    video_files = []
+                    ultrastar_files = []
+                    remuxed_files = []
+                    
+                    for file in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, file)
+                        if os.path.isfile(file_path):
+                            if file.lower().endswith(('.mp4', '.webm', '.mkv')):
+                                if file.endswith('_remuxed.mp4'):
+                                    remuxed_files.append(file)
+                                else:
+                                    video_files.append(file)
+                            elif file.endswith('_ultrastar.txt'):
+                                ultrastar_files.append(file)
+                    
+                    if video_files:
+                        videos.append({
+                            'folder_name': folder_name,
+                            'video_files': video_files,
+                            'remuxed_files': remuxed_files,
+                            'ultrastar_files': ultrastar_files,
+                            'has_ultrastar': len(ultrastar_files) > 0,
+                            'is_remuxed': len(remuxed_files) > 0
+                        })
+        
+        return jsonify({'videos': videos})
+    
+    except Exception as e:
+        logger.error(f"Error getting magic YouTube videos: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/magic-youtube/<folder_name>/process', methods=['POST'])
+def process_magic_youtube(folder_name):
+    """Process magic YouTube video to generate UltraStar file"""
+    try:
+        folder_path = os.path.join(MAGIC_YOUTUBE_DIR, folder_name)
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        
+        # Find video file
+        video_file = None
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(('.mp4', '.webm', '.mkv')) and not file.endswith('_remuxed.mp4'):
+                video_file = os.path.join(folder_path, file)
+                break
+        
+        if not video_file:
+            return jsonify({'error': 'No video file found'}), 400
+        
+        # Process with magic processor
+        from magic_processor import MagicProcessor
+        processor = MagicProcessor()
+        
+        # Extract audio first
+        audio_path = processor._extract_audio_from_video(video_file)
+        if not audio_path:
+            return jsonify({'error': 'Audio extraction failed'}), 500
+        
+        # Process audio
+        result = processor.mtl.process_audio(audio_path)
+        
+        if result["success"]:
+            # Remux video
+            processor._remux_video_with_mp3(video_file, audio_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Magic YouTube video processed successfully',
+                'output_files': result['output_files']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error processing magic YouTube video: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process_magic_youtube/<folder_name>', methods=['POST'])
+def process_magic_youtube_from_url(folder_name):
+    """Process magic YouTube video from URL to generate UltraStar file"""
+    try:
+        data = request.get_json()
+        youtube_url = data.get('youtubeUrl')
+        
+        if not youtube_url:
+            return jsonify({'error': 'YouTube URL is required'}), 400
+        
+        logger.info(f"Processing Magic YouTube: {folder_name} with URL: {youtube_url}")
+        
+        # Create folder if it doesn't exist
+        folder_path = os.path.join(MAGIC_YOUTUBE_DIR, folder_name)
+        os.makedirs(folder_path, exist_ok=True)
+        
+        # Download YouTube video
+        try:
+            import yt_dlp
+            
+            ydl_opts = {
+                'outtmpl': os.path.join(folder_path, '%(id)s.%(ext)s'),
+                'format': 'best[height<=720]',  # Limit to 720p for faster processing
+                'quiet': False,
+                'no_warnings': False,
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=True)
+                video_id = info.get('id')
+                video_file = os.path.join(folder_path, f"{video_id}.{info.get('ext', 'mp4')}")
+                
+                logger.info(f"Downloaded YouTube video: {video_file}")
+                
+        except Exception as e:
+            logger.error(f"Error downloading YouTube video: {str(e)}")
+            return jsonify({'error': f'YouTube download failed: {str(e)}'}), 500
+        
+        # Process with magic processor
+        from magic_processor import MagicProcessor
+        processor = MagicProcessor()
+        
+        # Extract audio first
+        audio_path = processor._extract_audio_from_video(video_file)
+        if not audio_path:
+            return jsonify({'error': 'Audio extraction failed'}), 500
+        
+        # Process audio
+        result = processor.mtl.process_audio(audio_path)
+        
+        if result["success"]:
+            # Remux video
+            processor._remux_video_with_mp3(video_file, audio_path)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Magic YouTube video processed successfully',
+                'output_files': result['output_files'],
+                'video_file': video_file,
+                'audio_file': audio_path
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error processing magic YouTube from URL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

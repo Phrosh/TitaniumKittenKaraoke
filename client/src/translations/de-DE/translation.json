@@ -184,6 +184,9 @@
     "clickToBan": "Klicken um zur Banlist hinzuzufügen",
     "refreshClassification": "Song-Klassifizierung aktualisieren (prüft auf lokale Dateien)",
     "youtubeLinkPlaceholder": "YouTube-Link hier eingeben...",
+    "addYouTubeLink": "YouTube Link eintragen",
+    "magicYouTubeProcessingStarted": "✨ Magic YouTube Verarbeitung gestartet!",
+    "magicYouTubeProcessingSteps": "✨ Magic YouTube Verarbeitung läuft: Download → Audio-Separation → Text-Erkennung",
     "previous": "Zurück",
     "playPause": "Pause/Play",
     "restartSong": "Song neu starten",
@@ -202,6 +205,9 @@
       "title": "Titel",
       "artist": "Interpret",
       "youtubeUrl": "YouTube URL",
+      "youtubeMode": "YouTube-Modus",
+      "youtubeModeKaraoke": "Dies ist bereits ein Karaoke-Video",
+      "youtubeModeMagic": "Erstelle mir daraus ein Karaoke-Video",
       "cancel": "Abbrechen",
       "save": "Speichern",
       "saving": "Speichert..."
@@ -339,6 +345,8 @@
     "youtubeDownloadError": "Fehler beim Starten des YouTube-Downloads",
     "processingStarted": "Verarbeitung für {{artist}} - {{title}} gestartet",
     "processingError": "Fehler beim Starten der Verarbeitung",
+    "magicProcessingStarted": "✨ Magic-Verarbeitung für {{artist}} - {{title}} gestartet!",
+    "magicProcessingError": "Fehler bei der Magic-Verarbeitung",
     "noSongsFound": "Keine Songs vorhanden",
     "makeVisible": "Einblenden",
     "makeInvisible": "Ausblenden",
@@ -452,6 +460,9 @@
     "youtube": "YouTube",
     "youtubeCache": "YouTube Cache",
     "backgroundVocals": "BG",
-    "duett": "Duett"
+    "duett": "Duett",
+    "magicSongs": "Magic Songs",
+    "magicVideos": "Magic Videos",
+    "magicYouTube": "Magic YouTube"
   }
 }

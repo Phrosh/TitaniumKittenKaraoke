@@ -71,7 +71,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   const [formData, setFormData] = useState({
     title: '',
     artist: '',
-    youtubeUrl: ''
+    youtubeUrl: '',
+    youtubeMode: 'karaoke' as 'karaoke' | 'magic'
   });
 
   const [showPastSongs, setShowPastSongs] = useState(false);
@@ -84,6 +85,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     artist: '',
     title: '',
     youtubeUrl: '',
+    youtubeMode: 'karaoke' as 'karaoke' | 'magic',
     withBackgroundVocals: false
   });
   const [manualSongList, setManualSongList] = useState<any[]>([]);
@@ -379,7 +381,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     setFormData({
       title: song.title,
       artist: song.artist || '',
-      youtubeUrl: song.youtube_url || ''
+      youtubeUrl: song.youtube_url || '',
+      youtubeMode: 'karaoke' as 'karaoke' | 'magic'
     });
     setShowModal(true);
   };
@@ -395,24 +398,37 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     setActionLoading(true);
     try {
       if (modalType === 'youtube') {
-        await adminAPI.updateYouTubeUrl(selectedSong.id, formData.youtubeUrl);
+        if (formData.youtubeMode === 'magic') {
+          // Use magic-youtube processing
+          await adminAPI.processMagicYouTube(selectedSong.id, formData.youtubeUrl);
+          toast.success(t('playlist.magicYouTubeProcessingStarted'));
+        } else {
+          // Use regular YouTube processing
+          await adminAPI.updateYouTubeUrl(selectedSong.id, formData.youtubeUrl);
+          toast.success(t('playlist.songUpdated'));
+        }
       } else {
         await adminAPI.updateSong(selectedSong.id, {
           title: formData.title,
           artist: formData.artist,
           youtubeUrl: formData.youtubeUrl
         });
+        toast.success(t('playlist.songUpdated'));
       }
-
-      // Show success message
-      toast.success(t('playlist.songUpdated'));
 
       // If it's a YouTube URL, show additional info
       if (formData.youtubeUrl && (formData.youtubeUrl.includes('youtube.com') || formData.youtubeUrl.includes('youtu.be'))) {
-        toast(t('playlist.youtubeDownloadStarted'), {
-          icon: '⏳',
-          duration: 3000,
-        });
+        if (formData.youtubeMode === 'magic') {
+          toast(t('playlist.magicYouTubeProcessingSteps'), {
+            icon: '✨',
+            duration: 5000,
+          });
+        } else {
+          toast(t('playlist.youtubeDownloadStarted'), {
+            icon: '⏳',
+            duration: 3000,
+          });
+        }
       }
 
       await fetchDashboardData();
@@ -432,6 +448,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       artist: '',
       title: '',
       youtubeUrl: '',
+      youtubeMode: 'karaoke' as 'karaoke' | 'magic',
       withBackgroundVocals: false
     });
   };
@@ -459,11 +476,20 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       await songAPI.requestSong({
         name: addSongData.singerName,
         songInput: songInput,
-        deviceId: 'ADM' // Admin device ID
-        ,
-        withBackgroundVocals: addSongData.withBackgroundVocals
+        deviceId: 'ADM', // Admin device ID
+        withBackgroundVocals: addSongData.withBackgroundVocals,
+        youtubeMode: addSongData.youtubeMode
       });
-      toast.success(t('playlist.songAdded'));
+      
+      if (addSongData.youtubeUrl.trim() && addSongData.youtubeMode === 'magic') {
+        toast.success(t('playlist.magicYouTubeProcessingStarted'));
+        toast(t('playlist.magicYouTubeProcessingSteps'), {
+          icon: '✨',
+          duration: 5000,
+        });
+      } else {
+        toast.success(t('playlist.songAdded'));
+      }
 
       handleCloseAddSongModal();
 
@@ -663,20 +689,24 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         })()}
                       </SongTitle>
                       {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
-                        <YouTubeField
-                          type="url"
-                          placeholder={t('playlist.youtubeLinkPlaceholder')}
-                          value={youtubeLinks[song.id] !== undefined ? youtubeLinks[song.id] : (song.youtube_url || '')}
-                          onChange={(e) => handleYouTubeFieldChange(song.id, e.target.value)}
-                          onBlur={(e) => handleYouTubeFieldBlur(song.id, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleYouTubeFieldBlur(song.id, e.currentTarget.value);
-                            }
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal(song, 'youtube');
                           }}
-                        />
+                          size="small"
+                          style={{ 
+                            fontSize: '0.8rem', 
+                            padding: '4px 8px',
+                            marginLeft: '8px'
+                          }}
+                        >
+                          📺 {t('playlist.addYouTubeLink')}
+                        </Button>
                       )}
-                      {(song.download_status && song.download_status !== 'none') || (song.status && song.status !== 'none') && (
+                      {((song.download_status && song.download_status !== 'none') || 
+                        (song.status && song.status !== 'none') ||
+                        (song.download_status && song.download_status.startsWith('magic-'))) && (
                         <DownloadStatusBadge status={(song.status || song.download_status) as DownloadStatus} />
                       )}
                       {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song, dashboardData.youtubeSongs)) || song.modes?.includes('youtube_cache') && (

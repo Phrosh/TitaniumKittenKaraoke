@@ -10,8 +10,8 @@ interface EditSongModalProps {
   onClose: () => void;
   onSave: () => void;
   modalType: ModalType;
-  formData: { title: string; artist: string; youtubeUrl: string };
-  setFormData: (data: { title: string; artist: string; youtubeUrl: string }) => void;
+  formData: { title: string; artist: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic' };
+  setFormData: (data: { title: string; artist: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic' }) => void;
 }
 
 const EditSongModal: React.FC<EditSongModalProps> = ({
@@ -67,6 +67,34 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                     placeholder="https://www.youtube.com/watch?v=..."
                 />
                 </FormGroup>
+
+                {modalType === 'youtube' && formData.youtubeUrl && (
+                    <FormGroup>
+                    <Label>{t('modals.editSong.youtubeMode')}:</Label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                                type="radio"
+                                name="youtubeMode"
+                                value="karaoke"
+                                checked={formData.youtubeMode === 'karaoke'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
+                            />
+                            <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                                type="radio"
+                                name="youtubeMode"
+                                value="magic"
+                                checked={formData.youtubeMode === 'magic'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
+                            />
+                            <span>{t('modals.editSong.youtubeModeMagic')}</span>
+                        </label>
+                    </div>
+                    </FormGroup>
+                )}
                 
                 <ModalButtons>
                 <Button 

@@ -33,7 +33,7 @@ api.interceptors.response.use(
 );
 
 export const songAPI = {
-  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean }) =>
+  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean; youtubeMode?: 'karaoke' | 'magic' }) =>
     api.post('/songs/request', data),
   
   getPlaylist: () =>
@@ -61,7 +61,16 @@ export const songAPI = {
     api.get('/songs/file-songs'), // Public endpoint for file songs
   
   getYouTubeSongs: () =>
-    api.get('/songs/youtube-songs'), // Public endpoint for YouTube cache songs
+    api.get('/songs/youtube-songs'),
+  
+  getMagicSongs: () =>
+    api.get('/songs/magic-songs'),
+  
+  getMagicVideos: () =>
+    api.get('/songs/magic-videos'),
+  
+  getMagicYouTube: () =>
+    api.get('/songs/magic-youtube'), // Public endpoint for YouTube cache songs
   
   getYouTubeEnabled: () => api.get('/songs/youtube-enabled'), // Public endpoint for YouTube enabled setting
   getUSDBSearchEnabled: () => api.get('/songs/usdb-search-enabled'), // Public endpoint for USDB search enabled setting
@@ -73,6 +82,12 @@ export const songAPI = {
   // Manual processing for ultrastar songs
   processUltrastarSong: (folderName: string) =>
     api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/process`),
+  
+  processMagicSong: (folderName: string) =>
+    api.post(`/songs/magic-songs/${encodeURIComponent(folderName)}/process`),
+  
+  processMagicVideo: (folderName: string) =>
+    api.post(`/songs/magic-videos/${encodeURIComponent(folderName)}/process`),
   
   // Check if video download is needed
   checkNeedsVideo: (folderName: string) =>
@@ -128,6 +143,9 @@ export const adminAPI = {
   
   updateYouTubeUrl: (songId: number, youtubeUrl: string) =>
     api.put(`/admin/song/${songId}/youtube`, { youtubeUrl }),
+  
+  processMagicYouTube: (songId: number, youtubeUrl: string) =>
+    api.post(`/admin/song/${songId}/magic-youtube`, { youtubeUrl }),
   setQRCodeOverlay: (show: boolean) =>
     api.put('/admin/qr-overlay', { show }),
   

@@ -18,6 +18,12 @@ export const DownloadStatusBadgeStyle = styled.div<{ $status: DownloadStatus }>`
       case 'downloaded': return '#28a745';
       case 'cached': return '#17a2b8';
       case 'failed': return '#dc3545';
+      case 'magic-processing': return 'linear-gradient(135deg, #8e44ad, #9b59b6)';
+      case 'magic-downloading': return 'linear-gradient(135deg, #3498db, #5dade2)';
+      case 'magic-separating': return 'linear-gradient(135deg, #e74c3c, #ec7063)';
+      case 'magic-transcribing': return 'linear-gradient(135deg, #f39c12, #f7dc6f)';
+      case 'magic-completed': return 'linear-gradient(135deg, #27ae60, #58d68d)';
+      case 'magic-failed': return 'linear-gradient(135deg, #e74c3c, #f1948a)';
       default: return '#6c757d';
     }
   }};

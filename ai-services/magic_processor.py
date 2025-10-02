@@ -9,7 +9,7 @@ import logging
 import subprocess
 import re
 from pathlib import Path
-from music_to_lyrics import MusicToLyricsProcessor
+from music_to_lyrics import MusicToLyrics
 from audio_separator import find_audio_file, extract_audio_from_video
 
 # Logging konfigurieren
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class MagicProcessor:
     def __init__(self, whisper_model="large-v3", device=None):
-        self.mtl = MusicToLyricsProcessor(whisper_model=whisper_model, device=device)
+        self.mtl = MusicToLyrics(whisper_model=whisper_model, device=device)
         
     def process_magic_songs(self, songs_dir="songs/magic-songs"):
         """Verarbeitet alle Audiodateien in magic-songs"""
@@ -79,6 +79,9 @@ class MagicProcessor:
                             logger.info(f"✅ Erfolgreich: {video_path}")
                             processed_count += 1
                             
+                            # Erstelle HP2 und HP5 Dateien aus separaten Audios
+                            self._create_hp_files(video_path, audio_path)
+                            
                             # Remuxe Video (ersetze Audio mit MP3)
                             self._remux_video_with_mp3(video_path, audio_path)
                         else:
@@ -114,8 +117,12 @@ class MagicProcessor:
                         # Verarbeite Audio
                         result = self.mtl.process_audio(audio_path)
                         if result["success"]:
+                            # Erstelle HP2 und HP5 Dateien aus separaten Audios
                             logger.info(f"✅ Erfolgreich: {video_path}")
                             processed_count += 1
+                            
+                            # Erstelle HP2 und HP5 Dateien aus separaten Audios
+                            self._create_hp_files(video_path, audio_path)
                             
                             # Remuxe Video (ersetze Audio mit MP3)
                             self._remux_video_with_mp3(video_path, audio_path)
@@ -130,8 +137,11 @@ class MagicProcessor:
     def _extract_audio_from_video(self, video_path):
         """Extrahiert Audio aus Video-Datei"""
         try:
+            # Erstelle Output-Ordner im gleichen Verzeichnis wie das Video
+            video_dir = os.path.dirname(video_path)
+            
             # Verwende die bestehende Funktion aus audio_separator
-            audio_path = extract_audio_from_video(video_path)
+            audio_path = extract_audio_from_video(video_path, video_dir)
             return audio_path
         except Exception as e:
             logger.error(f"Fehler bei Audio-Extraktion: {e}")
@@ -167,6 +177,13 @@ class MagicProcessor:
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0:
                 logger.info(f"Video remuxt: {output_path}")
+                
+                # Überschreibe Original-Video mit Remuxed-Version
+                original_video = os.path.splitext(video_path)[0] + ".mp4"
+                if os.path.exists(output_path):
+                    os.replace(output_path, original_video)
+                    logger.info(f"Original-Video überschrieben: {original_video}")
+                
                 # Lösche temporäre MP3-Datei
                 if mp3_path != audio_path and os.path.exists(mp3_path):
                     os.remove(mp3_path)
@@ -175,6 +192,37 @@ class MagicProcessor:
                 
         except Exception as e:
             logger.error(f"Fehler beim Remuxen: {e}")
+    
+    def _create_hp_files(self, video_path, audio_path):
+        """Erstellt HP2 und HP5 Dateien aus den separaten Audiospuren"""
+        try:
+            base_name = os.path.splitext(video_path)[0]
+            
+            # HP2 (Instrumental ohne Vocal) - umbenennen von _extracted_instrumental.mp3
+            instrumental_path = f"{os.path.splitext(audio_path)[0]}_instrumental.mp3"
+            hp2_path = f"{base_name}_hp2.mp3"
+            
+            if os.path.exists(instrumental_path):
+                os.rename(instrumental_path, hp2_path)
+                logger.info(f"HP2 erstellt: {hp2_path}")
+            else:
+                logger.warning(f"Instrumental-Datei nicht gefunden: {instrumental_path}")
+            
+            # HP5 (Nur Vocal) - umbenennen von _extracted_vocals.wav zu _hp5.mp3
+            vocals_path = f"{os.path.splitext(audio_path)[0]}_vocals.wav"
+            hp5_path = f"{base_name}_hp5.mp3"
+            
+            if os.path.exists(vocals_path):
+                # Konvertiere Vocals von WAV zu MP3
+                self._convert_to_mp3(vocals_path, hp5_path)
+                # Lösche temporäre WAV-Datei
+                os.remove(vocals_path)
+                logger.info(f"HP5 erstellt: {hp5_path}")
+            else:
+                logger.warning(f"Vocals-Datei nicht gefunden: {vocals_path}")
+                
+        except Exception as e:
+            logger.error(f"Fehler bei HP-Dateien-Erstellung: {e}")
     
     def _convert_to_mp3(self, input_path, output_path):
         """Konvertiert Audio zu MP3"""

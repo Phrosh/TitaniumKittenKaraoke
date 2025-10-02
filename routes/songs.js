@@ -269,7 +269,8 @@ router.post('/request', [
   body('name').notEmpty().trim().isLength({ min: 1, max: 100 }),
   body('songInput').notEmpty().trim().isLength({ min: 1, max: 500 }),
   body('deviceId').optional().isLength({ min: 3, max: 10 }),
-  body('withBackgroundVocals').optional().isBoolean()
+  body('withBackgroundVocals').optional().isBoolean(),
+  body('youtubeMode').optional().isIn(['karaoke', 'magic'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -277,7 +278,7 @@ router.post('/request', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, songInput, deviceId } = req.body;
+    const { name, songInput, deviceId, youtubeMode } = req.body;
     let { withBackgroundVocals } = req.body;
 
     // Check if YouTube is enabled
@@ -456,9 +457,45 @@ router.post('/request', [
               console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
             }
           }
-          
-          // Trigger video conversion for ultrastar song
-          try {
+        }
+      }
+      
+      // If no ultrastar song found, check magic songs
+      if (mode === 'youtube') {
+        const { findMagicSong } = require('../utils/magicSongs');
+        const magicSong = findMagicSong(artist, title);
+        if (magicSong) {
+          mode = 'ultrastar';
+          youtubeUrl = `/api/magic-songs/${encodeURIComponent(magicSong.folderName)}`;
+          console.log(`Found magic song: ${magicSong.folderName}`);
+        }
+      }
+      
+      // If no magic song found, check magic videos
+      if (mode === 'youtube') {
+        const { findMagicVideo } = require('../utils/magicVideos');
+        const magicVideo = findMagicVideo(artist, title);
+        if (magicVideo) {
+          mode = 'ultrastar';
+          youtubeUrl = `/api/magic-videos/${encodeURIComponent(magicVideo.folderName)}`;
+          console.log(`Found magic video: ${magicVideo.folderName}`);
+        }
+      }
+      
+      // If no magic video found, check magic YouTube videos
+      if (mode === 'youtube') {
+        const { findMagicYouTubeVideo } = require('../utils/magicYouTube');
+        const magicYouTubeVideo = findMagicYouTubeVideo(artist, title);
+        if (magicYouTubeVideo) {
+          mode = 'ultrastar';
+          youtubeUrl = `/api/magic-youtube/${encodeURIComponent(magicYouTubeVideo.folderName)}`;
+          console.log(`Found magic YouTube video: ${magicYouTubeVideo.folderName}`);
+        }
+      }
+      
+      // Trigger video conversion for ultrastar song
+      if (ultrastarSong) {
+        try {
             const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
             const folderPath = path.join(ULTRASTAR_DIR, ultrastarSong.folderName);
             
@@ -540,9 +577,8 @@ router.post('/request', [
                 });
               }
             }
-          } catch (error) {
-            console.error('🎬🎵 Error triggering video conversion or audio separation:', error);
-          }
+        } catch (error) {
+          console.error('🎬🎵 Error triggering video conversion or audio separation:', error);
         }
       }
       
@@ -631,7 +667,84 @@ router.post('/request', [
     
     // Update download status if this was a YouTube download
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
-      await Song.updateDownloadStatus(song.id, downloadStatus);
+      if (youtubeMode === 'magic') {
+        // Set magic processing status
+        await Song.updateDownloadStatus(song.id, 'magic-processing', new Date().toISOString());
+        
+        // Start magic YouTube processing via AI services
+        try {
+          const https = require('http');
+          const url = require('url');
+          
+          const pythonServerUrl = 'http://localhost:6000';
+          const magicUrl = `${pythonServerUrl}/process_magic_youtube/${encodeURIComponent(artist)} - ${encodeURIComponent(title)}`;
+          
+          console.log('✨ Starting Magic YouTube processing from song request:', {
+            songId: song.id,
+            artist,
+            title,
+            youtubeUrl,
+            magicUrl
+          });
+          
+          const parsedUrl = url.parse(magicUrl);
+          const options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.path,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          };
+          
+          const proxyReq = https.request(options, (proxyRes) => {
+            let data = '';
+            
+            proxyRes.on('data', (chunk) => {
+              data += chunk;
+            });
+            
+            proxyRes.on('end', () => {
+              try {
+                const responseData = JSON.parse(data);
+                console.log('✨ Magic YouTube processing response from song request:', {
+                  statusCode: proxyRes.statusCode,
+                  responseData,
+                  timestamp: new Date().toISOString()
+                });
+                
+                if (proxyRes.statusCode === 200) {
+                  // Magic processing completed successfully
+                  Song.updateDownloadStatus(song.id, 'magic-completed').catch(console.error);
+                } else {
+                  Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+                }
+              } catch (error) {
+                console.error('✨ Error parsing Magic YouTube response from song request:', error);
+                Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+              }
+            });
+          });
+          
+          proxyReq.on('error', (error) => {
+            console.error('✨ Error processing Magic YouTube from song request:', error);
+            Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+          });
+          
+          // Send the YouTube URL in the request body
+          proxyReq.write(JSON.stringify({ youtubeUrl }));
+          proxyReq.setTimeout(300000); // 5 minutes timeout for magic processing
+          proxyReq.end();
+          
+        } catch (error) {
+          console.error('✨ Error starting Magic YouTube processing from song request:', error);
+          await Song.updateDownloadStatus(song.id, 'magic-failed');
+        }
+      } else {
+        // Regular YouTube processing
+        await Song.updateDownloadStatus(song.id, downloadStatus);
+      }
     }
     
     // Trigger automatic USDB search and download for YouTube songs
@@ -852,6 +965,66 @@ router.get('/youtube-songs', (req, res) => {
     res.json({ youtubeSongs: songs });
   } catch (error) {
     console.error('Error getting YouTube songs:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get list of magic songs for song selection
+router.get('/magic-songs', (req, res) => {
+  try {
+    const { search } = req.query;
+    const { scanMagicSongs, searchMagicSongs } = require('../utils/magicSongs');
+    
+    let songs;
+    if (search && search.trim()) {
+      songs = searchMagicSongs(search.trim());
+    } else {
+      songs = scanMagicSongs();
+    }
+    
+    res.json({ magicSongs: songs });
+  } catch (error) {
+    console.error('Error getting magic songs:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get list of magic videos for song selection
+router.get('/magic-videos', (req, res) => {
+  try {
+    const { search } = req.query;
+    const { scanMagicVideos, searchMagicVideos } = require('../utils/magicVideos');
+    
+    let videos;
+    if (search && search.trim()) {
+      videos = searchMagicVideos(search.trim());
+    } else {
+      videos = scanMagicVideos();
+    }
+    
+    res.json({ magicVideos: videos });
+  } catch (error) {
+    console.error('Error getting magic videos:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get list of magic YouTube videos for song selection
+router.get('/magic-youtube', (req, res) => {
+  try {
+    const { search } = req.query;
+    const { scanMagicYouTube, searchMagicYouTube } = require('../utils/magicYouTube');
+    
+    let videos;
+    if (search && search.trim()) {
+      videos = searchMagicYouTube(search.trim());
+    } else {
+      videos = scanMagicYouTube();
+    }
+    
+    res.json({ magicYouTube: videos });
+  } catch (error) {
+    console.error('Error getting magic YouTube videos:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1361,6 +1534,42 @@ router.get('/ultrastar/:folderName/data', async (req, res) => {
     const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
     const { parseUltrastarFile, findAudioFile } = require('../utils/ultrastarParser');
     
+    // Check if this is a magic song by looking at the URL path
+    let isMagicSong = false;
+    let magicDir = null;
+    let magicFolderPath = null;
+    
+    // Check magic-songs
+    const { MAGIC_SONGS_DIR } = require('../utils/magicSongs');
+    const magicSongsPath = path.join(MAGIC_SONGS_DIR, decodeURIComponent(folderName));
+    if (fs.existsSync(magicSongsPath)) {
+      isMagicSong = true;
+      magicDir = MAGIC_SONGS_DIR;
+      magicFolderPath = magicSongsPath;
+    }
+    
+    // Check magic-videos
+    if (!isMagicSong) {
+      const { MAGIC_VIDEOS_DIR } = require('../utils/magicVideos');
+      const magicVideosPath = path.join(MAGIC_VIDEOS_DIR, decodeURIComponent(folderName));
+      if (fs.existsSync(magicVideosPath)) {
+        isMagicSong = true;
+        magicDir = MAGIC_VIDEOS_DIR;
+        magicFolderPath = magicVideosPath;
+      }
+    }
+    
+    // Check magic-youtube
+    if (!isMagicSong) {
+      const { MAGIC_YOUTUBE_DIR } = require('../utils/magicYouTube');
+      const magicYouTubePath = path.join(MAGIC_YOUTUBE_DIR, decodeURIComponent(folderName));
+      if (fs.existsSync(magicYouTubePath)) {
+        isMagicSong = true;
+        magicDir = MAGIC_YOUTUBE_DIR;
+        magicFolderPath = magicYouTubePath;
+      }
+    }
+    
     /**
      * Triggers video conversion for an ultrastar song
      * @param {string} folderName - Name of the ultrastar folder
@@ -1479,12 +1688,14 @@ function findVideoFile(folderPath, specifiedVideo) {
       }
     }
     
-    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    // Use magic folder path if it's a magic song, otherwise use ultrastar path
+    const folderPath = isMagicSong ? magicFolderPath : path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
     
     console.log('🔍 Ultrastar data request:', {
       folderName: folderName,
       decodedFolderName: decodeURIComponent(folderName),
       folderPath: folderPath,
+      isMagicSong: isMagicSong,
       exists: fs.existsSync(folderPath)
     });
     
@@ -1549,7 +1760,18 @@ function findVideoFile(folderPath, specifiedVideo) {
     const audioFile = findAudioFileWithPreference(folderPath, preferBackgroundVocals);
     if (audioFile) {
       const audioFilename = path.basename(audioFile);
-      songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+      if (isMagicSong) {
+        // For magic songs, use the appropriate magic endpoint
+        if (magicDir === require('../utils/magicSongs').MAGIC_SONGS_DIR) {
+          songData.audioUrl = `/api/magic-songs/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+        } else if (magicDir === require('../utils/magicVideos').MAGIC_VIDEOS_DIR) {
+          songData.audioUrl = `/api/magic-videos/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+        } else if (magicDir === require('../utils/magicYouTube').MAGIC_YOUTUBE_DIR) {
+          songData.audioUrl = `/api/magic-youtube/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+        }
+      } else {
+        songData.audioUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(audioFilename)}`;
+      }
     }
     
     // Find video file with priority: .webm > .mp4 > others
@@ -1558,7 +1780,18 @@ function findVideoFile(folderPath, specifiedVideo) {
       const videoExt = path.extname(videoFile).toLowerCase();
       
       // Always set videoUrl - use the best available video file
-      songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+      if (isMagicSong) {
+        // For magic songs, use the appropriate magic endpoint
+        if (magicDir === require('../utils/magicSongs').MAGIC_SONGS_DIR) {
+          songData.videoUrl = `/api/magic-songs/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+        } else if (magicDir === require('../utils/magicVideos').MAGIC_VIDEOS_DIR) {
+          songData.videoUrl = `/api/magic-videos/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+        } else if (magicDir === require('../utils/magicYouTube').MAGIC_YOUTUBE_DIR) {
+          songData.videoUrl = `/api/magic-youtube/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+        }
+      } else {
+        songData.videoUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(videoFile)}`;
+      }
       songData.videoFile = videoFile;
       
       // Note: Video conversion is handled in the song request route, not here
@@ -1566,6 +1799,7 @@ function findVideoFile(folderPath, specifiedVideo) {
         folderName,
         videoFile,
         extension: videoExt,
+        isMagicSong,
         timestamp: new Date().toISOString()
       });
     }
@@ -1575,14 +1809,29 @@ function findVideoFile(folderPath, specifiedVideo) {
     const backgroundImageFile = findBackgroundImageFile(folderPath);
     if (backgroundImageFile) {
       const imageFilename = path.basename(backgroundImageFile);
-      songData.backgroundImageUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+      if (isMagicSong) {
+        // For magic songs, use the appropriate magic endpoint
+        if (magicDir === require('../utils/magicSongs').MAGIC_SONGS_DIR) {
+          songData.backgroundImageUrl = `/api/magic-songs/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+        } else if (magicDir === require('../utils/magicVideos').MAGIC_VIDEOS_DIR) {
+          songData.backgroundImageUrl = `/api/magic-videos/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+        } else if (magicDir === require('../utils/magicYouTube').MAGIC_YOUTUBE_DIR) {
+          songData.backgroundImageUrl = `/api/magic-youtube/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+        }
+      } else {
+        songData.backgroundImageUrl = `/api/songs/ultrastar/${encodeURIComponent(folderName)}/${encodeURIComponent(imageFilename)}`;
+      }
       
       console.log('🖼️ Background image URL added:', {
         folderName,
         imageFilename,
-        backgroundImageUrl: songData.backgroundImageUrl
+        backgroundImageUrl: songData.backgroundImageUrl,
+        isMagicSong
       });
     }
+    
+    // Add magic flag to song data
+    songData.magic = isMagicSong;
     
     res.json({ songData });
   } catch (error) {
@@ -1597,12 +1846,58 @@ router.get('/ultrastar/:folderName/:filename', (req, res) => {
     const { folderName, filename } = req.params;
     const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
     
-    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    // Check if this is a magic song by looking at the URL path
+    let isMagicSong = false;
+    let magicDir = null;
+    let folderPath = null;
+    
+    // Check magic-songs
+    const { MAGIC_SONGS_DIR } = require('../utils/magicSongs');
+    const magicSongsPath = path.join(MAGIC_SONGS_DIR, decodeURIComponent(folderName));
+    if (fs.existsSync(magicSongsPath)) {
+      isMagicSong = true;
+      magicDir = MAGIC_SONGS_DIR;
+      folderPath = magicSongsPath;
+    }
+    
+    // Check magic-videos
+    if (!isMagicSong) {
+      const { MAGIC_VIDEOS_DIR } = require('../utils/magicVideos');
+      const magicVideosPath = path.join(MAGIC_VIDEOS_DIR, decodeURIComponent(folderName));
+      if (fs.existsSync(magicVideosPath)) {
+        isMagicSong = true;
+        magicDir = MAGIC_VIDEOS_DIR;
+        folderPath = magicVideosPath;
+      }
+    }
+    
+    // Check magic-youtube
+    if (!isMagicSong) {
+      const { MAGIC_YOUTUBE_DIR } = require('../utils/magicYouTube');
+      const magicYouTubePath = path.join(MAGIC_YOUTUBE_DIR, decodeURIComponent(folderName));
+      if (fs.existsSync(magicYouTubePath)) {
+        isMagicSong = true;
+        magicDir = MAGIC_YOUTUBE_DIR;
+        folderPath = magicYouTubePath;
+      }
+    }
+    
+    // Use magic folder path if it's a magic song, otherwise use ultrastar path
+    if (!isMagicSong) {
+      folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
+    }
+    
     const filePath = path.join(folderPath, decodeURIComponent(filename));
     
-    // Security check - ensure file is within ultrastar directory
-    if (!filePath.startsWith(ULTRASTAR_DIR)) {
-      return res.status(403).json({ message: 'Access denied' });
+    // Security check - ensure file is within the appropriate directory
+    if (isMagicSong) {
+      if (!filePath.startsWith(magicDir)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    } else {
+      if (!filePath.startsWith(ULTRASTAR_DIR)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
     
     if (!fs.existsSync(filePath)) {

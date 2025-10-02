@@ -70,6 +70,217 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/songs', songRoutes);
 
+// Serve magic songs directly under /api/magic-songs
+app.get('/api/magic-songs/:folderName/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { MAGIC_SONGS_DIR } = require('./utils/magicSongs');
+  
+  try {
+    const folderName = decodeURIComponent(req.params.folderName);
+    const filename = decodeURIComponent(req.params.filename);
+    const filePath = path.join(MAGIC_SONGS_DIR, folderName, filename);
+    
+    console.log(`🎵 Magic song request: ${req.params.folderName}/${req.params.filename} -> ${folderName}/${filename} -> ${filePath}`);
+    
+    // Security check: ensure the file is within the magic-songs directory
+    if (!filePath.startsWith(MAGIC_SONGS_DIR)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Magic song file not found' });
+    }
+    
+    // Determine content type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'audio/mpeg';
+    if (ext === '.wav') {
+      contentType = 'audio/wav';
+    } else if (ext === '.flac') {
+      contentType = 'audio/flac';
+    } else if (ext === '.m4a') {
+      contentType = 'audio/mp4';
+    } else if (ext === '.aac') {
+      contentType = 'audio/aac';
+    }
+    
+    // Set appropriate headers for audio streaming
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    if (range) {
+      // Handle range requests for audio streaming
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Serve entire file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Error serving magic song:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Serve magic videos directly under /api/magic-videos
+app.get('/api/magic-videos/:folderName/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { MAGIC_VIDEOS_DIR } = require('./utils/magicVideos');
+  
+  try {
+    const folderName = decodeURIComponent(req.params.folderName);
+    const filename = decodeURIComponent(req.params.filename);
+    const videoPath = path.join(MAGIC_VIDEOS_DIR, folderName, filename);
+    
+    console.log(`🎬 Magic video request: ${req.params.folderName}/${req.params.filename} -> ${folderName}/${filename} -> ${videoPath}`);
+    
+    // Security check: ensure the file is within the magic-videos directory
+    if (!videoPath.startsWith(MAGIC_VIDEOS_DIR)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ message: 'Magic video not found' });
+    }
+    
+    // Set appropriate headers for video streaming
+    const stat = fs.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    // Determine content type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'video/mp4';
+    if (ext === '.webm') {
+      contentType = 'video/webm';
+    } else if (ext === '.avi') {
+      contentType = 'video/x-msvideo';
+    } else if (ext === '.mov') {
+      contentType = 'video/quicktime';
+    } else if (ext === '.mkv') {
+      contentType = 'video/x-matroska';
+    } else if (ext === '.wmv') {
+      contentType = 'video/x-ms-wmv';
+    }
+    
+    if (range) {
+      // Handle range requests for video streaming
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Serve entire file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Error serving magic video:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Serve magic YouTube videos directly under /api/magic-youtube
+app.get('/api/magic-youtube/:folderName/:filename', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { MAGIC_YOUTUBE_DIR } = require('./utils/magicYouTube');
+  
+  try {
+    const folderName = decodeURIComponent(req.params.folderName);
+    const filename = decodeURIComponent(req.params.filename);
+    const videoPath = path.join(MAGIC_YOUTUBE_DIR, folderName, filename);
+    
+    console.log(`🎬 Magic YouTube video request: ${req.params.folderName}/${req.params.filename} -> ${folderName}/${filename} -> ${videoPath}`);
+    
+    // Security check: ensure the file is within the magic-youtube directory
+    if (!videoPath.startsWith(MAGIC_YOUTUBE_DIR)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ message: 'Magic YouTube video not found' });
+    }
+    
+    // Set appropriate headers for video streaming
+    const stat = fs.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    // Determine content type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'video/mp4';
+    if (ext === '.webm') {
+      contentType = 'video/webm';
+    } else if (ext === '.mkv') {
+      contentType = 'video/x-matroska';
+    }
+    
+    if (range) {
+      // Handle range requests for video streaming
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Serve entire file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Error serving magic YouTube video:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Serve local videos directly under /api/videos
 app.get('/api/videos/:filename', (req, res) => {
   const path = require('path');

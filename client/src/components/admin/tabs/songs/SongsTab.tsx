@@ -44,18 +44,24 @@ const SongsTab: React.FC<SongsTabProps> = ({
 
     const fetchSongs = useCallback(async () => {
         try {
-            const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse, youtubeResponse] = await Promise.all([
+            const [localResponse, ultrastarResponse, fileResponse, audioSettingsResponse, youtubeResponse, magicSongsResponse, magicVideosResponse, magicYouTubeResponse] = await Promise.all([
                 songAPI.getServerVideos(),
                 songAPI.getUltrastarSongs(),
                 songAPI.getFileSongs(),
                 adminAPI.getUltrastarAudioSettings(),
-                songAPI.getYouTubeSongs()
+                songAPI.getYouTubeSongs(),
+                songAPI.getMagicSongs(),
+                songAPI.getMagicVideos(),
+                songAPI.getMagicYouTube()
             ]);
 
             const serverVideos = localResponse.data.videos || [];
             const ultrastarSongs = ultrastarResponse.data.songs || [];
             const fileSongs = fileResponse.data.fileSongs || [];
             const youtubeSongs = youtubeResponse.data.youtubeSongs || [];
+            const magicSongs = magicSongsResponse.data.songs || [];
+            const magicVideos = magicVideosResponse.data.videos || [];
+            const magicYouTube = magicYouTubeResponse.data.videos || [];
             const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
 
             // Convert audio settings to a lookup object
@@ -141,6 +147,90 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         ...youtubeSong,
                         modes: ['youtube_cache'],
                         hasVideo: youtubeSong.hasVideo
+                    });
+                }
+            });
+
+            // Add Magic Songs
+            magicSongs.forEach(magicSong => {
+                const existingIndex = allSongs.findIndex(song =>
+                    song.artist.toLowerCase() === magicSong.artist.toLowerCase() &&
+                    song.title.toLowerCase() === magicSong.title.toLowerCase()
+                );
+                if (existingIndex !== -1) {
+                    // Song exists, add magic-songs mode
+                    if (!allSongs[existingIndex].modes) {
+                        allSongs[existingIndex].modes = [];
+                    }
+                    if (!allSongs[existingIndex].modes.includes('magic-songs')) {
+                        allSongs[existingIndex].modes.push('magic-songs');
+                    }
+                    // Update file status from magic song
+                    allSongs[existingIndex].hasUltrastar = magicSong.hasUltrastar;
+                    allSongs[existingIndex].hasCover = magicSong.hasCover;
+                } else {
+                    // Song doesn't exist, add as magic-songs only
+                    allSongs.push({
+                        ...magicSong,
+                        modes: ['magic-songs'],
+                        hasUltrastar: magicSong.hasUltrastar,
+                        hasCover: magicSong.hasCover
+                    });
+                }
+            });
+
+            // Add Magic Videos
+            magicVideos.forEach(magicVideo => {
+                const existingIndex = allSongs.findIndex(song =>
+                    song.artist.toLowerCase() === magicVideo.artist.toLowerCase() &&
+                    song.title.toLowerCase() === magicVideo.title.toLowerCase()
+                );
+                if (existingIndex !== -1) {
+                    // Song exists, add magic-videos mode
+                    if (!allSongs[existingIndex].modes) {
+                        allSongs[existingIndex].modes = [];
+                    }
+                    if (!allSongs[existingIndex].modes.includes('magic-videos')) {
+                        allSongs[existingIndex].modes.push('magic-videos');
+                    }
+                    // Update file status from magic video
+                    allSongs[existingIndex].hasUltrastar = magicVideo.hasUltrastar;
+                    allSongs[existingIndex].hasRemuxed = magicVideo.hasRemuxed;
+                } else {
+                    // Song doesn't exist, add as magic-videos only
+                    allSongs.push({
+                        ...magicVideo,
+                        modes: ['magic-videos'],
+                        hasUltrastar: magicVideo.hasUltrastar,
+                        hasRemuxed: magicVideo.hasRemuxed
+                    });
+                }
+            });
+
+            // Add Magic YouTube
+            magicYouTube.forEach(magicYouTubeVideo => {
+                const existingIndex = allSongs.findIndex(song =>
+                    song.artist.toLowerCase() === magicYouTubeVideo.artist.toLowerCase() &&
+                    song.title.toLowerCase() === magicYouTubeVideo.title.toLowerCase()
+                );
+                if (existingIndex !== -1) {
+                    // Song exists, add magic-youtube mode
+                    if (!allSongs[existingIndex].modes) {
+                        allSongs[existingIndex].modes = [];
+                    }
+                    if (!allSongs[existingIndex].modes.includes('magic-youtube')) {
+                        allSongs[existingIndex].modes.push('magic-youtube');
+                    }
+                    // Update file status from magic YouTube video
+                    allSongs[existingIndex].hasUltrastar = magicYouTubeVideo.hasUltrastar;
+                    allSongs[existingIndex].hasRemuxed = magicYouTubeVideo.hasRemuxed;
+                } else {
+                    // Song doesn't exist, add as magic-youtube only
+                    allSongs.push({
+                        ...magicYouTubeVideo,
+                        modes: ['magic-youtube'],
+                        hasUltrastar: magicYouTubeVideo.hasUltrastar,
+                        hasRemuxed: magicYouTubeVideo.hasRemuxed
                     });
                 }
             });
