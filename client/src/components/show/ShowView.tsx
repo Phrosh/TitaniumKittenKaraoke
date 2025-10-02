@@ -770,9 +770,17 @@ const ShowView: React.FC = () => {
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
     try {
-      // Extract folder name from youtube_url (e.g., "/api/ultrastar/Artist - Title" -> "Artist - Title")
-      const encodedFolderName = song.youtube_url.replace('/api/ultrastar/', '');
-      const folderName = decodeURIComponent(encodedFolderName);
+      // Extract folder name from youtube_url
+      let folderName: string;
+      if (song.youtube_url.includes('/api/ultrastar/')) {
+        // UltraStar songs: "/api/ultrastar/Artist - Title" -> "Artist - Title"
+        folderName = decodeURIComponent(song.youtube_url.replace('/api/ultrastar/', ''));
+      } else if (song.youtube_url.includes('/api/magic-youtube/')) {
+        // Magic-YouTube songs: "/api/magic-youtube/Artist - Title" -> "Artist - Title"
+        folderName = decodeURIComponent(song.youtube_url.replace('/api/magic-youtube/', ''));
+      } else {
+        throw new Error(`Unsupported YouTube URL format: ${song.youtube_url}`);
+      }
 
       // Pass withBackgroundVocals preference as query parameter
       const withBackgroundVocals = song.with_background_vocals ? 'true' : 'false';

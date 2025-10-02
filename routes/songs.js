@@ -669,7 +669,15 @@ router.post('/request', [
     // Create song with priority, duration, mode and background vocals preference
     // For magic YouTube mode, use ultrastar mode to avoid creating in songs/youtube
     const finalMode = (mode === 'youtube' && youtubeMode === 'magic') ? 'ultrastar' : mode;
-    const song = await Song.create(user.id, title, artist, youtubeUrl, 1, durationSeconds, finalMode, withBackgroundVocals || false);
+    
+    // For magic YouTube mode, set the correct youtube_url to magic-youtube API endpoint
+    let finalYoutubeUrl = youtubeUrl;
+    if (mode === 'youtube' && youtubeMode === 'magic') {
+      finalYoutubeUrl = `/api/magic-youtube/${encodeURIComponent(`${artist} - ${title}`)}`;
+      console.log(`✨ Magic YouTube mode: Setting youtube_url to ${finalYoutubeUrl}`);
+    }
+    
+    const song = await Song.create(user.id, title, artist, finalYoutubeUrl, 1, durationSeconds, finalMode, withBackgroundVocals || false);
     
     // Update download status if this was a YouTube download
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
@@ -1570,10 +1578,17 @@ router.get('/ultrastar/:folderName/data', async (req, res) => {
     if (!isMagicSong) {
       const { MAGIC_YOUTUBE_DIR } = require('../utils/magicYouTube');
       const magicYouTubePath = path.join(MAGIC_YOUTUBE_DIR, decodeURIComponent(folderName));
+      console.log('🔍 Checking magic-youtube path:', {
+        folderName,
+        decodedFolderName: decodeURIComponent(folderName),
+        magicYouTubePath,
+        exists: fs.existsSync(magicYouTubePath)
+      });
       if (fs.existsSync(magicYouTubePath)) {
         isMagicSong = true;
         magicDir = MAGIC_YOUTUBE_DIR;
         magicFolderPath = magicYouTubePath;
+        console.log('✅ Magic-YouTube song detected:', magicYouTubePath);
       }
     }
     

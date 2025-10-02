@@ -113,13 +113,14 @@ class MagicProcessor:
                             continue
                         
                         # Verarbeite Audio (erstellt bereits separate Dateien)
+                        # WICHTIG: Audio-Verarbeitung BEVOR Video remuxt wird
                         result = self.mtl.process_audio(audio_path)
                         if result["success"]:
                             logger.info(f"✅ Erfolgreich: {video_path}")
                             processed_count += 1
                             
                             # Musik-Verarbeitung erstellt bereits alle Dateien im UltraStar-Schema
-                            # Nur noch Video remuxen (ersetze Audio mit MP3)
+                            # Jetzt Video remuxen (Audio entfernen für Karaoke)
                             self._remux_video_with_mp3(video_path, audio_path)
                         else:
                             logger.error(f"❌ Fehler: {result['error']}")
