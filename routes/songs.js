@@ -754,16 +754,17 @@ router.post('/request', [
       title,
       artistNotUnknown: artist !== 'Unknown Artist',
       titleNotYouTubeSong: title !== 'YouTube Song',
-      shouldTrigger: (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song')),
+      shouldTrigger: (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song')) && youtubeMode !== 'magic',
       timestamp: new Date().toISOString()
     });
     
-    // Trigger automatic USDB search for songs that could benefit from it
-    const shouldTriggerUSDB = (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song'));
+    // Trigger automatic USDB search for songs that could benefit from it (but not for magic mode)
+    const shouldTriggerUSDB = (mode === 'youtube' || mode === 'youtube_cache' || (!youtubeUrl && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song')) && youtubeMode !== 'magic';
     
     console.log('🔍 USDB trigger conditions:', {
       mode,
       youtubeUrl,
+      youtubeMode,
       artist,
       title,
       artistNotUnknown: artist !== 'Unknown Artist',

@@ -86,7 +86,9 @@ class MusicToLyrics:
             folder_path = os.path.dirname(audio_path)
             
             # Führe Separation durch und behalte die Vocals-Datei
-            vocals_path, instrumental_path = self._separate_and_keep_vocals(folder_path, model_type)
+            # Prüfe ob wir in einem Magic-Ordner sind
+            keep_vocals = 'magic-' in folder_path
+            vocals_path, instrumental_path = self._separate_and_keep_vocals(folder_path, model_type, keep_vocals_for_magic=keep_vocals)
             
             if not vocals_path:
                 raise FileNotFoundError("Vocals-Datei nicht gefunden nach Separation")
@@ -101,9 +103,14 @@ class MusicToLyrics:
             logger.error(f"Fehler bei der Audio-Separation: {e}")
             raise
     
-    def _separate_and_keep_vocals(self, folder_path, model_type):
+    def _separate_and_keep_vocals(self, folder_path, model_type, keep_vocals_for_magic=False):
         """
         Führt UVR5-Separation durch und behält die Vocals-Datei für weitere Verarbeitung
+        
+        Args:
+            folder_path (str): Pfad zum Ordner
+            model_type (str): UVR5-Modell-Typ
+            keep_vocals_for_magic (bool): Wenn True, werden Vocal-Dateien für Magic-Verarbeitung behalten
         
         Returns:
             tuple: (vocals_path, instrumental_path)
@@ -131,14 +138,43 @@ class MusicToLyrics:
             uvr5 = UVR5Wrapper(model_choice=model_type)
             sample_rate, vocal_data, inst_data = uvr5.separate(temp_file)
             
-            # Generiere Ausgabe-Dateinamen
+            # Generiere Ausgabe-Dateinamen basierend auf Magic-Modus
             base_name = os.path.splitext(os.path.basename(audio_file))[0]
-            vocals_path = os.path.join(folder_path, f"{base_name}_vocals.wav")
-            instrumental_path = os.path.join(folder_path, f"{base_name}_instrumental.mp3")
             
-            # Speichere Vocals als WAV
+            # Für Magic-Verarbeitung: Verwende YouTube-ID Schema für UltraStar-Namen
+            if 'magic-' in folder_path:
+                # Finde das zugehörige Video für YouTube-ID
+                video_files = [f for f in os.listdir(folder_path) if f.endswith('.mp4')]
+                if video_files:
+                    video_filename = os.path.basename(video_files[0])
+                    youtube_id = os.path.splitext(video_filename)[0]  # YouTube-ID ist der komplette Dateiname ohne Extension
+                    hp5_filename = f"{youtube_id}_vocals_temp.mp3"  # Temporäre Vocals für Transkription
+                    hp2_filename = f"{youtube_id}.hp2.mp3"  # HP2 Instrumental
+                    logger.info(f"Magic-Modus: Verwende YouTube-ID basierte Namen: {youtube_id}")
+                else:
+                    # Fallback zu normalem Namen
+                    hp5_filename = f"{base_name}_hp5.mp3"
+                    hp2_filename = f"{base_name}_hp2.mp3"
+            else:
+                # Normale Namen für Non-Magic-Verarbeitung
+                hp5_filename = f"{base_name}_vocals.wav"  # Wird später konvertiert
+                hp2_filename = f"{base_name}_instrumental.mp3"
+            
+            vocals_path = os.path.join(folder_path, hp5_filename)
+            instrumental_path = os.path.join(folder_path, hp2_filename)
+            
+            # Speichere Vocals (als WAV oder MP3 basierend auf Magic-Modus)
             logger.info(f"Speichere Vocals: {vocals_path}")
-            sf.write(vocals_path, vocal_data.T, sample_rate)
+            
+            if 'magic-' in folder_path and vocals_path.endswith('.mp3'):
+                # Für Magic-Modus: Direkt als MP3 speichern
+                vocals_wav_path = os.path.join(folder_path, "temp_vocals_for_conversion.mp3")
+                sf.write(vocals_wav_path.replace('.mp3', '.wav'), vocal_data.T, sample_rate)
+                convert_to_mp3(vocals_wav_path.replace('.mp3', '.wav'), vocals_path)
+                os.remove(vocals_wav_path.replace('.mp3', '.wav'))
+            else:
+                # Normal: Als WAV speichern
+                sf.write(vocals_path, vocal_data.T, sample_rate)
             
             # Speichere Vocals-Pfad für spätere Lautstärke-Analyse
             self._last_vocals_path = vocals_path
@@ -154,10 +190,20 @@ class MusicToLyrics:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
             
-            # Bereinige UVR5-Ausgabe-Ordner
-            separated_dir = os.path.join(folder_path, "separated")
-            if os.path.exists(separated_dir):
-                shutil.rmtree(separated_dir)
+            # Bereinige UVR5-Ausgabe-Ordner (außer bei Magic-Verarbeitung)
+            if not keep_vocals_for_magic:
+                separated_dir = os.path.join(folder_path, "separated")
+                if os.path.exists(separated_dir):
+                    shutil.rmtree(separated_dir)
+            else:
+                # Bei Magic-Verarbeitung: Bereinige separated Ordner nach kurzer Verzögerung
+                separated_dir = os.path.join(folder_path, "separated")
+                if os.path.exists(separated_dir):
+                    try:
+                        shutil.rmtree(separated_dir)
+                        logger.info(f"Separated-Ordner bereinigt: {separated_dir}")
+                    except Exception as e:
+                        logger.warning(f"Konnte separated-Ordner nicht bereinigen: {e}")
             
             return vocals_path, instrumental_path
             
@@ -1582,14 +1628,70 @@ class MusicToLyrics:
             # 2. Transkription
             transcription_result = self.transcribe_vocals(vocals_path, language)
             
-            # 3. Speichere Lyrics
-            base_name = os.path.splitext(os.path.basename(audio_path))[0]
+            # 3. Speichere Lyrics (mit Magic-Verarbeitungsunterstützung)
             output_dir = os.path.dirname(audio_path)
-            output_base = os.path.join(output_dir, f"{base_name}_lyrics")
+            
+            if 'magic-' in output_dir:
+                # Für Magic-Verarbeitung: YouTube-ID Schema für UltraStar-Datei
+                video_files = [f for f in os.listdir(output_dir) if f.endswith('.mp4')]
+                if video_files:
+                    video_filename = os.path.basename(video_files[0])
+                    youtube_id = os.path.splitext(video_filename)[0]  # YouTube-ID ist der komplette Dateiname ohne Extension
+                    output_base = os.path.join(output_dir, youtube_id)  # Direkte UltraStar-Dateی
+                    logger.info(f"Magic-Modus: UltraStar-Datei wird als {youtube_id}.txt gespeichert")
+                else:
+                    base_name = os.path.splitext(os.path.basename(audio_path))[0]
+                    output_base = os.path.join(output_dir, f"{base_name}_lyrics")
+            else:
+                base_name = os.path.splitext(os.path.basename(audio_path))[0]
+                output_base = os.path.join(output_dir, f"{base_name}_lyrics")
             
             for format in output_formats:
                 self.save_lyrics(transcription_result, output_base, format, audio_path)
             
+            # Prüfe ob wir in einem Magic-Ordner sind und führe Magic-Verarbeitung durch
+            folder_path = os.path.dirname(audio_path)
+                
+            # Für Magic-Verarbeitung: Umbenennung der Audio-Datei zu UltraStar-Schema
+            if 'magic-' in folder_path:
+                logger.info(f"Magic-Ordner erkannt: {folder_path}")
+                video_files = [f for f in os.listdir(folder_path) if f.endswith('.mp4')]
+                if video_files:
+                    video_filename = os.path.basename(video_files[0])
+                    youtube_id = os.path.splitext(video_filename)[0]  # YouTube-ID ist der komplette Dateiname ohne Extension
+                    
+                    # Kopiere Audio-Datei zu UltraStar-Schema
+                    final_audio_name = f"{youtube_id}.mp3"
+                    final_audio_path = os.path.join(folder_path, final_audio_name)
+                    
+                    if audio_path != final_audio_path:
+                        import shutil
+                        shutil.copy2(audio_path, final_audio_path)
+                        logger.info(f"Audio-Datei kopiert: {final_audio_path}")
+                        
+                        # Lösche _extracted.mp3 Datei (nicht mehr benötigt)
+                        if audio_path.endswith('_extracted.mp3') and os.path.exists(audio_path):
+                            os.remove(audio_path)
+                            logger.info(f"_extracted.mp3 Datei entfernt: {audio_path}")
+                    
+                    # Erstelle finale HP5-Datei (Instrumental) und löschen temporäre Vocals
+                    hp5_vocals_path = os.path.join(folder_path, f"{youtube_id}_vocals_temp.mp3")
+                    hp5_instrumental_path = os.path.join(folder_path, f"{youtube_id}.hp5.mp3")
+                    
+                    # HP5 = Instrumental ohne Vocal (gleiche Datei wie HP2)
+                    hp2_path = os.path.join(folder_path, f"{youtube_id}.hp2.mp3")
+                    if os.path.exists(hp2_path):
+                        import shutil
+                        shutil.copy2(hp2_path, hp5_instrumental_path)
+                        logger.info(f"HP5-Instrumental erstellt: {hp5_instrumental_path}")
+                    
+                    # Lösche temporäre Vocals
+                    if os.path.exists(hp5_vocals_path):
+                        os.remove(hp5_vocals_path)
+                        logger.info(f"Temporäre Vocals entfernt: {hp5_vocals_path}")
+                
+                logger.info("Musik-Verarbeitung wird direkt mit UltraStar-Namen durchgeführt")
+
             result = {
                 "success": True,
                 "audio_path": audio_path,
@@ -1599,8 +1701,7 @@ class MusicToLyrics:
                 "language": transcription_result.get('language'),
                 "word_count": sum(len(segment.get('words', [])) for segment in transcription_result.get('segments', [])),
                 "duration": transcription_result.get('segments', [{}])[-1].get('end', 0) if transcription_result.get('segments') else 0
-            }
-            
+            }            
             logger.info("Music-to-Lyrics Verarbeitung erfolgreich abgeschlossen")
             logger.info(f"Ergebnis: {result}")
             
