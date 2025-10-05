@@ -392,108 +392,38 @@ router.post('/request', [
     // Device ID is only used as additional information
     const user = await User.create(name, deviceId);
 
-    // Check for songs in priority order: file > server_video > ultrastar > youtube
+    // Verwende zentrale Video-Modi-Konfiguration
+    const { findBestVideoMode } = require('../config/videoModes');
     let mode = 'youtube';
     let durationSeconds = null;
+    let ultrastarSong = null;
     
     if (!youtubeUrl) {
-      // First check file songs (highest priority)
-      const db = require('../config/database');
-      const fileFolderSetting = await new Promise((resolve, reject) => {
-        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_folder'], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+      // Finde den besten verfügbaren Video-Modus
+      const result = await findBestVideoMode(artist, title, youtubeUrl, req);
+      mode = result.mode;
+      youtubeUrl = result.url;
       
-      if (fileFolderSetting && fileFolderSetting.value) {
-        const fileSong = findFileSong(fileFolderSetting.value, artist, title);
-        if (fileSong) {
-          mode = 'file';
-          // Store only the filename, URL will be built dynamically in /show
-          youtubeUrl = fileSong.filename;
-          console.log(`Found file song: ${fileSong.filename}`);
-        }
-      }
-      
-      // If no file song found, check server videos
-      if (mode === 'youtube') {
-        const localVideo = findLocalVideo(artist, title);
-        if (localVideo) {
-          mode = 'server_video';
-          youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
-          console.log(`Found server video: ${localVideo.filename} -> URL: ${youtubeUrl}`);
-        }
-      }
-      
-      // Fix existing server_video URLs that might be missing file extension
-      if (mode === 'server_video' && youtubeUrl && !youtubeUrl.includes('.')) {
-        const localVideo = findLocalVideo(artist, title);
-        if (localVideo) {
-          youtubeUrl = `/api/videos/${encodeURIComponent(localVideo.filename)}`;
-          console.log(`🔧 Fixed server video URL: ${artist} - ${title} -> ${youtubeUrl}`);
-        }
-      }
-      
-      // If no server video found, check ultrastar songs
-      if (mode === 'youtube') {
-        const { findUltrastarSong } = require('../utils/ultrastarSongs');
-        const ultrastarSong = findUltrastarSong(artist, title);
-        if (ultrastarSong) {
-          mode = 'ultrastar';
-          youtubeUrl = `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`;
-          console.log(`Found ultrastar song: ${ultrastarSong.folderName}`);
-          
-          // For automatically detected ultrastar songs, set withBackgroundVocals based on available files
-          if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
-            const folderPath = path.join(require('../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
-            if (fs.existsSync(folderPath)) {
-              const files = fs.readdirSync(folderPath);
-              const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
-              const hasHp2File = files.some(file => file.toLowerCase().includes('.hp2.mp3'));
-              
-              // Default to HP5 (with background vocals) if available, otherwise HP2
-              withBackgroundVocals = hasHp5File || !hasHp2File;
-              console.log(`Auto-detected ultrastar song background vocals preference: ${withBackgroundVocals} (HP5 available: ${hasHp5File}, HP2 available: ${hasHp2File})`);
-            } else {
-              // If folder doesn't exist, default to false
-              withBackgroundVocals = false;
-              console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
-            }
+      // Spezielle Behandlung für Ultrastar-Songs
+      if (mode === 'ultrastar' && result.foundItem) {
+        ultrastarSong = result.foundItem;
+        
+        // For automatically detected ultrastar songs, set withBackgroundVocals based on available files
+        if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
+          const folderPath = path.join(require('../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
+          if (fs.existsSync(folderPath)) {
+            const files = fs.readdirSync(folderPath);
+            const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
+            const hasHp2File = files.some(file => file.toLowerCase().includes('.hp2.mp3'));
+            
+            // Default to HP5 (with background vocals) if available, otherwise HP2
+            withBackgroundVocals = hasHp5File || !hasHp2File;
+            console.log(`Auto-detected ultrastar song background vocals preference: ${withBackgroundVocals} (HP5 available: ${hasHp5File}, HP2 available: ${hasHp2File})`);
+          } else {
+            // If folder doesn't exist, default to false
+            withBackgroundVocals = false;
+            console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
           }
-        }
-      }
-      
-      // If no ultrastar song found, check magic songs
-      if (mode === 'youtube') {
-        const { findMagicSong } = require('../utils/magicSongs');
-        const magicSong = findMagicSong(artist, title);
-        if (magicSong) {
-          mode = 'ultrastar';
-          youtubeUrl = `/api/magic-songs/${encodeURIComponent(magicSong.folderName)}`;
-          console.log(`Found magic song: ${magicSong.folderName}`);
-        }
-      }
-      
-      // If no magic song found, check magic videos
-      if (mode === 'youtube') {
-        const { findMagicVideo } = require('../utils/magicVideos');
-        const magicVideo = findMagicVideo(artist, title);
-        if (magicVideo) {
-          mode = 'ultrastar';
-          youtubeUrl = `/api/magic-videos/${encodeURIComponent(magicVideo.folderName)}`;
-          console.log(`Found magic video: ${magicVideo.folderName}`);
-        }
-      }
-      
-      // If no magic video found, check magic YouTube videos
-      if (mode === 'youtube') {
-        const { findMagicYouTubeVideo } = require('../utils/magicYouTube');
-        const magicYouTubeVideo = findMagicYouTubeVideo(artist, title);
-        if (magicYouTubeVideo) {
-          mode = 'ultrastar';
-          youtubeUrl = `/api/magic-youtube/${encodeURIComponent(magicYouTubeVideo.folderName)}`;
-          console.log(`Found magic YouTube video: ${magicYouTubeVideo.folderName}`);
         }
       }
       
@@ -586,15 +516,7 @@ router.post('/request', [
         }
       }
       
-      // If no ultrastar song found, check YouTube cache
-      if (mode === 'youtube') {
-        const youtubeSong = findYouTubeSong(artist, title, youtubeUrl);
-        if (youtubeSong) {
-          mode = 'youtube_cache';
-          youtubeUrl = `/api/youtube-videos/${encodeURIComponent(youtubeSong.folderName)}/${encodeURIComponent(youtubeSong.videoFile)}`;
-          console.log(`Found YouTube cache: ${youtubeSong.folderName}/${youtubeSong.videoFile} -> URL: ${youtubeUrl}`);
-        }
-      }
+      // YouTube cache wird jetzt in der zentralen Konfiguration behandelt
     }
 
     // Get duration if it's a YouTube URL

@@ -100,33 +100,20 @@ router.get('/', async (req, res) => {
       console.error('Error generating QR code for show:', error);
     }
 
-    // Build dynamic URL for different song types
+    // Verwende zentrale Video-Modi-Konfiguration für URL-Building
+    const { findBestVideoMode } = require('../config/videoModes');
     let youtubeUrl = currentSong?.youtube_url;
     let songMode = currentSong?.mode || 'youtube';
     
-    if (currentSong?.mode === 'file' && currentSong?.youtube_url) {
-      // Get the configured port for file songs
-      const portSetting = await new Promise((resolve, reject) => {
-        db.get('SELECT value FROM settings WHERE key = ?', ['file_songs_port'], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+    if (currentSong?.artist && currentSong?.title) {
+      // Finde den besten verfügbaren Video-Modus für URL-Building
+      const result = await findBestVideoMode(currentSong.artist, currentSong.title, currentSong.youtube_url, req);
       
-      const port = portSetting ? portSetting.value : '4000';
-      youtubeUrl = `http://localhost:${port}/${encodeURIComponent(currentSong.youtube_url)}`;
-    } else if (currentSong?.mode === 'youtube' && currentSong?.youtube_url && currentSong?.artist && currentSong?.title) {
-      // Check if we have a local YouTube video in cache (including recursive video ID search)
-      const youtubeSong = findYouTubeSong(currentSong.artist, currentSong.title, currentSong.youtube_url);
-      if (youtubeSong) {
-        songMode = 'youtube_cache';
-        // Build full URL with protocol and host
-        const protocol = req.get('x-forwarded-proto') || req.protocol;
-        const host = req.get('host');
-        youtubeUrl = `${protocol}://${host}/api/youtube-videos/${encodeURIComponent(youtubeSong.folderName)}/${encodeURIComponent(youtubeSong.videoFile)}`;
-        console.log(`🎬 Using cached YouTube video: ${youtubeSong.folderName}/${youtubeSong.videoFile} -> ${youtubeUrl}`);
-      } else {
-        console.log(`🎬 No cached YouTube video found, using original URL: ${currentSong.youtube_url}`);
+      // Nur URL und Modus aktualisieren, wenn ein besserer Modus gefunden wurde
+      if (result.mode !== currentSong.mode) {
+        songMode = result.mode;
+        youtubeUrl = result.url;
+        console.log(`🔄 Show: Updated song mode from ${currentSong.mode} to ${songMode} for: ${currentSong.artist} - ${currentSong.title}`);
       }
     }
 

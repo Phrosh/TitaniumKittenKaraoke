@@ -13,6 +13,7 @@ const playlistRoutes = require('./routes/playlist');
 const adminRoutes = require('./routes/admin').router;
 const showRoutes = require('./routes/show');
 const i18nRoutes = require('./routes/i18n');
+const videoModesRoutes = require('./routes/videoModes');
 
 const app = express();
 const server = createServer(app);
@@ -410,6 +411,7 @@ app.get('/api/youtube-videos/:folderName/:filename', (req, res) => {
 });
 app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', videoModesRoutes);
 app.use('/api/show', showRoutes);
 app.use('/api/i18n', i18nRoutes);
 
