@@ -46,7 +46,6 @@ import { UltrastarSongData } from './types';
 import Footer from './Footer';
 import Header from './Header';
 import Overlay from './Overlay';
-import AutonomousQRCodeOverlay from './AutonomousQRCodeOverlay';
 import StartOverlay from './StartOverlay';
 import ControlButtons from './ControlButtons';
 
@@ -1151,12 +1150,16 @@ const ShowView: React.FC = () => {
 
     // Listen for control events
     const handleTogglePlayPause = () => {
-      if (currentSong?.mode === 'ultrastar' && audioRef.current) {
+      if (isUltrastar && audioRef.current) {
         if (audioRef.current.paused) {
           audioRef.current.play().catch(error => {
             console.error('🎵 Error resuming playback:', error);
           });
           setIsPlaying(true);
+          // Hide QR overlay when playback starts via control event
+          showAPI.toggleQRCodeOverlay(false).catch(error => {
+            console.error('Error hiding overlay on play:', error);
+          });
           // Restart lyrics animation when audio resumes
           setTimeout(() => {
             restartLyricsAnimation();
@@ -1175,13 +1178,23 @@ const ShowView: React.FC = () => {
       } else if (currentSong?.mode === 'youtube') {
         // YouTube embed - toggle pause state
         setYoutubeIsPaused(!youtubeIsPaused);
-      } else if (currentSong?.mode !== 'ultrastar' && videoRef.current) {
+        // If we are effectively starting playback (was paused), hide overlay
+        if (youtubeIsPaused) {
+          showAPI.toggleQRCodeOverlay(false).catch(error => {
+            console.error('Error hiding overlay on play:', error);
+          });
+        }
+      } else if (!isUltrastar && videoRef.current) {
         console.log('🎬 Video toggle-play-pause via WebSocket');
         if (videoRef.current.paused) {
           videoRef.current.play().catch(error => {
             console.error('🎬 Error resuming video playback:', error);
           });
           setIsPlaying(true);
+          // Hide QR overlay when playback starts via control event
+          showAPI.toggleQRCodeOverlay(false).catch(error => {
+            console.error('Error hiding overlay on play:', error);
+          });
         } else {
           videoRef.current.pause();
           setIsPlaying(false);
@@ -1191,7 +1204,12 @@ const ShowView: React.FC = () => {
 
     const handleRestartSong = () => {
 
-      if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
+      // Hide QR overlay when song restarts via control event
+      showAPI.toggleQRCodeOverlay(false).catch(error => {
+        console.error('Error hiding overlay on restart:', error);
+      });
+
+      if (isUltrastar && audioRef.current && ultrastarData) {
 
         // Stop and reset all timing/UI first to ensure clean restart
         stopUltrastarTiming();
@@ -2004,10 +2022,13 @@ const ShowView: React.FC = () => {
         </ProgressOverlay>
       )}
 
-      {/* Autonomous QR Code Overlay */}
-      <AutonomousQRCodeOverlay
+      {/* Controlled QR Code Overlay */}
+      <Overlay
+        show={showQRCodeOverlay}
+        overlayTitle={overlayTitle}
         currentSong={currentSong}
         nextSongs={nextSongs}
+        qrCodeUrl={qrCodeUrl}
       />
 
       {/* Start Overlay */}
