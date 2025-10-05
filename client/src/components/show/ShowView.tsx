@@ -964,8 +964,8 @@ const ShowView: React.FC = () => {
           setShowStartOverlay(true);
         }
 
-        // Load Ultrastar data if it's an ultrastar song
-        if (newSong && newSong.mode === 'ultrastar') {
+        // Load Ultrastar-style data for ultrastar and magic-youtube songs
+        if (newSong && (newSong.mode === 'ultrastar' || newSong.mode === 'magic-youtube')) {
           console.log('🌐 API: Loading Ultrastar data for new song');
           setIsApiLoadedSong(true); // Mark as API-loaded song
           await loadUltrastarData(newSong);
@@ -1094,8 +1094,8 @@ const ShowView: React.FC = () => {
         setShowStartOverlay(false);
       }
 
-      // Load Ultrastar data if it's an ultrastar song
-      if (newSong && newSong.mode === 'ultrastar') {
+      // Load Ultrastar-style data for ultrastar and magic-youtube songs
+      if (newSong && (newSong.mode === 'ultrastar' || (newSong as any).mode === 'magic-youtube')) {
         setIsApiLoadedSong(false); // Mark as WebSocket-loaded song
         await loadUltrastarData(newSong);
       } else {
@@ -1459,7 +1459,7 @@ const ShowView: React.FC = () => {
     return null;
   };
 
-  const isUltrastar = currentSong?.mode === 'ultrastar';
+  const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
 
   useEffect(() => {
     globalUltrastarData = ultrastarData;

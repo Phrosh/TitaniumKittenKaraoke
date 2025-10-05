@@ -4,7 +4,7 @@ export interface CurrentSong {
     artist: string;
     title: string;
     youtube_url: string;
-    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
+    mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache' | 'magic-youtube';
     position: number;
     duration_seconds: number | null;
     with_background_vocals: boolean;

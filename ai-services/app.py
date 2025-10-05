@@ -1246,22 +1246,51 @@ def process_magic_song(folder_name):
         if not audio_file:
             return jsonify({'error': 'No audio file found'}), 400
         
-        # Process with magic processor
-        from magic_processor import MagicProcessor
-        processor = MagicProcessor()
+        # Process with new modular system
+        from modules import (
+            ProcessingMeta, ProcessingMode, ProcessingStatus,
+            create_meta_from_file_path,
+            normalize_audio_files, separate_audio, transcribe_audio, cleanup_files
+        )
         
-        result = processor.mtl.process_audio(audio_file)
+        # Create meta object from folder
+        meta = create_meta_from_file_path(folder_path, MAGIC_SONGS_DIR, ProcessingMode.MAGIC_SONGS)
         
-        if result["success"]:
+        # Process with modular pipeline
+        success = True
+        try:
+            # 1. Audio normalization
+            if not normalize_audio_files(meta, simple=True):
+                raise Exception("Audio normalization failed")
+            
+            # 2. Audio separation
+            if not separate_audio(meta):
+                raise Exception("Audio separation failed")
+            
+            # 3. Transcription
+            if not transcribe_audio(meta):
+                raise Exception("Transcription failed")
+            
+            # 4. Cleanup
+            if not cleanup_files(meta):
+                raise Exception("Cleanup failed")
+                
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Magic song processed successfully',
-                'output_files': result['output_files']
+                'message': 'Magic song processed successfully with modular system',
+                'output_files': meta.output_files,
+                'steps_completed': meta.steps_completed
             })
         else:
             return jsonify({
                 'success': False,
-                'error': result['error']
+                'error': error_msg,
+                'steps_failed': meta.steps_failed
             }), 500
     
     except Exception as e:
@@ -1328,31 +1357,56 @@ def process_magic_video(folder_name):
         if not video_file:
             return jsonify({'error': 'No video file found'}), 400
         
-        # Process with magic processor
-        from magic_processor import MagicProcessor
-        processor = MagicProcessor()
+        # Process with new modular system
+        from modules import (
+            ProcessingMeta, ProcessingMode, ProcessingStatus,
+            create_meta_from_file_path,
+            normalize_audio_files, separate_audio, remux_videos, 
+            transcribe_audio, cleanup_files
+        )
         
-        # Extract audio first
-        audio_path = processor._extract_audio_from_video(video_file)
-        if not audio_path:
-            return jsonify({'error': 'Audio extraction failed'}), 500
+        # Create meta object from folder
+        meta = create_meta_from_file_path(folder_path, MAGIC_VIDEOS_DIR, ProcessingMode.MAGIC_VIDEOS)
         
-        # Process audio
-        result = processor.mtl.process_audio(audio_path)
-        
-        if result["success"]:
-            # Remux video
-            processor._remux_video_with_mp3(video_file, audio_path)
+        # Process with modular pipeline
+        success = True
+        try:
+            # 1. Audio extraction/normalization
+            if not normalize_audio_files(meta, simple=True):
+                raise Exception("Audio extraction/normalization failed")
             
+            # 2. Audio separation
+            if not separate_audio(meta):
+                raise Exception("Audio separation failed")
+            
+            # 3. Video remuxing (remove audio)
+            if not remux_videos(meta, remove_audio=True):
+                raise Exception("Video remuxing failed")
+            
+            # 4. Transcription
+            if not transcribe_audio(meta):
+                raise Exception("Transcription failed")
+            
+            # 5. Cleanup
+            if not cleanup_files(meta):
+                raise Exception("Cleanup failed")
+                
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Magic video processed successfully',
-                'output_files': result['output_files']
+                'message': 'Magic video processed successfully with modular system',
+                'output_files': meta.output_files,
+                'steps_completed': meta.steps_completed
             })
         else:
             return jsonify({
                 'success': False,
-                'error': result['error']
+                'error': error_msg,
+                'steps_failed': meta.steps_failed
             }), 500
     
     except Exception as e:
@@ -1419,31 +1473,56 @@ def process_magic_youtube(folder_name):
         if not video_file:
             return jsonify({'error': 'No video file found'}), 400
         
-        # Process with magic processor
-        from magic_processor import MagicProcessor
-        processor = MagicProcessor()
+        # Process with new modular system
+        from modules import (
+            ProcessingMeta, ProcessingMode, ProcessingStatus,
+            create_meta_from_file_path,
+            normalize_audio_files, separate_audio, remux_videos, 
+            transcribe_audio, cleanup_files
+        )
         
-        # Extract audio first
-        audio_path = processor._extract_audio_from_video(video_file)
-        if not audio_path:
-            return jsonify({'error': 'Audio extraction failed'}), 500
+        # Create meta object from folder
+        meta = create_meta_from_file_path(folder_path, MAGIC_YOUTUBE_DIR, ProcessingMode.MAGIC_YOUTUBE)
         
-        # Process audio
-        result = processor.mtl.process_audio(audio_path)
-        
-        if result["success"]:
-            # Remux video
-            processor._remux_video_with_mp3(video_file, audio_path)
+        # Process with modular pipeline
+        success = True
+        try:
+            # 1. Audio extraction/normalization
+            if not normalize_audio_files(meta, simple=True):
+                raise Exception("Audio extraction/normalization failed")
             
+            # 2. Audio separation
+            if not separate_audio(meta):
+                raise Exception("Audio separation failed")
+            
+            # 3. Video remuxing (remove audio)
+            if not remux_videos(meta, remove_audio=True):
+                raise Exception("Video remuxing failed")
+            
+            # 4. Transcription
+            if not transcribe_audio(meta):
+                raise Exception("Transcription failed")
+            
+            # 5. Cleanup
+            if not cleanup_files(meta):
+                raise Exception("Cleanup failed")
+                
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Magic YouTube video processed successfully',
-                'output_files': result['output_files']
+                'message': 'Magic YouTube video processed successfully with modular system',
+                'output_files': meta.output_files,
+                'steps_completed': meta.steps_completed
             })
         else:
             return jsonify({
                 'success': False,
-                'error': result['error']
+                'error': error_msg,
+                'steps_failed': meta.steps_failed
             }), 500
     
     except Exception as e:
@@ -1488,33 +1567,74 @@ def process_magic_youtube_from_url(folder_name):
             logger.error(f"Error downloading YouTube video: {str(e)}")
             return jsonify({'error': f'YouTube download failed: {str(e)}'}), 500
         
-        # Process with magic processor
-        from magic_processor import MagicProcessor
-        processor = MagicProcessor()
+        # Process with new modular system
+        from modules import (
+            ProcessingMeta, ProcessingMode, ProcessingStatus,
+            create_meta_from_youtube_url,
+            normalize_audio_files, separate_audio, 
+            remux_videos, transcribe_audio, cleanup_files
+        )
         
-        # Extract audio first
-        audio_path = processor._extract_audio_from_video(video_file)
-        if not audio_path:
-            return jsonify({'error': 'Audio extraction failed'}), 500
+        # Create meta object from YouTube URL with explicit folder info
+        meta = create_meta_from_youtube_url(
+            youtube_url=youtube_url,
+            base_dir=MAGIC_YOUTUBE_DIR,
+            mode=ProcessingMode.MAGIC_YOUTUBE,
+            folder_name=folder_name,
+            folder_path=folder_path,
+        )
+        # Stabiler Basis-Dateiname: bei Magic-YouTube die YouTube-ID
+        try:
+            video_id = os.path.splitext(os.path.basename(video_file))[0]
+            meta.base_filename = video_id
+        except Exception:
+            meta.base_filename = os.path.splitext(os.path.basename(video_file))[0]
         
-        # Process audio
-        result = processor.mtl.process_audio(audio_path)
-        
-        if result["success"]:
-            # Remux video
-            processor._remux_video_with_mp3(video_file, audio_path)
+        # Process with modular pipeline
+        success = True
+        try:
+            # 1. Download YouTube video (already done above), im Meta registrieren
+            meta.youtube_file = video_file
+            meta.add_input_file(video_file)
+            meta.add_output_file(video_file)
             
+            # 2. Audio extraction/normalization
+            if not normalize_audio_files(meta, simple=True):
+                raise Exception("Audio extraction/normalization failed")
+            
+            # 3. Audio separation
+            if not separate_audio(meta):
+                raise Exception("Audio separation failed")
+            
+            # 4. Video remuxing (remove audio)
+            if not remux_videos(meta, remove_audio=True):
+                raise Exception("Video remuxing failed")
+            
+            # 5. Transcription
+            if not transcribe_audio(meta):
+                raise Exception("Transcription failed")
+            
+            # 6. Cleanup
+            if not cleanup_files(meta):
+                raise Exception("Cleanup failed")
+                
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'Magic YouTube video processed successfully',
-                'output_files': result['output_files'],
-                'video_file': video_file,
-                'audio_file': audio_path
+                'message': 'Magic YouTube video processed successfully with modular system',
+                'output_files': meta.output_files,
+                'steps_completed': meta.steps_completed,
+                'video_file': video_file
             })
         else:
             return jsonify({
                 'success': False,
-                'error': result['error']
+                'error': error_msg,
+                'steps_failed': meta.steps_failed
             }), 500
     
     except Exception as e:
