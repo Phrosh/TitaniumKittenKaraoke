@@ -59,6 +59,7 @@ export interface AdminDashboardData {
   users: User[];
   currentSong: Song | null;
   youtubeSongs: YouTubeSong[];
+  magicYouTubeSongs?: YouTubeSong[];
   stats: {
     totalSongs: number;
     pendingSongs: number;

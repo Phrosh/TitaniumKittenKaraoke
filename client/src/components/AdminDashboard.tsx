@@ -68,8 +68,21 @@ const AdminDashboard: React.FC = () => {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const response = await adminAPI.getDashboard();
-      setDashboardData(response.data);
+      const [dashboardResponse, magicYouTubeResponse] = await Promise.all([
+        adminAPI.getDashboard(),
+        songAPI.getMagicYouTube()
+      ]);
+      
+      const dashboardData = dashboardResponse.data;
+      const magicYouTubeSongs = magicYouTubeResponse.data.magicYouTube || [];
+      
+      // Combine dashboard data with magic YouTube songs
+      const combinedData = {
+        ...dashboardData,
+        magicYouTubeSongs
+      };
+      
+      setDashboardData(combinedData);
       
       // Load pending approvals count
       await loadPendingApprovalsCount();
@@ -83,7 +96,7 @@ const AdminDashboard: React.FC = () => {
       } catch (showError) {
       }
       
-      return response.data; // Return data for use in other functions
+      return combinedData; // Return combined data for use in other functions
     } catch (error: any) {
       if (error.response?.status === 401) {
         navigate('/admin/login');

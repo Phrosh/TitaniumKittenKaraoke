@@ -10,8 +10,23 @@ interface EditSongModalProps {
   onClose: () => void;
   onSave: () => void;
   modalType: ModalType;
-  formData: { title: string; artist: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic' };
-  setFormData: (data: { title: string; artist: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic' }) => void;
+  formData: { 
+    title: string; 
+    artist: string; 
+    youtubeUrl: string; 
+    youtubeMode: 'karaoke' | 'magic';
+    singerName?: string;
+    withBackgroundVocals?: boolean;
+  };
+  setFormData: (data: { 
+    title: string; 
+    artist: string; 
+    youtubeUrl: string; 
+    youtubeMode: 'karaoke' | 'magic';
+    singerName?: string;
+    withBackgroundVocals?: boolean;
+  }) => void;
+  currentSong?: any; // To check song mode and API routes
 }
 
 const EditSongModal: React.FC<EditSongModalProps> = ({
@@ -21,10 +36,32 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   modalType,
   formData,
   setFormData,
+  currentSong,
 }) => {
   const { t } = useTranslation();
   const [actionLoading, setActionLoading] = useState(false);
-    if (!show) return null;
+  
+  // Check if YouTube URL field should be shown
+  const shouldShowYouTubeUrl = () => {
+    // Always show if URL is empty
+    if (!formData.youtubeUrl.trim()) return true;
+    
+    // Check if URL contains API routes (like /api/ or server endpoints)
+    const hasApiRoute = formData.youtubeUrl.includes('/api/') || 
+                       formData.youtubeUrl.includes('localhost') ||
+                       formData.youtubeUrl.includes('127.0.0.1') ||
+                       formData.youtubeUrl.match(/:\d{4,5}/); // Port numbers
+    
+    // Show if it's NOT an API route (i.e., it's a real YouTube URL)
+    return !hasApiRoute;
+  };
+  
+  // Check if background vocals option should be shown
+  const shouldShowBackgroundVocals = () => {
+    return currentSong && (currentSong.mode === 'ultrastar' || currentSong.mode === 'magic-youtube' || currentSong.modes?.includes('ultrastar') || currentSong.modes?.includes('magic-youtube'));
+  };
+  
+  if (!show) return null;
 
     return (
         <Modal>
@@ -32,6 +69,16 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 <ModalTitle>
                 {modalType === 'youtube' ? t('modals.editSong.addYoutubeLink') : t('modals.editSong.editSong')}
                 </ModalTitle>
+                
+                <FormGroup>
+                <Label>{t('songForm.singerName')}:</Label>
+                <Input
+                    type="text"
+                    value={formData.singerName || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, singerName: e.target.value }))}
+                    placeholder={t('songForm.singerNamePlaceholder')}
+                />
+                </FormGroup>
                 
                 <FormGroup>
                 <Label>{t('modals.editSong.title')}:</Label>
@@ -53,6 +100,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 />
                 </FormGroup>
                 
+                {shouldShowYouTubeUrl() && (
                 <FormGroup>
                 <Label>{t('modals.editSong.youtubeUrl')}:</Label>
                 <Input
@@ -67,6 +115,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                     placeholder="https://www.youtube.com/watch?v=..."
                 />
                 </FormGroup>
+                )}
 
                 {modalType === 'youtube' && formData.youtubeUrl && (
                     <FormGroup>
@@ -93,6 +142,19 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                             <span>{t('modals.editSong.youtubeModeMagic')}</span>
                         </label>
                     </div>
+                    </FormGroup>
+                )}
+
+                {shouldShowBackgroundVocals() && (
+                    <FormGroup>
+                    <Label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={formData.withBackgroundVocals || false}
+                            onChange={(e) => setFormData(prev => ({ ...prev, withBackgroundVocals: e.target.checked }))}
+                        />
+                        <span>{t('songForm.withBackgroundVocals')}</span>
+                    </Label>
                     </FormGroup>
                 )}
                 

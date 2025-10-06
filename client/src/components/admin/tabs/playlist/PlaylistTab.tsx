@@ -928,14 +928,15 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       formData={formData}
       setFormData={setFormData}
     />
-    <AddSongModal
-      show={showAddSongModal}
-      onClose={handleCloseAddSongModal}
-      onSave={handleAddSongSubmit}
-      addSongData={addSongData}
-      setAddSongData={setAddSongData}
-      manualSongList={manualSongList}
-    />
+        <AddSongModal
+          show={showAddSongModal}
+          onClose={handleCloseAddSongModal}
+          onSave={handleAddSongSubmit}
+          addSongData={addSongData}
+          setAddSongData={setAddSongData}
+          manualSongList={manualSongList}
+          dashboardData={dashboardData}
+        />
 
 
   </>

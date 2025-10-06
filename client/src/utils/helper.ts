@@ -3,7 +3,39 @@ import { Song } from "../types";
 import { extractVideoIdFromUrl } from './youtubeUrlCleaner';
 
 export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
-    if (!youtubeSongs || !song.artist || !song.title) {
+    if (!youtubeSongs) return false;
+    
+    // If we have a YouTube URL but no artist/title, prioritize video ID search
+    if (song.youtube_url && (!song.artist || !song.title)) {
+      const videoId = extractVideoIdFromUrl(song.youtube_url);
+      if (videoId) {
+        console.log('🔍 Searching by video ID only:', videoId);
+        const found = youtubeSongs.some(youtubeSong => {
+          console.log('🔍 Checking YouTube song:', youtubeSong.artist, '-', youtubeSong.title);
+          console.log('📁 Video files:', youtubeSong.videoFiles);
+          console.log('🎥 Main video file:', youtubeSong.videoFile);
+          
+          // Check if any video file in the folder has this video ID as filename
+          if (youtubeSong.videoFiles && Array.isArray(youtubeSong.videoFiles)) {
+            const found = youtubeSong.videoFiles.some((videoFile: string) => {
+              const matches = videoFile.startsWith(videoId);
+              console.log(`🎬 Video file "${videoFile}" starts with "${videoId}":`, matches);
+              return matches;
+            });
+            return found;
+          }
+          // Fallback: check the main videoFile
+          const mainFileMatch = youtubeSong.videoFile && youtubeSong.videoFile.startsWith(videoId);
+          console.log(`🎥 Main video file "${youtubeSong.videoFile}" starts with "${videoId}":`, mainFileMatch);
+          return mainFileMatch;
+        });
+        console.log('🎯 Video ID search result:', found);
+        return found;
+      }
+    }
+    
+    // If no artist or title, return false for artist/title based search
+    if (!song.artist || !song.title) {
       return false;
     }
     

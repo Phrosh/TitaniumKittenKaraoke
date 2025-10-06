@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import getFirstLetter from '../../utils/getFirstLetter';
 import {adminAPI} from '../../services/api';
+import SmallModeBadge from '../shared/SmallModeBadge';
 
 // Reusable Song Form Component
 interface SongFormProps {
@@ -25,6 +26,8 @@ interface SongFormProps {
     setSongSearchTerm: (term: string) => void;
     setUsdbResults: (results: any[]) => void;
     setUsdbLoading: (loading: boolean) => void;
+    hideYoutubeModeOptions?: boolean;
+    cacheInfo?: any;
   }
 
 const SongForm: React.FC<SongFormProps> = ({
@@ -47,7 +50,9 @@ const SongForm: React.FC<SongFormProps> = ({
     setSongData,
     setSongSearchTerm,
     setUsdbResults,
-    setUsdbLoading
+    setUsdbLoading,
+    hideYoutubeModeOptions = false,
+    cacheInfo
   }) => {
     const { t } = useTranslation();
     const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -118,7 +123,7 @@ const SongForm: React.FC<SongFormProps> = ({
             fontWeight: '500',
             color: '#333'
           }}>
-            {t('songForm.singerName')}
+            {t('songForm.singerName')}:
           </label>
           <input
             type="text"
@@ -253,7 +258,26 @@ const SongForm: React.FC<SongFormProps> = ({
           />
         </div>
 
-        {youtubeUrl && (
+        {/* Cache Status Display */}
+        {cacheInfo && (
+          <div style={{
+            marginBottom: '20px',
+            padding: '12px 16px',
+            backgroundColor: '#e8f5e8',
+            border: '1px solid #4caf50',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#2e7d32' }}>
+              ✅ {t('songForm.songFoundAs')}:
+            </span>
+            <SmallModeBadge mode="" modes={cacheInfo.modes} />
+          </div>
+        )}
+
+        {youtubeUrl && !hideYoutubeModeOptions && (
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
               {t('modals.editSong.youtubeMode')}:
@@ -268,6 +292,7 @@ const SongForm: React.FC<SongFormProps> = ({
                   onChange={(e) => onYoutubeModeChange?.(e.target.value as 'karaoke' | 'magic')}
                 />
                 <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
+                <SmallModeBadge mode="youtube" modes={[]} />
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input
@@ -278,6 +303,7 @@ const SongForm: React.FC<SongFormProps> = ({
                   onChange={(e) => onYoutubeModeChange?.(e.target.value as 'karaoke' | 'magic')}
                 />
                 <span>{t('modals.editSong.youtubeModeMagic')}</span>
+                <SmallModeBadge mode="" modes={['magic-youtube']} />
               </label>
             </div>
           </div>

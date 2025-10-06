@@ -14,26 +14,61 @@ const loadAllSongs = async (callback?: (songs: any[]) => void) => {
       const ultrastarSongs = ultrastarResponse.data.songs || [];
       const fileSongs = fileResponse.data.fileSongs || [];
       
-      // Combine all songs
-      const allSongs = [
-        ...serverVideos.map((video: any) => ({
+      // Combine all songs and merge duplicates
+      const songMap = new Map<string, any>();
+      
+      // Add server videos
+      serverVideos.forEach((video: any) => {
+        const key = `${video.artist.toLowerCase()}|${video.title.toLowerCase()}`;
+        songMap.set(key, {
           artist: video.artist,
           title: video.title,
-          mode: 'server_video'
-        })),
-        ...ultrastarSongs.map((song: any) => ({
-          artist: song.artist,
-          title: song.title,
-          mode: 'ultrastar'
-        })),
-        ...fileSongs.map((song: any) => ({
-          artist: song.artist,
-          title: song.title,
-          mode: 'file'
-        }))
-      ];
+          mode: 'server_video',
+          modes: ['server_video']
+        });
+      });
       
-      // Sort by artist, then by title
+      // Add ultrastar songs (merge with existing if found)
+      ultrastarSongs.forEach((song: any) => {
+        const key = `${song.artist.toLowerCase()}|${song.title.toLowerCase()}`;
+        const existing = songMap.get(key);
+        if (existing) {
+          // Merge modes
+          if (!existing.modes.includes('ultrastar')) {
+            existing.modes.push('ultrastar');
+          }
+          existing.mode = 'ultrastar'; // Update primary mode
+        } else {
+          songMap.set(key, {
+            artist: song.artist,
+            title: song.title,
+            mode: 'ultrastar',
+            modes: ['ultrastar']
+          });
+        }
+      });
+      
+      // Add file songs (merge with existing if found)
+      fileSongs.forEach((song: any) => {
+        const key = `${song.artist.toLowerCase()}|${song.title.toLowerCase()}`;
+        const existing = songMap.get(key);
+        if (existing) {
+          // Merge modes
+          if (!existing.modes.includes('file')) {
+            existing.modes.push('file');
+          }
+        } else {
+          songMap.set(key, {
+            artist: song.artist,
+            title: song.title,
+            mode: 'file',
+            modes: ['file']
+          });
+        }
+      });
+      
+      // Convert map to array and sort
+      const allSongs = Array.from(songMap.values());
       allSongs.sort((a, b) => {
         const artistA = a.artist.toLowerCase();
         const artistB = b.artist.toLowerCase();
