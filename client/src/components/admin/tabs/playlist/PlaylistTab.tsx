@@ -949,6 +949,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       formData={formData}
       setFormData={setFormData}
       currentSong={selectedSong}
+      dashboardData={dashboardData}
     />
         <AddSongModal
           show={showAddSongModal}

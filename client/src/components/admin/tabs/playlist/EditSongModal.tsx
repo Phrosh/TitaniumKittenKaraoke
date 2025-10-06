@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalTitle, FormGroup, Label, Input, ModalButtons } from '../../../shared/style';
 import Button from '../../../shared/Button';
 import { useTranslation } from 'react-i18next';
+import SmallModeBadge from '../../../shared/SmallModeBadge';
+import { isSongInYouTubeCache } from '../../../../utils/helper';
+import { extractVideoIdFromUrl } from '../../../../utils/youtubeUrlCleaner';
+import { AdminDashboardData } from '../../../types';
 
 type ModalType = 'edit' | 'youtube';
 
@@ -27,6 +31,7 @@ interface EditSongModalProps {
     withBackgroundVocals?: boolean;
   }) => void;
   currentSong?: any; // To check song mode and API routes
+  dashboardData?: AdminDashboardData;
 }
 
 const EditSongModal: React.FC<EditSongModalProps> = ({
@@ -37,6 +42,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   formData,
   setFormData,
   currentSong,
+  dashboardData,
 }) => {
   const { t } = useTranslation();
   const [actionLoading, setActionLoading] = useState(false);
@@ -60,6 +66,64 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   const shouldShowBackgroundVocals = () => {
     return currentSong && (currentSong.mode === 'ultrastar' || currentSong.mode === 'magic-youtube' || currentSong.modes?.includes('ultrastar') || currentSong.modes?.includes('magic-youtube'));
   };
+  
+  // Cache detection logic
+  const getCacheInfo = () => {
+    if (!dashboardData) return null;
+    
+    // Check if we have a YouTube URL first
+    if (formData.youtubeUrl.trim()) {
+      const videoId = extractVideoIdFromUrl(formData.youtubeUrl);
+      
+      if (videoId) {
+        // Check if this video ID exists in YouTube cache
+        const song = {
+          artist: formData.artist || '',
+          title: formData.title || '',
+          youtube_url: formData.youtubeUrl
+        };
+        
+        const isInYouTubeCache = isSongInYouTubeCache(song, dashboardData.youtubeSongs);
+        
+        // Also check if this video ID exists in magic-youtube cache
+        const magicYouTubeSongs = dashboardData.magicYouTubeSongs || [];
+        
+        const foundInMagicYouTube = magicYouTubeSongs.some((magicSong: any) => {
+          // Check if any video file matches this video ID
+          if (magicSong.videoFiles && Array.isArray(magicSong.videoFiles)) {
+            const found = magicSong.videoFiles.some((videoFile: string) => {
+              const matches = videoFile.startsWith(videoId);
+              return matches;
+            });
+            return found;
+          }
+          const mainFileMatch = magicSong.videoFile && magicSong.videoFile.startsWith(videoId);
+          return mainFileMatch;
+        });
+        
+        // Prioritize Magic YouTube cache over regular YouTube cache
+        if (foundInMagicYouTube) {
+          return {
+            found: true,
+            modes: ['magic-youtube'],
+            type: 'magic-youtube'
+          };
+        }
+        
+        if (isInYouTubeCache) {
+          return {
+            found: true,
+            modes: ['youtube_cache'],
+            type: 'youtube_cache'
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+  
+  const cacheInfo = getCacheInfo();
   
   if (!show) return null;
 
@@ -117,32 +181,54 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 </FormGroup>
                 )}
 
-                {modalType === 'youtube' && formData.youtubeUrl && (
-                    <FormGroup>
+                {/* Cache Info */}
+                {cacheInfo && (
+                  <div style={{
+                    padding: '12px',
+                    backgroundColor: '#e8f5e8',
+                    border: '1px solid #4caf50',
+                    borderRadius: '6px',
+                    marginBottom: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#2e7d32' }}>
+                      ✅ {t('songForm.songFoundAs')}:
+                    </span>
+                    <SmallModeBadge mode="" modes={cacheInfo.modes} />
+                  </div>
+                )}
+
+                {/* YouTube Mode Radio Buttons */}
+                {formData.youtubeUrl && !cacheInfo && (
+                  <FormGroup>
                     <Label>{t('modals.editSong.youtubeMode')}:</Label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <input
-                                type="radio"
-                                name="youtubeMode"
-                                value="karaoke"
-                                checked={formData.youtubeMode === 'karaoke'}
-                                onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
-                            />
-                            <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <input
-                                type="radio"
-                                name="youtubeMode"
-                                value="magic"
-                                checked={formData.youtubeMode === 'magic'}
-                                onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
-                            />
-                            <span>{t('modals.editSong.youtubeModeMagic')}</span>
-                        </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="youtubeMode"
+                          value="karaoke"
+                          checked={formData.youtubeMode === 'karaoke'}
+                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
+                        />
+                        <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
+                        <SmallModeBadge mode="youtube" modes={[]} />
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="youtubeMode"
+                          value="magic"
+                          checked={formData.youtubeMode === 'magic'}
+                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
+                        />
+                        <span>{t('modals.editSong.youtubeModeMagic')}</span>
+                        <SmallModeBadge mode="" modes={['magic-youtube']} />
+                      </label>
                     </div>
-                    </FormGroup>
+                  </FormGroup>
                 )}
 
                 {shouldShowBackgroundVocals() && (
