@@ -453,5 +453,16 @@
     "youtubeCache": "Кэш YouTube",
     "backgroundVocals": "BG",
     "duett": "Дуэт"
+  },
+  "status": {
+    "separating": "Создание караоке песни",
+    "transcribing": "Создание караоке текста",
+    "downloading": "Загрузка",
+    "failed": "Неудачно",
+    "finished": "Завершено",
+    "downloaded": "Загружено",
+    "cached": "В кэше",
+    "ready": "Готово",
+    "pending": "Ожидание"
   }
 }

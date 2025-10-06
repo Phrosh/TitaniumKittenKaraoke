@@ -7,6 +7,8 @@ import { adminAPI, playlistAPI, showAPI, songAPI } from '../../../../services/ap
 import websocketService from '../../../../services/websocket';
 import toast from 'react-hot-toast';
 import loadAllSongs from '../../../../utils/loadAllSongs';
+import { boilDown } from '../../../../utils/boilDown';
+import { DownloadStatus } from '../../../../utils/helper';
 import {
   PlaylistContainer,
   PlaylistHeader,
@@ -30,7 +32,7 @@ import {
   SongActions,
 } from './style';
 import Button from '../../../shared/Button';
-import { isSongInYouTubeCache, DownloadStatus } from '../../../../utils/helper';
+import { isSongInYouTubeCache } from '../../../../utils/helper';
 import EditSongModal from './EditSongModal';
 import AddSongModal from './AddSongModal';
 import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
@@ -97,13 +99,125 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       setShowQRCodeOverlay(data.show);
     };
 
+        const handleProcessingStatus = (data: { id?: number; artist?: string; title?: string; status: DownloadStatus }) => {
+          try {
+            console.log('🛰️ PlaylistTab: processing-status received via WS:', data, 'timestamp:', new Date().toISOString());
+            
+            // Add small delay to prevent race conditions
+            setTimeout(() => {
+        
+        // Use functional update to get the latest state
+        setDashboardData((prev: AdminDashboardData | null) => {
+          if (!prev) return prev;
+          
+          // Create a deep copy to avoid mutation issues
+          const updated = JSON.parse(JSON.stringify(prev));
+          const normalize = (s?: string) => (s || '').toLowerCase();
+          const b = (s?: string) => boilDown(s || '');
+
+          // Status precedence: only apply if newStatus has >= priority than current
+          const priority: Record<string, number> = {
+            failed: 100,
+            finished: 90,
+            transcribing: 80,
+            separating: 70,
+            downloading: 60,
+          } as any;
+          const getPriority = (s?: string) => priority[(s || 'none') as string] ?? 0;
+
+          const matches = (s: Song): boolean => {
+            // Only match by ID if provided - this prevents updating multiple songs with same artist/title
+            if (typeof data.id === 'number' && s.id === data.id) return true;
+            return false;
+          };
+
+          // If no matches found by ID or artist/title, try to find the most recent song with similar name
+          let foundMatch = false;
+          let appliedCount = 0;
+          updated.playlist = updated.playlist.map((s: Song) => {
+            if (!matches(s)) return s;
+            foundMatch = true;
+                const currentStatusRaw = ((s as any).download_status || (s as any).status) as string | undefined;
+                const currentStatus = currentStatusRaw === 'ready' ? 'finished' : currentStatusRaw;
+                const incomingStatus = (data.status as string);
+            
+                const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
+                if (!shouldApply) {
+                  console.log('🛰️ PlaylistTab: skipping lower-priority status', { songId: s.id, currentStatus, incomingStatus, priority: { current: getPriority(currentStatus), incoming: getPriority(incomingStatus) } });
+                  return s;
+                }
+            const next = { ...(s as any) };
+            next.download_status = data.status;
+            appliedCount++;
+            return next as Song;
+          });
+
+          if (appliedCount === 0) {
+            console.log('🛰️ PlaylistTab: No song found with ID:', data.id);
+            // If song not found by ID, try to find by artist/title as fallback
+            if (data.artist && data.title) {
+              console.log('🛰️ PlaylistTab: Trying fallback matching by artist/title');
+              const normalize = (s?: string) => (s || '').toLowerCase();
+              const b = (s?: string) => boilDown(s || '');
+              
+              // Try to find the most recent song with matching artist/title
+              const recentSong = updated.playlist
+                .filter((s: Song) => {
+                  // Try exact match first
+                  if (normalize(s.artist) === normalize(data.artist) && normalize(s.title) === normalize(data.title)) return true;
+                  // Try boiled down match
+                  if (b(s.artist) === b(data.artist) && b(s.title) === b(data.title)) return true;
+                  return false;
+                })
+                .sort((a: Song, b: Song) => (b.id || 0) - (a.id || 0))[0]; // Most recent by ID
+              
+              if (recentSong) {
+                console.log('🛰️ PlaylistTab: Found fallback match:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title });
+                const currentStatusRaw = ((recentSong as any).download_status || (recentSong as any).status) as string | undefined;
+                const currentStatus = currentStatusRaw === 'ready' ? 'finished' : currentStatusRaw;
+                const incomingStatus = (data.status as string);
+                
+                const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
+                if (shouldApply) {
+                  const next = { ...(recentSong as any) };
+                  next.download_status = data.status;
+                  appliedCount++;
+                  console.log('🛰️ PlaylistTab: applying status to fallback match:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title, status: data.status, priority: { current: getPriority(currentStatus), incoming: getPriority(incomingStatus) } });
+                  
+                  // Update the playlist with the modified song
+                  updated.playlist = updated.playlist.map((s: Song) => s.id === recentSong.id ? next as Song : s);
+                } else {
+                  console.log('🛰️ PlaylistTab: Skipping fallback match due to lower priority:', { songId: recentSong.id, currentStatus, incomingStatus, priority: { current: getPriority(currentStatus), incoming: getPriority(incomingStatus) } });
+                }
+              } else {
+                console.log('🛰️ PlaylistTab: No fallback match found by artist/title');
+              }
+            }
+            
+            if (appliedCount === 0) {
+              console.log('🛰️ PlaylistTab: No fallback match found either');
+              return prev;
+            }
+          }
+          console.log('🛰️ PlaylistTab: status applied to entries:', appliedCount);
+          return updated;
+        });
+            }, 100); // 100ms delay
+          } catch (e) {
+            console.error('Error applying processing status:', e);
+          }
+        };
+
     // Listen for QR overlay toggle events
     websocketService.on('qr-overlay-toggle', handleQROverlayToggle);
+    // Listen for processing status updates
+    websocketService.on('processing-status', handleProcessingStatus);
 
     return () => {
       websocketService.off('qr-overlay-toggle', handleQROverlayToggle);
+      websocketService.off('processing-status', handleProcessingStatus);
     };
-  }, [setShowQRCodeOverlay]);
+  }, [setShowQRCodeOverlay, setDashboardData]);
 
   // Filter playlist based on showPastSongs setting
   const filteredPlaylist = showPastSongs
@@ -609,7 +723,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             const isDragging = draggedItem === song.id;
             const isDropTarget = dropTarget === song.id;
             const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
-
+            const effectiveStatus = (song.download_status as string) === 'ready' ? 'finished' : song.download_status;
+            const isBlocked = !!effectiveStatus && !['finished', 'failed'].includes(effectiveStatus as string);
             return (
               <React.Fragment key={song.id}>
                 {showDropZoneAbove && (
@@ -619,6 +734,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                 <SongItem
                   $isCurrent={isCurrent}
                   $hasNoYoutube={song.mode === 'youtube' && !song.youtube_url}
+                  $isBlocked={isBlocked}
                   $isPast={isPast || false}
                   $isDragging={isDragging}
                   $isDropTarget={isDropTarget || false}
@@ -698,7 +814,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           );
                         })()}
                       </SongTitle>
-                      {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.status !== 'downloading' && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
+                      {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -714,11 +830,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           📺 {t('playlist.addYouTubeLink')}
                         </Button>
                       )}
-                      {((song.download_status && song.download_status !== 'none') || 
-                        (song.status && song.status !== 'none') ||
-                        (song.download_status && song.download_status.startsWith('magic-'))) && (
-                        <DownloadStatusBadge status={(song.status || song.download_status) as DownloadStatus} />
-                      )}
+                      {effectiveStatus ? (
+                        <DownloadStatusBadge status={effectiveStatus as DownloadStatus} />
+                      ) : null}
                       {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song, dashboardData.youtubeSongs)) || song.modes?.includes('youtube_cache') && (
                         <div style={{
                           padding: '8px 12px',
@@ -748,7 +862,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handlePlaySong(song.id);
                       }}
-                      disabled={actionLoading}
+                      disabled={actionLoading || isBlocked}
+                      style={isBlocked ? {
+                        background: 'rgba(0, 0, 0, 0.35)',
+                        color: '#bbbbbb',
+                        filter: 'grayscale(100%)',
+                        opacity: 0.6,
+                        border: '2px solid rgba(255, 255, 255, 0.15)'
+                      } : undefined}
                     >
                       ▶️
                     </Button>
@@ -758,7 +879,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         openModal(song, 'edit');
                       }}
-                      disabled={actionLoading}
+                      disabled={actionLoading || isBlocked}
                     >
                       ✏️
                     </Button>
@@ -769,7 +890,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handleRefreshClassification(song.id);
                       }}
-                      disabled={actionLoading}
+                      disabled={actionLoading || isBlocked}
                       title={t('playlist.refreshClassification')}
                     >
                       🔄
@@ -781,7 +902,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handleDeleteSong(song.id);
                       }}
-                      disabled={actionLoading}
+                      disabled={actionLoading || isBlocked}
                     >
                       🗑️
                     </Button>

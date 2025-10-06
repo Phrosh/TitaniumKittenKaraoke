@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse, parse_qs
 
 from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +165,7 @@ class USDBDownloader:
             True wenn erfolgreich, False sonst
         """
         log_start('usdb_download.download_usdb_file', meta)
+        send_processing_status(meta, 'downloading')
         if not meta.usdb_url:
             logger.error("Keine USDB-URL im Meta-Objekt")
             return False
@@ -224,6 +225,7 @@ class USDBDownloader:
             logger.error(f"Fehler beim Herunterladen der USDB-Datei: {e}")
             meta.mark_step_failed('usdb_download')
             meta.status = ProcessingStatus.FAILED
+            send_processing_status(meta, 'failed')
             return False
     
     def search_usdb(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:

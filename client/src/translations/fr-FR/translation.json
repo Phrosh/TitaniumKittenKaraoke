@@ -453,5 +453,16 @@
     "youtubeCache": "Cache YouTube",
     "backgroundVocals": "BG",
     "duett": "Duo"
+  },
+  "status": {
+    "separating": "Création de la Chanson Karaoké",
+    "transcribing": "Création du Texte Karaoké",
+    "downloading": "Téléchargement",
+    "failed": "Échoué",
+    "finished": "Terminé",
+    "downloaded": "Téléchargé",
+    "cached": "En Cache",
+    "ready": "Prêt",
+    "pending": "En Attente"
   }
 }

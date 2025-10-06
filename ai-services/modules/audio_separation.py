@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
 
@@ -357,6 +357,7 @@ class AudioSeparator:
             True wenn erfolgreich, False sonst
         """
         log_start('audio_separation.process_meta', meta)
+        send_processing_status(meta, 'separating')
         try:
             # Finde Audio-Quelle
             audio_source = self.find_audio_source(meta)
@@ -424,6 +425,7 @@ class AudioSeparator:
                 logger.error("Audio-Separation fehlgeschlagen")
                 meta.mark_step_failed('audio_separation')
                 meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
                 return False
             
             # Wenn Ziel-Dateien bereits vorhanden sind, direkt erfolgreich
@@ -450,12 +452,14 @@ class AudioSeparator:
                 logger.error("Umbenennung der getrennten Dateien fehlgeschlagen")
                 meta.mark_step_failed('audio_separation')
                 meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
                 return False
                 
         except Exception as e:
             logger.error(f"Fehler bei Audio-Separation: {e}")
             meta.mark_step_failed('audio_separation')
             meta.status = ProcessingStatus.FAILED
+            send_processing_status(meta, 'failed')
             return False
 
 def separate_audio(meta: ProcessingMeta) -> bool:

@@ -465,4 +465,16 @@
     "magicVideos": "Magic Videos",
     "magicYouTube": "Magic YouTube"
   }
+  ,
+  "status": {
+    "separating": "Karaoke Song wird erstellt",
+    "transcribing": "Karaoke Text wird erstellt",
+    "downloading": "Herunterladen",
+    "failed": "Fehlgeschlagen",
+    "finished": "Fertig",
+    "downloaded": "Heruntergeladen",
+    "cached": "Im Cache",
+    "ready": "Bereit",
+    "pending": "Ausstehend"
+  }
 }

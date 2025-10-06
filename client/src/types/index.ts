@@ -5,6 +5,10 @@ export interface User {
   created_at: string;
 }
 
+export type LegacyStatus = 'none' | 'downloading' | 'downloaded' | 'cached' | 'failed';
+
+export type DownloadStatus = 'downloading' | 'failed' | 'finished' | 'separating' | 'transcribing';
+
 export interface Song {
   id: number;
   user_id: number;
@@ -13,8 +17,8 @@ export interface Song {
   youtube_url?: string;
   mode: 'youtube' | 'server_video' | 'file' | 'ultrastar' | 'youtube_cache';
   modes?: string[];
-  status: string;
-  download_status?: 'none' | 'downloading' | 'downloaded' | 'cached' | 'failed';
+  status: LegacyStatus;
+  download_status?: DownloadStatus;
   download_started_at?: string;
   position: number;
   delay_count: number;

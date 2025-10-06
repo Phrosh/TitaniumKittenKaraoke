@@ -453,5 +453,16 @@
     "youtubeCache": "Pamięć podręczna YouTube",
     "backgroundVocals": "BG",
     "duett": "Duet"
+  },
+  "status": {
+    "separating": "Tworzenie piosenki karaoke",
+    "transcribing": "Tworzenie tekstu karaoke",
+    "downloading": "Pobieranie",
+    "failed": "Nieudane",
+    "finished": "Zakończone",
+    "downloaded": "Pobrane",
+    "cached": "W pamięci podręcznej",
+    "ready": "Gotowe",
+    "pending": "Oczekujące"
   }
 }

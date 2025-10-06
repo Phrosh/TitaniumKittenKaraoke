@@ -453,5 +453,16 @@
     "youtubeCache": "YouTube缓存",
     "backgroundVocals": "BG",
     "duett": "二重唱"
+  },
+  "status": {
+    "separating": "创建卡拉OK歌曲",
+    "transcribing": "创建卡拉OK文本",
+    "downloading": "下载中",
+    "failed": "失败",
+    "finished": "完成",
+    "downloaded": "已下载",
+    "cached": "已缓存",
+    "ready": "就绪",
+    "pending": "等待中"
   }
 }

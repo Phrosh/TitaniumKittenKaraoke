@@ -453,5 +453,16 @@
     "youtubeCache": "YouTube Cache",
     "backgroundVocals": "BG",
     "duett": "Duet"
+  },
+  "status": {
+    "separating": "Creating Karaoke Song",
+    "transcribing": "Creating Karaoke Text",
+    "downloading": "Downloading",
+    "failed": "Failed",
+    "finished": "Finished",
+    "downloaded": "Downloaded",
+    "cached": "Cached",
+    "ready": "Ready",
+    "pending": "Pending"
   }
 }

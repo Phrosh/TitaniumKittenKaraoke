@@ -453,5 +453,16 @@
     "youtubeCache": "YouTube Cache",
     "backgroundVocals": "BG",
     "duett": "Duet"
+  },
+  "status": {
+    "separating": "Karaoke Lied wordt gemaakt",
+    "transcribing": "Karaoke Tekst wordt gemaakt",
+    "downloading": "Downloaden",
+    "failed": "Mislukt",
+    "finished": "Voltooid",
+    "downloaded": "Gedownload",
+    "cached": "Gecached",
+    "ready": "Klaar",
+    "pending": "In behandeling"
   }
 }

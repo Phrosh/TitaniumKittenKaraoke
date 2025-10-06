@@ -82,38 +82,10 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
     return found;
   }
 
-  export type DownloadStatus = 'downloading' | 'downloaded' | 'cached' | 'failed' | 'none' | 'ready' | 'pending' | 'magic-processing' | 'magic-downloading' | 'magic-separating' | 'magic-transcribing' | 'magic-completed' | 'magic-failed';
+export type DownloadStatus = 'downloading' | 'failed' | 'finished' | 'separating' | 'transcribing';
 
-  export const getDownloadStatusText = (status: DownloadStatus) => {
-    switch (status) {
-      case 'downloading':
-        return 'Downloading...';
-      case 'downloaded':
-        return 'Downloaded';
-      case 'cached':
-        return 'Cached';
-      case 'failed':
-        return 'Failed';
-      case 'ready':
-        return 'Ready';
-      case 'pending':
-        return 'Pending';
-      case 'magic-processing':
-        return '✨ Processing...';
-      case 'magic-downloading':
-        return '📥 Downloading...';
-      case 'magic-separating':
-        return '🎵 Creating Karaoke Music...';
-      case 'magic-transcribing':
-        return '📝 Creating Karaoke Text...';
-      case 'magic-completed':
-        return '✨ Magic Complete!';
-      case 'magic-failed':
-        return '❌ Magic Failed';
-      case 'none':
-        return '';
-    }
-  }
+// getDownloadStatusText is no longer used directly by the badge; kept for backward compatibility
+export const getDownloadStatusText = (status: DownloadStatus) => '';
   
   // Check if Ultrastar song has missing files (for warning display)
   export const hasMissingFiles = (song: any) => {

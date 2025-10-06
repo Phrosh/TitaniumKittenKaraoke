@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any
 import yt_dlp
 
 from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ class YouTubeDownloader:
             True wenn erfolgreich, False sonst
         """
         log_start('download_video', meta)
+        send_processing_status(meta, 'downloading')
         if not meta.youtube_url:
             logger.error("Keine YouTube-URL im Meta-Objekt")
             return False
@@ -180,6 +181,7 @@ class YouTubeDownloader:
             logger.error(f"Fehler beim Herunterladen von {meta.youtube_url}: {e}")
             meta.mark_step_failed('youtube_download')
             meta.status = ProcessingStatus.FAILED
+            send_processing_status(meta, 'failed')
             return False
     
     def download_audio_only(self, meta: ProcessingMeta) -> bool:
@@ -193,6 +195,7 @@ class YouTubeDownloader:
             True wenn erfolgreich, False sonst
         """
         log_start('download_audio_only', meta)
+        send_processing_status(meta, 'downloading')
         if not meta.youtube_url:
             logger.error("Keine YouTube-URL im Meta-Objekt")
             return False
@@ -252,6 +255,7 @@ class YouTubeDownloader:
             logger.error(f"Fehler beim Herunterladen der Audiospur von {meta.youtube_url}: {e}")
             meta.mark_step_failed('youtube_audio_download')
             meta.status = ProcessingStatus.FAILED
+            send_processing_status(meta, 'failed')
             return False
 
 def download_youtube_video(meta: ProcessingMeta, audio_only: bool = False) -> bool:

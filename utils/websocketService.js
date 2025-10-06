@@ -369,6 +369,26 @@ async function broadcastSongApprovalNotification(io, approvalData) {
   }
 }
 
+/**
+ * Broadcast processing status updates (e.g., separating, transcribing, downloading, failed, finished)
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {{ id?: number, artist?: string, title?: string, status: string }} data
+ */
+async function broadcastProcessingStatus(io, data) {
+  try {
+    if (!data || !data.status) return;
+    io.emit('processing-status', data);
+    console.log(`📡 Broadcasted processing-status:`, {
+      data,
+      totalClients: io.engine?.clientsCount || 0,
+      adminRoom: io.sockets.adapter.rooms.get('admin')?.size || 0,
+      playlistRoom: io.sockets.adapter.rooms.get('playlist')?.size || 0,
+    });
+  } catch (error) {
+    console.error('Error broadcasting processing status:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
@@ -382,5 +402,6 @@ module.exports = {
   broadcastShowActionToAdmin,
   broadcastPlaylistUpgrade,
   broadcastUSDBDownloadNotification,
+  broadcastProcessingStatus,
   broadcastSongApprovalNotification
 };

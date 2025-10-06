@@ -6,7 +6,7 @@ const User = require('../models/User');
 const { verifyToken } = require('./auth');
 const db = require('../config/database');
 const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../utils/youtubeSongs');
-const { broadcastQRCodeToggle, broadcastSongChange, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
+const { broadcastQRCodeToggle, broadcastSongChange, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastProcessingStatus } = require('../utils/websocketService');
 const { cleanYouTubeUrl } = require('../utils/youtubeUrlCleaner');
 
 const router = express.Router();
@@ -178,7 +178,7 @@ router.post('/song/:songId/magic-youtube', [
     await Song.updateYoutubeUrl(songId, cleanedUrl);
     
     // Set magic processing status
-    await Song.updateDownloadStatus(songId, 'magic-processing', new Date().toISOString());
+    await Song.updateDownloadStatus(songId, 'downloading', new Date().toISOString());
     
     // Start magic YouTube processing via AI services
     try {
@@ -226,13 +226,26 @@ router.post('/song/:songId/magic-youtube', [
             if (proxyRes.statusCode === 200) {
               // Update song mode to ultrastar (magic-youtube)
               Song.updateMode(songId, 'ultrastar').catch(console.error);
-              Song.updateDownloadStatus(songId, 'magic-completed').catch(console.error);
+              Song.updateDownloadStatus(songId, 'ready').catch(console.error);
+              // Broadcast finished
+              const io = require('../server').io;
+              if (io) {
+                broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'finished' });
+              }
             } else {
               Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+              const io = require('../server').io;
+              if (io) {
+                broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
+              }
             }
           } catch (error) {
             console.error('✨ Error parsing Magic YouTube response:', error);
             Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+            const io = require('../server').io;
+            if (io) {
+              broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
+            }
           }
         });
       });
@@ -240,16 +253,24 @@ router.post('/song/:songId/magic-youtube', [
       proxyReq.on('error', (error) => {
         console.error('✨ Error processing Magic YouTube:', error);
         Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+        const io = require('../server').io;
+        if (io) {
+          broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
+        }
       });
       
-      // Send the YouTube URL in the request body
-      proxyReq.write(JSON.stringify({ youtubeUrl: cleanedUrl }));
+      // Send the YouTube URL and song ID in the request body
+      proxyReq.write(JSON.stringify({ youtubeUrl: cleanedUrl, songId: Number(songId) }));
       proxyReq.setTimeout(300000); // 5 minutes timeout for magic processing
       proxyReq.end();
       
     } catch (error) {
       console.error('✨ Error starting Magic YouTube processing:', error);
       await Song.updateDownloadStatus(songId, 'magic-failed');
+      const io = require('../server').io;
+      if (io) {
+        broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
+      }
     }
     
     res.json({ message: 'Magic YouTube processing started successfully' });

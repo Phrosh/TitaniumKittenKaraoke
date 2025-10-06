@@ -12,7 +12,7 @@ import whisper
 import torch
 
 from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +299,7 @@ class AudioTranscriber:
             True wenn erfolgreich, False sonst
         """
         log_start('transcription.process_meta', meta)
+        send_processing_status(meta, 'transcribing')
         try:
             # Finde Vocals-Datei
             vocals_file = self.find_vocals_file(meta)
@@ -324,6 +325,7 @@ class AudioTranscriber:
                 logger.error("Transkription fehlgeschlagen")
                 meta.mark_step_failed('transcription')
                 meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
                 return False
             
             # Übernehme alte Post-Processing-Pipeline (Segment-Splitting & Halluzinations-Filter)
@@ -357,6 +359,7 @@ class AudioTranscriber:
                 logger.error("UltraStar-Konvertierung fehlgeschlagen")
                 meta.mark_step_failed('transcription')
                 meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
                 return False
             
             # Speichere UltraStar-Datei (benenne nach stabilem Basisnamen, falls vorhanden)
@@ -392,6 +395,7 @@ class AudioTranscriber:
             logger.error(f"Fehler bei Audio-Transkription: {e}")
             meta.mark_step_failed('transcription')
             meta.status = ProcessingStatus.FAILED
+            send_processing_status(meta, 'failed')
             return False
 
     # --- Portierte Hilfsfunktionen aus music_to_lyrics.py (als Klassen-Methoden) ---

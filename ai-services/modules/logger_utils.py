@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+import requests
 
 
 def meta_to_short_dict(meta) -> dict:
@@ -22,3 +23,25 @@ def meta_to_short_dict(meta) -> dict:
 def log_start(function_name: str, meta) -> None:
     logger = logging.getLogger(__name__)
     logger.info(f"▶ {function_name} | meta={meta_to_short_dict(meta)}")
+
+
+def send_processing_status(meta, status: str) -> None:
+    """Sendet den Verarbeitungs-Status an den Node-Server (HTTP), zur Weiterleitung per WebSocket.
+
+    Args:
+        meta: ProcessingMeta-ähnliches Objekt mit artist/title
+        status: 'downloading' | 'separating' | 'transcribing' | 'failed' | 'finished'
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        artist = getattr(meta, 'artist', None)
+        title = getattr(meta, 'title', None)
+        song_id = getattr(meta, 'song_id', None)  # Try to get song ID if available
+        payload = { 'artist': artist, 'title': title, 'status': status }
+        if song_id:
+            payload['id'] = song_id
+        logger.info(f"📡 send_processing_status → {payload}")
+        # kleiner Timeout, non-blocking Charakter
+        requests.post('http://localhost:5000/api/songs/processing-status', json=payload, timeout=3)
+    except Exception as e:
+        logger.warning(f"⚠️ send_processing_status fehlgeschlagen: {e}")

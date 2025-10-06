@@ -453,5 +453,16 @@
     "youtubeCache": "YouTube 캐시",
     "backgroundVocals": "BG",
     "duett": "듀엣"
+  },
+  "status": {
+    "separating": "노래방 곡 생성 중",
+    "transcribing": "노래방 텍스트 생성 중",
+    "downloading": "다운로드 중",
+    "failed": "실패",
+    "finished": "완료",
+    "downloaded": "다운로드됨",
+    "cached": "캐시됨",
+    "ready": "준비됨",
+    "pending": "대기 중"
   }
 }

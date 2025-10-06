@@ -453,5 +453,16 @@
     "youtubeCache": "YouTubeキャッシュ",
     "backgroundVocals": "BG",
     "duett": "デュエット"
+  },
+  "status": {
+    "separating": "カラオケ楽曲を作成中",
+    "transcribing": "カラオケテキストを作成中",
+    "downloading": "ダウンロード中",
+    "failed": "失敗",
+    "finished": "完了",
+    "downloaded": "ダウンロード済み",
+    "cached": "キャッシュ済み",
+    "ready": "準備完了",
+    "pending": "保留中"
   }
 }

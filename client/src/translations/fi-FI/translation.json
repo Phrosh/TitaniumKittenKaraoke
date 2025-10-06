@@ -452,5 +452,16 @@
     "youtubeCache": "YouTube-välimuisti",
     "backgroundVocals": "BG",
     "duett": "Duetto"
+  },
+  "status": {
+    "separating": "Luodaan Karaoke-kappaletta",
+    "transcribing": "Luodaan Karaoke-tekstiä",
+    "downloading": "Ladataan",
+    "failed": "Epäonnistui",
+    "finished": "Valmis",
+    "downloaded": "Ladattu",
+    "cached": "Välimuistissa",
+    "ready": "Valmis",
+    "pending": "Odottaa"
   }
 }

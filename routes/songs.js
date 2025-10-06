@@ -9,7 +9,7 @@ const { generateQRCodeForNew } = require('../utils/qrCodeGenerator');
 const { findLocalVideo, VIDEOS_DIR } = require('../utils/localVideos');
 const { findFileSong } = require('../utils/fileSongs');
 const { scanYouTubeSongs, searchYouTubeSongs, findYouTubeSong, downloadYouTubeVideo } = require('../utils/youtubeSongs');
-const { broadcastQRCodeToggle, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
+const { broadcastQRCodeToggle, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastProcessingStatus } = require('../utils/websocketService');
 const { cleanYouTubeUrl } = require('../utils/youtubeUrlCleaner');
 const path = require('path');
 const fs = require('fs');
@@ -605,7 +605,14 @@ router.post('/request', [
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {
       if (youtubeMode === 'magic') {
         // Set magic processing status
-        await Song.updateDownloadStatus(song.id, 'magic-processing', new Date().toISOString());
+        await Song.updateDownloadStatus(song.id, 'downloading', new Date().toISOString());
+        // Broadcast processing started
+        try {
+          const io = req.app.get('io');
+          if (io) {
+            broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'downloading' });
+          }
+        } catch {}
         
         // Start magic YouTube processing via AI services
         try {
@@ -652,9 +659,21 @@ router.post('/request', [
                 
                 if (proxyRes.statusCode === 200) {
                   // Magic processing completed successfully
-                  Song.updateDownloadStatus(song.id, 'magic-completed').catch(console.error);
+                  Song.updateDownloadStatus(song.id, 'ready').catch(console.error);
+                  try {
+                    const io = req.app.get('io');
+                    if (io) {
+                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'finished' });
+                    }
+                  } catch {}
                 } else {
                   Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+                  try {
+                    const io = req.app.get('io');
+                    if (io) {
+                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
+                    }
+                  } catch {}
                 }
               } catch (error) {
                 console.error('✨ Error parsing Magic YouTube response from song request:', error);
@@ -666,20 +685,38 @@ router.post('/request', [
           proxyReq.on('error', (error) => {
             console.error('✨ Error processing Magic YouTube from song request:', error);
             Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+            try {
+              const io = req.app.get('io');
+          if (io) {
+            broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
+          }
+            } catch {}
           });
           
-          // Send the YouTube URL in the request body
-          proxyReq.write(JSON.stringify({ youtubeUrl }));
+          // Send the YouTube URL and song ID in the request body
+          proxyReq.write(JSON.stringify({ youtubeUrl, songId: song.id }));
           proxyReq.setTimeout(300000); // 5 minutes timeout for magic processing
           proxyReq.end();
           
         } catch (error) {
           console.error('✨ Error starting Magic YouTube processing from song request:', error);
           await Song.updateDownloadStatus(song.id, 'magic-failed');
+          try {
+            const io = req.app.get('io');
+            if (io) {
+              broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
+            }
+          } catch {}
         }
       } else {
         // Regular YouTube processing
         await Song.updateDownloadStatus(song.id, downloadStatus);
+        try {
+          const io = req.app.get('io');
+          if (io) {
+            broadcastProcessingStatus(io, { id: song.id, artist, title, status: downloadStatus });
+          }
+        } catch {}
       }
     }
     
@@ -963,6 +1000,54 @@ router.get('/magic-youtube', (req, res) => {
   } catch (error) {
     console.error('Error getting magic YouTube videos:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Processing status endpoint (from AI services)
+router.post('/processing-status', async (req, res) => {
+  try {
+    const { id, artist, title, status } = req.body || {};
+    console.log('📡 API /processing-status received:', { id, artist, title, status, ts: new Date().toISOString() });
+
+    // Add small delay to prevent race conditions
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Broadcast over WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      // Only broadcast the status as-is (no magic-* mapping needed anymore)
+      broadcastProcessingStatus(io, { id, artist, title, status });
+      await broadcastAdminUpdate(io).catch(() => {});
+    }
+
+    // Try to persist status on the song if possible (by id or by artist/title)
+    try {
+      const db = require('../config/database');
+      let songRow = null;
+      if (typeof id === 'number') {
+        songRow = await new Promise((resolve, reject) => {
+          db.get('SELECT id FROM songs WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
+        });
+      } else if (artist && title) {
+        songRow = await new Promise((resolve, reject) => {
+          db.get('SELECT id FROM songs WHERE LOWER(artist) = LOWER(?) AND LOWER(title) = LOWER(?) ORDER BY created_at DESC', [artist, title], (err, row) => err ? reject(err) : resolve(row));
+        });
+      }
+      if (songRow && songRow.id) {
+        const Song = require('../models/Song');
+        // Map 'finished' to 'ready' for storage; others store as-is
+        const storeStatus = status === 'finished' ? 'ready' : status;
+        await Song.updateDownloadStatus(songRow.id, storeStatus);
+        console.log('💾 Stored processing status for song', { songId: songRow.id, storeStatus });
+      }
+    } catch (persistErr) {
+      console.warn('⚠️ Could not persist processing status:', persistErr.message);
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('❌ Error in /processing-status:', error);
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
 

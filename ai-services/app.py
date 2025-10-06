@@ -1535,11 +1535,12 @@ def process_magic_youtube_from_url(folder_name):
     try:
         data = request.get_json()
         youtube_url = data.get('youtubeUrl')
+        song_id = data.get('songId')  # Extract song ID from request
         
         if not youtube_url:
             return jsonify({'error': 'YouTube URL is required'}), 400
         
-        logger.info(f"Processing Magic YouTube: {folder_name} with URL: {youtube_url}")
+        logger.info(f"Processing Magic YouTube: {folder_name} with URL: {youtube_url}, Song ID: {song_id}")
         
         # Create folder if it doesn't exist
         folder_path = os.path.join(MAGIC_YOUTUBE_DIR, folder_name)
@@ -1583,6 +1584,9 @@ def process_magic_youtube_from_url(folder_name):
             folder_name=folder_name,
             folder_path=folder_path,
         )
+        # Add song ID to meta object
+        if song_id:
+            meta.song_id = song_id
         # Stabiler Basis-Dateiname: bei Magic-YouTube die YouTube-ID
         try:
             video_id = os.path.splitext(os.path.basename(video_file))[0]

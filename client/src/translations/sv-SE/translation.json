@@ -453,5 +453,16 @@
     "youtubeCache": "YouTube-cache",
     "backgroundVocals": "BG",
     "duett": "Duett"
+  },
+  "status": {
+    "separating": "Skapar Karaoke-låt",
+    "transcribing": "Skapar Karaoke-text",
+    "downloading": "Laddar ner",
+    "failed": "Misslyckades",
+    "finished": "Klar",
+    "downloaded": "Nedladdad",
+    "cached": "Cachad",
+    "ready": "Redo",
+    "pending": "Väntar"
   }
 }

@@ -134,7 +134,7 @@ export const DropZone = styled.div<{ $isVisible?: boolean }>`
   box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
 `;
 
-export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean }>`
+export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean; $isBlocked?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -152,6 +152,7 @@ export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boole
     props.$hasNoYoutube ? '2px solid #dc3545' :
     props.$isPast ? '1px solid #e9ecef' :
     props.$isDropTarget ? '2px dashed #3498db' :
+    props.$isBlocked ? '2px solid rgb(220, 162, 53)' :
     '1px solid #dee2e6'
   };
   opacity: ${props => props.$isPast ? 0.6 : props.$isDragging ? 0.5 : 1};
