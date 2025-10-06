@@ -36,6 +36,10 @@ interface DownloadStatusBadgeProps {
     status
   }) => {
     const { t } = useTranslation();
+
+    if (['none'].includes(status))
+      return null;
+
     const textMap: Record<DownloadStatus, string> = {
       downloading: `📥 ${t('status.downloading')}`,
       separating: `🎵 ${t('status.separating')}`,
@@ -43,6 +47,7 @@ interface DownloadStatusBadgeProps {
       finished: t('status.finished'),
       failed: `❌ ${t('status.failed')}`,
     };
+
     return (
       <DownloadStatusBadgeStyle
         $status={status}

@@ -496,7 +496,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       title: song.title,
       artist: song.artist || '',
       youtubeUrl: song.youtube_url || '',
-      youtubeMode: 'karaoke' as 'karaoke' | 'magic'
+      youtubeMode: 'karaoke' as 'karaoke' | 'magic',
+      singerName: song.user_name || '',
+      withBackgroundVocals: song.with_background_vocals || false
     });
     setShowModal(true);
   };
@@ -525,7 +527,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         await adminAPI.updateSong(selectedSong.id, {
           title: formData.title,
           artist: formData.artist,
-          youtubeUrl: formData.youtubeUrl
+          youtubeUrl: formData.youtubeUrl,
+          singerName: formData.singerName,
+          withBackgroundVocals: formData.withBackgroundVocals
         });
         toast.success(t('playlist.songUpdated'));
       }
@@ -815,20 +819,32 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         })()}
                       </SongTitle>
                       {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openModal(song, 'youtube');
-                          }}
-                          size="small"
-                          style={{ 
-                            fontSize: '0.8rem', 
-                            padding: '4px 8px',
-                            marginLeft: '8px'
-                          }}
-                        >
-                          📺 {t('playlist.addYouTubeLink')}
-                        </Button>
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          zIndex: 10
+                        }}>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(song, 'youtube');
+                            }}
+                            style={{ 
+                              fontSize: '1.2rem', 
+                              padding: '12px 24px',
+                              backgroundColor: '#dc3545',
+                              borderColor: '#dc3545',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              boxShadow: '0 4px 8px rgba(220, 53, 69, 0.3)',
+                              borderRadius: '8px'
+                            }}
+                          >
+                            📺 {t('playlist.addYouTubeLink')}
+                          </Button>
+                        </div>
                       )}
                       {effectiveStatus ? (
                         <DownloadStatusBadge status={effectiveStatus as DownloadStatus} />
@@ -863,13 +879,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         handlePlaySong(song.id);
                       }}
                       disabled={actionLoading || isBlocked}
-                      style={isBlocked ? {
-                        background: 'rgba(0, 0, 0, 0.35)',
-                        color: '#bbbbbb',
-                        filter: 'grayscale(100%)',
-                        opacity: 0.6,
-                        border: '2px solid rgba(255, 255, 255, 0.15)'
-                      } : undefined}
+                      style={{
+                        fontVariantEmoji: 'text' as const
+                      }}
                     >
                       ▶️
                     </Button>
@@ -880,6 +892,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         openModal(song, 'edit');
                       }}
                       disabled={actionLoading || isBlocked}
+                      style={{
+                        fontVariantEmoji: 'text' as const
+                      }}
                     >
                       ✏️
                     </Button>
@@ -890,6 +905,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handleRefreshClassification(song.id);
                       }}
+                      style={{
+                        fontVariantEmoji: 'text' as const
+                      }}
                       disabled={actionLoading || isBlocked}
                       title={t('playlist.refreshClassification')}
                     >
@@ -898,6 +916,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
                     <Button
                       variant="danger"
+                      style={{
+                        fontVariantEmoji: 'text' as const
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteSong(song.id);
@@ -927,6 +948,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       modalType={modalType}
       formData={formData}
       setFormData={setFormData}
+      currentSong={selectedSong}
     />
         <AddSongModal
           show={showAddSongModal}

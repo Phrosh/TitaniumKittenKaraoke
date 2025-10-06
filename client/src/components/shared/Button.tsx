@@ -6,6 +6,7 @@ const StyledButton = styled.button<{
   size?: 'small' | 'medium' | 'large';
   type?: 'primary' | 'secondary' | 'default' | 'danger';
 }>`
+  font-variant-emoji: text;
   background: ${props => {
     if (props.type === 'danger') return '#e74c3c';
     if (props.type === 'secondary') return '#6c757d';

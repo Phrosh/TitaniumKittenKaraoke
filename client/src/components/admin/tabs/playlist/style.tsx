@@ -135,6 +135,7 @@ export const DropZone = styled.div<{ $isVisible?: boolean }>`
 `;
 
 export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean; $isBlocked?: boolean }>`
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;

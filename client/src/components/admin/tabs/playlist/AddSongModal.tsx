@@ -36,22 +36,9 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     
   // Cache detection logic
   const getCacheInfo = () => {
-    console.log('🔍 Cache detection started:', {
-      youtubeUrl: addSongData.youtubeUrl,
-      artist: addSongData.artist,
-      title: addSongData.title
-    });
-    
-    console.log('📊 Dashboard data available:', {
-      youtubeSongs: dashboardData.youtubeSongs?.length || 0,
-      magicYouTubeSongs: dashboardData.magicYouTubeSongs?.length || 0,
-      manualSongList: manualSongList.length
-    });
-
     // Check if we have a YouTube URL first
     if (addSongData.youtubeUrl.trim()) {
       const videoId = extractVideoIdFromUrl(addSongData.youtubeUrl);
-      console.log('📹 YouTube URL detected, video ID:', videoId);
       
       if (videoId) {
         // Check if this video ID exists in YouTube cache
@@ -61,41 +48,26 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
           youtube_url: addSongData.youtubeUrl
         };
         
-        console.log('🎬 Checking YouTube cache for video ID:', videoId);
-        console.log('📊 Available YouTube songs:', dashboardData.youtubeSongs?.length || 0);
-        
         const isInYouTubeCache = isSongInYouTubeCache(song, dashboardData.youtubeSongs);
-        console.log('✅ Found in YouTube cache:', isInYouTubeCache);
         
         // Also check if this video ID exists in magic-youtube cache
-        // We need to check the magic-youtube songs for this video ID
         const magicYouTubeSongs = dashboardData.magicYouTubeSongs || [];
-        console.log('✨ Checking Magic YouTube cache, available songs:', magicYouTubeSongs.length);
         
         const foundInMagicYouTube = magicYouTubeSongs.some((magicSong: any) => {
-          console.log('🔍 Checking magic song:', magicSong.artist, '-', magicSong.title);
-          console.log('📁 Video files:', magicSong.videoFiles);
-          console.log('🎥 Main video file:', magicSong.videoFile);
-          
           // Check if any video file matches this video ID
           if (magicSong.videoFiles && Array.isArray(magicSong.videoFiles)) {
             const found = magicSong.videoFiles.some((videoFile: string) => {
               const matches = videoFile.startsWith(videoId);
-              console.log(`🎬 Video file "${videoFile}" starts with "${videoId}":`, matches);
               return matches;
             });
             return found;
           }
           const mainFileMatch = magicSong.videoFile && magicSong.videoFile.startsWith(videoId);
-          console.log(`🎥 Main video file "${magicSong.videoFile}" starts with "${videoId}":`, mainFileMatch);
           return mainFileMatch;
         });
         
-        console.log('✨ Found in Magic YouTube cache:', foundInMagicYouTube);
-        
         // Prioritize Magic YouTube cache over regular YouTube cache
         if (foundInMagicYouTube) {
-          console.log('🎉 Cache hit: Magic YouTube cache');
           return {
             found: true,
             modes: ['magic-youtube'],
@@ -104,7 +76,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
         }
         
         if (isInYouTubeCache) {
-          console.log('🎉 Cache hit: YouTube cache');
           return {
             found: true,
             modes: ['youtube_cache'],
@@ -116,11 +87,9 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     
     // If no YouTube URL or not found in cache, check local songs
     if (!addSongData.artist.trim() || !addSongData.title.trim()) {
-      console.log('❌ No artist/title provided for local search');
       return null;
     }
     
-    console.log('🏠 Checking local songs...');
     const song = {
       artist: addSongData.artist,
       title: addSongData.title,
@@ -129,7 +98,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     
     // Check if song is in YouTube cache
     const isInYouTubeCache = isSongInYouTubeCache(song, dashboardData.youtubeSongs);
-    console.log('✅ Found in YouTube cache (by artist/title):', isInYouTubeCache);
     
     // Check if song exists in local song list (ultrastar, magic-songs, etc.)
     const localSong = manualSongList.find(s => 
@@ -137,20 +105,15 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
       s.title?.toLowerCase() === addSongData.title.toLowerCase()
     );
     
-    console.log('🏠 Found local song:', localSong ? `${localSong.artist} - ${localSong.title}` : 'none');
-    
-        if (localSong) {
-          console.log('🎉 Cache hit: Local song');
-          console.log('📋 Local song modes:', localSong.modes);
-          return {
-            found: true,
-            modes: localSong.modes || ['file'], // Use actual song modes
-            type: 'local'
-          };
-        }
+    if (localSong) {
+      return {
+        found: true,
+        modes: localSong.modes || ['file'], // Use actual song modes
+        type: 'local'
+      };
+    }
     
     if (isInYouTubeCache) {
-      console.log('🎉 Cache hit: YouTube cache (by artist/title)');
       return {
         found: true,
         modes: ['youtube_cache'],
@@ -158,13 +121,10 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
       };
     }
     
-    console.log('❌ No cache hit found');
     return null;
   };
   
   const cacheInfo = getCacheInfo();
-  console.log('🎯 Final cache info:', cacheInfo);
-  console.log('🔘 Should hide YouTube mode options:', !!cacheInfo);
     
   const handleSelectAddSong = (song: any) => {
     setAddSongData(prev => ({

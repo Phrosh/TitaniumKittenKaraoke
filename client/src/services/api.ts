@@ -152,7 +152,7 @@ export const adminAPI = {
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),
   
-  updateSong: (songId: number, data: { title: string; artist?: string; youtubeUrl?: string }) =>
+  updateSong: (songId: number, data: { title: string; artist?: string; youtubeUrl?: string; singerName?: string; withBackgroundVocals?: boolean }) =>
     api.put(`/admin/song/${songId}`, data),
   
   refreshSongClassification: (songId: number) =>
