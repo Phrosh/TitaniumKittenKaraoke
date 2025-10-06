@@ -92,13 +92,20 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
           // Check if any video file matches this video ID
           if (magicSong.videoFiles && Array.isArray(magicSong.videoFiles)) {
             const found = magicSong.videoFiles.some((videoFile: string) => {
-              const matches = videoFile.startsWith(videoId);
-              return matches;
+              // Extract filename without extension for exact match
+              const fileName = videoFile.split('/').pop() || videoFile;
+              const nameWithoutExt = fileName.split('.')[0];
+              return nameWithoutExt === videoId;
             });
             return found;
           }
-          const mainFileMatch = magicSong.videoFile && magicSong.videoFile.startsWith(videoId);
-          return mainFileMatch;
+          // Check main video file
+          if (magicSong.videoFile) {
+            const fileName = magicSong.videoFile.split('/').pop() || magicSong.videoFile;
+            const nameWithoutExt = fileName.split('.')[0];
+            return nameWithoutExt === videoId;
+          }
+          return false;
         });
         
         // Prioritize Magic YouTube cache over regular YouTube cache
