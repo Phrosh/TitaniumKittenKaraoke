@@ -464,5 +464,12 @@
     "cached": "Gecached",
     "ready": "Klaar",
     "pending": "In behandeling"
+  },
+  "toast": {
+    "songCannotBePlayed": "Lied kan niet worden afgespeeld: {{songTitle}}",
+    "nextSongCannotBePlayed": "Volgende lied kan niet worden afgespeeld: {{songTitle}}",
+    "previousSongCannotBePlayed": "Vorige lied kan niet worden afgespeeld: {{songTitle}}",
+    "downloadStatusReason": "Download status: {{status}}",
+    "youtubeUrlMissingReason": "YouTube lied zonder YouTube URL kan niet worden afgespeeld"
   }
 }

@@ -464,5 +464,12 @@
     "cached": "캐시됨",
     "ready": "준비됨",
     "pending": "대기 중"
+  },
+  "toast": {
+    "songCannotBePlayed": "곡을 재생할 수 없습니다: {{songTitle}}",
+    "nextSongCannotBePlayed": "다음 곡을 재생할 수 없습니다: {{songTitle}}",
+    "previousSongCannotBePlayed": "이전 곡을 재생할 수 없습니다: {{songTitle}}",
+    "downloadStatusReason": "다운로드 상태: {{status}}",
+    "youtubeUrlMissingReason": "YouTube URL이 없는 YouTube 곡은 재생할 수 없습니다"
   }
 }

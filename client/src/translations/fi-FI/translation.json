@@ -463,5 +463,12 @@
     "cached": "Välimuistissa",
     "ready": "Valmis",
     "pending": "Odottaa"
+  },
+  "toast": {
+    "songCannotBePlayed": "Kappaletta ei voi soittaa: {{songTitle}}",
+    "nextSongCannotBePlayed": "Seuraavaa kappaletta ei voi soittaa: {{songTitle}}",
+    "previousSongCannotBePlayed": "Edellistä kappaletta ei voi soittaa: {{songTitle}}",
+    "downloadStatusReason": "Lataustila: {{status}}",
+    "youtubeUrlMissingReason": "YouTube-kappaletta ei voi soittaa ilman YouTube-URL:ää"
   }
 }

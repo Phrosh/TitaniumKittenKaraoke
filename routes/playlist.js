@@ -6,6 +6,80 @@ const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcas
 
 const router = express.Router();
 
+// Helper function to find next playable song
+async function findNextPlayableSong(currentSongId = null) {
+  try {
+    const db = require('../config/database');
+    
+    // Get all songs after current position, ordered by position
+    const songs = await new Promise((resolve, reject) => {
+      const query = currentSongId 
+        ? `SELECT s.*, u.name as user_name, u.device_id 
+           FROM songs s 
+           JOIN users u ON s.user_id = u.id 
+           WHERE s.position > (
+             SELECT COALESCE(s2.position, 0) 
+             FROM songs s2 
+             WHERE s2.id = ?
+           )
+           ORDER BY s.position ASC`
+        : `SELECT s.*, u.name as user_name, u.device_id 
+           FROM songs s 
+           JOIN users u ON s.user_id = u.id 
+           ORDER BY s.position ASC`;
+      
+      db.all(query, currentSongId ? [currentSongId] : [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+    
+    // Find first playable song
+    for (const song of songs) {
+      const validation = validateSongForPlayback(song);
+      if (validation.valid) {
+        return song;
+      }
+    }
+    
+    return null; // No playable song found
+  } catch (error) {
+    console.error('Error finding next playable song:', error);
+    return null;
+  }
+}
+
+// Helper function to validate if a song can be played
+function validateSongForPlayback(song) {
+  if (!song) {
+    return { valid: false, reason: 'Song not found' };
+  }
+
+  // Check download status - only allow 'finished', 'ready', 'none', or null/undefined
+  const downloadStatus = song.download_status;
+  if (downloadStatus && !['finished', 'ready', 'none'].includes(downloadStatus)) {
+    return { 
+      valid: false, 
+      reason: `Song cannot be played. Download status: ${downloadStatus}`,
+      reasonTranslationKey: 'toast.downloadStatusReason',
+      reasonTranslationParams: { status: downloadStatus },
+      songTitle: `${song.artist || 'Unknown'} - ${song.title}`
+    };
+  }
+
+  // Check YouTube songs without YouTube URL
+  if (song.mode === 'youtube' && !song.youtube_url) {
+    return { 
+      valid: false, 
+      reason: 'YouTube song without YouTube URL cannot be played',
+      reasonTranslationKey: 'toast.youtubeUrlMissingReason',
+      songTitle: `${song.artist || 'Unknown'} - ${song.title}`
+    };
+  }
+
+  return { valid: true };
+}
+
 // Helper function to update song priority based on neighboring songs
 async function updateSongPriorityBasedOnPosition(songId, newPosition) {
   try {
@@ -186,6 +260,29 @@ router.put('/current', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Song not found' });
     }
 
+    // Validate song for playback
+    const validation = validateSongForPlayback(song);
+    if (!validation.valid) {
+      // Send toast notification via WebSocket
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('admin-toast', {
+          type: 'error',
+          translationKey: 'toast.songCannotBePlayed',
+          translationParams: { songTitle: validation.songTitle },
+          reasonTranslationKey: validation.reasonTranslationKey,
+          reasonTranslationParams: validation.reasonTranslationParams,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return res.status(400).json({ 
+        message: 'Song cannot be played', 
+        reason: validation.reason,
+        songTitle: validation.songTitle
+      });
+    }
+
     await Song.setCurrentSong(songId);
     
     // Automatically hide QR overlay when song changes
@@ -241,6 +338,29 @@ router.post('/next', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'No next song found' });
     }
 
+    // Validate song for playback
+    const validation = validateSongForPlayback(nextSong);
+    if (!validation.valid) {
+      // Send toast notification via WebSocket
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('admin-toast', {
+          type: 'error',
+          translationKey: 'toast.nextSongCannotBePlayed',
+          translationParams: { songTitle: validation.songTitle },
+          reasonTranslationKey: validation.reasonTranslationKey,
+          reasonTranslationParams: validation.reasonTranslationParams,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return res.status(400).json({ 
+        message: 'Next song cannot be played', 
+        reason: validation.reason,
+        songTitle: validation.songTitle
+      });
+    }
+
     await Song.setCurrentSong(nextSong.id);
     
     // Automatically hide QR overlay when song changes
@@ -294,6 +414,29 @@ router.post('/previous', verifyToken, async (req, res) => {
     
     if (!previousSong) {
       return res.status(404).json({ message: 'No previous song found' });
+    }
+
+    // Validate song for playback
+    const validation = validateSongForPlayback(previousSong);
+    if (!validation.valid) {
+      // Send toast notification via WebSocket
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('admin-toast', {
+          type: 'error',
+          translationKey: 'toast.previousSongCannotBePlayed',
+          translationParams: { songTitle: validation.songTitle },
+          reasonTranslationKey: validation.reasonTranslationKey,
+          reasonTranslationParams: validation.reasonTranslationParams,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return res.status(400).json({ 
+        message: 'Previous song cannot be played', 
+        reason: validation.reason,
+        songTitle: validation.songTitle
+      });
     }
 
     await Song.setCurrentSong(previousSong.id);

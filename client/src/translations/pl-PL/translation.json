@@ -464,5 +464,12 @@
     "cached": "W pamięci podręcznej",
     "ready": "Gotowe",
     "pending": "Oczekujące"
+  },
+  "toast": {
+    "songCannotBePlayed": "Nie można odtworzyć piosenki: {{songTitle}}",
+    "nextSongCannotBePlayed": "Nie można odtworzyć następnej piosenki: {{songTitle}}",
+    "previousSongCannotBePlayed": "Nie można odtworzyć poprzedniej piosenki: {{songTitle}}",
+    "downloadStatusReason": "Status pobierania: {{status}}",
+    "youtubeUrlMissingReason": "Piosenka YouTube bez URL YouTube nie może być odtworzona"
   }
 }

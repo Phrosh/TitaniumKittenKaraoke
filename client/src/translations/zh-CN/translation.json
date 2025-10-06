@@ -464,5 +464,12 @@
     "cached": "已缓存",
     "ready": "就绪",
     "pending": "等待中"
+  },
+  "toast": {
+    "songCannotBePlayed": "无法播放歌曲: {{songTitle}}",
+    "nextSongCannotBePlayed": "无法播放下一首歌曲: {{songTitle}}",
+    "previousSongCannotBePlayed": "无法播放上一首歌曲: {{songTitle}}",
+    "downloadStatusReason": "下载状态: {{status}}",
+    "youtubeUrlMissingReason": "没有YouTube URL的YouTube歌曲无法播放"
   }
 }

@@ -184,6 +184,74 @@ const AdminDashboard: React.FC = () => {
       
       websocketService.onShowAction(handleShowAction);
       
+      // Listen for admin toast notifications
+      const handleAdminToast = (data: { 
+        type: 'error' | 'success' | 'warning' | 'info'; 
+        message?: string; 
+        translationKey?: string;
+        translationParams?: Record<string, any>;
+        details?: string; 
+        reasonTranslationKey?: string;
+        reasonTranslationParams?: Record<string, any>;
+        timestamp: string; 
+      }) => {
+        console.log('🍞 AdminDashboard: Received admin toast:', data);
+        
+        // Get translated message
+        let message = data.message;
+        if (data.translationKey) {
+          message = t(data.translationKey, data.translationParams);
+        }
+        
+        // Get translated details if available
+        let details = data.details;
+        if (data.reasonTranslationKey) {
+          details = t(data.reasonTranslationKey, data.reasonTranslationParams);
+        }
+        
+        // Show toast based on type
+        switch (data.type) {
+          case 'error':
+            toast.error(message, {
+              duration: 5000,
+              position: 'top-right',
+              description: details
+            });
+            break;
+          case 'success':
+            toast.success(message, {
+              duration: 3000,
+              position: 'top-right',
+              description: details
+            });
+            break;
+          case 'warning':
+            toast(message, {
+              icon: '⚠️',
+              duration: 4000,
+              position: 'top-right',
+              description: details
+            });
+            break;
+          case 'info':
+            toast(message, {
+              icon: 'ℹ️',
+              duration: 3000,
+              position: 'top-right',
+              description: details
+            });
+            break;
+          default:
+            toast(message, {
+              duration: 3000,
+              position: 'top-right',
+              description: details
+            });
+        }
+      };
+      
+      websocketService.on('admin-toast', handleAdminToast);
+      
       // Listen for playlist upgrade notifications
       websocketService.onPlaylistUpgrade((data) => {
         console.log('🎉 Frontend: Received playlist upgrade notification:', data);
@@ -279,6 +347,7 @@ const AdminDashboard: React.FC = () => {
       websocketService.offShowAction(() => {});
       websocketService.offPlaylistUpgrade(() => {});
       websocketService.offUSDBDownload(() => {});
+      websocketService.off('admin-toast', handleAdminToast);
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };

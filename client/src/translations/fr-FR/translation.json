@@ -464,5 +464,12 @@
     "cached": "En Cache",
     "ready": "Prêt",
     "pending": "En Attente"
+  },
+  "toast": {
+    "songCannotBePlayed": "Impossible de jouer la chanson : {{songTitle}}",
+    "nextSongCannotBePlayed": "Impossible de jouer la chanson suivante : {{songTitle}}",
+    "previousSongCannotBePlayed": "Impossible de jouer la chanson précédente : {{songTitle}}",
+    "downloadStatusReason": "Statut de téléchargement : {{status}}",
+    "youtubeUrlMissingReason": "Impossible de jouer une chanson YouTube sans URL YouTube"
   }
 }

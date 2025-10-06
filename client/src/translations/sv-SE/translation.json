@@ -464,5 +464,12 @@
     "cached": "Cachad",
     "ready": "Redo",
     "pending": "Väntar"
+  },
+  "toast": {
+    "songCannotBePlayed": "Kan inte spela låt: {{songTitle}}",
+    "nextSongCannotBePlayed": "Kan inte spela nästa låt: {{songTitle}}",
+    "previousSongCannotBePlayed": "Kan inte spela föregående låt: {{songTitle}}",
+    "downloadStatusReason": "Nedladdningsstatus: {{status}}",
+    "youtubeUrlMissingReason": "YouTube-låt utan YouTube URL kan inte spelas"
   }
 }

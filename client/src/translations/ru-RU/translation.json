@@ -464,5 +464,12 @@
     "cached": "В кэше",
     "ready": "Готово",
     "pending": "Ожидание"
+  },
+  "toast": {
+    "songCannotBePlayed": "Нельзя воспроизвести песню: {{songTitle}}",
+    "nextSongCannotBePlayed": "Нельзя воспроизвести следующую песню: {{songTitle}}",
+    "previousSongCannotBePlayed": "Нельзя воспроизвести предыдущую песню: {{songTitle}}",
+    "downloadStatusReason": "Статус загрузки: {{status}}",
+    "youtubeUrlMissingReason": "YouTube песня без YouTube URL не может быть воспроизведена"
   }
 }

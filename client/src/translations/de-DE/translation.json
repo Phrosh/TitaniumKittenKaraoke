@@ -477,5 +477,12 @@
     "cached": "Im Cache",
     "ready": "Bereit",
     "pending": "Ausstehend"
+  },
+  "toast": {
+    "songCannotBePlayed": "Song kann nicht abgespielt werden: {{songTitle}}",
+    "nextSongCannotBePlayed": "Nächster Song kann nicht abgespielt werden: {{songTitle}}",
+    "previousSongCannotBePlayed": "Vorheriger Song kann nicht abgespielt werden: {{songTitle}}",
+    "downloadStatusReason": "Download-Status: {{status}}",
+    "youtubeUrlMissingReason": "YouTube-Song ohne YouTube-URL kann nicht abgespielt werden"
   }
 }

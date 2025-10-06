@@ -464,5 +464,12 @@
     "cached": "キャッシュ済み",
     "ready": "準備完了",
     "pending": "保留中"
+  },
+  "toast": {
+    "songCannotBePlayed": "楽曲を再生できません: {{songTitle}}",
+    "nextSongCannotBePlayed": "次の楽曲を再生できません: {{songTitle}}",
+    "previousSongCannotBePlayed": "前の楽曲を再生できません: {{songTitle}}",
+    "downloadStatusReason": "ダウンロード状態: {{status}}",
+    "youtubeUrlMissingReason": "YouTube URLのないYouTube楽曲は再生できません"
   }
 }
