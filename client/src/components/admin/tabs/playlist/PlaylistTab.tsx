@@ -729,6 +729,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
             const effectiveStatus = (song.download_status as string) === 'ready' ? 'finished' : song.download_status;
             const isBlocked = !!effectiveStatus && !['finished', 'failed'].includes(effectiveStatus as string);
+            
             return (
               <React.Fragment key={song.id}>
                 {showDropZoneAbove && (
@@ -818,7 +819,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           );
                         })()}
                       </SongTitle>
-                      {(song.mode || 'youtube') === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && song.download_status !== 'downloading' && song.download_status !== 'downloaded' && song.download_status !== 'cached' && (
+                      {((song.mode === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && ['failed', 'none'].includes(song.download_status || '')) || !song.youtube_url || song.youtube_url.length === 0) && (
                         <div style={{
                           position: 'absolute',
                           top: '50%',

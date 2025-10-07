@@ -271,6 +271,14 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
       timeout: 300000 // 5 minutes timeout
     });
 
+    // After successful download, trigger modular processing for youtube cache (normalize + cleanup)
+    try {
+      const processUrl = `http://localhost:6000/process_youtube_cache/${encodeURIComponent(folderName)}`;
+      await axios.post(processUrl, {}, { timeout: 180000 });
+    } catch (e) {
+      console.warn('YouTube cache post-processing failed (normalize/cleanup):', e?.message || e);
+    }
+
     return {
       success: true,
       message: 'Video downloaded successfully',

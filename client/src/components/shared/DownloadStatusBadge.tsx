@@ -52,7 +52,8 @@ interface DownloadStatusBadgeProps {
       <DownloadStatusBadgeStyle
         $status={status}
       >
-     {textMap[status] || ''}
+     {textMap[status] || `[${status}]`}
+     {/* [{status}] */}
       </DownloadStatusBadgeStyle>
     );
   };

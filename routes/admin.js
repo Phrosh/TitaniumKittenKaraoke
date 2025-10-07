@@ -108,33 +108,45 @@ router.put('/song/:songId/youtube', [
           console.log(`✅ Song already in YouTube cache: ${song.artist} - ${song.title}`);
           await Song.updateDownloadStatus(songId, 'cached');
         } else {
-          // Try to download YouTube video
-          const downloadResult = await downloadYouTubeVideo(youtubeUrl, song.artist, song.title);
-          
-          if (downloadResult.success) {
-            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-            await Song.updateDownloadStatus(songId, 'downloaded');
-            
-            // Add to invisible songs list
+          // Fire-and-forget download; respond immediately
+          const io = req.app.get('io');
+          (async () => {
             try {
-              await new Promise((resolve, reject) => {
-                db.run(
-                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                  [song.artist, song.title],
-                  function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                  }
-                );
-              });
-              console.log(`📝 Added to invisible songs: ${song.artist} - ${song.title}`);
-            } catch (error) {
-              console.error('Error adding to invisible songs:', error);
+              const downloadResult = await downloadYouTubeVideo(youtubeUrl, song.artist, song.title);
+              if (downloadResult.success) {
+                console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                await Song.updateDownloadStatus(songId, 'ready').catch(() => {});
+                // Add to invisible songs list
+                try {
+                  await new Promise((resolve, reject) => {
+                    db.run(
+                      'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                      [song.artist, song.title],
+                      function(err) { if (err) reject(err); else resolve(); }
+                    );
+                  });
+                  console.log(`📝 Added to invisible songs: ${song.artist} - ${song.title}`);
+                } catch (error) {
+                  console.error('Error adding to invisible songs:', error);
+                }
+                if (io) {
+                  try { broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'finished' }); } catch {}
+                }
+              } else {
+                console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+                await Song.updateDownloadStatus(songId, 'failed').catch(() => {});
+                if (io) {
+                  try { broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' }); } catch {}
+                }
+              }
+            } catch (err) {
+              console.error('❌ Async YouTube download error (admin youtube update):', err?.message || err);
+              await Song.updateDownloadStatus(songId, 'failed').catch(() => {});
+              if (io) {
+                try { broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' }); } catch {}
+              }
             }
-          } else {
-            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
-            await Song.updateDownloadStatus(songId, 'failed');
-          }
+          })();
         }
       } catch (error) {
         console.error('Error downloading YouTube video from admin update:', error);
@@ -347,33 +359,45 @@ router.put('/song/:songId', [
           console.log(`✅ Song already in YouTube cache: ${artist} - ${title}`);
           await Song.updateDownloadStatus(songId, 'cached');
         } else {
-          // Try to download YouTube video
-          const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
-          
-          if (downloadResult.success) {
-            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-            await Song.updateDownloadStatus(songId, 'downloaded');
-            
-            // Add to invisible songs list
+          // Fire-and-forget download; respond immediately
+          const io = req.app.get('io');
+          (async () => {
             try {
-              await new Promise((resolve, reject) => {
-                db.run(
-                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                  [artist, title],
-                  function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                  }
-                );
-              });
-              console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
-            } catch (error) {
-              console.error('Error adding to invisible songs:', error);
+              const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
+              if (downloadResult.success) {
+                console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                await Song.updateDownloadStatus(songId, 'ready').catch(() => {});
+                // Add to invisible songs list
+                try {
+                  await new Promise((resolve, reject) => {
+                    db.run(
+                      'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                      [artist, title],
+                      function(err) { if (err) reject(err); else resolve(); }
+                    );
+                  });
+                  console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+                } catch (error) {
+                  console.error('Error adding to invisible songs:', error);
+                }
+                if (io) {
+                  try { broadcastProcessingStatus(io, { id: Number(songId), artist, title, status: 'finished' }); } catch {}
+                }
+              } else {
+                console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
+                await Song.updateDownloadStatus(songId, 'failed').catch(() => {});
+                if (io) {
+                  try { broadcastProcessingStatus(io, { id: Number(songId), artist, title, status: 'failed' }); } catch {}
+                }
+              }
+            } catch (err) {
+              console.error('❌ Async YouTube download error (admin song update):', err?.message || err);
+              await Song.updateDownloadStatus(songId, 'failed').catch(() => {});
+              if (io) {
+                try { broadcastProcessingStatus(io, { id: Number(songId), artist, title, status: 'failed' }); } catch {}
+              }
             }
-          } else {
-            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
-            await Song.updateDownloadStatus(songId, 'failed');
-          }
+          })();
         }
       } catch (error) {
         console.error('Error downloading YouTube video from admin song update:', error);

@@ -1187,6 +1187,72 @@ def download_youtube_video_to_youtube_folder(folder_name):
         logger.error(f"Error downloading YouTube video: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/process_youtube_cache/<folder_name>', methods=['POST'])
+def process_youtube_cache(folder_name):
+    try:
+        from modules import (
+            ProcessingMode,
+            create_meta_from_file_path,
+            normalize_audio_files,
+            cleanup_files
+        )
+        from modules.logger_utils import meta_to_short_dict, send_processing_status
+        import threading
+
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'songs', 'youtube'))
+        folder_path = os.path.join(base_dir, folder_name)
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        # pick any file for meta
+        any_file = None
+        for f in os.listdir(folder_path):
+            p = os.path.join(folder_path, f)
+            if os.path.isfile(p):
+                any_file = p
+                break
+        if not any_file:
+            return jsonify({'error': 'No files in folder'}), 400
+        meta = create_meta_from_file_path(any_file, base_dir, ProcessingMode.YOUTUBE_CACHE)
+        try:
+            videos = [f for f in os.listdir(folder_path) if f.lower().endswith(('.mp4', '.webm', '.mkv'))]
+            if videos:
+                import os as _os
+                meta.base_filename = _os.path.splitext(videos[0])[0]
+        except Exception:
+            pass
+
+        def _worker():
+            try:
+                try:
+                    logger.info(f"▶ youtube_cache.process | meta={meta_to_short_dict(meta)}")
+                except Exception:
+                    logger.info(f"▶ youtube_cache.process | meta={getattr(meta, 'folder_name', folder_name)}")
+                # broadcast processing started
+                try:
+                    send_processing_status(artist=meta.artist, title=meta.title, status='processing')
+                except Exception:
+                    pass
+                # 1) normalize (simple)
+                normalize_audio_files(meta, simple=True)
+                # 2) cleanup
+                cleanup_files(meta)
+                try:
+                    send_processing_status(artist=meta.artist, title=meta.title, status='finished')
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.error(f"Error processing youtube cache (bg): {e}")
+                try:
+                    send_processing_status(artist=meta.artist, title=meta.title, status='failed')
+                except Exception:
+                    pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({'success': True, 'started': True})
+    except Exception as e:
+        logger.error(f"Error processing youtube cache: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # Magic-Songs API Routes
 @app.route('/magic-songs', methods=['GET'])
 def get_magic_songs():
@@ -1575,6 +1641,8 @@ def process_magic_youtube_from_url(folder_name):
             normalize_audio_files, separate_audio, 
             remux_videos, transcribe_audio, cleanup_files
         )
+        from modules.logger_utils import send_processing_status, meta_to_short_dict
+        import threading
         
         # Create meta object from YouTube URL with explicit folder info
         meta = create_meta_from_youtube_url(
@@ -1594,52 +1662,57 @@ def process_magic_youtube_from_url(folder_name):
         except Exception:
             meta.base_filename = os.path.splitext(os.path.basename(video_file))[0]
         
-        # Process with modular pipeline
-        success = True
+        def _worker():
+            try:
+                # 1. Register downloaded file
+                meta.youtube_file = video_file
+                meta.add_input_file(video_file)
+                meta.add_output_file(video_file)
+                try:
+                    send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='downloading')
+                except Exception:
+                    pass
+                # 2. Normalize
+                if not normalize_audio_files(meta, simple=True):
+                    raise Exception("Audio extraction/normalization failed")
+                try:
+                    send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='separating')
+                except Exception:
+                    pass
+                # 3. Separate
+                if not separate_audio(meta):
+                    raise Exception("Audio separation failed")
+                # 4. Remux (remove audio)
+                if not remux_videos(meta, remove_audio=True):
+                    raise Exception("Video remuxing failed")
+                try:
+                    send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='transcribing')
+                except Exception:
+                    pass
+                # 5. Transcribe
+                if not transcribe_audio(meta):
+                    raise Exception("Transcription failed")
+                # 6. Cleanup
+                if not cleanup_files(meta):
+                    raise Exception("Cleanup failed")
+                try:
+                    send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='finished')
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.error(f"Magic YouTube processing failed: {e}")
+                try:
+                    send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='failed')
+                except Exception:
+                    pass
+
+        # Start background worker and respond immediately
         try:
-            # 1. Download YouTube video (already done above), im Meta registrieren
-            meta.youtube_file = video_file
-            meta.add_input_file(video_file)
-            meta.add_output_file(video_file)
-            
-            # 2. Audio extraction/normalization
-            if not normalize_audio_files(meta, simple=True):
-                raise Exception("Audio extraction/normalization failed")
-            
-            # 3. Audio separation
-            if not separate_audio(meta):
-                raise Exception("Audio separation failed")
-            
-            # 4. Video remuxing (remove audio)
-            if not remux_videos(meta, remove_audio=True):
-                raise Exception("Video remuxing failed")
-            
-            # 5. Transcription
-            if not transcribe_audio(meta):
-                raise Exception("Transcription failed")
-            
-            # 6. Cleanup
-            if not cleanup_files(meta):
-                raise Exception("Cleanup failed")
-                
-        except Exception as e:
-            success = False
-            error_msg = str(e)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'message': 'Magic YouTube video processed successfully with modular system',
-                'output_files': meta.output_files,
-                'steps_completed': meta.steps_completed,
-                'video_file': video_file
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': error_msg,
-                'steps_failed': meta.steps_failed
-            }), 500
+            logger.info(f"▶ magic_youtube.process | meta={meta_to_short_dict(meta)}")
+        except Exception:
+            pass
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({'success': True, 'started': True, 'video_file': video_file})
     
     except Exception as e:
         logger.error(f"Error processing magic YouTube from URL: {str(e)}")

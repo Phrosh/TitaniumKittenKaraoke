@@ -158,9 +158,81 @@ class AudioNormalizer:
             audio_files = self.find_audio_files(meta)
             
             if not audio_files:
+                # Wenn keine reinen Audio-Dateien vorhanden sind, versuche Video-Audio zu normalisieren
                 logger.warning("Keine Audio-Dateien zum Normalisieren gefunden")
-                meta.mark_step_completed('audio_normalization')
-                return True
+                try:
+                    video_extensions = ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg']
+                    video_files: List[str] = []
+                    if os.path.exists(meta.folder_path):
+                        for file in os.listdir(meta.folder_path):
+                            file_path = os.path.join(meta.folder_path, file)
+                            if os.path.isfile(file_path) and any(file.lower().endswith(ext) for ext in video_extensions):
+                                video_files.append(file_path)
+
+                    if not video_files:
+                        logger.warning("Keine Video-Dateien gefunden, überspringe Normalisierung")
+                        meta.mark_step_completed('audio_normalization')
+                        return True
+
+                    # Nimm die erste Video-Datei und normalisiere deren Audiospur, Video bleibt unverändert
+                    input_video = video_files[0]
+                    input_path = Path(input_video)
+                    temp_output = meta.get_file_path(f"{input_path.stem}_normalized_temp{input_path.suffix}")
+
+                    # ffmpeg: kopiere Video-Stream, normalisiere Audio-Stream
+                    cmd = [
+                        'ffmpeg',
+                        '-i', input_video,
+                        '-c:v', 'copy',
+                        '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
+                        '-y',
+                        temp_output
+                    ]
+                    logger.info(f"Normalisiere Audio in Video: {input_video}")
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logger.error(f"❌ Video-Audio-Normalisierung fehlgeschlagen: {result.stderr}")
+                        meta.mark_step_failed('audio_normalization')
+                        meta.status = ProcessingStatus.FAILED
+                        return False
+
+                    # Ersetze Originaldatei (optional Backup)
+                    backup_enabled = bool(getattr(meta, 'config', None) and getattr(meta.config, 'backup_original_video', False))
+                    backup_path = meta.get_file_path(f"{input_path.stem}.backup{input_path.suffix}")
+                    try:
+                        if backup_enabled:
+                            try:
+                                if os.path.exists(backup_path):
+                                    os.remove(backup_path)
+                            except Exception:
+                                pass
+                            logger.info(f"Erstelle Backup der Originaldatei: {backup_path}")
+                            os.replace(input_video, backup_path)
+                        else:
+                            # Lösche Original vor dem Ersetzen (Windows-kompatibel)
+                            try:
+                                os.remove(input_video)
+                            except Exception:
+                                pass
+
+                        os.replace(temp_output, input_video)
+                        logger.info(f"✅ Original-Video mit normalisierter Version ersetzt: {input_video}")
+                    finally:
+                        # Aufräumen, falls temp übrig blieb
+                        if os.path.exists(temp_output):
+                            try:
+                                os.remove(temp_output)
+                            except Exception:
+                                pass
+
+                    meta.mark_step_completed('audio_normalization')
+                    meta.status = ProcessingStatus.COMPLETED
+                    return True
+                except Exception as e:
+                    logger.error(f"Fehler bei Video-Audio-Normalisierung: {e}")
+                    meta.mark_step_failed('audio_normalization')
+                    meta.status = ProcessingStatus.FAILED
+                    return False
             
             meta.status = ProcessingStatus.IN_PROGRESS
             success_count = 0

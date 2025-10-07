@@ -339,34 +339,66 @@ router.post('/request', [
         
         // Try to download YouTube video to songs/youtube folder (skip for magic mode)
         if (youtubeMode !== 'magic') {
-          console.log(`📥 Attempting to download YouTube video: ${artist} - ${title}`);
+          console.log(`📥 Attempting to download YouTube video (async): ${artist} - ${title}`);
           downloadStatus = 'downloading';
-          const downloadResult = await downloadYouTubeVideo(youtubeUrl, artist, title);
-        
-          if (downloadResult.success) {
-            console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-            downloadStatus = 'downloaded';
-            
-            // Add to invisible songs list
-            try {
-              const db = require('../config/database');
-              await new Promise((resolve, reject) => {
-                db.run(
-                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                  [artist, title],
-                  function(err) {
-                    if (err) reject(err);
-                    else resolve();
+          // Start async download without awaiting to allow immediate response and UI closing
+          try {
+            const io = req.app.get('io');
+            // Kick off download in background
+            downloadYouTubeVideo(youtubeUrl, artist, title)
+              .then(async (downloadResult) => {
+                if (downloadResult && downloadResult.success) {
+                  console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                  try {
+                    await Song.updateDownloadStatus(song.id, 'ready');
+                  } catch {}
+                  // Add to invisible songs list
+                  try {
+                    const db = require('../config/database');
+                    await new Promise((resolve, reject) => {
+                      db.run(
+                        'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                        [artist, title],
+                        function(err) {
+                          if (err) reject(err);
+                          else resolve();
+                        }
+                      );
+                    });
+                    console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+                  } catch (error) {
+                    console.error('Error adding to invisible songs:', error);
                   }
-                );
+                  // Broadcast finished to update badge
+                  try {
+                    if (io) {
+                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'finished' });
+                    }
+                  } catch {}
+                } else {
+                  console.log(`⚠️ YouTube download failed: ${downloadResult?.error}`);
+                  try {
+                    await Song.updateDownloadStatus(song.id, 'failed');
+                  } catch {}
+                  try {
+                    if (io) {
+                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
+                    }
+                  } catch {}
+                }
+              })
+              .catch(async (err) => {
+                console.error('❌ Async YouTube download error:', err?.message || err);
+                try { await Song.updateDownloadStatus(song.id, 'failed'); } catch {}
+                try {
+                  const io2 = req.app.get('io');
+                  if (io2) {
+                    broadcastProcessingStatus(io2, { id: song.id, artist, title, status: 'failed' });
+                  }
+                } catch {}
               });
-              console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
-            } catch (error) {
-              console.error('Error adding to invisible songs:', error);
-            }
-          } else {
-            console.log(`⚠️ YouTube download failed: ${downloadResult.error}`);
-            downloadStatus = 'failed';
+          } catch (kickErr) {
+            console.error('❌ Failed to kick off async YouTube download:', kickErr?.message || kickErr);
           }
         } else {
           console.log(`✨ Skipping normal YouTube download for magic mode: ${artist} - ${title}`);
