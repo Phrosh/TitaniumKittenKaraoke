@@ -819,7 +819,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           );
                         })()}
                       </SongTitle>
-                      {((song.mode === 'youtube' && !isSongInYouTubeCache(song, dashboardData.youtubeSongs) && ['failed', 'none'].includes(song.download_status || '')) || !song.youtube_url || song.youtube_url.length === 0) && (
+                      {song.mode === 'youtube' && ((!isSongInYouTubeCache(song, dashboardData.youtubeSongs) && ['failed', 'none'].includes(song.download_status || '')) || !song.youtube_url || song.youtube_url.length === 0) && (
                         <div style={{
                           position: 'absolute',
                           top: '50%',

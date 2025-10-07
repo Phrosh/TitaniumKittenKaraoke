@@ -334,9 +334,176 @@ class USDBDownloader:
             logger.error(f"Fehler beim Download aus Suche: {e}")
             return False
 
+def download_usdb_song(meta: ProcessingMeta) -> bool:
+    """
+    Lädt nur die UltraStar-TXT-Datei von USDB herunter (ohne komplette Verarbeitung)
+    
+    Args:
+        meta: ProcessingMeta-Objekt mit usdb_song_id, usdb_username, usdb_password
+        
+    Returns:
+        True wenn erfolgreich, False sonst
+    """
+    log_start('download_usdb_song', meta)
+    
+    try:
+        # Importiere die USDB-Scraper-Funktion
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        from usdb_scraper_improved import USDBScraperImproved
+        
+        # Extrahiere USDB-ID aus dem Meta-Objekt
+        usdb_song_id = getattr(meta, 'usdb_song_id', None)
+        username = getattr(meta, 'usdb_username', None)
+        password = getattr(meta, 'usdb_password', None)
+        
+        if not usdb_song_id or not username or not password:
+            logger.error("Fehlende USDB-Credentials oder Song-ID im Meta-Objekt")
+            return False
+        
+        logger.info(f"Lade nur UltraStar-TXT für USDB-Song {usdb_song_id} herunter...")
+        
+        # Erstelle USDB-Scraper-Instanz mit Credentials
+        scraper = USDBScraperImproved(username, password)
+        
+        # Login
+        if not scraper.login():
+            logger.error("USDB-Login fehlgeschlagen")
+            return False
+        
+        # Hole Song-Informationen
+        song_info = scraper.get_song_info(usdb_song_id)
+        if not song_info:
+            logger.error(f"Konnte Song-Informationen für USDB-ID {usdb_song_id} nicht abrufen")
+            return False
+        
+        # Aktualisiere Meta-Objekt mit den Song-Informationen
+        meta.artist = song_info.get('artist', meta.artist)
+        meta.title = song_info.get('title', meta.title)
+        
+        # YouTube-URL falls vorhanden
+        youtube_url = song_info.get('youtube_url') or song_info.get('video_url')
+        if youtube_url:
+            meta.youtube_url = youtube_url
+            meta.youtube_link = youtube_url
+            logger.info(f"✅ YouTube-URL gefunden: {youtube_url}")
+        else:
+            logger.warning(f"⚠️ Keine YouTube-URL für USDB-Song {usdb_song_id} gefunden")
+        
+        # Aktualisiere Ordnername basierend auf den echten Song-Informationen
+        new_folder_name = f"{meta.artist} - {meta.title}"
+        new_folder_path = os.path.join(meta.base_dir, new_folder_name)
+        
+        logger.info(f"🔄 Ordner-Update: {meta.folder_name} -> {new_folder_name}")
+        logger.info(f"🔄 Pfad-Update: {meta.folder_path} -> {new_folder_path}")
+        
+        # Verwende Temp-Ordner-Informationen falls verfügbar
+        temp_folder_path = getattr(meta, 'temp_folder_path', meta.folder_path)
+        temp_folder_name = getattr(meta, 'temp_folder_name', meta.folder_name)
+        
+        logger.info(f"📁 Temp-Ordner: {temp_folder_path}")
+        
+        # Prüfe, ob sich der Ordnername geändert hat
+        if new_folder_name != temp_folder_name:
+            try:
+                # Prüfe, ob der neue Ordner bereits existiert
+                if os.path.exists(new_folder_path):
+                    # Wenn der neue Ordner bereits existiert, verwende ihn direkt
+                    meta.folder_name = new_folder_name
+                    meta.folder_path = new_folder_path
+                    logger.info(f"✅ Verwende existierenden Ordner: {new_folder_path}")
+                else:
+                    # Erstelle neuen Ordner
+                    os.makedirs(new_folder_path, exist_ok=True)
+                    meta.folder_name = new_folder_name
+                    meta.folder_path = new_folder_path
+                    
+                    # Verschiebe vorhandene Dateien vom Temp-Ordner zum neuen Ordner
+                    if temp_folder_path != new_folder_path and os.path.exists(temp_folder_path):
+                        logger.info(f"📁 Verschiebe Dateien von {temp_folder_path} nach {new_folder_path}")
+                        for file in os.listdir(temp_folder_path):
+                            old_file = os.path.join(temp_folder_path, file)
+                            new_file = os.path.join(new_folder_path, file)
+                            os.rename(old_file, new_file)
+                        
+                        # Lösche den Temp-Ordner
+                        try:
+                            os.rmdir(temp_folder_path)
+                            logger.info(f"✅ Temp-Ordner gelöscht: {temp_folder_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Konnte Temp-Ordner nicht löschen: {e}")
+                    else:
+                        logger.info(f"ℹ️ Kein Verschieben nötig: {temp_folder_path} == {new_folder_path}")
+                            
+            except Exception as e:
+                logger.error(f"❌ Fehler beim Verschieben der Dateien: {e}")
+                meta.mark_step_failed('usdb_download')
+                return False
+        else:
+            # Ordnername hat sich nicht geändert, aber Pfad aktualisieren
+            meta.folder_path = new_folder_path
+            os.makedirs(meta.folder_path, exist_ok=True)
+            logger.info(f"✅ Pfad aktualisiert: {new_folder_path}")
+        
+        # Lade nur die UltraStar-TXT-Datei herunter
+        logger.info(f"Lade UltraStar-TXT für Song {usdb_song_id} herunter...")
+        
+        # Verwende direkte HTTP-Anfrage an USDB, um nur den Text zu bekommen
+        import requests
+        
+        # POST-Anfrage an USDB gettxt endpoint
+        response = scraper.session.post(
+            f"{scraper.base_url}/index.php",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            params={"link": "gettxt", "id": str(usdb_song_id)},
+            data={"wd": "1"}
+        )
+        response.raise_for_status()
+        
+        # Parse die Antwort, um den Song-Text zu extrahieren
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        textarea = soup.find('textarea')
+        
+        if not textarea or not textarea.string:
+            logger.error(f"Kein Song-Text in der USDB-Antwort gefunden für Song {usdb_song_id}")
+            return False
+        
+        song_text = textarea.string
+        
+        # Entferne leere Zeilen (aber behalte Leerzeichen am Ende von Zeilen)
+        lines = song_text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # Behalte Zeile wenn sie nicht komplett leer ist (aber Leerzeichen am Ende sind OK)
+            if line.strip() != '':
+                cleaned_lines.append(line)
+        
+        song_text = '\n'.join(cleaned_lines)
+        
+        # Speichere die TXT-Datei
+        txt_filename = f"{meta.artist} - {meta.title}.txt"
+        txt_path = os.path.join(meta.folder_path, txt_filename)
+        
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(song_text)
+        
+        meta.add_output_file(txt_path)
+        meta.add_keep_file(txt_filename)
+        
+        logger.info(f"✅ UltraStar-TXT für USDB-Song {usdb_song_id} erfolgreich heruntergeladen: {txt_filename}")
+        meta.mark_step_completed('usdb_download')
+        return True
+        
+    except Exception as e:
+        logger.error(f"Fehler beim USDB-Download: {e}")
+        meta.mark_step_failed('usdb_download')
+        return False
+
 def download_usdb_file(meta: ProcessingMeta) -> bool:
     """
-    Convenience-Funktion für USDB-Download
+    Convenience-Funktion für USDB-Download (Legacy)
     
     Args:
         meta: ProcessingMeta-Objekt

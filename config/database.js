@@ -39,9 +39,24 @@ function initializeDatabase() {
       regression_count INTEGER DEFAULT 0,
       duration_seconds INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      download_started_at DATETIME,
+      download_ended_at DATETIME,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
   `);
+
+  // Migration: Add download timestamp columns if they don't exist
+  db.run(`ALTER TABLE songs ADD COLUMN download_started_at DATETIME`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding download_started_at column:', err);
+    }
+  });
+  
+  db.run(`ALTER TABLE songs ADD COLUMN download_ended_at DATETIME`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding download_ended_at column:', err);
+    }
+  });
 
   // Admin users table
   db.run(`

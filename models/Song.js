@@ -469,6 +469,38 @@ class Song {
     });
   }
 
+  static updateFolderName(id, folderName) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET folder_name = ? WHERE id = ?',
+        [folderName, id],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id, folder_name: folderName, changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
+  static updateMode(id, mode) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET mode = ? WHERE id = ?',
+        [mode, id],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id, mode, changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
   static updateStatus(songId, status) {
     return new Promise((resolve, reject) => {
       db.run(
@@ -495,6 +527,22 @@ class Song {
             reject(err);
           } else {
             resolve({ id: songId, download_started_at: downloadStartedAt, changes: this.changes });
+          }
+        }
+      );
+    });
+  }
+
+  static updateDownloadEndTime(songId, downloadEndedAt) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE songs SET download_ended_at = ? WHERE id = ?',
+        [downloadEndedAt, songId],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: songId, download_ended_at: downloadEndedAt, changes: this.changes });
           }
         }
       );

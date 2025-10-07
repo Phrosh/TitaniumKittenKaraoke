@@ -117,27 +117,30 @@ class YouTubeDownloader:
                 logger.error(f"Konnte keine Metadaten für {meta.youtube_url} abrufen")
                 return False
             
-            # Aktualisiere Meta-Objekt mit Metadaten
-            meta.artist = metadata.get('artist', meta.artist)
-            meta.title = metadata.get('title', meta.title)
+            # Aktualisiere Meta-Objekt mit Metadaten (nur wenn noch nicht gesetzt)
+            if meta.artist == 'Unknown Artist':
+                meta.artist = metadata.get('artist', meta.artist)
+            if meta.title == 'Unknown Title':
+                meta.title = metadata.get('title', meta.title)
             meta.update_metadata('youtube_metadata', metadata)
             
-            # Aktualisiere Ordnername falls nötig
-            new_folder_name = f"{meta.artist} - {meta.title}"
-            if new_folder_name != meta.folder_name:
-                old_path = meta.folder_path
-                meta.folder_name = new_folder_name
-                meta.folder_path = os.path.join(meta.base_dir, meta.folder_name)
-                
-                # Erstelle neuen Ordner und verschiebe falls nötig
-                os.makedirs(meta.folder_path, exist_ok=True)
-                if old_path != meta.folder_path and os.path.exists(old_path):
-                    # Verschiebe Dateien vom alten zum neuen Ordner
-                    for file in os.listdir(old_path):
-                        old_file = os.path.join(old_path, file)
-                        new_file = os.path.join(meta.folder_path, file)
-                        os.rename(old_file, new_file)
-                    os.rmdir(old_path)
+            # Aktualisiere Ordnername falls nötig (nur wenn noch nicht korrekt gesetzt)
+            if meta.folder_name == 'Unknown Artist - Unknown Title' or meta.folder_name == 'ultrastar':
+                new_folder_name = f"{meta.artist} - {meta.title}"
+                if new_folder_name != meta.folder_name:
+                    old_path = meta.folder_path
+                    meta.folder_name = new_folder_name
+                    meta.folder_path = os.path.join(meta.base_dir, meta.folder_name)
+                    
+                    # Erstelle neuen Ordner und verschiebe falls nötig
+                    os.makedirs(meta.folder_path, exist_ok=True)
+                    if old_path != meta.folder_path and os.path.exists(old_path):
+                        # Verschiebe Dateien vom alten zum neuen Ordner
+                        for file in os.listdir(old_path):
+                            old_file = os.path.join(old_path, file)
+                            new_file = os.path.join(meta.folder_path, file)
+                            os.rename(old_file, new_file)
+                        os.rmdir(old_path)
             
             # Konfiguriere Download
             video_id = metadata.get('video_id', self.extract_video_id(meta.youtube_url))
@@ -146,7 +149,14 @@ class YouTubeDownloader:
                 return False
             
             config = {**self.default_config, **self.config}
-            config['outtmpl'] = os.path.join(meta.folder_path, f"{video_id}.%(ext)s")
+            
+            # Entscheide Dateiname basierend auf Flag
+            if meta.use_youtube_id_as_filename:
+                filename = video_id
+            else:
+                filename = meta.base_filename or f"{meta.artist} - {meta.title}"
+            
+            config['outtmpl'] = os.path.join(meta.folder_path, f"{filename}.%(ext)s")
             
             # Download starten
             logger.info(f"Lade YouTube-Video herunter: {meta.artist} - {meta.title}")
@@ -158,7 +168,7 @@ class YouTubeDownloader:
             # Finde die heruntergeladene Datei
             downloaded_files = []
             for file in os.listdir(meta.folder_path):
-                if file.startswith(video_id) and file.lower().endswith(('.mp4', '.webm', '.mkv')):
+                if file.startswith(filename) and file.lower().endswith(('.mp4', '.webm', '.mkv')):
                     downloaded_files.append(file)
             
             if not downloaded_files:

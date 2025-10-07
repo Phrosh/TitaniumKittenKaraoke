@@ -447,7 +447,14 @@ router.get('/check-download-status/:songId', async (req, res) => {
     
     // Check ultrastar folder
     const ultrastarPath = path.join(__dirname, '..', 'songs', 'ultrastar', `${song.artist} - ${song.title}`);
-    const youtubePath = path.join(__dirname, '..', 'songs', 'youtube', `${song.artist} - ${song.title}`);
+    
+    // For ultrastar songs, youtube path should be the same as ultrastar path
+    let youtubePath;
+    if (song.mode === 'ultrastar') {
+      youtubePath = ultrastarPath; // Same path for ultrastar songs
+    } else {
+      youtubePath = path.join(__dirname, '..', 'songs', 'youtube', `${song.artist} - ${song.title}`);
+    }
     
     const ultrastarExists = fs.existsSync(ultrastarPath);
     const youtubeExists = fs.existsSync(youtubePath);

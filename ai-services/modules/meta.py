@@ -49,6 +49,11 @@ class ProcessingMeta:
     youtube_url: Optional[str] = None
     usdb_url: Optional[str] = None
     
+    # USDB-Credentials
+    usdb_song_id: Optional[str] = None
+    usdb_username: Optional[str] = None
+    usdb_password: Optional[str] = None
+    
     # Verarbeitungsstatus
     status: ProcessingStatus = ProcessingStatus.PENDING
     
@@ -67,6 +72,9 @@ class ProcessingMeta:
 
     # Stabiler Basis-Dateiname für generierte Outputs (ohne Suffixe/Endungen)
     base_filename: Optional[str] = None
+    
+    # Konfiguration
+    use_youtube_id_as_filename: bool = True
     
     # Konfiguration
     config: Dict[str, Any] = field(default_factory=dict)

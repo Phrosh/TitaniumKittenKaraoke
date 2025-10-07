@@ -10,7 +10,7 @@ from .audio_normalization import AudioNormalizer, normalize_audio_files
 from .audio_separation import AudioSeparator, separate_audio
 from .video_remuxing import VideoRemuxer, remux_videos
 from .transcription import AudioTranscriber, transcribe_audio
-from .usdb_download import USDBDownloader, download_usdb_file, search_and_download_usdb
+from .usdb_download import USDBDownloader, download_usdb_file, download_usdb_song, search_and_download_usdb
 from .cleanup import FileCleaner, cleanup_files, get_folder_summary
 
 __all__ = [
@@ -44,6 +44,7 @@ __all__ = [
     # USDB Download
     'USDBDownloader',
     'download_usdb_file',
+    'download_usdb_song',
     'search_and_download_usdb',
     
     # Cleanup

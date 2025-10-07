@@ -1038,7 +1038,7 @@ router.get('/magic-youtube', (req, res) => {
 // Processing status endpoint (from AI services)
 router.post('/processing-status', async (req, res) => {
   try {
-    const { id, artist, title, status } = req.body || {};
+    const { id, artist, title, status, youtube_url, mode } = req.body || {};
     console.log('📡 API /processing-status received:', { id, artist, title, status, ts: new Date().toISOString() });
 
     // Add small delay to prevent race conditions
@@ -1071,6 +1071,30 @@ router.post('/processing-status', async (req, res) => {
         const storeStatus = status === 'finished' ? 'ready' : status;
         await Song.updateDownloadStatus(songRow.id, storeStatus);
         console.log('💾 Stored processing status for song', { songId: songRow.id, storeStatus });
+
+        // Optional: update mode and youtube_url if provided (e.g., USDB pipeline fallback)
+        if ((mode || youtube_url) && (status === 'failed' || status === 'finished' || status === 'processing')) {
+          await new Promise((resolve, reject) => {
+            const sets = [];
+            const params = [];
+            if (typeof mode === 'string' && mode.trim()) { sets.push('mode = ?'); params.push(mode.trim()); }
+            if (typeof youtube_url === 'string' && youtube_url.trim()) { sets.push('youtube_url = ?'); params.push(youtube_url.trim()); }
+            if (sets.length > 0) {
+              params.push(songRow.id);
+              db.run(`UPDATE songs SET ${sets.join(', ')} WHERE id = ?`, params, (err) => err ? reject(err) : resolve());
+            } else {
+              resolve();
+            }
+          });
+          console.log('🛠️ Updated song extra fields via processing-status', { songId: songRow.id, mode, youtube_url });
+          // Broadcast admin update so dashboard refreshes cached data
+          const { broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../utils/websocketService');
+          const io = req.app.get('io');
+          if (io) {
+            await broadcastAdminUpdate(io).catch(() => {});
+            await broadcastPlaylistUpdate(io).catch(() => {});
+          }
+        }
       }
     } catch (persistErr) {
       console.warn('⚠️ Could not persist processing status:', persistErr.message);
@@ -2248,10 +2272,96 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
   }
 }
 
-// Helper function to trigger automatic USDB download
+// Helper function to trigger playlist upgrade check
+async function triggerPlaylistUpgradeCheck() {
+  try {
+    console.log('🔄 Triggering playlist upgrade check...');
+    
+    // Import the playlist upgrade function
+    const { checkForPlaylistUpgrades } = require('./playlist');
+    
+    if (checkForPlaylistUpgrades) {
+      await checkForPlaylistUpgrades();
+      console.log('✅ Playlist upgrade check completed');
+    } else {
+      console.log('⚠️ Playlist upgrade check function not available');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in playlist upgrade check:', error);
+  }
+}
+
+// Helper function to check if a song requires approval
+async function checkIfSongRequiresApproval(artist, title, mode, youtubeUrl) {
+  try {
+    const db = require('../config/database');
+    
+    // Check if song already exists
+    const existingSong = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM songs WHERE artist = ? AND title = ?', [artist, title], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    if (existingSong) {
+      console.log(`Song already exists: ${artist} - ${title}`);
+      return false; // No approval needed for existing songs
+    }
+    
+    // Check if it's a YouTube song (always requires approval)
+    if (mode === 'youtube' || youtubeUrl) {
+      console.log(`YouTube song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // Check if it's a magic-youtube song (always requires approval)
+    if (mode === 'magic-youtube') {
+      console.log(`Magic-YouTube song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // Check if it's a USDB song (always requires approval)
+    if (mode === 'ultrastar') {
+      console.log(`USDB song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // For other modes, check if they exist in the file system
+    const fs = require('fs');
+    const path = require('path');
+    
+    const songsDir = path.join(process.cwd(), 'songs');
+    const modeDir = path.join(songsDir, mode);
+    
+    if (fs.existsSync(modeDir)) {
+      const folders = fs.readdirSync(modeDir);
+      const songFolder = folders.find(folder => 
+        folder.toLowerCase().includes(artist.toLowerCase()) && 
+        folder.toLowerCase().includes(title.toLowerCase())
+      );
+      
+      if (songFolder) {
+        console.log(`Song found in file system: ${artist} - ${title}`);
+        return false; // No approval needed for existing files
+      }
+    }
+    
+    // If we get here, it's a new song that requires approval
+    console.log(`New song requires approval: ${artist} - ${title}`);
+    return true;
+    
+  } catch (error) {
+    console.error('Error checking if song requires approval:', error);
+    return true; // Default to requiring approval on error
+  }
+}
+
+// Helper function to trigger automatic USDB download using modular pipeline
 async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
   try {
-    console.log('📥 Triggering automatic USDB download:', {
+    console.log('📥 Triggering automatic USDB download (modular):', {
       songId,
       usdbUrl,
       timestamp: new Date().toISOString()
@@ -2296,320 +2406,166 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
 
     const usdbSongId = songIdMatch[1];
 
-    // Set download start time
+    // Set download start time and mode to ultrastar
     try {
       const Song = require('../models/Song');
       await Song.updateDownloadStartTime(songId, new Date().toISOString());
-      console.log('🕐 Download start time set for song:', { songId });
+      await Song.updateMode(songId, 'ultrastar');
+      console.log('🕐 Download start time and mode set for song:', { songId, mode: 'ultrastar' });
     } catch (timeError) {
-      console.error('❌ Failed to set download start time:', timeError);
+      console.error('❌ Failed to set download start time and mode:', timeError);
     }
 
-    // Trigger download via AI service
+    // Trigger modular USDB pipeline directly via AI service
     const axios = require('axios');
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
     
     try {
-      console.log('📥 Making USDB download request to AI service:', {
-        url: `${aiServiceUrl}/usdb/download`,
+      // Use the modular USDB pipeline directly instead of the old download endpoint
+      console.log('🔄 Triggering modular USDB pipeline directly:', {
+        url: `${aiServiceUrl}/usdb/process/USDB_${usdbSongId}`,
+        songId,
         usdbSongId,
         timestamp: new Date().toISOString()
       });
 
-      const downloadResponse = await axios.post(`${aiServiceUrl}/usdb/download`, {
-        songId: usdbSongId,
+      const pipelineResponse = await axios.post(`${aiServiceUrl}/usdb/process/USDB_${usdbSongId}`, {
+        songId: songId,
         username: credentials.username,
         password: credentials.password
       }, {
-        timeout: 300000 // 5 minutes timeout for download
+        timeout: 600000 // 10 minutes timeout for full pipeline
       });
 
-      console.log('📥 USDB download response received:', {
-        status: downloadResponse.status,
-        success: downloadResponse.data.success,
-        folderName: downloadResponse.data.folder_name,
-        songInfo: downloadResponse.data.song_info,
+      console.log('🔄 Modular USDB pipeline response:', {
+        status: pipelineResponse.status,
+        success: pipelineResponse.data.success,
+        message: pipelineResponse.data.message,
         timestamp: new Date().toISOString()
       });
 
-      if (downloadResponse.data.success) {
-        console.log('✅ USDB download completed:', {
-          songId,
-          usdbSongId,
-          folderName: downloadResponse.data.folder_name,
-          artist: downloadResponse.data.song_info?.artist,
-          title: downloadResponse.data.song_info?.title,
-          timestamp: new Date().toISOString()
-        });
-
-        // Extract data for use in both database insertion and WebSocket notification
-        const songData = downloadResponse.data.song_info;
-        const folderName = downloadResponse.data.folder_name;
+      if (pipelineResponse.data.success) {
+        // The pipeline should have created the folder and processed everything
+        // We need to find the actual folder name that was created
+        const ultrastarDir = require('path').join(process.cwd(), 'songs', 'ultrastar');
+        const fs = require('fs');
         
+        let actualFolderName = null;
         try {
-          // Add song to database (same as manual download)
-          console.log('💾 Adding downloaded song to database...');
-          const Song = require('../models/Song');
-          
-          // Create a default user for automatic downloads
-          const User = require('../models/User');
-          const defaultUser = await User.create('System', 'SYS');
-          
-          await Song.createFromUSDB(
-            songData.artist || 'Unknown', 
-            songData.title || 'Unknown', 
-            folderName, 
-            'USDB',
-            defaultUser.id
-          );
-          console.log('💾 Song added to database successfully');
-        } catch (dbError) {
-          console.error('❌ Database insertion error:', dbError);
-          // Continue with WebSocket notification even if database insertion fails
-        }
-
-        // Broadcast USDB download notification to admin dashboard
-        console.log('📡 Broadcasting USDB download notification to admin dashboard...');
-        const { broadcastUSDBDownloadNotification } = require('../utils/websocketService');
-        
-        // Get the io instance from the global server
-        const server = require('../server');
-        const io = server.io;
-        if (io) {
-          const notificationData = {
-            message: `USDB-Song automatisch heruntergeladen: ${songData.artist || 'Unknown'} - ${songData.title || 'Unknown'}`,
-            artist: songData.artist || 'Unknown',
-            title: songData.title || 'Unknown',
-            folderName: folderName,
-            timestamp: new Date().toISOString()
-          };
-          
-          console.log('📡 Notification data:', notificationData);
-          await broadcastUSDBDownloadNotification(io, notificationData);
-          console.log('📡 USDB download notification broadcasted successfully');
-        } else {
-          console.log('⚠️ No WebSocket IO instance available for notification');
-        }
-
-        // Set original song status to ready (download successful)
-        try {
-          const Song = require('../models/Song');
-          await Song.updateStatus(songId, 'ready');
-          console.log('✅ Original song status set to ready (download successful):', { songId });
-        } catch (statusError) {
-          console.error('❌ Failed to set original song status to ready:', statusError);
-        }
-
-        // Trigger playlist upgrade check after successful download
-        setTimeout(() => {
-          triggerPlaylistUpgradeCheck();
-        }, 2000); // Wait 2 seconds for file system to settle
-
-        // Trigger automatic song classification for all YouTube songs
-        setTimeout(async () => {
-          try {
-            const adminModule = require('./admin');
-            if (adminModule.triggerAutomaticSongClassification) {
-              await adminModule.triggerAutomaticSongClassification();
-            }
-          } catch (error) {
-            console.error('Error in automatic song classification:', error);
+          const folders = fs.readdirSync(ultrastarDir);
+          // Look for a folder that starts with the artist name from the pipeline
+          const artistFromPipeline = pipelineResponse.data.message?.match(/artist['":\s]*([^,\n]+)/i)?.[1]?.trim();
+          if (artistFromPipeline) {
+            actualFolderName = folders.find(folder => 
+              folder.includes(artistFromPipeline) && fs.statSync(require('path').join(ultrastarDir, folder)).isDirectory()
+            );
           }
-        }, 3000); // Wait 3 seconds for file system to settle
-
+          // Fallback: use the most recently created folder
+          if (!actualFolderName) {
+            const folderStats = folders.map(folder => ({
+              name: folder,
+              time: fs.statSync(require('path').join(ultrastarDir, folder)).mtime.getTime()
+            })).filter(f => fs.statSync(require('path').join(ultrastarDir, f.name)).isDirectory());
+            
+            if (folderStats.length > 0) {
+              actualFolderName = folderStats.sort((a, b) => b.time - a.time)[0].name;
+            }
+          }
+        } catch (fsError) {
+          console.error('❌ Error finding actual folder name:', fsError);
+        }
+        
+        if (actualFolderName) {
+          // Update song with ultrastar mode and actual folder name
+          try {
+            const Song = require('../models/Song');
+            await Song.updateMode(songId, 'ultrastar');
+            await Song.updateFolderName(songId, actualFolderName);
+            await Song.updateStatus(songId, 'ready');
+            await Song.updateDownloadEndTime(songId, new Date().toISOString());
+            
+            console.log('✅ Song updated to ultrastar mode:', {
+              songId,
+              actualFolderName,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Add to invisible songs list
+            try {
+              await new Promise((resolve, reject) => {
+                db.run(
+                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                  [pipelineResponse.data.message?.match(/artist['":\s]*([^,\n]+)/i)?.[1]?.trim() || 'Unknown', 
+                   pipelineResponse.data.message?.match(/title['":\s]*([^,\n]+)/i)?.[1]?.trim() || 'Unknown'],
+                  function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                  }
+                );
+              });
+              console.log(`📝 Added song to invisible songs`);
+            } catch (error) {
+              console.error('Error adding song to invisible songs:', error);
+            }
+            
+          } catch (updateError) {
+            console.error('❌ Failed to update song after USDB pipeline:', updateError);
+          }
+          
+          // Trigger playlist upgrade check
+          setTimeout(async () => {
+            try {
+              await triggerPlaylistUpgradeCheck();
+            } catch (error) {
+              console.error('Error in playlist upgrade check:', error);
+            }
+          }, 2000);
+          
+        } else {
+          console.error('❌ Could not determine actual folder name after pipeline');
+          // Set status to failed
+          try {
+            const Song = require('../models/Song');
+            await Song.updateStatus(songId, 'failed');
+            console.log('❌ Song status set to failed (no folder found):', { songId });
+          } catch (statusError) {
+            console.error('❌ Failed to set song status to failed:', statusError);
+          }
+        }
+        
       } else {
-        console.error('❌ USDB download failed:', downloadResponse.data.error);
+        console.error('❌ Modular USDB pipeline failed:', pipelineResponse.data.error);
         // Set status to failed
         try {
           const Song = require('../models/Song');
           await Song.updateStatus(songId, 'failed');
-          console.log('❌ Song status set to failed (download failed):', { songId });
+          console.log('❌ Song status set to failed (pipeline failed):', { songId });
         } catch (statusError) {
           console.error('❌ Failed to set song status to failed:', statusError);
         }
       }
+      
     } catch (error) {
-      console.error('❌ USDB download error:', error.message);
+      console.error('❌ Modular USDB pipeline request failed:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      
       // Set status to failed
       try {
         const Song = require('../models/Song');
         await Song.updateStatus(songId, 'failed');
-        console.log('❌ Song status set to failed (download error):', { songId });
+        console.log('❌ Song status set to failed (request failed):', { songId });
       } catch (statusError) {
         console.error('❌ Failed to set song status to failed:', statusError);
       }
     }
 
   } catch (error) {
-    console.error('📥 Error in triggerAutomaticUSDBDownload:', error);
-    // Set status to failed
-    try {
-      const Song = require('../models/Song');
-      await Song.updateStatus(songId, 'failed');
-      console.log('❌ Song status set to failed (function error):', { songId });
-    } catch (statusError) {
-      console.error('❌ Failed to set song status to failed:', statusError);
-    }
+    console.error('❌ Error in triggerAutomaticUSDBDownload:', error);
   }
-}
-
-// Helper function to check for playlist upgrades after USDB download
-async function triggerPlaylistUpgradeCheck() {
-  try {
-    console.log('🔄 Triggering playlist upgrade check:', {
-      timestamp: new Date().toISOString()
-    });
-
-    const db = require('../config/database');
-    
-    // Get all YouTube songs from playlist
-    const youtubeSongs = await new Promise((resolve, reject) => {
-      db.all('SELECT id, artist, title FROM songs WHERE mode = ? ORDER BY id', ['youtube'], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-
-    // Get all ultrastar songs from file system
-    const { findUltrastarSong } = require('../utils/ultrastarSongs');
-    
-    let upgradeCount = 0;
-    
-    for (const youtubeSong of youtubeSongs) {
-      try {
-        const ultrastarSong = findUltrastarSong(youtubeSong.artist, youtubeSong.title);
-        if (ultrastarSong) {
-          console.log('🎯 Found upgrade opportunity:', {
-            songId: youtubeSong.id,
-            artist: youtubeSong.artist,
-            title: youtubeSong.title,
-            ultrastarFolder: ultrastarSong.folderName
-          });
-
-          // Update song mode to ultrastar
-          await new Promise((resolve, reject) => {
-            db.run(
-              'UPDATE songs SET mode = ?, youtube_url = ? WHERE id = ?',
-              ['ultrastar', `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`, youtubeSong.id],
-              function(err) {
-                if (err) reject(err);
-                else resolve();
-              }
-            );
-          });
-
-          // Add to invisible songs list (same as YouTube cache downloads)
-          try {
-            await new Promise((resolve, reject) => {
-              db.run(
-                'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                [youtubeSong.artist, youtubeSong.title],
-                function(err) {
-                  if (err) reject(err);
-                  else resolve();
-                }
-              );
-            });
-            console.log(`📝 Added upgraded song to invisible songs: ${youtubeSong.artist} - ${youtubeSong.title}`);
-          } catch (error) {
-            console.error('Error adding upgraded song to invisible songs:', error);
-          }
-
-          upgradeCount++;
-          console.log('✅ Upgraded song to ultrastar:', {
-            songId: youtubeSong.id,
-            artist: youtubeSong.artist,
-            title: youtubeSong.title
-          });
-        }
-      } catch (error) {
-        console.error('❌ Error checking upgrade for song:', youtubeSong.id, error.message);
-      }
-    }
-
-    if (upgradeCount > 0) {
-      console.log(`🎉 Playlist upgrade completed: ${upgradeCount} songs upgraded to ultrastar`);
-      
-      // Broadcast update to admin dashboard
-      const { broadcastPlaylistUpgrade } = require('../utils/websocketService');
-      const io = require('../server').io;
-      if (io) {
-        await broadcastPlaylistUpgrade(io, {
-          message: `${upgradeCount} YouTube-Songs wurden zu Ultrastar-Songs hochgestuft`,
-          upgradeCount,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } else {
-      console.log('ℹ️ No playlist upgrades found');
-    }
-
-  } catch (error) {
-    console.error('🔄 Error in triggerPlaylistUpgradeCheck:', error);
-  }
-}
-
-// Helper function to check if a song requires approval
-async function checkIfSongRequiresApproval(artist, title, mode, youtubeUrl) {
-  const db = require('../config/database');
-  
-  console.log(`🔍 Checking if song requires approval: ${artist} - ${title} (mode: ${mode})`);
-  
-  // Check if song is in invisible list
-  const invisibleSong = await new Promise((resolve, reject) => {
-    db.get('SELECT id FROM invisible_songs WHERE artist = ? AND title = ?', [artist, title], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-  
-  if (invisibleSong) {
-    console.log(`📝 Song is in invisible list: ${artist} - ${title}`);
-    return true;
-  }
-  
-  // Check if song is found in any local source (file, server_video, ultrastar)
-  // If mode is 'youtube', it means the song was not found in local sources
-  if (mode === 'youtube') {
-    console.log(`📝 Song not found in local sources, requires approval: ${artist} - ${title}`);
-    return true;
-  }
-  
-  // Check if it's a YouTube URL but not in cache
-  if (youtubeUrl && (youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
-    const { findYouTubeSong } = require('../utils/youtubeSongs');
-    const { cleanYouTubeUrl } = require('../utils/youtubeUrlCleaner');
-    const cleanedUrl = cleanYouTubeUrl(youtubeUrl);
-    const cachedSong = findYouTubeSong(artist, title, cleanedUrl);
-    
-    console.log(`🎥 YouTube song check: ${artist} - ${title}, cached: ${!!cachedSong}`);
-    
-    if (!cachedSong) {
-      console.log(`📝 YouTube song not in cache, requires approval: ${artist} - ${title}`);
-      return true;
-    }
-  }
-  
-  console.log(`✅ Song does not require approval: ${artist} - ${title}`);
-  return false;
-}
-
-// Helper function to store song request for approval
-async function storeSongRequestForApproval(userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals) {
-  const db = require('../config/database');
-  
-  await new Promise((resolve, reject) => {
-    db.run(
-      'INSERT INTO song_approvals (user_id, singer_name, artist, title, youtube_url, song_input, device_id, with_background_vocals, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals, new Date().toISOString()],
-      function(err) {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
-  
-  console.log(`📝 Song request stored for approval: ${artist} - ${title} (${singerName})`);
 }
 
 module.exports = {
