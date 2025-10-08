@@ -79,7 +79,7 @@ const RenameModal: React.FC<RenameModalProps> = ({
             <ModalButtons>
               <Button onClick={onClose}>{t('common.cancel')}</Button>
               <Button 
-                onClick={onConfirm(renameData)}
+                onClick={() => onConfirm(renameData)}
                 disabled={actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim()}
                 style={{
                   backgroundColor: actionLoading || !renameData.newArtist.trim() || !renameData.newTitle.trim() ? '#ccc' : '#ffc107',
