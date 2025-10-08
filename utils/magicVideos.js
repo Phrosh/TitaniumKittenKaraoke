@@ -38,8 +38,8 @@ function scanMagicVideos() {
 
         if (videoFiles.length > 0) {
           // Check for HP2/HP5 files
-          const hp2Files = files.filter(file => file.endsWith('.hp2'));
-          const hp5Files = files.filter(file => file.endsWith('.hp5'));
+          const hp2Files = files.filter(file => file.includes('.hp2'));
+          const hp5Files = files.filter(file => file.includes('.hp5'));
           const hasHp2Hp5 = hp2Files.length > 0 || hp5Files.length > 0;
           
           // Check for audio files

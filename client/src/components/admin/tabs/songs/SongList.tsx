@@ -14,6 +14,9 @@ import DeleteModal from './DeleteModal';
 import RenameModal from './RenameModal';
 import YoutubeDownloadModal from './YoutubeDownloadModal';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
+import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
+import { DownloadStatus } from '../../../../utils/helper';
+import websocketService from '../../../../services/websocket';
 
 interface SongListProps {
     songTab: 'all' | 'visible' | 'invisible';
@@ -46,6 +49,7 @@ const SongList: React.FC<SongListProps> = ({
     const [processingSongs, setProcessingSongs] = useState<Set<string>>(new Set());
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteSong, setDeleteSong] = useState<any>(null);
+    const [songStatuses, setSongStatuses] = useState<Map<string, DownloadStatus>>(new Map());
 
     const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
     const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
@@ -85,6 +89,39 @@ const SongList: React.FC<SongListProps> = ({
         fetchSongs();
         fetchInvisibleSongs();
     }, [fetchSongs, fetchInvisibleSongs]);
+
+    // WebSocket listener for processing status updates
+    useEffect(() => {
+        const handleProcessingStatus = (data: { id?: number; artist?: string; title?: string; status: DownloadStatus }) => {
+            console.log('🛰️ SongList: processing-status received via WS:', data);
+            
+            if (data.artist && data.title) {
+                const songKey = `${data.artist}-${data.title}`;
+                setSongStatuses(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(songKey, data.status);
+                    return newMap;
+                });
+                
+                // Also update processingSongs for active statuses
+                if (data.status && !['finished', 'ready', 'failed'].includes(data.status)) {
+                    setProcessingSongs(prev => new Set(prev).add(songKey));
+                } else {
+                    setProcessingSongs(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(songKey);
+                        return newSet;
+                    });
+                }
+            }
+        };
+
+        websocketService.on('processing-status', handleProcessingStatus);
+
+        return () => {
+            websocketService.off('processing-status', handleProcessingStatus);
+        };
+    }, []);
 
     const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
         setActionLoading(true);
@@ -513,6 +550,39 @@ const SongList: React.FC<SongListProps> = ({
                                         invisible.title.toLowerCase() === song.title.toLowerCase()
                                     );
 
+                                    // Check processing status for border styling
+                                    const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
+                                    const apiStatus = song.download_status || song.status;
+                                    const processingStatus = wsStatus || apiStatus;
+                                    const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
+                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                    
+                                    // Determine border color based on status
+                                    let borderColor = '#eee'; // default
+                                    let borderWidth = '1px';
+                                    
+                                    if (hasActiveStatus || isProcessing) {
+                                        // Yellow border for active processing
+                                        borderColor = '#ffc107';
+                                        borderWidth = '2px';
+                                    } else if (processingStatus === 'failed') {
+                                        // Red border for failed status
+                                        borderColor = '#dc3545';
+                                        borderWidth = '2px';
+                                    } else {
+                                        // Check if processing button should be shown (processing needed)
+                                        const buttonState = getProcessingButtonState(song);
+                                        const shouldShowButton = buttonState.enabled && 
+                                            (processingStatus === 'failed' || !processingStatus);
+                                        
+                                        if (shouldShowButton) {
+                                            // Red border when processing button is shown (processing needed)
+                                            borderColor = '#dc3545';
+                                            borderWidth = '2px';
+                                        }
+                                    }
+                                    
+                                    
                                     return (
                                         <div
                                             key={`${song.artist}-${song.title}`}
@@ -520,12 +590,13 @@ const SongList: React.FC<SongListProps> = ({
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 padding: '12px',
-                                                border: '1px solid #eee',
+                                                border: `${borderWidth} solid ${borderColor}`,
                                                 borderRadius: '6px',
                                                 marginBottom: '8px',
                                                 background: isInvisible ? '#f8f9fa' : '#fff',
                                                 opacity: isInvisible ? 0.7 : 1,
-                                                gap: '12px'
+                                                gap: '12px',
+                                                transition: 'border-color 0.2s ease, border-width 0.2s ease'
                                             }}
                                         >
                                             <input
@@ -567,22 +638,6 @@ const SongList: React.FC<SongListProps> = ({
                                                                 </>
                                                             );
                                                         })()}
-                                                        {hasMissingFiles(song) && (
-                                                                <span
-                                                                    style={{
-                                                                        fontSize: '12px',
-                                                                        color: '#ff6b35',
-                                                                        background: '#ffe6e0',
-                                                                        padding: '2px 6px',
-                                                                        borderRadius: '4px',
-                                                                        fontWeight: '500',
-                                                                        cursor: 'help'
-                                                                    }}
-                                                                    title={t('songList.processingWarning')}
-                                                                >
-                                                                    ⚠️ {t('songList.processing')}
-                                                                </span>
-                                                            )}
                                                     </div>
                                                 </div>
 
@@ -591,20 +646,79 @@ const SongList: React.FC<SongListProps> = ({
                                                     const buttonState = getProcessingButtonState(song);
                                                     if (!buttonState.visible) return null;
                                                     
+                                                    // Check if song is currently being processed
+                                                    const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
+                                                    
+                                                    // Check if song has a processing status (from WebSocket or API)
+                                                    const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
+                                                    const apiStatus = song.download_status || song.status;
+                                                    const processingStatus = wsStatus || apiStatus;
+                                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                                    
+                                                    
+                                                    // Show DownloadStatusBadge if processing or has active status
+                                                    if (isProcessing || hasActiveStatus) {
+                                                        // Only show badge if we have a valid status
+                                                        if (processingStatus) {
+                                                            return (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <DownloadStatusBadge status={processingStatus as DownloadStatus} />
+                                                                </div>
+                                                            );
+                                                        }
+                                                        // If processing but no status, show processing indicator
+                                                        if (isProcessing) {
+                                                            return (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <div style={{
+                                                                        padding: '4px 8px',
+                                                                        borderRadius: '6px',
+                                                                        fontSize: '0.8rem',
+                                                                        fontWeight: '500',
+                                                                        backgroundColor: '#ffc107',
+                                                                        color: 'white',
+                                                                        minWidth: '80px',
+                                                                        textAlign: 'center'
+                                                                    }}>
+                                                                        ⏳ {t('songList.processingRunning')}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    }
+                                                    
+                                                    // Show DownloadStatusBadge for failed status
+                                                    if (processingStatus === 'failed') {
+                                                        return (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <DownloadStatusBadge status="failed" />
+                                                            </div>
+                                                        );
+                                                    }
+                                                    
+                                                    // Show processing button only if:
+                                                    // 1. Button is enabled AND
+                                                    // 2. Status is 'failed' (retry) OR no status at all (first time)
+                                                    const shouldShowButton = buttonState.enabled && 
+                                                        (processingStatus === 'failed' || !processingStatus);
+                                                    
+                                                    if (!shouldShowButton) return null;
+                                                    
                                                     return (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <Button
                                                                 onClick={() => handleStartProcessing(song)}
-                                                                disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`) || !buttonState.enabled}
-                                                                variant="success"
+                                                                disabled={actionLoading}
+                                                                variant="danger"
                                                                 size="small"
                                                                 style={{
                                                                     fontSize: '12px',
                                                                     padding: '6px 12px',
-                                                                    opacity: !buttonState.enabled ? 0.5 : 1
+                                                                    backgroundColor: '#dc3545',
+                                                                    borderColor: '#dc3545'
                                                                 }}
                                                             >
-                                                                {processingSongs.has(`${song.artist}-${song.title}`) ? `⏳ ${t('songList.processingRunning')}` : `🔧 ${t('songList.startProcessing')}`}
+                                                                🔧 {t('songList.startProcessing')}
                                                             </Button>
                                                         </div>
                                                     );
@@ -656,47 +770,72 @@ const SongList: React.FC<SongListProps> = ({
 
                                                 {/* Test button for all songs - always on the right */}
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    {/* Rename button for all song types */}
-                                                    <Button
-                                                        onClick={() => handleRenameSong(song)}
-                                                        disabled={actionLoading}
-                                                        size="small"
-                                                        style={{
-                                                            fontSize: '12px',
-                                                            padding: '6px 12px',
-                                                            backgroundColor: '#ffc107',
-                                                            color: '#212529'
-                                                        }}
-                                                    >
-                                                        ✏️ {t('songList.rename')}
-                                                    </Button>
+                                                    {/* Check if buttons should be disabled due to processing status */}
+                                                    {(() => {
+                                                        const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
+                                                        const apiStatus = song.download_status || song.status;
+                                                        const processingStatus = wsStatus || apiStatus;
+                                                        const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
+                                                        const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                                        
+                                                        // Check if processing is needed (red border condition)
+                                                        const buttonState = getProcessingButtonState(song);
+                                                        const shouldShowButton = buttonState.enabled && 
+                                                            (processingStatus === 'failed' || !processingStatus);
+                                                        const processingNeeded = shouldShowButton;
+                                                        
+                                                        const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus || processingStatus === 'failed';
+                                                        const shouldDisableTestButton = shouldDisableButtons || processingNeeded;
+                                                        
+                                                        return (
+                                                            <>
+                                                                {/* Rename button for all song types */}
+                                                                <Button
+                                                                    onClick={() => handleRenameSong(song)}
+                                                                    disabled={shouldDisableButtons}
+                                                                    size="small"
+                                                                    style={{
+                                                                        fontSize: '12px',
+                                                                        padding: '6px 12px',
+                                                                        backgroundColor: '#ffc107',
+                                                                        color: '#212529',
+                                                                        opacity: shouldDisableButtons ? 0.5 : 1
+                                                                    }}
+                                                                >
+                                                                    ✏️ {t('songList.rename')}
+                                                                </Button>
 
-                                                    {/* Delete button for all song types */}
-                                                    <Button
-                                                        onClick={() => handleDeleteSongFromLibrary(song)}
-                                                        disabled={actionLoading}
-                                                        type="danger"
-                                                        size="small"
-                                                        style={{
-                                                            fontSize: '12px',
-                                                            padding: '6px 12px'
-                                                        }}
-                                                    >
-                                                        🗑️ {t('songList.delete')}
-                                                    </Button>
+                                                                {/* Delete button for all song types */}
+                                                                <Button
+                                                                    onClick={() => handleDeleteSongFromLibrary(song)}
+                                                                    disabled={shouldDisableButtons}
+                                                                    type="danger"
+                                                                    size="small"
+                                                                    style={{
+                                                                        fontSize: '12px',
+                                                                        padding: '6px 12px',
+                                                                        opacity: shouldDisableButtons ? 0.5 : 1
+                                                                    }}
+                                                                >
+                                                                    🗑️ {t('songList.delete')}
+                                                                </Button>
 
-                                                    <Button
-                                                        onClick={() => handleTestSong(song)}
-                                                        disabled={actionLoading}
-                                                        size="small"
-                                                        style={{
-                                                            fontSize: '12px',
-                                                            padding: '6px 12px',
-                                                            backgroundColor: '#17a2b8'
-                                                        }}
-                                                    >
-                                                        🎤 {t('songList.test')}
-                                                    </Button>
+                                                                <Button
+                                                                    onClick={() => handleTestSong(song)}
+                                                                    disabled={shouldDisableTestButton}
+                                                                    size="small"
+                                                                    style={{
+                                                                        fontSize: '12px',
+                                                                        padding: '6px 12px',
+                                                                        backgroundColor: '#17a2b8',
+                                                                        opacity: shouldDisableTestButton ? 0.5 : 1
+                                                                    }}
+                                                                >
+                                                                    🎤 {t('songList.test')}
+                                                                </Button>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>

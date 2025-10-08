@@ -530,12 +530,22 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                     {t('usdbDownloadModal.usdbUrls')}:
                   </label>
                   
-                  {usdbBatchUrls.map((url, index) => (
+                  {usdbBatchUrls.map((url, index) => {
+                    const result = usdbBatchResults[index];
+                    const status = result?.status;
+                    const isBlocked = status && !['finished', 'ready'].includes(status);
+                    
+                    return (
                     <div key={index} style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '10px', 
-                      marginBottom: '10px' 
+                      marginBottom: '10px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: isBlocked ? '2px solid #ffc107' : '2px solid transparent',
+                      backgroundColor: isBlocked ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+                      transition: 'all 0.2s ease'
                     }}>
                       {/* X Button */}
                       {usdbBatchUrls.length > 1 && (
@@ -611,7 +621,8 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
             
                 
