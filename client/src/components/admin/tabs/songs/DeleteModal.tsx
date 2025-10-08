@@ -48,7 +48,9 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
                 backgroundColor: 'white',
                 padding: '12px',
                 borderRadius: '6px',
-                border: '1px solid #e2e8f0'
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                gap: '10px'
               }}>
                 <strong>{t('deleteModal.song')}:</strong> {deleteSong.artist} - {deleteSong.title}
                 <SmallModeBadge mode={deleteSong.mode} modes={deleteSong.modes} />
