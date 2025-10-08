@@ -62,17 +62,20 @@ const SmallModeBadge: React.FC<SmallModeBadgeProps> = ({
         </SmallBadge>
       )}
       {modes?.includes('magic-songs') && (
-        <SmallBadge $color="#8e44ad" $background="linear-gradient(135deg, #e8d5f2, #d4a5f0)">
+        // <SmallBadge $color="#8e44ad" $background="linear-gradient(135deg, #e8d5f2, #d4a5f0)">
+        <SmallBadge $color="#3984B3" $background="linear-gradient(135deg, #D5F2EE, #B5C9EB)">
           ✨ {t('badges.magicSongs')}
         </SmallBadge>
       )}
       {modes?.includes('magic-videos') && (
-        <SmallBadge $color="#28a745" $background="linear-gradient(135deg, #d4edda, #a5e0a5)">
+        // <SmallBadge $color="#28a745" $background="linear-gradient(135deg, #d4edda, #a5e0a5)">
+        <SmallBadge $color="#28a745" $background="linear-gradient(135deg, #DEEDB7, #a5e0a5)">
           ✨ {t('badges.magicVideos')}
         </SmallBadge>
       )}
       {modes?.includes('magic-youtube') && (
-        <SmallBadge $color="#dc3545" $background="linear-gradient(135deg, #f8d7da, #f0a5a5)">
+        // <SmallBadge $color="#dc3545" $background="linear-gradient(135deg, #f8d7da, #f0a5a5)">
+        <SmallBadge $color="#C22F2F" $background="linear-gradient(135deg, #FFECC9, #f0a5a5)">
           ✨ {t('badges.magicYouTube')}
         </SmallBadge>
       )}

@@ -471,5 +471,10 @@
     "previousSongCannotBePlayed": "无法播放上一首歌曲: {{songTitle}}",
     "downloadStatusReason": "下载状态: {{status}}",
     "youtubeUrlMissingReason": "没有YouTube URL的YouTube歌曲无法播放"
+  },
+  "modes": {
+    "magicSongs": "魔法歌曲",
+    "magicVideos": "魔法视频",
+    "magicYouTube": "魔法YouTube"
   }
 }

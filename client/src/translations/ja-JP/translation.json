@@ -471,5 +471,10 @@
     "previousSongCannotBePlayed": "前の楽曲を再生できません: {{songTitle}}",
     "downloadStatusReason": "ダウンロード状態: {{status}}",
     "youtubeUrlMissingReason": "YouTube URLのないYouTube楽曲は再生できません"
+  },
+  "modes": {
+    "magicSongs": "魔法の楽曲",
+    "magicVideos": "魔法の動画",
+    "magicYouTube": "魔法のYouTube"
   }
 }

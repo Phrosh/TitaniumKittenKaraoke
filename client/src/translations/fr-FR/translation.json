@@ -471,5 +471,10 @@
     "previousSongCannotBePlayed": "Impossible de jouer la chanson précédente : {{songTitle}}",
     "downloadStatusReason": "Statut de téléchargement : {{status}}",
     "youtubeUrlMissingReason": "Impossible de jouer une chanson YouTube sans URL YouTube"
+  },
+  "modes": {
+    "magicSongs": "Chanson Magique",
+    "magicVideos": "Vidéo Magique",
+    "magicYouTube": "YouTube Magique"
   }
 }

@@ -471,5 +471,10 @@
     "previousSongCannotBePlayed": "이전 곡을 재생할 수 없습니다: {{songTitle}}",
     "downloadStatusReason": "다운로드 상태: {{status}}",
     "youtubeUrlMissingReason": "YouTube URL이 없는 YouTube 곡은 재생할 수 없습니다"
+  },
+  "modes": {
+    "magicSongs": "마법 노래",
+    "magicVideos": "마법 비디오",
+    "magicYouTube": "마법 YouTube"
   }
 }

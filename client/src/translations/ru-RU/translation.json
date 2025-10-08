@@ -471,5 +471,10 @@
     "previousSongCannotBePlayed": "Нельзя воспроизвести предыдущую песню: {{songTitle}}",
     "downloadStatusReason": "Статус загрузки: {{status}}",
     "youtubeUrlMissingReason": "YouTube песня без YouTube URL не может быть воспроизведена"
+  },
+  "modes": {
+    "magicSongs": "Волшебная Песня",
+    "magicVideos": "Волшебное Видео",
+    "magicYouTube": "Волшебный YouTube"
   }
 }

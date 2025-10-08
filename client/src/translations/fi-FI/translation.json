@@ -470,5 +470,10 @@
     "previousSongCannotBePlayed": "Edellistä kappaletta ei voi soittaa: {{songTitle}}",
     "downloadStatusReason": "Lataustila: {{status}}",
     "youtubeUrlMissingReason": "YouTube-kappaletta ei voi soittaa ilman YouTube-URL:ää"
+  },
+  "modes": {
+    "magicSongs": "Maaginen Kappale",
+    "magicVideos": "Maaginen Video",
+    "magicYouTube": "Maaginen YouTube"
   }
 }
