@@ -1787,8 +1787,8 @@ def modular_process(folder_name):
                     return
                 
                 # Pipeline je nach Song-Typ
-                if song_type in ['magic-songs', 'magic-videos']:
-                    # Magic-Pipeline: ensure_source_files → audio_separation → transcription → cleanup
+                if song_type == 'magic-videos':
+                    # Magic-Videos-Pipeline: ensure_source_files → audio_separation → transcription → cleanup
                     
                     # 2) Audio Separation
                     logger.info("🔄 Starting audio separation...")
@@ -1807,6 +1807,33 @@ def modular_process(folder_name):
                         pass
                     transcribe_audio(meta)
                     logger.info("✅ Transcription completed")
+                    
+                elif song_type == 'magic-songs':
+                    # Magic-Songs-Pipeline: ensure_source_files → audio_separation → transcription → remux_videos → cleanup
+                    from modules import remux_videos
+                    
+                    # 2) Audio Separation
+                    logger.info("🔄 Starting audio separation...")
+                    try:
+                        send_processing_status(meta, 'separating')
+                    except Exception:
+                        pass
+                    separate_audio(meta)
+                    logger.info("✅ Audio separation completed")
+                    
+                    # 3) Transcription
+                    logger.info("🔄 Starting transcription...")
+                    try:
+                        send_processing_status(meta, 'transcribing')
+                    except Exception:
+                        pass
+                    transcribe_audio(meta)
+                    logger.info("✅ Transcription completed")
+                    
+                    # 4) Video Remuxing (Audio entfernen)
+                    logger.info("🔄 Starting video remuxing...")
+                    remux_videos(meta, remove_audio=True)
+                    logger.info("✅ Video remuxing completed")
                     
                 else:
                     # Ultrastar-Pipeline: ensure_source_files → normalize_audio_files → separate_audio → remux_videos → cleanup
