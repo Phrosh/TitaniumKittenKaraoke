@@ -472,15 +472,47 @@ def download_usdb_song(meta: ProcessingMeta) -> bool:
         
         song_text = textarea.string
         
-        # Entferne leere Zeilen (aber behalte Leerzeichen am Ende von Zeilen)
+        # Clean song text (remove empty lines) - using the robust solution from usdb_scraper_improved.py
+        # The text might be in one long line, so we need to split it properly
+        # First, try to split by actual line breaks
         lines = song_text.split('\n')
-        cleaned_lines = []
-        for line in lines:
-            # Behalte Zeile wenn sie nicht komplett leer ist (aber Leerzeichen am Ende sind OK)
-            if line.strip() != '':
-                cleaned_lines.append(line)
         
-        song_text = '\n'.join(cleaned_lines)
+        # If we only have one line, the text might be using \r\n or other separators
+        if len(lines) == 1:
+            # Try different line break patterns
+            lines = song_text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+        
+        # If we still have only one line, the text might be using different separators
+        if len(lines) == 1:
+            # Try to split by common patterns in UltraStar files
+            # Look for patterns like ": 0 4 7" or "#ARTIST:" or "- 60"
+            # Split by lines that start with :, #, -, or * (common UltraStar patterns)
+            import re
+            lines = re.split(r'\n(?=[:#\-*])', song_text)
+            if len(lines) > 1:
+                # Add back the newlines that were removed by the split
+                lines = [lines[0]] + ['\n' + line for line in lines[1:]]
+        
+        # Remove empty lines (lines that are just whitespace)
+        # Also remove \r characters that might be present
+        # IMPORTANT: Only remove \r characters, preserve trailing spaces for UltraStar formatting
+        non_empty_lines = [line.rstrip('\r') for line in lines if line.strip()]
+        song_text = '\n'.join(non_empty_lines)
+        
+        logger.info(f"📝 Text cleaning: {len(lines)} original lines -> {len(non_empty_lines)} cleaned lines")
+        
+        # Debug: Show first few lines to verify splitting worked
+        if len(lines) > 1:
+            logger.info(f"📝 First 5 lines: {lines[:5]}")
+        else:
+            logger.info(f"📝 Still only 1 line, trying alternative splitting...")
+            # Try splitting by common UltraStar patterns without regex
+            if '#ARTIST:' in song_text:
+                # Split by #ARTIST:, #TITLE:, etc.
+                parts = song_text.split('#ARTIST:')
+                if len(parts) > 1:
+                    lines = ['#ARTIST:' + parts[1]] + parts[2:] if len(parts) > 2 else ['#ARTIST:' + parts[1]]
+                    logger.info(f"📝 Split by #ARTIST: pattern: {len(lines)} lines")
         
         # Speichere die TXT-Datei
         txt_filename = f"{meta.artist} - {meta.title}.txt"
