@@ -394,6 +394,8 @@
     "songRemovedFromList": "Song aus Download-Liste entfernt",
     "downloadSuccessful": "Download erfolgreich",
     "downloadError": "Fehler beim Download",
+    "downloadStarted": "Download gestartet",
+    "batchDownloadStarted": "Batch-Download gestartet: {{count}} Songs werden verarbeitet",
     "batchDownloadCompleted": "Batch-Download abgeschlossen: {{count}} Songs verarbeitet",
     "batchDownloadError": "Fehler beim Batch-Download",
     "enterArtistOrTitle": "Bitte Interpret oder Titel eingeben",

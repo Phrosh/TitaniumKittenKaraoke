@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
@@ -15,6 +15,8 @@ import ModeBadge from '../../../shared/ModeBadge';
 import SongList from './SongList';
 import UsdbDownloadModal from './UsdbDownloadModal';
 import Button from '../../../shared/Button';
+import websocketService from '../../../../services/websocket';
+import { DownloadStatus } from '../../../../utils/helper';
 
 interface SongsTabProps {
     fetchDashboardData: () => void;

@@ -425,78 +425,6 @@ router.put('/song/:songId', [
   }
 });
 
-// Check download status for a specific song
-router.get('/check-download-status/:songId', async (req, res) => {
-  try {
-    const { songId } = req.params;
-    
-    // Get song from database
-    const song = await Song.findById(songId);
-    if (!song) {
-      return res.status(404).json({ message: 'Song not found' });
-    }
-
-    // Check if song has downloading status
-    if (song.status !== 'downloading' && song.download_status !== 'downloading') {
-      return res.json({ status: song.status || song.download_status });
-    }
-
-    // Check if folder exists for USDB downloads
-    const fs = require('fs');
-    const path = require('path');
-    
-    // Check ultrastar folder
-    const ultrastarPath = path.join(__dirname, '..', 'songs', 'ultrastar', `${song.artist} - ${song.title}`);
-    
-    // For ultrastar songs, youtube path should be the same as ultrastar path
-    let youtubePath;
-    if (song.mode === 'ultrastar') {
-      youtubePath = ultrastarPath; // Same path for ultrastar songs
-    } else {
-      youtubePath = path.join(__dirname, '..', 'songs', 'youtube', `${song.artist} - ${song.title}`);
-    }
-    
-    const ultrastarExists = fs.existsSync(ultrastarPath);
-    const youtubeExists = fs.existsSync(youtubePath);
-    
-    console.log(`🔍 Checking download status for song ${songId}:`, {
-      artist: song.artist,
-      title: song.title,
-      ultrastarPath,
-      youtubePath,
-      ultrastarExists,
-      youtubeExists,
-      currentStatus: song.status || song.download_status
-    });
-
-    // If folder exists, download was successful
-    if (ultrastarExists || youtubeExists) {
-      // Update status to downloaded
-      await Song.updateStatus(songId, 'downloaded');
-      console.log(`✅ Download completed for song ${songId}: ${song.artist} - ${song.title}`);
-      return res.json({ status: 'downloaded' });
-    } else {
-      // Check if download has been running for more than 2 minutes (likely failed)
-      const downloadStartTime = song.download_started_at || song.created_at;
-      const timeSinceStart = Date.now() - new Date(downloadStartTime).getTime();
-      const twoMinutes = 2 * 60 * 1000;
-      
-      if (timeSinceStart > twoMinutes) {
-        // Download likely failed, update status
-        await Song.updateStatus(songId, 'failed');
-        console.log(`❌ Download failed for song ${songId}: ${song.artist} - ${song.title} (no folder found after ${Math.round(timeSinceStart / 1000)}s)`);
-        return res.json({ status: 'failed' });
-      } else {
-        // Still downloading
-        return res.json({ status: 'downloading' });
-      }
-    }
-  } catch (error) {
-    console.error('Error checking download status:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Get all users
 router.get('/users', async (req, res) => {
   try {
@@ -1852,7 +1780,7 @@ router.post('/usdb-download', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { usdbUrl } = req.body;
+    const { usdbUrl, batchId } = req.body;
 
     // Get USDB credentials
     const credentials = await getUSDBCredentials();
@@ -1869,89 +1797,138 @@ router.post('/usdb-download', [
 
     const songId = songIdMatch[1];
 
-    // Call Python AI service for USDB download
+    // Call Python AI service for modular USDB pipeline
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
     
     try {
-      const response = await axios.post(`${aiServiceUrl}/usdb/download`, {
-        songId: songId,
+      console.log('🔄 Starting modular USDB pipeline for admin download:', {
+        songId,
+        usdbUrl,
+        timestamp: new Date().toISOString()
+      });
+
+      // Use the new modular USDB pipeline endpoint
+      const response = await axios.post(`${aiServiceUrl}/usdb/process/USDB_${songId}`, {
         username: credentials.username,
-        password: credentials.password
+        password: credentials.password,
+        batchId: batchId // Pass batch ID to AI service
       }, {
-        timeout: 300000 // 5 minutes timeout for download
+        timeout: 600000 // 10 minutes timeout for full pipeline
+      });
+
+      console.log('🔄 Modular USDB pipeline response:', {
+        status: response.status,
+        success: response.data.success,
+        message: response.data.message,
+        timestamp: new Date().toISOString()
       });
 
       if (response.data.success) {
-        // Add song to database
-        const songData = response.data.song_info;
-        const folderName = response.data.folder_name;
-        
-        // Insert song into database using the Song model
-        const Song = require('../models/Song');
-        const User = require('../models/User');
-        
-        // Create a default user for manual downloads
-        const defaultUser = await User.create('Admin', 'ADM');
-        
-        await Song.createFromUSDB(
-          songData.artist || 'Unknown', 
-          songData.title || 'Unknown', 
-          folderName, 
-          'USDB',
-          defaultUser.id
-        );
-
-        // Prepare success message with audio separation and video remux info
-        let message = 'Song erfolgreich von USDB heruntergeladen';
-        if (response.data.audio_separation && response.data.audio_separation.status !== 'failed') {
-          message += ' und Audio-Separation abgeschlossen';
-        } else if (response.data.audio_separation && response.data.audio_separation.status === 'failed') {
-          message += ' (Audio-Separation fehlgeschlagen)';
-        }
-        
-        if (response.data.video_remux && response.data.video_remux.status === 'success') {
-          message += ' und Audio aus Video entfernt';
-        } else if (response.data.video_remux && response.data.video_remux.status === 'failed') {
-          message += ' (Video-Remux fehlgeschlagen)';
-        }
-
-        // Trigger automatic song classification for all YouTube songs
-        setTimeout(async () => {
-          try {
-            await triggerAutomaticSongClassification();
-          } catch (error) {
-            console.error('Error in automatic song classification:', error);
-          }
-        }, 2000); // Wait 2 seconds for file system to settle
-
-        // Broadcast USDB download notification to admin dashboard
-        const { broadcastUSDBDownloadNotification } = require('../utils/websocketService');
-        const io = req.app.get('io');
-        if (io) {
-          await broadcastUSDBDownloadNotification(io, {
-            message: `USDB-Song heruntergeladen: ${songData.artist} - ${songData.title}`,
-            artist: songData.artist,
-            title: songData.title,
-            folderName: folderName,
-            timestamp: new Date().toISOString()
+        // For batch downloads, just return success immediately
+        // The pipeline will handle song creation and status updates via WebSocket
+        if (batchId) {
+          console.log('✅ USDB batch download started successfully:', batchId);
+          return res.json({ 
+            success: true, 
+            message: 'USDB batch download started in background',
+            song: { id: batchId } // Return batch ID for tracking
           });
         }
+        
+        // For single downloads, wait and check for song creation
+        // Wait a moment for the pipeline to start processing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check if the song folder was created
+        const fs = require('fs');
+        const path = require('path');
+        const ultrastarDir = path.join(process.cwd(), 'songs', 'ultrastar');
+        
+        let actualFolderName = null;
+        try {
+          const folders = fs.readdirSync(ultrastarDir);
+          // Look for a folder that was recently created (within last 5 minutes)
+          const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+          const recentFolders = folders.filter(folder => {
+            const folderPath = path.join(ultrastarDir, folder);
+            const stats = fs.statSync(folderPath);
+            return stats.isDirectory() && stats.mtime.getTime() > fiveMinutesAgo;
+          });
+          
+          if (recentFolders.length > 0) {
+            // Use the most recently created folder
+            actualFolderName = recentFolders.sort((a, b) => {
+              const aTime = fs.statSync(path.join(ultrastarDir, a)).mtime.getTime();
+              const bTime = fs.statSync(path.join(ultrastarDir, b)).mtime.getTime();
+              return bTime - aTime;
+            })[0];
+          }
+        } catch (fsError) {
+          console.error('❌ Error finding created folder:', fsError);
+        }
+        
+        if (actualFolderName) {
+          // Extract artist and title from folder name
+          const parts = actualFolderName.split(' - ');
+          const artist = parts[0] || 'Unknown';
+          const title = parts.slice(1).join(' - ') || 'Unknown';
+          
+          // Insert song into database using the Song model
+          const Song = require('../models/Song');
+          const User = require('../models/User');
+          
+          // Create a default user for manual downloads
+          const defaultUser = await User.create('Admin', 'ADM');
+          
+          await Song.createFromUSDB(
+            artist, 
+            title, 
+            actualFolderName, 
+            'USDB',
+            defaultUser.id
+          );
 
-        res.json({
-          message: message,
-          song: {
-            id: songId,
-            artist: songData.artist,
-            title: songData.title,
-            folder_name: folderName,
-            source: 'USDB'
-          },
-          files: response.data.files,
-          audio_separation: response.data.audio_separation,
-          video_remux: response.data.video_remux
-        });
+          // Trigger automatic song classification for all YouTube songs
+          setTimeout(async () => {
+            try {
+              await triggerAutomaticSongClassification();
+            } catch (error) {
+              console.error('Error in automatic song classification:', error);
+            }
+          }, 2000); // Wait 2 seconds for file system to settle
+
+          // Broadcast USDB download notification to admin dashboard
+          const { broadcastUSDBDownloadNotification } = require('../utils/websocketService');
+          const io = req.app.get('io');
+          if (io) {
+            await broadcastUSDBDownloadNotification(io, {
+              message: `USDB-Song heruntergeladen (modulare Pipeline): ${artist} - ${title}`,
+              artist: artist,
+              title: title,
+              folderName: actualFolderName,
+              timestamp: new Date().toISOString()
+            });
+          }
+
+          return res.json({
+            message: 'Song erfolgreich von USDB heruntergeladen (modulare Pipeline)',
+            song: {
+              id: songId,
+              artist: artist,
+              title: title,
+              folder_name: actualFolderName,
+              source: 'USDB'
+            }
+          });
+        } else {
+          return res.status(500).json({ 
+            message: 'Modulare Pipeline gestartet, aber Song-Ordner nicht gefunden' 
+          });
+        }
       } else {
-        res.status(500).json({ message: 'Download fehlgeschlagen', error: response.data.error });
+        return res.status(500).json({ 
+          message: response.data.error || 'Modulare USDB-Pipeline fehlgeschlagen' 
+        });
       }
     } catch (aiServiceError) {
       console.error('AI Service Error:', aiServiceError.message);

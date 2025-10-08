@@ -386,6 +386,8 @@
     "songRemovedFromList": "Song removed from download list",
     "downloadSuccessful": "Download successful",
     "downloadError": "Download error",
+    "downloadStarted": "Download started",
+    "batchDownloadStarted": "Batch download started: {{count}} songs being processed",
     "batchDownloadCompleted": "Batch download completed: {{count}} songs processed",
     "batchDownloadError": "Batch download error",
     "enterArtistOrTitle": "Please enter artist or title",

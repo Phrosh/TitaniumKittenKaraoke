@@ -1726,6 +1726,7 @@ def process_usdb_pipeline(folder_name):
         song_id = data.get('songId')
         username = data.get('username')
         password = data.get('password')
+        batch_id = data.get('batchId')  # Get batch ID from request
         
         # Extract USDB song ID from folder name (USDB_12345 format)
         if not folder_name.startswith('USDB_'):
@@ -1758,6 +1759,9 @@ def process_usdb_pipeline(folder_name):
         meta = create_meta_from_file_path(temp_folder_path, base_dir, ProcessingMode.ULTRASTAR)
         if song_id:
             meta.song_id = song_id
+        elif batch_id:
+            # Use batch ID for WebSocket updates if no song_id is provided
+            meta.song_id = batch_id
         
         # Set USDB credentials in meta
         meta.usdb_username = username
@@ -1786,9 +1790,21 @@ def process_usdb_pipeline(folder_name):
                 try:
                     usdb_ok = download_usdb_song(meta)
                     if not usdb_ok:
-                        try: send_processing_status(meta, 'failed')
+                        logger.error("❌ USDB-Download fehlgeschlagen, Pipeline wird abgebrochen")
+                        try: 
+                            send_processing_status(meta, 'failed')
                         except Exception: pass
-                        return
+                        
+                        # Lösche den Ordner bei Fehlern
+                        try:
+                            import shutil
+                            if hasattr(meta, 'folder_path') and os.path.exists(meta.folder_path):
+                                shutil.rmtree(meta.folder_path)
+                                logger.info(f"🗑️ Ordner gelöscht nach USDB-Fehler: {meta.folder_path}")
+                        except Exception as cleanup_error:
+                            logger.warning(f"⚠️ Konnte Ordner nicht löschen: {cleanup_error}")
+                        
+                        return  # Pipeline komplett abbrechen
                 except Exception as e:
                     logger.error(f"❌ Fehler in USDB-Download: {e}")
                     try: 
@@ -1804,7 +1820,7 @@ def process_usdb_pipeline(folder_name):
                     except Exception as cleanup_error:
                         logger.warning(f"⚠️ Konnte Ordner nicht löschen: {cleanup_error}")
                     
-                    return
+                    return  # Pipeline komplett abbrechen
 
                 # YouTube-Link aus Meta für nächsten Schritt
                 youtube_url = getattr(meta, 'youtube_url', None) or getattr(meta, 'youtube_link', None)
