@@ -51,6 +51,49 @@ class FileCleaner:
                     files.append(file_path)
         return files
     
+    def cleanup_special_files(self, meta: ProcessingMeta) -> None:
+        """
+        Spezielle Cleanup-Operationen:
+        - Lösche .vocals Dateien
+        - Entferne .normalized aus Dateinamen (umbenennen)
+        """
+        try:
+            # 1) Lösche .vocals Dateien
+            for file in os.listdir(meta.folder_path):
+                if file.endswith('.vocals.mp3'):
+                    file_path = os.path.join(meta.folder_path, file)
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"🗑️ .vocals Datei gelöscht: {file}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Konnte .vocals Datei nicht löschen {file}: {e}")
+            
+            # 2) Entferne .normalized aus Dateinamen
+            for file in os.listdir(meta.folder_path):
+                if '.normalized.' in file:
+                    old_path = os.path.join(meta.folder_path, file)
+                    new_name = file.replace('.normalized', '')
+                    new_path = os.path.join(meta.folder_path, new_name)
+                    
+                    # Prüfe ob Ziel-Datei bereits existiert
+                    if os.path.exists(new_path):
+                        # Ziel existiert bereits - lösche .normalized Datei
+                        try:
+                            os.remove(old_path)
+                            logger.info(f"🗑️ .normalized Datei gelöscht (Ziel existiert): {file}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Konnte .normalized Datei nicht löschen {file}: {e}")
+                    else:
+                        # Ziel existiert nicht - benenne um
+                        try:
+                            os.rename(old_path, new_path)
+                            logger.info(f"📝 .normalized entfernt: {file} → {new_name}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Konnte Datei nicht umbenennen {file}: {e}")
+                            
+        except Exception as e:
+            logger.error(f"❌ Fehler bei speziellen Cleanup-Operationen: {e}")
+    
     def identify_files_to_keep(self, meta: ProcessingMeta) -> Set[str]:
         """
         Identifiziert Dateien, die behalten werden sollen
@@ -278,6 +321,9 @@ class FileCleaner:
             # Erstelle Backup falls konfiguriert
             if not dry_run:
                 self.create_backup(meta)
+            
+            # Spezielle Cleanup-Operationen (vor normalem Cleanup)
+            self.cleanup_special_files(meta)
             
             # Identifiziere Dateien zum Entfernen
             files_to_remove = self.identify_files_to_remove(meta)

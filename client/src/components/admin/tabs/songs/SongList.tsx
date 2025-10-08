@@ -174,33 +174,52 @@ const SongList: React.FC<SongListProps> = ({
         try {
             const folderName = song.folderName || `${song.artist} - ${song.title}`;
 
-            // Check if this is a magic song/video
-            if (song.modes?.includes('magic-songs')) {
-                await startMagicSongProcessing(song, songKey, folderName);
-                return;
-            }
-
-            if (song.modes?.includes('magic-videos')) {
-                await startMagicVideoProcessing(song, songKey, folderName);
-                return;
-            }
-
-            // For regular ultrastar songs, check if video is needed
-            const videoCheckResponse = await songAPI.checkNeedsVideo(folderName);
-
-            if (videoCheckResponse.data.needsVideo) {
-                // Show YouTube dialog
-                setSelectedSongForDownload(song);
-                setShowYouTubeDialog(true);
-                return;
-            }
-
-            // If video exists, proceed with normal processing
-            await startNormalProcessing(song, songKey, folderName);
+            // Use modular processing for all song types
+            await startModularProcessing(song, songKey, folderName);
 
         } catch (error: any) {
-            console.error('Error checking video needs:', error);
-            toast.error(error.response?.data?.error || t('songList.videoCheckError'));
+            console.error('Error starting modular processing:', error);
+            toast.error(error.response?.data?.error || t('songList.modularProcessingError'));
+        }
+    };
+
+    const startModularProcessing = async (song: any, songKey: string, folderName: string) => {
+        // Mark song as processing
+        setProcessingSongs(prev => new Set(prev).add(songKey));
+
+        try {
+            // Determine song type
+            let songType = 'ultrastar';
+            if (song.modes?.includes('magic-songs')) {
+                songType = 'magic-songs';
+            } else if (song.modes?.includes('magic-videos')) {
+                songType = 'magic-videos';
+            }
+
+            const response = await songAPI.modularProcess(folderName, songType);
+
+            if (response.data.success) {
+                toast.success(t('songList.modularProcessingStarted', { artist: song.artist, title: song.title }));
+                console.log('Modular processing started:', response.data);
+                // Keep in processing state - will be removed later when job completes
+            } else {
+                toast.error(response.data.error || t('songList.modularProcessingError'));
+                // Remove from processing state on error
+                setProcessingSongs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(songKey);
+                    return newSet;
+                });
+            }
+        } catch (error: any) {
+            console.error('Error starting modular processing:', error);
+            toast.error(error.response?.data?.error || t('songList.modularProcessingError'));
+            // Remove from processing state on error
+            setProcessingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+            });
         }
     };
 

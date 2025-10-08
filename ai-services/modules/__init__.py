@@ -11,6 +11,7 @@ from .audio_separation import AudioSeparator, separate_audio
 from .video_remuxing import VideoRemuxer, remux_videos
 from .transcription import AudioTranscriber, transcribe_audio
 from .usdb_download import USDBDownloader, download_usdb_file, download_usdb_song, search_and_download_usdb
+from .ensure_source_files import SourceFileEnsurer, ensure_source_files
 from .cleanup import FileCleaner, cleanup_files, get_folder_summary
 
 __all__ = [
@@ -46,6 +47,10 @@ __all__ = [
     'download_usdb_file',
     'download_usdb_song',
     'search_and_download_usdb',
+    
+    # Ensure Source Files
+    'SourceFileEnsurer',
+    'ensure_source_files',
     
     # Cleanup
     'FileCleaner',

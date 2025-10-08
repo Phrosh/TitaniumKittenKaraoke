@@ -1322,6 +1322,98 @@ router.get('/ai-services/health', async (req, res) => {
   }
 });
 
+// Modular processing endpoint for all song types
+router.post('/modular-process/:folderName', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { songType } = req.body; // 'ultrastar', 'magic-songs', 'magic-videos'
+    
+    console.log('🔧 Modular processing request:', {
+      folderName: decodeURIComponent(folderName),
+      songType,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine the correct directory based on song type
+    let baseDir;
+    switch (songType) {
+      case 'ultrastar':
+        baseDir = require('path').join(process.cwd(), 'songs', 'ultrastar');
+        break;
+      case 'magic-songs':
+        baseDir = require('path').join(process.cwd(), 'songs', 'magic-songs');
+        break;
+      case 'magic-videos':
+        baseDir = require('path').join(process.cwd(), 'songs', 'magic-videos');
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid song type' });
+    }
+    
+    const folderPath = require('path').join(baseDir, decodeURIComponent(folderName));
+    const fs = require('fs');
+    
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+    
+    // Call AI service for modular processing
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    const axios = require('axios');
+    
+    try {
+      console.log('🔄 Starting modular processing via AI service:', {
+        url: `${aiServiceUrl}/modular-process/${encodeURIComponent(folderName)}`,
+        songType,
+        timestamp: new Date().toISOString()
+      });
+      
+      const response = await axios.post(`${aiServiceUrl}/modular-process/${encodeURIComponent(folderName)}`, {
+        songType: songType,
+        baseDir: baseDir
+      }, {
+        timeout: 600000 // 10 minutes timeout
+      });
+      
+      console.log('🔄 Modular processing response:', {
+        status: response.status,
+        success: response.data.success,
+        message: response.data.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (response.data.success) {
+        res.json({ 
+          success: true, 
+          message: 'Modular processing started successfully',
+          status: 'processing'
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: response.data.error || 'Modular processing failed' 
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Modular processing request failed:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ 
+        success: false, 
+        error: error.response?.data?.message || error.message 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in modular processing:', error);
+    res.status(500).json({ error: 'Server error', message: error.message });
+  }
+});
+
 // Manual processing endpoint for ultrastar songs
 router.post('/ultrastar/:folderName/process', async (req, res) => {
   try {

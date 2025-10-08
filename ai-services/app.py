@@ -1718,6 +1718,150 @@ def process_magic_youtube_from_url(folder_name):
         logger.error(f"Error processing magic YouTube from URL: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/modular-process/<folder_name>', methods=['POST'])
+def modular_process(folder_name):
+    """Modulare Verarbeitung für alle Song-Typen mit ensure_source_files"""
+    try:
+        data = request.get_json(silent=True) or {}
+        song_type = data.get('songType', 'ultrastar')
+        base_dir = data.get('baseDir', ULTRASTAR_DIR)
+        
+        # Basis-Verzeichnis für verschiedene Song-Typen
+        if song_type == 'magic-songs':
+            base_dir = os.path.join(os.path.dirname(__file__), '..', 'songs', 'magic-songs')
+        elif song_type == 'magic-videos':
+            base_dir = os.path.join(os.path.dirname(__file__), '..', 'songs', 'magic-videos')
+        else:
+            base_dir = ULTRASTAR_DIR
+        
+        folder_path = os.path.join(base_dir, folder_name)
+        
+        if not os.path.exists(folder_path):
+            return jsonify({'success': False, 'error': 'Folder not found'}), 404
+        
+        from modules import (
+            ProcessingMode,
+            create_meta_from_file_path,
+            ensure_source_files,
+            separate_audio,
+            transcribe_audio,
+            cleanup_files
+        )
+        from modules.logger_utils import send_processing_status, meta_to_short_dict, log_start
+
+        # Meta initialisieren - verwende den korrekten Ordner-Pfad
+        meta = create_meta_from_file_path(folder_path, base_dir, ProcessingMode.ULTRASTAR)
+        
+        # Korrigiere die Meta-Daten für den spezifischen Song-Ordner
+        meta.folder_name = folder_name
+        meta.folder_path = folder_path
+        
+        # Extrahiere Artist und Title aus dem Ordnernamen
+        if ' - ' in folder_name:
+            parts = folder_name.split(' - ', 1)
+            meta.artist = parts[0]
+            meta.title = parts[1]
+        else:
+            meta.artist = 'Unknown Artist'
+            meta.title = folder_name
+        
+        logger.info(f"📁 Korrigierte Meta-Daten: artist='{meta.artist}', title='{meta.title}', folder_path='{meta.folder_path}'")
+        
+        # Start processing in background thread
+        import threading
+        
+        def run_modular_pipeline():
+            try:
+                # 1) Ensure Source Files (neues Modul)
+                log_start('ensure_source_files.process_meta', meta)
+                try:
+                    send_processing_status(meta, 'downloading')
+                except Exception:
+                    pass
+                
+                if not ensure_source_files(meta):
+                    logger.error("❌ Ensure source files failed, pipeline aborted")
+                    try: 
+                        send_processing_status(meta, 'failed')
+                    except Exception: pass
+                    return
+                
+                # Pipeline je nach Song-Typ
+                if song_type in ['magic-songs', 'magic-videos']:
+                    # Magic-Pipeline: ensure_source_files → audio_separation → transcription → cleanup
+                    
+                    # 2) Audio Separation
+                    logger.info("🔄 Starting audio separation...")
+                    try:
+                        send_processing_status(meta, 'separating')
+                    except Exception:
+                        pass
+                    separate_audio(meta)
+                    logger.info("✅ Audio separation completed")
+                    
+                    # 3) Transcription
+                    logger.info("🔄 Starting transcription...")
+                    try:
+                        send_processing_status(meta, 'transcribing')
+                    except Exception:
+                        pass
+                    transcribe_audio(meta)
+                    logger.info("✅ Transcription completed")
+                    
+                else:
+                    # Ultrastar-Pipeline: ensure_source_files → normalize_audio_files → separate_audio → remux_videos → cleanup
+                    from modules import normalize_audio_files, remux_videos
+                    
+                    # 2) Audio Normalization
+                    logger.info("🔄 Starting audio normalization...")
+                    try:
+                        send_processing_status(meta, 'separating')
+                    except Exception:
+                        pass
+                    normalize_audio_files(meta, simple=True)
+                    logger.info("✅ Audio normalization completed")
+                    
+                    # 3) Audio Separation
+                    logger.info("🔄 Starting audio separation...")
+                    separate_audio(meta)
+                    logger.info("✅ Audio separation completed")
+                    
+                    # 4) Video Remuxing (Audio entfernen)
+                    logger.info("🔄 Starting video remuxing...")
+                    remux_videos(meta, remove_audio=True)
+                    logger.info("✅ Video remuxing completed")
+                
+                # 4) Cleanup (für alle Song-Typen)
+                logger.info("🔄 Starting cleanup...")
+                cleanup_files(meta)
+                logger.info("✅ Cleanup completed")
+
+                logger.info("🎉 Modular pipeline completed successfully, sending finished status...")
+                try:
+                    send_processing_status(meta, 'finished')
+                    logger.info("✅ Finished status sent successfully")
+                except Exception as e:
+                    logger.error(f"❌ Failed to send finished status: {e}")
+                    
+            except Exception as e:
+                logger.error(f"Error in modular pipeline background thread: {e}")
+                try:
+                    send_processing_status(meta, 'failed')
+                except Exception:
+                    pass
+
+        # Start background thread
+        thread = threading.Thread(target=run_modular_pipeline)
+        thread.daemon = True
+        thread.start()
+
+        # Return immediately
+        return jsonify({'success': True, 'message': 'Modular pipeline started in background'})
+        
+    except Exception as e:
+        logger.error(f"Error starting modular pipeline: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/usdb/process/<folder_name>', methods=['POST'])
 def process_usdb_pipeline(folder_name):
     """USDB-Pipeline mit Modulen: 1) usdb_download → 2) youtube_download → 3) audio_normalization → 4) audio_separation → 5) video_remuxing → 6) cleanup"""

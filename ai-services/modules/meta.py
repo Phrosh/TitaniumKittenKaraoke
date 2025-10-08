@@ -73,6 +73,9 @@ class ProcessingMeta:
     # Stabiler Basis-Dateiname für generierte Outputs (ohne Suffixe/Endungen)
     base_filename: Optional[str] = None
     
+    # Spezifische Input-Datei für Audio-Separation (optional)
+    input_audio_file: Optional[str] = None
+    
     # Konfiguration
     use_youtube_id_as_filename: bool = True
     
@@ -237,13 +240,14 @@ def create_meta_from_file_path(file_path: str, base_dir: str, mode: ProcessingMo
     """
     path_obj = Path(file_path)
     
-    # Versuche Artist und Title aus dem Pfad zu extrahieren
-    if path_obj.parent.name != base_dir:
-        # Ordner-basierte Extraktion
-        folder_name = path_obj.parent.name
+    # Wenn der Pfad ein Ordner ist, verwende den Ordnernamen direkt
+    if path_obj.is_dir():
+        folder_name = path_obj.name
+        folder_path = str(path_obj)
     else:
-        # Datei-basierte Extraktion
-        folder_name = path_obj.stem
+        # Wenn es eine Datei ist, verwende den übergeordneten Ordner
+        folder_name = path_obj.parent.name
+        folder_path = str(path_obj.parent)
     
     # Parse "Artist - Title" Format
     if ' - ' in folder_name:
@@ -260,5 +264,5 @@ def create_meta_from_file_path(file_path: str, base_dir: str, mode: ProcessingMo
         mode=mode,
         base_dir=base_dir,
         folder_name=folder_name,
-        folder_path=str(path_obj.parent)
+        folder_path=folder_path,
     )

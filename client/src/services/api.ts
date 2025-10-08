@@ -89,6 +89,10 @@ export const songAPI = {
   processMagicVideo: (folderName: string) =>
     api.post(`/songs/magic-videos/${encodeURIComponent(folderName)}/process`),
   
+  // Modular processing for all song types
+  modularProcess: (folderName: string, songType: string) =>
+    api.post(`/songs/modular-process/${encodeURIComponent(folderName)}`, { songType }),
+  
   // Check if video download is needed
   checkNeedsVideo: (folderName: string) =>
     api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/needs-video`),
