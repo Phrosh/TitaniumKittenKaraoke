@@ -9,7 +9,7 @@ import {
 } from '../../../shared/style';
 import Button from '../../../shared/Button';
 import getFirstLetter from '../../../../utils/getFirstLetter';
-import { hasMissingFiles } from '../../../../utils/helper';
+import { hasMissingFiles, getProcessingButtonState } from '../../../../utils/helper';
 import DeleteModal from './DeleteModal';
 import RenameModal from './RenameModal';
 import YoutubeDownloadModal from './YoutubeDownloadModal';
@@ -567,26 +567,32 @@ const SongList: React.FC<SongListProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {/* Processing button for songs with all required files */}
-                                                {(hasMissingFiles(song) || (song.modes?.includes('magic-songs') && !song.hasUltrastar) || (song.modes?.includes('magic-videos') && !song.hasUltrastar)) && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Button
-                                                            onClick={() => handleStartProcessing(song)}
-                                                            disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`)}
-                                                            variant="success"
-                                                            size="small"
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                padding: '6px 12px'
-                                                            }}
-                                                        >
-                                                            {processingSongs.has(`${song.artist}-${song.title}`) ? `⏳ ${t('songList.processingRunning')}` : `🔧 ${t('songList.startProcessing')}`}
-                                                        </Button>
-                                                    </div>
-                                                )}
+                                                {/* Processing button based on file state */}
+                                                {(() => {
+                                                    const buttonState = getProcessingButtonState(song);
+                                                    if (!buttonState.visible) return null;
+                                                    
+                                                    return (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <Button
+                                                                onClick={() => handleStartProcessing(song)}
+                                                                disabled={actionLoading || processingSongs.has(`${song.artist}-${song.title}`) || !buttonState.enabled}
+                                                                variant="success"
+                                                                size="small"
+                                                                style={{
+                                                                    fontSize: '12px',
+                                                                    padding: '6px 12px',
+                                                                    opacity: !buttonState.enabled ? 0.5 : 1
+                                                                }}
+                                                            >
+                                                                {processingSongs.has(`${song.artist}-${song.title}`) ? `⏳ ${t('songList.processingRunning')}` : `🔧 ${t('songList.startProcessing')}`}
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })()}
 
-                                                {/* Right side: Audio settings for Ultrastar songs */}
-                                                {song.modes?.includes('ultrastar') && (
+                                                {/* Right side: Audio settings for Ultrastar and Magic songs */}
+                                                {(song.modes?.includes('ultrastar') || song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && (
                                                     <div style={{ flex: 1, padding: '8px', background: '#f8f9fa', borderRadius: '4px' }}>
                                                         <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#495057' }}>
                                                             {t('songList.audioPreference')}:

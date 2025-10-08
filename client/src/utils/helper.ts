@@ -138,3 +138,47 @@ export const getDownloadStatusText = (status: DownloadStatus) => '';
     // Show warning if video OR HP2/HP5 files are missing
     return !hasVideo || !hasHp2Hp5;
   };
+
+  // Check if processing button should be visible and enabled
+  export const getProcessingButtonState = (song: any) => {
+    const result = { visible: false, enabled: false };
+    
+    // Check if it's an ultrastar song
+    if (song.modes?.includes('ultrastar')) {
+      // Button is visible if neither hp2 nor hp5 files exist
+      const hasHp2Hp5 = song.hasHp2Hp5 === true;
+      result.visible = !hasHp2Hp5;
+      
+      if (result.visible) {
+        // Button is enabled if:
+        // 1. TXT file exists AND
+        // 2. Either video OR audio exists, OR there's a #VIDEO: line in TXT
+        const hasTxt = song.hasTxt === true;
+        const hasVideo = song.hasVideo === true;
+        const hasAudio = song.hasAudio === true;
+        
+        // Check if TXT contains #VIDEO: line (this would be handled by backend)
+        // For now, we assume if hasVideo is false but hasTxt is true, 
+        // the backend will check for #VIDEO: line
+        const hasVideoOrAudio = hasVideo || hasAudio;
+        
+        result.enabled = hasTxt && hasVideoOrAudio;
+      }
+    }
+    
+    // Check if it's a magic song/video
+    if (song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos')) {
+      // Button is visible if neither hp2 nor hp5 files exist
+      const hasHp2Hp5 = song.hasHp2Hp5 === true;
+      result.visible = !hasHp2Hp5;
+      
+      if (result.visible) {
+        // Enable if at least one of video or audio exists
+        const hasVideo = song.hasVideo === true;
+        const hasAudio = song.hasAudio === true;
+        result.enabled = hasVideo || hasAudio;
+      }
+    }
+    
+    return result;
+  };

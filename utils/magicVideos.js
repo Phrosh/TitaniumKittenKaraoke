@@ -37,6 +37,17 @@ function scanMagicVideos() {
         const ultrastarFiles = files.filter(file => file.endsWith('_ultrastar.txt'));
 
         if (videoFiles.length > 0) {
+          // Check for HP2/HP5 files
+          const hp2Files = files.filter(file => file.endsWith('.hp2'));
+          const hp5Files = files.filter(file => file.endsWith('.hp5'));
+          const hasHp2Hp5 = hp2Files.length > 0 || hp5Files.length > 0;
+          
+          // Check for audio files
+          const audioFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.mp3', '.wav', '.flac', '.m4a', '.aac'].includes(ext);
+          });
+          
           videos.push({
             folderName: folder,
             artist: artist,
@@ -46,6 +57,10 @@ function scanMagicVideos() {
             ultrastarFiles: ultrastarFiles,
             hasUltrastar: ultrastarFiles.length > 0,
             isRemuxed: remuxedFiles.length > 0,
+            hasVideo: videoFiles.length > 0,
+            hasAudio: audioFiles.length > 0,
+            hasHp2Hp5: hasHp2Hp5,
+            hasTxt: ultrastarFiles.length > 0,
             modes: ['magic-videos'],
             magic: true
           });

@@ -988,7 +988,7 @@ router.get('/magic-songs', (req, res) => {
       songs = scanMagicSongs();
     }
     
-    res.json({ magicSongs: songs });
+    res.json({ songs: songs });
   } catch (error) {
     console.error('Error getting magic songs:', error);
     res.status(500).json({ message: 'Server error' });
@@ -1008,7 +1008,7 @@ router.get('/magic-videos', (req, res) => {
       videos = scanMagicVideos();
     }
     
-    res.json({ magicVideos: videos });
+    res.json({ videos: videos });
   } catch (error) {
     console.error('Error getting magic videos:', error);
     res.status(500).json({ message: 'Server error' });
