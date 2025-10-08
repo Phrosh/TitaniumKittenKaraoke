@@ -458,6 +458,7 @@
     "separating": "カラオケ楽曲を作成中",
     "transcribing": "カラオケテキストを作成中",
     "downloading": "ダウンロード中",
+    "transcoding": "動画変換中",
     "failed": "失敗",
     "finished": "完了",
     "downloaded": "ダウンロード済み",

@@ -227,6 +227,37 @@ class SourceFileEnsurer:
             logger.error(f"❌ Fehler beim Suchen der Dateien: {e}")
             return files
     
+    def transcode_to_mp4(self, input_file: str, output_file: str) -> bool:
+        """
+        Transkodiert Video-Datei zu MP4
+        
+        Args:
+            input_file: Pfad zur Eingabe-Video-Datei
+            output_file: Pfad zur Ausgabe-MP4-Datei
+            
+        Returns:
+            True wenn erfolgreich, False sonst
+        """
+        try:
+            cmd = [
+                'ffmpeg', '-i', input_file, '-c:v', 'libx264', '-c:a', 'aac',
+                '-preset', 'medium', '-crf', '23', '-y', output_file
+            ]
+            
+            logger.info(f"🎬 Transkodiere Video zu MP4: {input_file} -> {output_file}")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode == 0 and os.path.exists(output_file):
+                logger.info(f"✅ Video erfolgreich zu MP4 transkodiert: {output_file}")
+                return True
+            else:
+                logger.error(f"❌ Video-Transkodierung fehlgeschlagen: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Fehler bei Video-Transkodierung: {e}")
+            return False
+    
     def process_meta(self, meta: ProcessingMeta) -> bool:
         """
         Hauptfunktion: Stellt sicher, dass Audio- und Video-Dateien verfügbar sind
@@ -245,7 +276,45 @@ class SourceFileEnsurer:
             has_audio = len(files['audio']) > 0
             has_video = len(files['video']) > 0
             
+            # Speichere initiale Dateien für spätere Entscheidungen
+            meta.metadata['initial_files'] = {
+                'audio': has_audio,
+                'video': has_video
+            }
+            
             logger.info(f"📊 Datei-Status: Audio={has_audio}, Video={has_video}")
+            
+            # Zentraler Check: Transkodiere .avi zu .mp4 falls nötig
+            if has_video:
+                video_file = files['video'][0]
+                video_ext = Path(video_file).suffix.lower()
+                
+                if video_ext == '.avi':
+                    # Prüfe ob bereits .mp4 vorhanden ist
+                    base_name = Path(video_file).stem
+                    mp4_file = os.path.join(meta.folder_path, f"{base_name}.mp4")
+                    
+                    if not os.path.exists(mp4_file):
+                        logger.info(f"🎬 Video-Datei ist .avi, transkodiere zu MP4")
+                        
+                        # Sende transcoding Status
+                        try:
+                            send_processing_status(meta, 'transcoding')
+                        except Exception:
+                            pass
+                        
+                        if not self.transcode_to_mp4(video_file, mp4_file):
+                            logger.error("❌ Video-Transkodierung fehlgeschlagen")
+                            meta.mark_step_failed('ensure_source_files')
+                            return False
+                        
+                        # Dateien zum Meta hinzufügen
+                        meta.add_output_file(mp4_file)
+                        meta.add_keep_file(f"{base_name}.mp4")
+                        meta.metadata['transcoded_video'] = True
+                        logger.info("✅ Video erfolgreich zu MP4 transkodiert")
+                    else:
+                        logger.info("✅ MP4-Version bereits vorhanden, verwende diese")
             
             # Fall 1: Audio und Video vorhanden - nichts zu tun
             if has_audio and has_video:
@@ -287,6 +356,12 @@ class SourceFileEnsurer:
                         return False
                     
                     # YouTube-Video herunterladen
+                    # Sende downloading Status
+                    try:
+                        send_processing_status(meta, 'downloading')
+                    except Exception:
+                        pass
+                    
                     temp_video = os.path.join(meta.folder_path, "tmp.mp4")
                     if not self.download_youtube_video(video_id, temp_video):
                         logger.error("❌ YouTube-Video-Download fehlgeschlagen")
@@ -326,6 +401,12 @@ class SourceFileEnsurer:
                     return False
                 
                 # YouTube-Video herunterladen
+                # Sende downloading Status
+                try:
+                    send_processing_status(meta, 'downloading')
+                except Exception:
+                    pass
+                
                 base_name = Path(files['audio'][0]).stem
                 video_file = os.path.join(meta.folder_path, f"{base_name}.mp4")
                 if not self.download_youtube_video(video_id, video_file):
@@ -361,6 +442,12 @@ class SourceFileEnsurer:
                     return False
                 
                 # YouTube-Video herunterladen
+                # Sende downloading Status
+                try:
+                    send_processing_status(meta, 'downloading')
+                except Exception:
+                    pass
+                
                 base_name = meta.base_filename or f"{meta.artist} - {meta.title}"
                 video_file = os.path.join(meta.folder_path, f"{base_name}.mp4")
                 if not self.download_youtube_video(video_id, video_file):

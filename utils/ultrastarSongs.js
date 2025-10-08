@@ -129,6 +129,9 @@ function scanUltrastarSongs() {
         // Check for audio files
         const hasAudio = checkForAudioFiles(fullPath);
         
+        // Check for TXT files
+        const hasTxt = checkForTxtFiles(fullPath);
+        
         songs.push({
           folderName: folder,
           artist: artist,
@@ -137,7 +140,8 @@ function scanUltrastarSongs() {
           hasVideo: hasVideo,
           hasPreferredVideo: hasPreferredVideo,
           hasHp2Hp5: hasHp2Hp5,
-          hasAudio: hasAudio
+          hasAudio: hasAudio,
+          hasTxt: hasTxt
         });
       }
     });
@@ -239,6 +243,26 @@ function checkForAudioFiles(folderPath) {
     return false;
   }
 }
+
+/**
+ * Prüft ob TXT-Dateien im Ordner vorhanden sind
+ * @param {string} folderPath - Pfad zum Song-Ordner
+ * @returns {boolean} true wenn TXT-Dateien vorhanden sind
+ */
+function checkForTxtFiles(folderPath) {
+  try {
+    const files = fs.readdirSync(folderPath);
+    return files.some(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ext === '.txt';
+    });
+  } catch (error) {
+    console.error('Error checking for TXT files:', error);
+    return false;
+  }
+}
+
+/**
 
 /**
  * Sucht nach einem Ultrastar-Song basierend auf Artist und Title
@@ -351,6 +375,7 @@ module.exports = {
   checkForPreferredVideoFiles,
   checkForHp2Hp5Files,
   checkForAudioFiles,
+  checkForTxtFiles,
   organizeLooseTxtFiles,
   ULTRASTAR_DIR
 };

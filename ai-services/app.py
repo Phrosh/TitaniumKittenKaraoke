@@ -1836,27 +1836,29 @@ def modular_process(folder_name):
                     logger.info("✅ Video remuxing completed")
                     
                 else:
-                    # Ultrastar-Pipeline: ensure_source_files → normalize_audio_files → separate_audio → remux_videos → cleanup
-                    from modules import normalize_audio_files, remux_videos
+                    # Ultrastar-Pipeline: ensure_source_files → separate_audio → remux_videos (nur wenn Video zu Beginn fehlte) → cleanup
+                    from modules import remux_videos
                     
-                    # 2) Audio Normalization
-                    logger.info("🔄 Starting audio normalization...")
+                    # 2) Audio Separation
+                    logger.info("🔄 Starting audio separation...")
                     try:
                         send_processing_status(meta, 'separating')
                     except Exception:
                         pass
-                    normalize_audio_files(meta, simple=True)
-                    logger.info("✅ Audio normalization completed")
-                    
-                    # 3) Audio Separation
-                    logger.info("🔄 Starting audio separation...")
                     separate_audio(meta)
                     logger.info("✅ Audio separation completed")
                     
-                    # 4) Video Remuxing (Audio entfernen)
-                    logger.info("🔄 Starting video remuxing...")
-                    remux_videos(meta, remove_audio=True)
-                    logger.info("✅ Video remuxing completed")
+                    # 3) Video Remuxing (nur wenn Video zu Beginn fehlte)
+                    # Prüfe ob Video zu Beginn vorhanden war
+                    initial_files = meta.metadata.get('initial_files', {})
+                    had_video_at_start = initial_files.get('video', False)
+                    
+                    if not had_video_at_start:
+                        logger.info("🔄 Starting video remuxing (Video wurde heruntergeladen)...")
+                        remux_videos(meta, remove_audio=True)
+                        logger.info("✅ Video remuxing completed")
+                    else:
+                        logger.info("⏭️ Skipping video remuxing (Video war bereits vorhanden)")
                 
                 # 4) Cleanup (für alle Song-Typen)
                 logger.info("🔄 Starting cleanup...")
