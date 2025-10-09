@@ -848,7 +848,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         </div>
                       )}
                       {effectiveStatus ? (
-                        <DownloadStatusBadge status={effectiveStatus as DownloadStatus} />
+                        <DownloadStatusBadge status={song.download_status as DownloadStatus} />
                       ) : null}
                       {((song.mode || 'youtube') === 'youtube' && isSongInYouTubeCache(song, dashboardData.youtubeSongs)) || song.modes?.includes('youtube_cache') && (
                         <div style={{
@@ -879,7 +879,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handlePlaySong(song.id);
                       }}
-                      disabled={actionLoading || isBlocked}
+                      disabled={actionLoading || isBlocked || (song.mode === 'youtube' && !song.youtube_url)}
                       style={{
                         fontVariantEmoji: 'text' as const
                       }}
