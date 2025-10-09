@@ -1100,6 +1100,25 @@ router.post('/processing-status', async (req, res) => {
       console.warn('⚠️ Could not persist processing status:', persistErr.message);
     }
 
+    // Trigger playlist upgrade check when a song finishes processing
+    if (status === 'finished') {
+      try {
+        console.log('🔄 Song finished processing, triggering playlist upgrade check:', { id, artist, title, status });
+        
+        // Add small delay to ensure all database updates are complete
+        setTimeout(async () => {
+          try {
+            await triggerPlaylistUpgradeCheck();
+          } catch (upgradeErr) {
+            console.error('❌ Error in playlist upgrade check:', upgradeErr);
+          }
+        }, 1000); // 1 second delay to ensure all updates are complete
+        
+      } catch (error) {
+        console.error('❌ Error triggering playlist upgrade check:', error);
+      }
+    }
+
     res.json({ ok: true });
   } catch (error) {
     console.error('❌ Error in /processing-status:', error);
@@ -2367,20 +2386,124 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
 // Helper function to trigger playlist upgrade check
 async function triggerPlaylistUpgradeCheck() {
   try {
-    console.log('🔄 Triggering playlist upgrade check...');
+    console.log('🔄 Triggering playlist upgrade check:', {
+      timestamp: new Date().toISOString()
+    });
+
+    const db = require('../config/database');
     
-    // Import the playlist upgrade function
-    const { checkForPlaylistUpgrades } = require('./playlist');
+    // Use existing precedence from config/videoModes.js
+    const { VIDEO_MODES } = require('../config/videoModes');
+    const modePrecedence = {};
+    VIDEO_MODES.forEach(mode => {
+      modePrecedence[mode.id] = mode.priority;
+    });
     
-    if (checkForPlaylistUpgrades) {
-      await checkForPlaylistUpgrades();
-      console.log('✅ Playlist upgrade check completed');
-    } else {
-      console.log('⚠️ Playlist upgrade check function not available');
+    // Get all songs from playlist (not just YouTube songs)
+    const allSongs = await new Promise((resolve, reject) => {
+      db.all('SELECT id, artist, title, mode FROM songs ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    // Get all ultrastar songs from file system
+    const { findUltrastarSong } = require('../utils/ultrastarSongs');
+    
+    let upgradeCount = 0;
+    
+    for (const song of allSongs) {
+      try {
+        const ultrastarSong = findUltrastarSong(song.artist, song.title);
+        if (ultrastarSong) {
+          const currentModePrecedence = modePrecedence[song.mode] || 0;
+          const ultrastarPrecedence = modePrecedence['ultrastar'];
+          
+          // Only upgrade if ultrastar has higher precedence than current mode
+          // Note: Lower priority number = higher precedence in videoModes.js
+          if (ultrastarPrecedence < currentModePrecedence) {
+            console.log('🎯 Found upgrade opportunity:', {
+              songId: song.id,
+              artist: song.artist,
+              title: song.title,
+              currentMode: song.mode,
+              currentPrecedence: currentModePrecedence,
+              ultrastarPrecedence: ultrastarPrecedence,
+              ultrastarFolder: ultrastarSong.folderName
+            });
+
+            // Update song mode to ultrastar
+            await new Promise((resolve, reject) => {
+              db.run(
+                'UPDATE songs SET mode = ?, youtube_url = ? WHERE id = ?',
+                ['ultrastar', `/api/ultrastar/${encodeURIComponent(ultrastarSong.folderName)}`, song.id],
+                function(err) {
+                  if (err) reject(err);
+                  else resolve();
+                }
+              );
+            });
+
+            // Add to invisible songs list (same as YouTube cache downloads)
+            try {
+              await new Promise((resolve, reject) => {
+                db.run(
+                  'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                  [song.artist, song.title],
+                  function(err) {
+                    if (err) reject(err);
+                    else resolve();
+                  }
+                );
+              });
+              console.log(`📝 Added upgraded song to invisible songs: ${song.artist} - ${song.title}`);
+            } catch (error) {
+              console.error('Error adding upgraded song to invisible songs:', error);
+            }
+
+            upgradeCount++;
+            console.log('✅ Upgraded song to ultrastar:', {
+              songId: song.id,
+              artist: song.artist,
+              title: song.title,
+              fromMode: song.mode,
+              toMode: 'ultrastar'
+            });
+          } else {
+            console.log('⏭️ Skipping upgrade (no precedence gain):', {
+              songId: song.id,
+              artist: song.artist,
+              title: song.title,
+              currentMode: song.mode,
+              currentPrecedence: currentModePrecedence,
+              ultrastarPrecedence: ultrastarPrecedence
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error checking upgrade for song:', song.id, error.message);
+      }
     }
-    
+
+    if (upgradeCount > 0) {
+      console.log(`🎉 Playlist upgrade completed: ${upgradeCount} songs upgraded to ultrastar`);
+      
+      // Broadcast update to admin dashboard
+      const { broadcastPlaylistUpgrade } = require('../utils/websocketService');
+      const io = require('../server').io;
+      if (io) {
+        await broadcastPlaylistUpgrade(io, {
+          message: `${upgradeCount} Songs wurden zu Ultrastar-Songs hochgestuft`,
+          upgradeCount,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      console.log('ℹ️ No playlist upgrades found');
+    }
+
   } catch (error) {
-    console.error('❌ Error in playlist upgrade check:', error);
+    console.error('🔄 Error in triggerPlaylistUpgradeCheck:', error);
   }
 }
 
@@ -2603,15 +2726,6 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
           } catch (updateError) {
             console.error('❌ Failed to update song after USDB pipeline:', updateError);
           }
-          
-          // Trigger playlist upgrade check
-          setTimeout(async () => {
-            try {
-              await triggerPlaylistUpgradeCheck();
-            } catch (error) {
-              console.error('Error in playlist upgrade check:', error);
-            }
-          }, 2000);
           
         } else {
           console.error('❌ Could not determine actual folder name after pipeline');
