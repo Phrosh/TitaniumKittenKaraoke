@@ -1,5 +1,4 @@
 import React from 'react';
-import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { QRCodeLeftSide, QRCodeTitle, QRCodeContent, QRCodeHeader, QRCodeOverlay, QRCodeNextSongInfo, QRCodeNextSinger, QRCodeNextSongTitle, QRCodeRightSide, QRCodeImageLarge, QRCodeTextLarge } from './style';
 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import styled from 'styled-components';
 import { showAPI, songAPI } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
 import { boilDown } from '../../utils/boilDown';
@@ -48,8 +47,6 @@ import Header from './Header';
 import Overlay from './Overlay';
 import StartOverlay from './StartOverlay';
 import ControlButtons from './ControlButtons';
-
-let globalUltrastarData: UltrastarSongData | null = null;
 
 let p1Timeouts: NodeJS.Timeout[] = [];
 let p2Timeouts: NodeJS.Timeout[] = [];

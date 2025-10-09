@@ -11,12 +11,9 @@ import {
     SettingsInput,
     SettingsDescription
 } from '../../../shared/style';
-import ModeBadge from '../../../shared/ModeBadge';
 import SongList from './SongList';
 import UsdbDownloadModal from './UsdbDownloadModal';
 import Button from '../../../shared/Button';
-import websocketService from '../../../../services/websocket';
-import { DownloadStatus } from '../../../../utils/helper';
 
 interface SongsTabProps {
     fetchDashboardData: () => void;

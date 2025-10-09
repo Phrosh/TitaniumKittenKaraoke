@@ -9,7 +9,7 @@ import {
 } from '../../../shared/style';
 import Button from '../../../shared/Button';
 import getFirstLetter from '../../../../utils/getFirstLetter';
-import { hasMissingFiles, getProcessingButtonState } from '../../../../utils/helper';
+import { getProcessingButtonState } from '../../../../utils/helper';
 import DeleteModal from './DeleteModal';
 import RenameModal from './RenameModal';
 import YoutubeDownloadModal from './YoutubeDownloadModal';

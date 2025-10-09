@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import styled from 'styled-components';
 import {adminAPI} from '../../../../services/api';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';

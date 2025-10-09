@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { adminAPI, showAPI } from '../../../services/api';
+import { adminAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 import Button from '../../shared/Button';
 
