@@ -79,27 +79,9 @@ export const songAPI = {
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
   getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings
   
-  // Manual processing for ultrastar songs
-  processUltrastarSong: (folderName: string) =>
-    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/process`),
-  
-  processMagicSong: (folderName: string) =>
-    api.post(`/songs/magic-songs/${encodeURIComponent(folderName)}/process`),
-  
-  processMagicVideo: (folderName: string) =>
-    api.post(`/songs/magic-videos/${encodeURIComponent(folderName)}/process`),
-  
   // Modular processing for all song types
   modularProcess: (folderName: string, songType: string) =>
     api.post(`/songs/modular-process/${encodeURIComponent(folderName)}`, { songType }),
-  
-  // Check if video download is needed
-  checkNeedsVideo: (folderName: string) =>
-    api.get(`/songs/ultrastar/${encodeURIComponent(folderName)}/needs-video`),
-  
-  // Download YouTube video
-  downloadYouTubeVideo: (folderName: string, youtubeUrl: string) =>
-    api.post(`/songs/ultrastar/${encodeURIComponent(folderName)}/download-youtube`, { youtubeUrl }),
   
   // Organize loose TXT files
   organizeLooseFiles: () =>

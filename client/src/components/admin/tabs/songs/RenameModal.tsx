@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, ModalContent, ModalTitle, ModalButtons, FormGroup, Label, Input } from '../../../shared/style';
-import { Button } from '../../../shared';
+import Button from '../../../shared/Button';
 
 
 interface RenameModalProps {

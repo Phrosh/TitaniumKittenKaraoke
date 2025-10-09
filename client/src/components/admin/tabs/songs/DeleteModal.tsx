@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, ModalContent, ModalTitle, ModalButtons } from '../../../shared/style';
-import { Button } from '../../../shared';
+import Button from '../../../shared/Button';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
 
 interface DeleteModalProps {

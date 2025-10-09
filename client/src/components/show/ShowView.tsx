@@ -48,6 +48,8 @@ import Overlay from './Overlay';
 import StartOverlay from './StartOverlay';
 import ControlButtons from './ControlButtons';
 
+let globalUltrastarData: UltrastarSongData | null = null;
+
 let p1Timeouts: NodeJS.Timeout[] = [];
 let p2Timeouts: NodeJS.Timeout[] = [];
 

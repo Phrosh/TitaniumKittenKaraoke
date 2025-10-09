@@ -11,7 +11,6 @@ import subprocess
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import logging
-from boil_down import boil_down, boil_down_match
 
 logger = logging.getLogger(__name__)
 
