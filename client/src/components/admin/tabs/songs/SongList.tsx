@@ -608,18 +608,25 @@ const SongList: React.FC<SongListProps> = ({
                                     {letter}
                                 </div>
                                 {groupedSongs[letter].map((song) => {
-                                    const isInvisible = invisibleSongs.some(invisible =>
-                                        invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
-                                        invisible.title.toLowerCase() === song.title.toLowerCase()
-                                    );
-
-                                    // Check processing status for border styling
                                     const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
                                     const apiStatus = song.download_status || song.status;
                                     const processingStatus = wsStatus || apiStatus;
                                     const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
                                     const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
                                     
+                                    // Check if processing is needed (red border condition)
+                                    const buttonState = getProcessingButtonState(song);
+                                    const shouldShowButton = buttonState.enabled && 
+                                        (processingStatus === 'failed' || !processingStatus);
+                                    const processingNeeded = shouldShowButton;
+                                    
+                                    const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus || processingStatus === 'failed';
+                                    const shouldDisableTestButton = shouldDisableButtons || processingNeeded;
+                                    const isInvisible = invisibleSongs.some(invisible =>
+                                        invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                                        invisible.title.toLowerCase() === song.title.toLowerCase()
+                                    );
+
                                     // Determine border color based on status
                                     let borderColor = '#eee'; // default
                                     let borderWidth = '1px';
@@ -755,41 +762,66 @@ const SongList: React.FC<SongListProps> = ({
                                                         );
                                                     }
                                                     
-                                                    // Show processing button only if needed
+                                                    // Show processing buttons
                                                     const buttonState = getProcessingButtonState(song);
-                                                    if (!buttonState.visible) return null;
                                                     
                                                     // Show processing button only if:
                                                     // 1. Button is enabled AND
                                                     // 2. Status is 'failed' (retry) OR no status at all (first time)
-                                                    const shouldShowButton = buttonState.enabled && 
+                                                    const shouldShowProcessingButton = buttonState.enabled && 
                                                         (processingStatus === 'failed' || !processingStatus);
                                                     
-                                                    if (!shouldShowButton) return null;
+                                                    // Show recreate button for Magic songs (always visible if not processing)
+                                                    const shouldShowRecreateButton = (song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && 
+                                                        !isProcessing && !hasActiveStatus;
+                                                    
+                                                    // Only show buttons if at least one should be shown
+                                                    if (!shouldShowProcessingButton && !shouldShowRecreateButton) return null;
                                                     
                                                     return (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <Button
-                                                                onClick={() => handleStartProcessing(song)}
-                                                                disabled={actionLoading}
-                                                                variant="danger"
-                                                                size="small"
-                                                                style={{
-                                                                    fontSize: '12px',
-                                                                    padding: '6px 12px',
-                                                                    backgroundColor: '#dc3545',
-                                                                    borderColor: '#dc3545'
-                                                                }}
-                                                            >
-                                                                🔧 {t('songList.startProcessing')}
-                                                            </Button>
+                                                            {/* Recreate button for Magic songs only */}
+                                                            {shouldShowRecreateButton && (
+                                                                <Button
+                                                                    onClick={() => handleRecreateSong(song)}
+                                                                    disabled={actionLoading}
+                                                                    size="large"
+                                                                    style={{
+                                                                        fontSize: '14px',
+                                                                        padding: '8px 16px',
+                                                                        backgroundColor: '#9b59b6',
+                                                                        color: 'white',
+                                                                        opacity: actionLoading ? 0.5 : 1
+                                                                    }}
+                                                                >
+                                                                    🔄 {t('songList.recreate')}
+                                                                </Button>
+                                                            )}
+                                                            
+                                                            {/* Processing button */}
+                                                            {shouldShowProcessingButton && (
+                                                                <Button
+                                                                    onClick={() => handleStartProcessing(song)}
+                                                                    disabled={actionLoading}
+                                                                    variant="danger"
+                                                                    size="large"
+                                                                    style={{
+                                                                        fontSize: '14px',
+                                                                        padding: '8px 16px',
+                                                                        backgroundColor: '#dc3545',
+                                                                        borderColor: '#dc3545'
+                                                                    }}
+                                                                >
+                                                                    🔧 {t('songList.startProcessing')}
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
 
                                                 {/* Right side: Audio settings for Ultrastar and Magic songs */}
                                                 {(song.modes?.includes('ultrastar') || song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && (
-                                                    <div style={{ flex: 1, padding: '8px', background: '#f8f9fa', borderRadius: '4px' }}>
+                                                    <div style={{ padding: '8px', background: '#f8f9fa', borderRadius: '8px' }}>
                                                         <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#495057' }}>
                                                             {t('songList.audioPreference')}:
                                                         </div>
@@ -835,41 +867,9 @@ const SongList: React.FC<SongListProps> = ({
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     {/* Check if buttons should be disabled due to processing status */}
                                                     {(() => {
-                                                        const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
-                                                        const apiStatus = song.download_status || song.status;
-                                                        const processingStatus = wsStatus || apiStatus;
-                                                        const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
-                                                        const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
-                                                        
-                                                        // Check if processing is needed (red border condition)
-                                                        const buttonState = getProcessingButtonState(song);
-                                                        const shouldShowButton = buttonState.enabled && 
-                                                            (processingStatus === 'failed' || !processingStatus);
-                                                        const processingNeeded = shouldShowButton;
-                                                        
-                                                        const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus || processingStatus === 'failed';
-                                                        const shouldDisableTestButton = shouldDisableButtons || processingNeeded;
                                                         
                                                         return (
                                                             <>
-                                                                {/* Recreate button for Magic songs only */}
-                                                                {(song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && (
-                                                                    <Button
-                                                                        onClick={() => handleRecreateSong(song)}
-                                                                        disabled={shouldDisableButtons}
-                                                                        size="small"
-                                                                        style={{
-                                                                            fontSize: '12px',
-                                                                            padding: '6px 12px',
-                                                                            backgroundColor: '#9b59b6',
-                                                                            color: 'white',
-                                                                            opacity: shouldDisableButtons ? 0.5 : 1
-                                                                        }}
-                                                                    >
-                                                                        🔄 {t('songList.recreate')}
-                                                                    </Button>
-                                                                )}
-
                                                                 {/* Rename button for all song types */}
                                                                 <Button
                                                                     onClick={() => handleRenameSong(song)}
