@@ -318,6 +318,8 @@
     "allSongs": "Alle Songs ({{count}})",
     "visibleSongs": "Eingeblendete ({{count}})",
     "invisibleSongs": "Ausgeblendete ({{count}})",
+    "unprocessedSongs": "Unverarbeitete ({{count}})",
+    "unprocessedWarning": "{{count}} Song/Songs benötigen Verarbeitung!",
     "searchSongs": "Songs durchsuchen:",
     "searchPlaceholder": "Nach Song oder Interpret suchen...",
     "managementDescription": "Verwaltung aller verfügbaren Songs. Du kannst Songs unsichtbar machen, damit sie nicht in der öffentlichen Songliste (/new) erscheinen.",

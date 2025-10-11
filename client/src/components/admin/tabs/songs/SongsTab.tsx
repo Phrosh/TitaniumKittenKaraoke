@@ -25,7 +25,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
     const { t } = useTranslation();
     
     const [songSearchTerm, setSongSearchTerm] = useState('');
-    const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible'>('all');
+    const [songTab, setSongTab] = useState<'all' | 'visible' | 'invisible' | 'unprocessed'>('all');
     const [showUsdbDialog, setShowUsdbDialog] = useState(false);
     const [songs, setSongs] = useState<any[]>([]);
     const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
@@ -258,6 +258,49 @@ const SongsTab: React.FC<SongsTabProps> = ({
         }
     }, []);
 
+    // Helper function to check if a song needs processing
+    const needsProcessing = (song: any) => {
+        // Check if song has processing button enabled (from helper.ts logic)
+        const hasHp2Hp5 = song.hasHp2Hp5 || false;
+        
+        if (song.modes?.includes('ultrastar')) {
+            return !hasHp2Hp5 && song.hasTxt && (song.hasVideo || song.hasAudio);
+        }
+        
+        if (song.modes?.includes('magic-songs')) {
+            return !hasHp2Hp5 && song.hasAudio;
+        }
+        
+        if (song.modes?.includes('magic-videos')) {
+            return !hasHp2Hp5 && (song.hasVideo || song.hasAudio);
+        }
+        
+        return false;
+    };
+
+    // Get filtered songs based on current tab
+    const getFilteredSongs = () => {
+        switch (songTab) {
+            case 'visible':
+                return songs.filter(song => !invisibleSongs.some(invisible =>
+                    invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                    invisible.title.toLowerCase() === song.title.toLowerCase()
+                ));
+            case 'invisible':
+                return songs.filter(song => invisibleSongs.some(invisible =>
+                    invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
+                    invisible.title.toLowerCase() === song.title.toLowerCase()
+                ));
+            case 'unprocessed':
+                return songs.filter(song => needsProcessing(song));
+            default:
+                return songs;
+        }
+    };
+
+    const filteredSongs = getFilteredSongs();
+    const unprocessedCount = songs.filter(song => needsProcessing(song)).length;
+
     const fetchUSDBCredentials = async () => {
         try {
             const response = await adminAPI.getUSDBCredentials();
@@ -339,6 +382,18 @@ const SongsTab: React.FC<SongsTabProps> = ({
                                     invisible.title.toLowerCase() === song.title.toLowerCase()
                                 )).length })}
                             </Button>
+                            <Button
+                                onClick={() => setSongTab('unprocessed')}
+                                variant={songTab === 'unprocessed' ? 'warning' : 'default'}
+                                size="small"
+                                style={{
+                                    borderColor: songTab === 'unprocessed' ? '#ffc107' : '#e1e5e9',
+                                    backgroundColor: songTab === 'unprocessed' ? '#ffc107' : 'white',
+                                    color: songTab === 'unprocessed' ? '#333' : '#333'
+                                }}
+                            >
+                                🔧 {t('songs.unprocessedSongs', { count: unprocessedCount })}
+                            </Button>
                         </div>
 
                         {/* Search songs */}
@@ -353,6 +408,20 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         <SettingsDescription>
                             {t('songs.managementDescription')}
                         </SettingsDescription>
+                        
+                        {/* Unprocessed songs warning */}
+                        {unprocessedCount > 0 && songTab !== 'unprocessed' && (
+                            <div style={{
+                                marginTop: '15px',
+                                padding: '10px',
+                                backgroundColor: '#fff3cd',
+                                border: '1px solid #ffeaa7',
+                                borderRadius: '8px',
+                                color: '#856404'
+                            }}>
+                                ⚠️ {t('songs.unprocessedWarning', { count: unprocessedCount })}
+                            </div>
+                        )}
                     </SettingsCard>
                 </div>
 
@@ -396,7 +465,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                 songTab={songTab}
                 songSearchTerm={songSearchTerm}
                 fetchDashboardData={fetchDashboardData}
-                songs={songs}
+                songs={filteredSongs}
                 invisibleSongs={invisibleSongs}
                 setInvisibleSongs={setInvisibleSongs}
                 fetchSongs={fetchSongs}

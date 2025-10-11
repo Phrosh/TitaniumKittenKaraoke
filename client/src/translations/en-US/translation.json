@@ -312,6 +312,8 @@
     "allSongs": "All Songs ({{count}})",
     "visibleSongs": "Visible ({{count}})",
     "invisibleSongs": "Hidden ({{count}})",
+    "unprocessedSongs": "Unprocessed ({{count}})",
+    "unprocessedWarning": "{{count}} song/songs need processing!",
     "searchSongs": "Search songs:",
     "searchPlaceholder": "Search for song or artist...",
     "managementDescription": "Management of all available songs. You can make songs invisible so they don't appear in the public song list (/new).",
