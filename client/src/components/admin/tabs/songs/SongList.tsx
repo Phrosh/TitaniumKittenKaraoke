@@ -95,8 +95,24 @@ const SongList: React.FC<SongListProps> = ({
         const handleProcessingStatus = (data: { id?: number; artist?: string; title?: string; status: DownloadStatus }) => {
             console.log('🛰️ SongList: processing-status received via WS:', data);
             
-            if (data.artist && data.title) {
-                const songKey = `${data.artist}-${data.title}`;
+            // Try to find the song by ID first, then by artist/title
+            let songKey = null;
+            
+            if (data.id) {
+                // Find song by ID in the songs list
+                const songById = songs.find(song => song.id === data.id);
+                if (songById) {
+                    songKey = `${songById.artist}-${songById.title}`;
+                    console.log('🛰️ SongList: Found song by ID:', songById.artist, songById.title);
+                }
+            }
+            
+            if (!songKey && data.artist && data.title) {
+                songKey = `${data.artist}-${data.title}`;
+                console.log('🛰️ SongList: Using artist/title:', data.artist, data.title);
+            }
+            
+            if (songKey) {
                 setSongStatuses(prev => {
                     const newMap = new Map(prev);
                     newMap.set(songKey, data.status);
@@ -113,6 +129,10 @@ const SongList: React.FC<SongListProps> = ({
                         return newSet;
                     });
                 }
+                
+                console.log('🛰️ SongList: Updated status for', songKey, 'to', data.status);
+            } else {
+                console.log('🛰️ SongList: Could not find song for data:', data);
             }
         };
 
@@ -121,7 +141,7 @@ const SongList: React.FC<SongListProps> = ({
         return () => {
             websocketService.off('processing-status', handleProcessingStatus);
         };
-    }, []);
+    }, [songs]); // Add songs dependency
 
     const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
         setActionLoading(true);
@@ -347,6 +367,49 @@ const SongList: React.FC<SongListProps> = ({
         } catch (error: any) {
             console.error('Error starting magic video processing:', error);
             toast.error(error.response?.data?.error || t('songList.magicProcessingError'));
+            // Remove from processing state on error
+            setProcessingSongs(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(songKey);
+                return newSet;
+            });
+        }
+    };
+
+    const handleRecreateSong = async (song: any) => {
+        const songKey = `${song.artist}-${song.title}`;
+        const folderName = song.folderName || `${song.artist} - ${song.title}`;
+
+        // Mark song as processing
+        setProcessingSongs(prev => new Set(prev).add(songKey));
+
+        try {
+            // Determine song type
+            let songType = 'magic-songs';
+            if (song.modes?.includes('magic-videos')) {
+                songType = 'magic-videos';
+            } else if (song.modes?.includes('magic-youtube')) {
+                songType = 'magic-youtube';
+            }
+
+            const response = await songAPI.recreateSong(folderName, songType);
+
+            if (response.data.success) {
+                toast.success(t('songList.recreateStarted', { artist: song.artist, title: song.title }));
+                console.log('Recreate started:', response.data);
+                // Keep in processing state - will be removed later when job completes
+            } else {
+                toast.error(response.data.error || t('songList.recreateError'));
+                // Remove from processing state on error
+                setProcessingSongs(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(songKey);
+                    return newSet;
+                });
+            }
+        } catch (error: any) {
+            console.error('Error starting recreate:', error);
+            toast.error(error.response?.data?.error || t('songList.recreateError'));
             // Remove from processing state on error
             setProcessingSongs(prev => {
                 const newSet = new Set(prev);
@@ -641,11 +704,8 @@ const SongList: React.FC<SongListProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {/* Processing button based on file state */}
+                                                {/* Status badges and processing button */}
                                                 {(() => {
-                                                    const buttonState = getProcessingButtonState(song);
-                                                    if (!buttonState.visible) return null;
-                                                    
                                                     // Check if song is currently being processed
                                                     const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
                                                     
@@ -654,7 +714,6 @@ const SongList: React.FC<SongListProps> = ({
                                                     const apiStatus = song.download_status || song.status;
                                                     const processingStatus = wsStatus || apiStatus;
                                                     const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
-                                                    
                                                     
                                                     // Show DownloadStatusBadge if processing or has active status
                                                     if (isProcessing || hasActiveStatus) {
@@ -695,6 +754,10 @@ const SongList: React.FC<SongListProps> = ({
                                                             </div>
                                                         );
                                                     }
+                                                    
+                                                    // Show processing button only if needed
+                                                    const buttonState = getProcessingButtonState(song);
+                                                    if (!buttonState.visible) return null;
                                                     
                                                     // Show processing button only if:
                                                     // 1. Button is enabled AND
@@ -789,6 +852,24 @@ const SongList: React.FC<SongListProps> = ({
                                                         
                                                         return (
                                                             <>
+                                                                {/* Recreate button for Magic songs only */}
+                                                                {(song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && (
+                                                                    <Button
+                                                                        onClick={() => handleRecreateSong(song)}
+                                                                        disabled={shouldDisableButtons}
+                                                                        size="small"
+                                                                        style={{
+                                                                            fontSize: '12px',
+                                                                            padding: '6px 12px',
+                                                                            backgroundColor: '#9b59b6',
+                                                                            color: 'white',
+                                                                            opacity: shouldDisableButtons ? 0.5 : 1
+                                                                        }}
+                                                                    >
+                                                                        🔄 {t('songList.recreate')}
+                                                                    </Button>
+                                                                )}
+
                                                                 {/* Rename button for all song types */}
                                                                 <Button
                                                                     onClick={() => handleRenameSong(song)}

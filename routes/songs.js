@@ -1433,6 +1433,98 @@ router.post('/modular-process/:folderName', async (req, res) => {
   }
 });
 
+// Recreate Magic songs endpoint (delete processed files and recreate)
+router.post('/recreate/:folderName', async (req, res) => {
+  try {
+    const { folderName } = req.params;
+    const { songType } = req.body; // 'magic-songs', 'magic-videos', 'magic-youtube'
+    
+    console.log('🔄 Recreate request:', {
+      folderName: decodeURIComponent(folderName),
+      songType,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine the correct directory based on song type
+    let baseDir;
+    switch (songType) {
+      case 'magic-songs':
+        baseDir = require('path').join(process.cwd(), 'songs', 'magic-songs');
+        break;
+      case 'magic-videos':
+        baseDir = require('path').join(process.cwd(), 'songs', 'magic-videos');
+        break;
+      case 'magic-youtube':
+        baseDir = require('path').join(process.cwd(), 'songs', 'magic-youtube');
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid song type for recreate' });
+    }
+    
+    const folderPath = require('path').join(baseDir, decodeURIComponent(folderName));
+    const fs = require('fs');
+    
+    if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+    
+    // Call AI service for recreate processing
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+    const axios = require('axios');
+    
+    try {
+      console.log('🔄 Starting recreate via AI service:', {
+        url: `${aiServiceUrl}/recreate/${encodeURIComponent(folderName)}`,
+        songType,
+        timestamp: new Date().toISOString()
+      });
+      
+      const response = await axios.post(`${aiServiceUrl}/recreate/${encodeURIComponent(folderName)}`, {
+        songType: songType,
+        baseDir: baseDir
+      }, {
+        timeout: 600000 // 10 minutes timeout
+      });
+      
+      console.log('🔄 Recreate response:', {
+        status: response.status,
+        success: response.data.success,
+        message: response.data.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (response.data.success) {
+        res.json({ 
+          success: true, 
+          message: 'Recreate started successfully',
+          status: 'processing'
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: response.data.error || 'Recreate failed' 
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Recreate request failed:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ 
+        success: false, 
+        error: error.response?.data?.message || error.message 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in recreate:', error);
+    res.status(500).json({ error: 'Server error', message: error.message });
+  }
+});
+
 
 // New endpoint to organize loose TXT files
 router.post('/ultrastar/organize-loose-files', async (req, res) => {

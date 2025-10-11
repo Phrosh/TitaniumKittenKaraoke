@@ -83,6 +83,10 @@ export const songAPI = {
   modularProcess: (folderName: string, songType: string) =>
     api.post(`/songs/modular-process/${encodeURIComponent(folderName)}`, { songType }),
   
+  // Recreate Magic songs (delete processed files and recreate)
+  recreateSong: (folderName: string, songType: string) =>
+    api.post(`/songs/recreate/${encodeURIComponent(folderName)}`, { songType }),
+  
   // Organize loose TXT files
   organizeLooseFiles: () =>
     api.post('/songs/ultrastar/organize-loose-files')
