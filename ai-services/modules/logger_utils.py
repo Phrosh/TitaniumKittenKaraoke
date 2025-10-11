@@ -37,9 +37,12 @@ def send_processing_status(meta, status: str) -> None:
         artist = getattr(meta, 'artist', None)
         title = getattr(meta, 'title', None)
         song_id = getattr(meta, 'song_id', None)  # Try to get song ID if available
+        youtube_url = getattr(meta, 'youtube_url', None)  # Include youtube_url
         payload = { 'artist': artist, 'title': title, 'status': status }
         if song_id:
             payload['id'] = song_id
+        if youtube_url:
+            payload['youtube_url'] = youtube_url
         logger.info(f"📡 send_processing_status → {payload}")
         # kleiner Timeout, non-blocking Charakter
         requests.post('http://localhost:5000/api/songs/processing-status', json=payload, timeout=3)

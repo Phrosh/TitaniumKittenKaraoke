@@ -99,8 +99,8 @@ function findYouTubeSong(artist, title, youtubeUrl = null) {
   // If not found, try with boil down normalization
   if (!found) {
     found = songs.find(song => {
-      // Try individual artist/title matches
-      if (boilDownMatch(song.artist, artist) || boilDownMatch(song.title, title)) {
+      // Try individual artist/title matches - BOTH must match
+      if (boilDownMatch(song.artist, artist) && boilDownMatch(song.title, title)) {
         return true;
       }
       

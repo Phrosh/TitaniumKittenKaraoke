@@ -191,7 +191,11 @@ async function findBestVideoMode(artist, title, youtubeUrl = null, req = null) {
       
       console.log(`🔍 Checking ${mode.id} for: "${artist}" - "${title}"`);
       
-      const foundItem = await mode.finder(artist, title, config, youtubeUrl);
+      // Für youtube_cache-Modus: Verwende keine YouTube-URL für Video-ID-Matching,
+      // da dies zu falschen Treffern führen kann
+      const youtubeUrlForFinder = (mode.id === 'youtube_cache') ? null : youtubeUrl;
+      
+      const foundItem = await mode.finder(artist, title, config, youtubeUrlForFinder);
       
       if (foundItem) {
         const url = mode.urlBuilder(foundItem, req, youtubeUrl);

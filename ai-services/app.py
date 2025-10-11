@@ -1076,6 +1076,11 @@ def process_youtube_cache(folder_name):
                 normalize_audio_files(meta, simple=True)
                 # 2) cleanup
                 cleanup_files(meta)
+                
+                # 3) finish - setze korrekte API-URL
+                from modules.finish import finish_processing
+                finish_processing(meta)
+                
                 try:
                     send_processing_status(artist=meta.artist, title=meta.title, status='finished')
                 except Exception:
@@ -1368,6 +1373,12 @@ def modular_process(folder_name):
                 logger.info("🔄 Starting cleanup...")
                 cleanup_files(meta)
                 logger.info("✅ Cleanup completed")
+                
+                # 5) Finish - setze korrekte API-URL
+                logger.info("🔄 Starting finish...")
+                from modules.finish import finish_processing
+                finish_processing(meta)
+                logger.info("✅ Finish completed")
 
                 logger.info("🎉 Modular pipeline completed successfully, sending finished status...")
                 try:
@@ -1499,6 +1510,12 @@ def recreate(folder_name):
                 logger.info("🔄 Starting cleanup...")
                 cleanup_files(meta)
                 logger.info("✅ Cleanup completed")
+                
+                # Finish - setze korrekte API-URL
+                logger.info("🔄 Starting finish...")
+                from modules.finish import finish_processing
+                finish_processing(meta)
+                logger.info("✅ Finish completed")
 
                 logger.info("🎉 Recreate pipeline completed successfully, sending finished status...")
                 try:
@@ -1689,6 +1706,12 @@ def process_usdb_pipeline(folder_name):
                 logger.info("🔄 Starting cleanup...")
                 cleanup_files(meta)
                 logger.info("✅ Cleanup completed")
+                
+                # 7) Finish - setze korrekte API-URL
+                logger.info("🔄 Starting finish...")
+                from modules.finish import finish_processing
+                finish_processing(meta)
+                logger.info("✅ Finish completed")
 
                 logger.info("🎉 USDB pipeline completed successfully, sending finished status...")
                 try:

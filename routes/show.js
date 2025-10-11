@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const Song = require('../models/Song');
 const QRCode = require('qrcode');
-const { findYouTubeSong } = require('../utils/youtubeSongs');
+// const { findYouTubeSong } = require('../utils/youtubeSongs');
 
 // GET /show - Zeige aktuelles Video und nächste Songs
 router.get('/', async (req, res) => {
   try {
     const currentSong = await Song.getCurrentSong();
+
+    console.log('currentSong', currentSong);
+    console.log("hodor")
     const allSongs = await Song.getAll();
     
     // Nächste 3 Songs nach dem aktuellen Song
@@ -102,18 +105,31 @@ router.get('/', async (req, res) => {
 
     // Verwende zentrale Video-Modi-Konfiguration für URL-Building
     const { findBestVideoMode } = require('../config/videoModes');
+
+    console.log("ich hab hier das video", currentSong);
     let youtubeUrl = currentSong?.youtube_url;
     let songMode = currentSong?.mode || 'youtube';
     
     if (currentSong?.artist && currentSong?.title) {
-      // Finde den besten verfügbaren Video-Modus für URL-Building
-      const result = await findBestVideoMode(currentSong.artist, currentSong.title, currentSong.youtube_url, req);
+      // Nur URL-Building durchführen, wenn die aktuelle URL nicht korrekt ist
+      // (z.B. wenn sie noch eine YouTube-URL ist statt einer API-URL)
+      const needsUrlUpdate = !currentSong.youtube_url || 
+                            currentSong.youtube_url.includes('youtube.com') || 
+                            currentSong.youtube_url.includes('youtu.be') ||
+                            currentSong.youtube_url.includes('localhost:5000');
       
-      // Nur URL und Modus aktualisieren, wenn ein besserer Modus gefunden wurde
-      if (result.mode !== currentSong.mode) {
-        songMode = result.mode;
-        youtubeUrl = result.url;
-        console.log(`🔄 Show: Updated song mode from ${currentSong.mode} to ${songMode} for: ${currentSong.artist} - ${currentSong.title}`);
+      if (needsUrlUpdate) {
+        // Finde den besten verfügbaren Video-Modus für URL-Building
+        const result = await findBestVideoMode(currentSong.artist, currentSong.title, currentSong.youtube_url, req);
+        
+        // URL und Modus aktualisieren, wenn ein besserer Modus gefunden wurde oder URL leer ist
+        if (result.mode !== currentSong.mode || !currentSong.youtube_url) {
+          songMode = result.mode;
+          youtubeUrl = result.url;
+          console.log(`🔄 Show: Updated song mode from ${currentSong.mode} to ${songMode} for: ${currentSong.artist} - ${currentSong.title}`);
+        }
+      } else {
+        console.log(`✅ Show: Using existing API URL for: ${currentSong.artist} - ${currentSong.title} -> ${currentSong.youtube_url}`);
       }
     }
 
