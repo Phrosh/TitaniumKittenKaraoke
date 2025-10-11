@@ -692,6 +692,21 @@ router.post('/request', [
                 if (proxyRes.statusCode === 200) {
                   // Magic processing completed successfully
                   Song.updateDownloadStatus(song.id, 'ready').catch(console.error);
+                  
+                  // Add to invisible songs list
+                  const db = require('../config/database');
+                  db.run(
+                    'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                    [artist, title],
+                    function(err) {
+                      if (err) {
+                        console.error('Error adding Magic-YouTube song to invisible songs:', err);
+                      } else {
+                        console.log(`📝 Added Magic-YouTube song to invisible songs: ${artist} - ${title}`);
+                      }
+                    }
+                  );
+                  
                   try {
                     const io = req.app.get('io');
                     if (io) {

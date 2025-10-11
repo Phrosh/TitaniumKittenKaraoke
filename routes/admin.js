@@ -239,6 +239,20 @@ router.post('/song/:songId/magic-youtube', [
               // Update song mode to ultrastar (magic-youtube)
               Song.updateMode(songId, 'ultrastar').catch(console.error);
               Song.updateDownloadStatus(songId, 'ready').catch(console.error);
+              
+              // Add to invisible songs list
+              db.run(
+                'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                [song.artist, song.title],
+                function(err) {
+                  if (err) {
+                    console.error('Error adding Magic-YouTube song to invisible songs:', err);
+                  } else {
+                    console.log(`📝 Added Magic-YouTube song to invisible songs: ${song.artist} - ${song.title}`);
+                  }
+                }
+              );
+              
               // Broadcast finished
               const io = require('../server').io;
               if (io) {
