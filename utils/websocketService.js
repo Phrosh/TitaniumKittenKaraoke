@@ -4,7 +4,6 @@
  */
 
 const Song = require('../models/Song');
-const QRCode = require('qrcode');
 const { findYouTubeSong } = require('./youtubeSongs');
 const PlaylistAlgorithm = require('./playlistAlgorithm');
 
@@ -73,9 +72,11 @@ async function broadcastShowUpdate(io) {
         });
       });
       
-      const customUrl = customUrlSetting ? customUrlSetting.value : 'localhost:5000';
-      const qrCodeUrl = `http://${customUrl}/new`;
-      qrCodeDataUrl = await QRCode.toDataURL(qrCodeUrl);
+      const customUrl = customUrlSetting ? customUrlSetting.value : '';
+      
+      // Use centralized QR code generation function
+      const { generateQRCodeDataUrl } = require('./qrCodeGenerator');
+      qrCodeDataUrl = await generateQRCodeDataUrl(customUrl, 'http://localhost:5000/new');
     } catch (error) {
       console.error('Error generating QR code:', error);
     }

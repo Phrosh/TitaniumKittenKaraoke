@@ -46,7 +46,9 @@ import Footer from './Footer';
 import Header from './Header';
 import Overlay from './Overlay';
 import StartOverlay from './StartOverlay';
+import QRCodeCorner from './QRCodeCorner';
 import ControlButtons from './ControlButtons';
+import AdCorner from './AdCorner';
 
 let globalUltrastarData: UltrastarSongData | null = null;
 
@@ -852,7 +854,7 @@ const ShowView: React.FC = () => {
       const nextSongs = response.data.nextSongs || [];
       const overlayStatus = response.data.showQRCodeOverlay || false;
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
-      const title = response.data.overlayTitle || 'Willkommen beim Karaoke';
+      const title = response.data.overlayTitle;
 
       // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
       let normalizedSong = newSong;
@@ -2035,6 +2037,10 @@ const ShowView: React.FC = () => {
         show={showStartOverlay}
         onStartClick={handleStartButtonClick}
       />
+
+      {/* Permanent QR Code Corner */}
+      <QRCodeCorner qrCodeUrl={qrCodeUrl} />
+      <AdCorner />
     </ShowContainer>
   );
 };

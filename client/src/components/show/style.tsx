@@ -9,7 +9,8 @@ import {
     OVERLAY_BACKGROUND,
     NEXT_SONG_INFO_BACKGROUND,
     UNSUNG_COLOR,
-    SECONDARY_COLOR
+    SECONDARY_COLOR,
+    AD_HEIGHT
 } from './constants';
 
 export const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
@@ -178,13 +179,12 @@ export const Footer = styled.div`
   right: 0;
   background: ${BLACK_BACKGROUND};
   backdrop-filter: blur(10px);
-  padding: 20px 40px;
+  padding: 20px 80px;
   z-index: 10;
 `;
 
 export const FooterContent = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
+  margin: 0 ${AD_HEIGHT};
 `;
 
 export const NextSongsTitle = styled.div`
@@ -194,18 +194,35 @@ export const NextSongsTitle = styled.div`
   font-weight: 600;
 `;
 
+export const NextSongsCounter = styled.div`
+  color: ${PRIMARY_COLOR};
+  font-weight: 600;
+  width: 32px;
+  font-size: 32px;
+  text-align: right;
+  padding-right: 10px;
+`;
+
 export const NextSongsList = styled.div`
   display: flex;
-  gap: 20px;
+  gap: 32px;
   width: 100%;
 `;
 
-export const NextSongItem = styled.div`
+export const NextSongListContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+`;
+
+export const NextSongItem = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  flex: 1;
 `;
 
 export const NextSingerName = styled.div`

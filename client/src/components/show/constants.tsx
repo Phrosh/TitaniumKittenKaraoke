@@ -41,3 +41,5 @@ export type StartButtonMode = typeof START_BUTTON_MODE[keyof typeof START_BUTTON
 // - START_BUTTON_MODE.NORMAL für normales Verhalten
 // - START_BUTTON_MODE.PAUSE für Pause-Modus mit QR-Overlay
 export const CURRENT_START_MODE: StartButtonMode = START_BUTTON_MODE.NORMAL;
+
+export const AD_HEIGHT = '15vh';

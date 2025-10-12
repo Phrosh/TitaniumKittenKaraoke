@@ -8,6 +8,8 @@ import {
   NextSongItem,
   NextSingerName,
   NextSongTitle,
+  NextSongsCounter,
+  NextSongListContainer,
 } from './style';
 
 interface FooterProps {
@@ -27,10 +29,13 @@ const Footer: React.FC<FooterProps> = ({
             {nextSongs.length > 0 ? (
               nextSongs.map((song, index) => (
                 <NextSongItem key={song.id}>
-                  <NextSingerName>{song.user_name}</NextSingerName>
-                  <NextSongTitle>
-                    {song.artist ? `${song.artist} - ${song.title}` : song.title}
-                  </NextSongTitle>
+                  <NextSongsCounter>{index + 1}</NextSongsCounter>  
+                  <NextSongListContainer>
+                    <NextSingerName>{song.user_name}</NextSingerName>
+                    <NextSongTitle>
+                      {song.artist ? `${song.artist} - ${song.title}` : song.title}
+                    </NextSongTitle>
+                  </NextSongListContainer>
                 </NextSongItem>
               ))
             ) : (

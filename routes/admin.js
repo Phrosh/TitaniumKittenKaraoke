@@ -552,29 +552,13 @@ router.put('/settings/custom-url', [
     });
 
     // Generate new QR code with updated URL
-    const QRCode = require('qrcode');
-    let qrUrl;
-    if (customUrl && customUrl.trim()) {
-      // Use custom URL + /new
-      qrUrl = customUrl.trim().replace(/\/$/, '') + '/new';
-    } else {
-      // Use same domain for QR code generation
-      const protocol = req.get('x-forwarded-proto') || req.protocol;
-      const host = req.get('host');
-      qrUrl = `${protocol}://${host}/new`;
-    }
-
-    const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
-      errorCorrectionLevel: 'M',
-      type: 'image/png',
-      quality: 0.92,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      },
-      width: 300
-    });
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    const fallbackUrl = `${protocol}://${host}/new`;
+    
+    // Use centralized QR code generation function
+    const { generateQRCodeDataUrl } = require('../utils/qrCodeGenerator');
+    const qrCodeDataUrl = await generateQRCodeDataUrl(customUrl, fallbackUrl);
 
     // Broadcast QR code update via WebSocket
     const io = req.app.get('io');
@@ -1614,19 +1598,9 @@ router.post('/cloudflared/start', async (req, res) => {
           console.log('Tunnel URL saved to database:', tunnelUrl);
           
           // Generate new QR code with tunnel URL
-          const QRCode = require('qrcode');
+          const { generateQRCodeDataUrl } = require('../utils/qrCodeGenerator');
           const qrUrl = tunnelUrl + '/new';
-          const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
-            errorCorrectionLevel: 'M',
-            type: 'image/png',
-            quality: 0.92,
-            margin: 1,
-            color: {
-              dark: '#000000',
-              light: '#FFFFFF'
-            },
-            width: 300
-          });
+          const qrCodeDataUrl = await generateQRCodeDataUrl(tunnelUrl, tunnelUrl);
 
           // Broadcast QR code update via WebSocket
           const io = req.app.get('io');
@@ -1675,19 +1649,9 @@ router.post('/cloudflared/start', async (req, res) => {
           console.log('Tunnel URL saved to database:', tunnelUrl);
           
           // Generate new QR code with tunnel URL
-          const QRCode = require('qrcode');
+          const { generateQRCodeDataUrl } = require('../utils/qrCodeGenerator');
           const qrUrl = tunnelUrl + '/new';
-          const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
-            errorCorrectionLevel: 'M',
-            type: 'image/png',
-            quality: 0.92,
-            margin: 1,
-            color: {
-              dark: '#000000',
-              light: '#FFFFFF'
-            },
-            width: 300
-          });
+          const qrCodeDataUrl = await generateQRCodeDataUrl(tunnelUrl, tunnelUrl);
 
           // Broadcast QR code update via WebSocket
           const io = req.app.get('io');
