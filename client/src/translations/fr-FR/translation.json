@@ -416,6 +416,24 @@
     "renaming": "Renommage en cours...",
     "rename": "Renommer"
   },
+  "backgroundMusic": {
+    "title": "Musique de Fond",
+    "description": "Gérez la musique de fond qui joue entre les chansons. Vous pouvez sélectionner des chansons, ajuster le volume et activer ou désactiver la fonctionnalité.",
+    "enabled": "Musique de fond activée",
+    "volume": "Volume",
+    "selectedSongs": "Chansons Sélectionnées",
+    "selectAll": "Tout Sélectionner",
+    "selectNone": "Ne Rien Sélectionner",
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "loading": "Chargement des paramètres de musique de fond...",
+    "loadError": "Erreur lors du chargement des paramètres de musique de fond",
+    "saveError": "Erreur lors de l'enregistrement des paramètres de musique de fond",
+    "settingsSaved": "Paramètres de musique de fond enregistrés avec succès",
+    "noSongsFound": "Aucune chanson de musique de fond trouvée. Ajoutez des fichiers MP3 dans le dossier 'client/public/bg-songs'.",
+    "nowPlaying": "En cours de lecture",
+    "stop": "Arrêter"
+  },
   "adminDashboard": {
     "title": "Tableau de Bord Admin",
     "loading": "Chargement du tableau de bord...",
@@ -426,7 +444,8 @@
       "songs": "Gestion des chansons",
       "banlist": "Liste des bannis",
       "users": "Gestion des utilisateurs",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "backgroundMusic": "Musique de Fond"
     },
     "songApprovalNotification": "{{count}} demande(s) de chanson(s) reçue(s) pour approbation!",
     "newSongApprovalRequest": "Nouvelle demande de chanson reçue pour approbation!",

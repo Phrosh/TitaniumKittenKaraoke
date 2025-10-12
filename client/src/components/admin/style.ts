@@ -1,5 +1,61 @@
 import styled from 'styled-components';
 
+export const SettingsSection = styled.div`
+  padding: 0 10px;
+  margin-bottom: 20px;
+`;
+
+export const SettingsTitle = styled.h3`
+  color: #333;
+  margin: 0 0 20px 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+`;
+
+export const SettingsCard = styled.div`
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+`;
+
+export const SettingsLabel = styled.label`
+  display: block;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 1rem;
+`;
+
+export const SettingsRow = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 15px;
+`;
+
+export const SettingsInput = styled.input`
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+`;
+
+export const SettingsDescription = styled.div`
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 10px;
+  line-height: 1.4;
+`;
+
 export const Container = styled.div`
   min-height: 100vh;
   padding: 20px;

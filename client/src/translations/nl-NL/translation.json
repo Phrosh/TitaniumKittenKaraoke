@@ -416,6 +416,24 @@
     "renaming": "Hernoemen...",
     "rename": "Hernoemen"
   },
+  "backgroundMusic": {
+    "title": "Achtergrondmuziek",
+    "description": "Beheer de achtergrondmuziek die tussen liedjes wordt afgespeeld. Je kunt liedjes selecteren, het volume aanpassen en de functie in- of uitschakelen.",
+    "enabled": "Achtergrondmuziek ingeschakeld",
+    "volume": "Volume",
+    "selectedSongs": "Geselecteerde Liedjes",
+    "selectAll": "Alles Selecteren",
+    "selectNone": "Niets Selecteren",
+    "save": "Opslaan",
+    "saving": "Opslaan...",
+    "loading": "Achtergrondmuziek instellingen laden...",
+    "loadError": "Fout bij laden achtergrondmuziek instellingen",
+    "saveError": "Fout bij opslaan achtergrondmuziek instellingen",
+    "settingsSaved": "Achtergrondmuziek instellingen succesvol opgeslagen",
+    "noSongsFound": "Geen achtergrondmuziek liedjes gevonden. Voeg MP3 bestanden toe aan de map 'client/public/bg-songs'.",
+    "nowPlaying": "Wordt afgespeeld",
+    "stop": "Stoppen"
+  },
   "adminDashboard": {
     "title": "Admin Dashboard",
     "loading": "Dashboard laden...",
@@ -426,7 +444,8 @@
       "songs": "Liedbeheer",
       "banlist": "Banlijst",
       "users": "Gebruikersbeheer",
-      "settings": "Instellingen"
+      "settings": "Instellingen",
+      "backgroundMusic": "Achtergrondmuziek"
     },
     "songApprovalNotification": "{{count}} liedverzoek(en) ontvangen voor goedkeuring!",
     "newSongApprovalRequest": "Nieuw liedverzoek ontvangen voor goedkeuring!",

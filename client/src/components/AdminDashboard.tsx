@@ -9,6 +9,7 @@ import PlaylistTab from './admin/tabs/playlist/PlaylistTab';
 import BanlistTab from './admin/tabs/BanlistTab';
 import UsersTab from './admin/tabs/UsersTab';
 import SettingsTab from './admin/tabs/SettingsTab';
+import BackgroundMusicTab from './admin/tabs/BackgroundMusicTab';
 import ApprovalModal from './admin/modals/ApprovalModal';
 import SongsTab from './admin/tabs/songs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
@@ -41,7 +42,7 @@ const AdminDashboard: React.FC = () => {
     deviceId: '',
     withBackgroundVocals: false
   });
-  const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs'>('playlist');
+  const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs' | 'background-music'>('playlist');
   const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
   const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
   const [manualSongList, setManualSongList] = useState<any[]>([]);
@@ -616,6 +617,12 @@ const AdminDashboard: React.FC = () => {
           >
             ⚙️ {t('adminDashboard.tabs.settings')}
           </TabButton>
+          <TabButton 
+            $active={activeTab === 'background-music'} 
+            onClick={() => setActiveTab('background-music')}
+          >
+            🎵 {t('adminDashboard.tabs.backgroundMusic')}
+          </TabButton>
         </TabHeader>
         
         <TabContent>
@@ -653,6 +660,10 @@ const AdminDashboard: React.FC = () => {
             <SongsTab
               fetchDashboardData={fetchDashboardData}
             />
+          )}
+          
+          {activeTab === 'background-music' && (
+            <BackgroundMusicTab />
           )}
           
         </TabContent>

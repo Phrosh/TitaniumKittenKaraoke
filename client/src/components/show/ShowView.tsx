@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { showAPI, songAPI } from '../../services/api';
+import { showAPI, songAPI, adminAPI } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
 import { boilDown } from '../../utils/boilDown';
 import { useTranslation } from 'react-i18next';
@@ -122,6 +122,16 @@ const ShowView: React.FC = () => {
   const songTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isDuet, setIsDuet] = useState(false);
+
+  // Background Music State
+  const [backgroundMusicSettings, setBackgroundMusicSettings] = useState({
+    enabled: true,
+    volume: 0.3,
+    selectedSongs: [] as string[]
+  });
+  const [backgroundMusicSongs, setBackgroundMusicSongs] = useState<Array<{filename: string, name: string, url: string}>>([]);
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
+  const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
 
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
@@ -945,6 +955,10 @@ const ShowView: React.FC = () => {
       // Nur State aktualisieren wenn sich der Song geändert hat
       if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
         console.log('🌐 Setting new song from API:', normalizedSong);
+        
+        // Stop background music when new song is loaded
+        stopBackgroundMusic();
+        
         setCurrentSong(normalizedSong);
         setLastSongId(normalizedSong?.id || null);
         lastSongIdRef.current = normalizedSong?.id || null;
@@ -1068,6 +1082,10 @@ const ShowView: React.FC = () => {
     // Nur State aktualisieren wenn sich der Song geändert hat
     if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
       console.log('🔌 Setting new song from WebSocket:', normalizedSong);
+      
+      // Stop background music when new song is loaded
+      stopBackgroundMusic();
+      
       setCurrentSong(normalizedSong);
       setLastSongId(normalizedSong?.id || null);
       lastSongIdRef.current = normalizedSong?.id || null;
@@ -1209,6 +1227,9 @@ const ShowView: React.FC = () => {
       showAPI.toggleQRCodeOverlay(false).catch(error => {
         console.error('Error hiding overlay on restart:', error);
       });
+
+      // Stop background music when song restarts
+      stopBackgroundMusic();
 
       if (isUltrastar && audioRef.current && ultrastarData) {
 
@@ -1375,11 +1396,34 @@ const ShowView: React.FC = () => {
     // Add event listeners
     websocketService.on('toggle-play-pause', handleTogglePlayPause);
     websocketService.on('restart-song', handleRestartSong);
+    
+    // Listen for background music settings updates
+    const handleBackgroundMusicSettingsUpdate = (data: {
+      enabled: boolean;
+      volume: number;
+      selectedSongs: string[];
+    }) => {
+      console.log('🎵 Background music settings updated:', data);
+      setBackgroundMusicSettings(data);
+      
+      // Update current background music volume if playing
+      if (backgroundMusicRef.current && isBackgroundMusicPlaying) {
+        backgroundMusicRef.current.volume = data.volume;
+      }
+      
+      // Stop background music if disabled
+      if (!data.enabled && isBackgroundMusicPlaying) {
+        stopBackgroundMusic();
+      }
+    };
+    
+    websocketService.on('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
 
     return () => {
       websocketService.offShowUpdate(handleWebSocketUpdate);
       websocketService.off('toggle-play-pause', handleTogglePlayPause);
       websocketService.off('restart-song', handleRestartSong);
+      websocketService.off('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
@@ -1480,9 +1524,100 @@ const ShowView: React.FC = () => {
 
   const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
 
+  // Background Music Functions
+  const loadBackgroundMusicSettings = useCallback(async () => {
+    try {
+      const [songsResponse, settingsResponse] = await Promise.all([
+        adminAPI.getBackgroundMusicSongs(),
+        adminAPI.getBackgroundMusicSettings()
+      ]);
+      
+      setBackgroundMusicSongs(songsResponse.data.songs);
+      setBackgroundMusicSettings(settingsResponse.data.settings);
+    } catch (error) {
+      console.error('Error loading background music settings:', error);
+    }
+  }, []);
+
+  const getRandomBackgroundSong = useCallback(() => {
+    if (!backgroundMusicSettings.enabled || backgroundMusicSongs.length === 0) {
+      return null;
+    }
+
+    let availableSongs = backgroundMusicSongs;
+    
+    // If specific songs are selected, use only those
+    if (backgroundMusicSettings.selectedSongs.length > 0) {
+      availableSongs = backgroundMusicSongs.filter(song => 
+        backgroundMusicSettings.selectedSongs.includes(song.filename)
+      );
+    }
+
+    if (availableSongs.length === 0) {
+      return null;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableSongs.length);
+    return availableSongs[randomIndex];
+  }, [backgroundMusicSettings, backgroundMusicSongs]);
+
+  const playBackgroundMusic = useCallback(() => {
+    if (!backgroundMusicSettings.enabled || isBackgroundMusicPlaying) {
+      return;
+    }
+
+    const randomSong = getRandomBackgroundSong();
+    if (!randomSong || !backgroundMusicRef.current) {
+      return;
+    }
+
+    backgroundMusicRef.current.src = randomSong.url;
+    backgroundMusicRef.current.volume = backgroundMusicSettings.volume;
+    backgroundMusicRef.current.loop = true;
+    
+    backgroundMusicRef.current.play().then(() => {
+      setIsBackgroundMusicPlaying(true);
+      console.log('🎵 Background music started:', randomSong.name);
+    }).catch(error => {
+      console.error('Error playing background music:', error);
+    });
+  }, [backgroundMusicSettings, isBackgroundMusicPlaying, getRandomBackgroundSong]);
+
+  const stopBackgroundMusic = useCallback(() => {
+    if (!backgroundMusicRef.current || !isBackgroundMusicPlaying) {
+      return;
+    }
+
+    // Fade out background music
+    const fadeOut = () => {
+      if (!backgroundMusicRef.current) return;
+      
+      const currentVolume = backgroundMusicRef.current.volume;
+      const fadeStep = currentVolume / 20; // 20 steps for smooth fade
+      
+      if (currentVolume > 0) {
+        backgroundMusicRef.current.volume = Math.max(0, currentVolume - fadeStep);
+        setTimeout(fadeOut, 50);
+      } else {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current.currentTime = 0;
+        backgroundMusicRef.current.volume = backgroundMusicSettings.volume; // Reset volume
+        setIsBackgroundMusicPlaying(false);
+        console.log('🎵 Background music stopped');
+      }
+    };
+    
+    fadeOut();
+  }, [isBackgroundMusicPlaying, backgroundMusicSettings.volume]);
+
   useEffect(() => {
     globalUltrastarData = ultrastarData;
   }, [ultrastarData]);
+
+  // Load background music settings on component mount
+  useEffect(() => {
+    loadBackgroundMusicSettings();
+  }, [loadBackgroundMusicSettings]);
 
   const handleAudioLoadedData = useCallback(() => {
     setAudioLoaded(true);
@@ -1552,6 +1687,9 @@ const ShowView: React.FC = () => {
     setPlaying(true);
     setIsPlaying(true);
 
+    // Stop background music when song starts
+    stopBackgroundMusic();
+
     // Start Ultrastar timing now that audio is actually playing
     if (ultrastarData && ultrastarData.audioUrl && ultrastarData.bpm > 0) {
       const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
@@ -1564,7 +1702,7 @@ const ShowView: React.FC = () => {
       videoRef.current.currentTime = ultrastarData.videogap;
       videoRef.current.play().catch(console.error);
     }
-  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines]);
+  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines, stopBackgroundMusic]);
 
   const handleAudioPause = useCallback(() => {
     setPlaying(false);
@@ -1594,11 +1732,16 @@ const ShowView: React.FC = () => {
       console.error('Error restoring original song:', error);
     }
 
+    // Start background music when song ends
+    setTimeout(() => {
+      playBackgroundMusic();
+    }, 1000); // Small delay to ensure smooth transition
+
     // Automatically show QR overlay when audio ends
     showAPI.toggleQRCodeOverlay(true).catch(error => {
       console.error('Error showing overlay:', error);
     });
-  }, [currentSong?.id, currentSong?.title, stopUltrastarTiming]);
+  }, [currentSong?.id, currentSong?.title, stopUltrastarTiming, playBackgroundMusic]);
 
   // Handle click on screen to toggle play/pause
   // const handleScreenClick = useCallback(() => {
@@ -1907,6 +2050,8 @@ const ShowView: React.FC = () => {
                 onPlay={() => {
                   setIsPlaying(true);
                   console.log('🎬 Video started playing');
+                  // Stop background music when video starts
+                  stopBackgroundMusic();
                 }}
                 onPause={() => {
                   setIsPlaying(false);
@@ -1929,6 +2074,11 @@ const ShowView: React.FC = () => {
                   } catch (error) {
                     console.error('Error restoring original song:', error);
                   }
+
+                  // Start background music when video ends
+                  setTimeout(() => {
+                    playBackgroundMusic();
+                  }, 1000); // Small delay to ensure smooth transition
 
                   // Automatically show QR code overlay when video ends
                   showAPI.toggleQRCodeOverlay(true).catch(error => {
@@ -2041,6 +2191,13 @@ const ShowView: React.FC = () => {
       {/* Permanent QR Code Corner */}
       <QRCodeCorner qrCodeUrl={qrCodeUrl} />
       <AdCorner />
+      
+      {/* Background Music Audio Element */}
+      <AudioElement
+        ref={backgroundMusicRef}
+        style={{ display: 'none' }}
+        preload="auto"
+      />
     </ShowContainer>
   );
 };

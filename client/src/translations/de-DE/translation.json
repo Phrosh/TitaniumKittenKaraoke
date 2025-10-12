@@ -429,6 +429,24 @@
     "renaming": "Wird umbenannt...",
     "rename": "Umbenennen"
   },
+  "backgroundMusic": {
+    "title": "Hintergrundmusik",
+    "description": "Verwalten Sie die Hintergrundmusik, die zwischen den Songs abgespielt wird. Sie können Songs auswählen, die Lautstärke einstellen und die Funktion aktivieren oder deaktivieren.",
+    "enabled": "Hintergrundmusik aktiviert",
+    "volume": "Lautstärke",
+    "selectedSongs": "Ausgewählte Songs",
+    "selectAll": "Alle auswählen",
+    "selectNone": "Keine auswählen",
+    "save": "Speichern",
+    "saving": "Speichert...",
+    "loading": "Lädt Hintergrundmusik-Einstellungen...",
+    "loadError": "Fehler beim Laden der Hintergrundmusik-Einstellungen",
+    "saveError": "Fehler beim Speichern der Hintergrundmusik-Einstellungen",
+    "settingsSaved": "Hintergrundmusik-Einstellungen erfolgreich gespeichert",
+    "noSongsFound": "Keine Hintergrundmusik-Songs gefunden. Fügen Sie MP3-Dateien in den Ordner 'client/public/bg-songs' hinzu.",
+    "nowPlaying": "Wird abgespielt",
+    "stop": "Stoppen"
+  },
   "adminDashboard": {
     "title": "Titanium Kitten Karaoke",
     "loading": "Lade Dashboard...",
@@ -439,7 +457,8 @@
       "songs": "Songverwaltung",
       "banlist": "Banlist",
       "users": "Nutzerverwaltung",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "backgroundMusic": "Hintergrundmusik"
     },
     "songApprovalNotification": "{{count}} Songwunsch/Songwünsche zur Bestätigung eingegangen!",
     "newSongApprovalRequest": "Neuer Songwunsch zur Bestätigung eingegangen!",

@@ -421,6 +421,24 @@
     "renaming": "Renaming...",
     "rename": "Rename"
   },
+  "backgroundMusic": {
+    "title": "Background Music",
+    "description": "Manage the background music that plays between songs. You can select songs, adjust volume, and enable or disable the feature.",
+    "enabled": "Background music enabled",
+    "volume": "Volume",
+    "selectedSongs": "Selected Songs",
+    "selectAll": "Select All",
+    "selectNone": "Select None",
+    "save": "Save",
+    "saving": "Saving...",
+    "loading": "Loading background music settings...",
+    "loadError": "Error loading background music settings",
+    "saveError": "Error saving background music settings",
+    "settingsSaved": "Background music settings saved successfully",
+    "noSongsFound": "No background music songs found. Add MP3 files to the 'client/public/bg-songs' folder.",
+    "nowPlaying": "Now Playing",
+    "stop": "Stop"
+  },
   "adminDashboard": {
     "title": "Admin Dashboard",
     "loading": "Loading Dashboard...",
@@ -431,7 +449,8 @@
       "songs": "Song Management",
       "banlist": "Banlist",
       "users": "User Management",
-      "settings": "Settings"
+      "settings": "Settings",
+      "backgroundMusic": "Background Music"
     },
     "songApprovalNotification": "{{count}} song request/song requests pending approval!",
     "newSongApprovalRequest": "New song request pending approval!",

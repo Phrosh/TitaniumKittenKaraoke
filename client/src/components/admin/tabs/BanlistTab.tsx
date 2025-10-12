@@ -1,63 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { adminAPI } from '../../../services/api';
 import Button from '../../shared/Button';
-
-// Styled Components für BanlistTab
-const SettingsSection = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-`;
-
-const SettingsTitle = styled.h3`
-  color: #333;
-  margin: 0 0 20px 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-`;
-
-const SettingsCard = styled.div`
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #e9ecef;
-`;
-
-const SettingsLabel = styled.label`
-  display: block;
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: #333;
-  font-size: 1rem;
-`;
-
-const SettingsInput = styled.input`
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-  }
-`;
-
-
-const SettingsDescription = styled.div`
-  font-size: 0.9rem;
-  color: #666;
-  margin-top: 10px;
-  line-height: 1.4;
-`;
+import { SettingsSection, SettingsTitle, SettingsCard, SettingsLabel, SettingsInput, SettingsDescription } from '../style';
 
 interface BanlistItem {
   id: number;

@@ -131,6 +131,16 @@ export const adminAPI = {
   getDashboard: () =>
     api.get('/admin/dashboard'),
   
+  // Background Music API
+  getBackgroundMusicSongs: () =>
+    api.get('/admin/background-music/songs'),
+  
+  getBackgroundMusicSettings: () =>
+    api.get('/admin/background-music/settings'),
+  
+  updateBackgroundMusicSettings: (data: { enabled?: boolean; volume?: number; selectedSongs?: string[] }) =>
+    api.put('/admin/background-music/settings', data),
+  
   updateYouTubeUrl: (songId: number, youtubeUrl: string) =>
     api.put(`/admin/song/${songId}/youtube`, { youtubeUrl }),
   

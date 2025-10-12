@@ -416,6 +416,24 @@
     "renaming": "Renombrando...",
     "rename": "Renombrar"
   },
+  "backgroundMusic": {
+    "title": "Música de Fondo",
+    "description": "Gestiona la música de fondo que se reproduce entre canciones. Puedes seleccionar canciones, ajustar el volumen y habilitar o deshabilitar la función.",
+    "enabled": "Música de fondo habilitada",
+    "volume": "Volumen",
+    "selectedSongs": "Canciones Seleccionadas",
+    "selectAll": "Seleccionar Todo",
+    "selectNone": "No Seleccionar Nada",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "loading": "Cargando configuración de música de fondo...",
+    "loadError": "Error al cargar la configuración de música de fondo",
+    "saveError": "Error al guardar la configuración de música de fondo",
+    "settingsSaved": "Configuración de música de fondo guardada exitosamente",
+    "noSongsFound": "No se encontraron canciones de música de fondo. Agrega archivos MP3 a la carpeta 'client/public/bg-songs'.",
+    "nowPlaying": "Reproduciendo",
+    "stop": "Detener"
+  },
   "adminDashboard": {
     "title": "Panel de Administración",
     "loading": "Cargando Panel...",
@@ -426,7 +444,8 @@
       "songs": "Gestión de Canciones",
       "banlist": "Lista Negra",
       "users": "Gestión de Usuarios",
-      "settings": "Configuración"
+      "settings": "Configuración",
+      "backgroundMusic": "Música de Fondo"
     },
     "songApprovalNotification": "¡{{count}} solicitud/solicitudes de canción pendientes de aprobación!",
     "newSongApprovalRequest": "¡Nueva solicitud de canción pendiente de aprobación!",
