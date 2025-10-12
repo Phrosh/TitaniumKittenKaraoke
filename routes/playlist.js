@@ -1,10 +1,53 @@
 const express = require('express');
-const Song = require('../../models/Song');
-const PlaylistAlgorithm = require('../../utils/playlistAlgorithm');
-const { verifyToken } = require('../auth/index');
-const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong } = require('../../utils/websocketService');
+const Song = require('../models/Song');
+const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
+const { verifyToken } = require('./auth');
+const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong } = require('../utils/websocketService');
 
 const router = express.Router();
+
+// Helper function to find next playable song
+async function findNextPlayableSong(currentSongId = null) {
+  try {
+    const db = require('../config/database');
+    
+    // Get all songs after current position, ordered by position
+    const songs = await new Promise((resolve, reject) => {
+      const query = currentSongId 
+        ? `SELECT s.*, u.name as user_name, u.device_id 
+           FROM songs s 
+           JOIN users u ON s.user_id = u.id 
+           WHERE s.position > (
+             SELECT COALESCE(s2.position, 0) 
+             FROM songs s2 
+             WHERE s2.id = ?
+           )
+           ORDER BY s.position ASC`
+        : `SELECT s.*, u.name as user_name, u.device_id 
+           FROM songs s 
+           JOIN users u ON s.user_id = u.id 
+           ORDER BY s.position ASC`;
+      
+      db.all(query, currentSongId ? [currentSongId] : [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+    
+    // Find first playable song
+    for (const song of songs) {
+      const validation = validateSongForPlayback(song);
+      if (validation.valid) {
+        return song;
+      }
+    }
+    
+    return null; // No playable song found
+  } catch (error) {
+    console.error('Error finding next playable song:', error);
+    return null;
+  }
+}
 
 // Helper function to validate if a song can be played
 function validateSongForPlayback(song) {
@@ -40,7 +83,7 @@ function validateSongForPlayback(song) {
 // Helper function to update song priority based on neighboring songs
 async function updateSongPriorityBasedOnPosition(songId, newPosition) {
   try {
-    const db = require('../../config/database');
+    const db = require('../config/database');
     
     // Get the song that was moved
     const movedSong = await Song.getById(songId);
@@ -157,7 +200,7 @@ router.put('/reorder', verifyToken, async (req, res) => {
     if (newPosition < oldPosition) {
       // Moving up - shift songs down
       await new Promise((resolve, reject) => {
-        const db = require('../../config/database');
+        const db = require('../config/database');
         db.run(
           'UPDATE songs SET position = position + 1 WHERE position >= ? AND position < ?',
           [newPosition, oldPosition],
@@ -170,7 +213,7 @@ router.put('/reorder', verifyToken, async (req, res) => {
     } else {
       // Moving down - shift songs up
       await new Promise((resolve, reject) => {
-        const db = require('../../config/database');
+        const db = require('../config/database');
         db.run(
           'UPDATE songs SET position = position - 1 WHERE position > ? AND position <= ?',
           [oldPosition, newPosition],
@@ -243,7 +286,7 @@ router.put('/current', verifyToken, async (req, res) => {
     await Song.setCurrentSong(songId);
     
     // Automatically hide QR overlay when song changes
-    const db = require('../../config/database');
+    const db = require('../config/database');
     await new Promise((resolve, reject) => {
       db.run(
         'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
@@ -321,7 +364,7 @@ router.post('/next', verifyToken, async (req, res) => {
     await Song.setCurrentSong(nextSong.id);
     
     // Automatically hide QR overlay when song changes
-    const db = require('../../config/database');
+    const db = require('../config/database');
     await new Promise((resolve, reject) => {
       db.run(
         'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
@@ -399,7 +442,7 @@ router.post('/previous', verifyToken, async (req, res) => {
     await Song.setCurrentSong(previousSong.id);
     
     // Automatically hide QR overlay when song changes
-    const db = require('../../config/database');
+    const db = require('../config/database');
     await new Promise((resolve, reject) => {
       db.run(
         'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
@@ -478,7 +521,7 @@ router.post('/restart', verifyToken, async (req, res) => {
     }
 
     // Automatically hide QR overlay when song restarts
-    const db = require('../../config/database');
+    const db = require('../config/database');
     const overlaySetting = await new Promise((resolve, reject) => {
       db.get(
         'SELECT value FROM settings WHERE key = ?',
@@ -515,7 +558,7 @@ router.post('/restart', verifyToken, async (req, res) => {
       
       // Broadcast QR overlay change if it was hidden
       if (showQRCodeOverlay) {
-        const { broadcastQRCodeToggle } = require('../../utils/websocketService');
+        const { broadcastQRCodeToggle } = require('../utils/websocketService');
         await broadcastQRCodeToggle(io, false);
         await broadcastAdminUpdate(io);
       }
@@ -550,7 +593,7 @@ router.delete('/:songId', verifyToken, async (req, res) => {
     
     // Reorder remaining songs
     await new Promise((resolve, reject) => {
-      const db = require('../../config/database');
+      const db = require('../config/database');
       db.run(
         'UPDATE songs SET position = position - 1 WHERE position > ?',
         [song.position],

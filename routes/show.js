@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const Song = require('../../models/Song');
+const Song = require('../models/Song');
 const QRCode = require('qrcode');
+// const { findYouTubeSong } = require('../utils/youtubeSongs');
 
 // GET /show - Zeige aktuelles Video und nächste Songs
 router.get('/', async (req, res) => {
@@ -29,7 +30,7 @@ router.get('/', async (req, res) => {
     }
 
     // Get QR overlay status from settings
-    const db = require('../../config/database');
+    const db = require('../config/database');
     const overlaySetting = await new Promise((resolve, reject) => {
       db.get(
         'SELECT value FROM settings WHERE key = ?',
@@ -103,7 +104,7 @@ router.get('/', async (req, res) => {
     }
 
     // Verwende zentrale Video-Modi-Konfiguration für URL-Building
-    const { findBestVideoMode } = require('../../config/videoModes');
+    const { findBestVideoMode } = require('../config/videoModes');
 
     console.log("ich hab hier das video", currentSong);
     let youtubeUrl = currentSong?.youtube_url;
