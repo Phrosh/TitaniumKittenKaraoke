@@ -1,1 +1,0 @@
-# Magic routes package
