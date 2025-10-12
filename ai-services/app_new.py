@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-KARAOKE_ROOT = os.path.dirname(__file__)
+KARAOKE_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)))
 ULTRASTAR_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'ultrastar')
 YOUTUBE_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'youtube')
 MAGIC_SONGS_DIR = os.path.join(KARAOKE_ROOT, 'songs', 'magic-songs')
