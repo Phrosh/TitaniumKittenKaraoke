@@ -22,6 +22,7 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 - **Multi-Format Support**: YouTube videos, local videos from live PC and UltraStar songs
 - **USDB Integration**: Direct download of songs from the largest UltraStar database
 - **AI-powered Conversion**: Automatic creation of instrumental versions without vocals
+- **Magic Songs**: AI-powered on-the-fly karaoke creation from any song - convert any YouTube video, local video or audio file into a karaoke version with lyrics and perfect instrumental tracks
 - **Comprehensive Song Management**: Complete control over the music library
 
 ### 👥 User Experience
@@ -170,7 +171,7 @@ The integrated fairness algorithm ensures fair distribution of songs:
 - **Remote Videos**: Videos from server
 - **UltraStar Songs**: Support for UltraStar format
 - **USDB Downloads**: Automatic download from UltraStar database
-- **AI Conversion**: Automatic creation of instrumental versions
+- **AI Conversion**: Automatic creation of instrumental versions and lyrics
 
 ## 🔒 Security & Management
 
