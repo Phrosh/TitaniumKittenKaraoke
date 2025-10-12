@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const i18n = require('../i18n');
+const i18n = require('../../i18n');
 const path = require('path');
 const fs = require('fs');
 
 // Get available languages
 router.get('/languages', (req, res) => {
   try {
-    const translationsDir = path.join(__dirname, '..', 'client', 'src', 'translations');
+    const translationsDir = path.join(__dirname, '..', '..', 'client', 'src', 'translations');
     const languages = [];
     
     const languageDirs = fs.readdirSync(translationsDir, { withFileTypes: true })

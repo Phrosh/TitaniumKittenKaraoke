@@ -7,10 +7,10 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
-const { router: authRoutes } = require('./routes/auth');
-const songRoutes = require('./routes/songs').router;
+const { router: authRoutes } = require('./routes/auth/index');
+const songRoutes = require('./routes/songs');
 const playlistRoutes = require('./routes/playlist');
-const adminRoutes = require('./routes/admin').router;
+const adminRoutes = require('./routes/admin');
 const showRoutes = require('./routes/show');
 const i18nRoutes = require('./routes/i18n');
 const videoModesRoutes = require('./routes/videoModes');

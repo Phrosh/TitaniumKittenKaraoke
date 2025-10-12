@@ -12,7 +12,7 @@ const {
   getMode, 
   updateModePriority, 
   setModeEnabled 
-} = require('../config/videoModes');
+} = require('../../config/videoModes');
 
 /**
  * GET /api/admin/video-modes
@@ -150,8 +150,8 @@ router.put('/video-modes/:modeId/enabled', (req, res) => {
 router.post('/video-modes/reset', (req, res) => {
   try {
     // Lade die Standard-Konfiguration neu
-    delete require.cache[require.resolve('../config/videoModes')];
-    const { getAllModes } = require('../config/videoModes');
+    delete require.cache[require.resolve('../../config/videoModes')];
+    const { getAllModes } = require('../../config/videoModes');
     
     const modes = getAllModes();
     
