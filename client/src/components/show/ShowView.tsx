@@ -38,6 +38,7 @@ import {
   VideoIframe,
   AudioElement,
   BackgroundVideo,
+  BackgroundLoopVideo,
   BackgroundImage,
   NoVideoMessage
 } from './style';
@@ -132,6 +133,7 @@ const ShowView: React.FC = () => {
   const [backgroundMusicSongs, setBackgroundMusicSongs] = useState<Array<{filename: string, name: string, url: string}>>([]);
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
@@ -958,6 +960,8 @@ const ShowView: React.FC = () => {
         
         // Stop background music when new song is loaded
         stopBackgroundMusic();
+        // Reset video error state on song change
+        setVideoError(false);
         
         setCurrentSong(normalizedSong);
         setLastSongId(normalizedSong?.id || null);
@@ -1085,6 +1089,8 @@ const ShowView: React.FC = () => {
       
       // Stop background music when new song is loaded
       stopBackgroundMusic();
+      // Reset video error state on song change
+      setVideoError(false);
       
       setCurrentSong(normalizedSong);
       setLastSongId(normalizedSong?.id || null);
@@ -2057,6 +2063,10 @@ const ShowView: React.FC = () => {
                   setIsPlaying(false);
                   console.log('🎬 Video paused');
                 }}
+                onError={() => {
+                  console.log('🎬 Video error - switching to background loop');
+                  setVideoError(true);
+                }}
                 onEnded={async () => {
                   console.log(`🎬 Video ended:`, {
                     songId: currentSong?.id,
@@ -2107,7 +2117,37 @@ const ShowView: React.FC = () => {
                 <BackgroundImage
                   $imageUrl={ultrastarData.backgroundImageUrl}
                 />
-              ) : null}
+              ) : (
+                // Fallback: background loop video when no US video/image
+                <BackgroundLoopVideo
+                  src={'/bg-video/bg-video.webm'}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  onLoadStart={() => console.log('🎬 Background loop video loading (Ultrastar fallback)...')}
+                  onLoadedData={() => console.log('🎬 Background loop video loaded (Ultrastar fallback)')}
+                  onCanPlay={() => console.log('🎬 Background loop video can play (Ultrastar fallback)')}
+                  onPlay={() => console.log('🎬 Background loop video started (Ultrastar fallback)')}
+                  onError={(e) => console.error('🎬 Background loop video error (Ultrastar fallback):', e)}
+                />
+              )}
+              
+              {/* Background loop video when background music is playing */}
+              {isBackgroundMusicPlaying && (
+                <BackgroundLoopVideo
+                  src={'/bg-video/bg-video.webm'}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  onLoadStart={() => console.log('🎬 Background loop video loading (BG music)...')}
+                  onLoadedData={() => console.log('🎬 Background loop video loaded (BG music)')}
+                  onCanPlay={() => console.log('🎬 Background loop video can play (BG music)')}
+                  onPlay={() => console.log('🎬 Background loop video started (BG music)')}
+                  onError={(e) => console.error('🎬 Background loop video error (BG music):', e)}
+                />
+              )}
               <AudioElement
                 key={currentSong?.id}
                 ref={audioRef}
@@ -2135,9 +2175,42 @@ const ShowView: React.FC = () => {
               </div>}
             </>
           ) : (
-            <NoVideoMessage>
-              {currentSong ? `🎵 ${t('showView.noVideoAvailable')}` : `🎤 ${t('showView.noSongSelected')}`}
-            </NoVideoMessage>
+            // Fallback area when not Ultrastar branch: show background loop if desired
+            (isBackgroundMusicPlaying || videoError || !currentSong) ? (
+              <>
+                <BackgroundLoopVideo
+                  src={'/bg-video/bg-video.webm'}
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                  onLoadStart={() => console.log('🎬 Background loop video loading...')}
+                  onLoadedData={() => console.log('🎬 Background loop video loaded')}
+                  onCanPlay={() => console.log('🎬 Background loop video can play')}
+                  onPlay={() => console.log('🎬 Background loop video started')}
+                  onError={(e) => console.error('🎬 Background loop video error:', e)}
+                />
+                {/* Debug info */}
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  background: 'rgba(0,0,0,0.8)',
+                  color: 'white',
+                  padding: '10px',
+                  zIndex: 100,
+                  fontSize: '12px'
+                }}>
+                  Debug: BG Music: {isBackgroundMusicPlaying ? 'ON' : 'OFF'}, 
+                  Video Error: {videoError ? 'YES' : 'NO'}, 
+                  Current Song: {currentSong ? 'YES' : 'NO'}
+                </div>
+              </>
+            ) : (
+              <NoVideoMessage>
+                {currentSong ? `🎵 ${t('showView.noVideoAvailable')}` : `🎤 ${t('showView.noSongSelected')}`}
+              </NoVideoMessage>
+            )
           )}
         </VideoWrapper>
       ) : (

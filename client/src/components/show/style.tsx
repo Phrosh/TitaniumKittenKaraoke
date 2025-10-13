@@ -71,6 +71,16 @@ export const BackgroundVideo = styled.video`
   z-index: 1;
 `;
 
+export const BackgroundLoopVideo = styled.video`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 2;
+`;
+
 export const BackgroundImage = styled.div<{ $imageUrl: string }>`
   position: absolute;
   top: 0;
