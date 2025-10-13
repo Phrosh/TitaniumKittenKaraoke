@@ -71,7 +71,7 @@ export const BackgroundVideo = styled.video`
   z-index: 1;
 `;
 
-export const BackgroundLoopVideo = styled.video`
+export const BackgroundLoopVideo = styled.video<{ $fadeIn?: boolean; $fadeOut?: boolean }>`
   position: absolute;
   top: 0;
   left: 0;
@@ -79,6 +79,12 @@ export const BackgroundLoopVideo = styled.video`
   height: 100%;
   object-fit: cover;
   z-index: 2;
+  opacity: ${props => {
+    if (props.$fadeOut) return 0;
+    if (props.$fadeIn) return 1;
+    return 1;
+  }};
+  transition: opacity 1s ease-in-out;
 `;
 
 export const BackgroundImage = styled.div<{ $imageUrl: string }>`

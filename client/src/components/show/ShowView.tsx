@@ -134,6 +134,9 @@ const ShowView: React.FC = () => {
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [backgroundVideoFadeIn, setBackgroundVideoFadeIn] = useState(false);
+  const [backgroundVideoFadeOut, setBackgroundVideoFadeOut] = useState(false);
+  const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
 
   const lyricsDisplayStyle = {
     position: 'absolute' as const,
@@ -960,6 +963,8 @@ const ShowView: React.FC = () => {
         
         // Stop background music when new song is loaded
         stopBackgroundMusic();
+        // Hide background video when new song is loaded
+        hideBackgroundVideo();
         // Reset video error state on song change
         setVideoError(false);
         
@@ -1089,6 +1094,8 @@ const ShowView: React.FC = () => {
       
       // Stop background music when new song is loaded
       stopBackgroundMusic();
+      // Hide background video when new song is loaded
+      hideBackgroundVideo();
       // Reset video error state on song change
       setVideoError(false);
       
@@ -1185,6 +1192,8 @@ const ShowView: React.FC = () => {
           showAPI.toggleQRCodeOverlay(false).catch(error => {
             console.error('Error hiding overlay on play:', error);
           });
+          // Hide background video when main audio resumes
+          hideBackgroundVideo();
           // Restart lyrics animation when audio resumes
           setTimeout(() => {
             restartLyricsAnimation();
@@ -1208,6 +1217,8 @@ const ShowView: React.FC = () => {
           showAPI.toggleQRCodeOverlay(false).catch(error => {
             console.error('Error hiding overlay on play:', error);
           });
+          // Hide background video when YouTube video resumes
+          hideBackgroundVideo();
         }
       } else if (!isUltrastar && videoRef.current) {
         console.log('🎬 Video toggle-play-pause via WebSocket');
@@ -1220,6 +1231,8 @@ const ShowView: React.FC = () => {
           showAPI.toggleQRCodeOverlay(false).catch(error => {
             console.error('Error hiding overlay on play:', error);
           });
+          // Hide background video when main video resumes
+          hideBackgroundVideo();
         } else {
           videoRef.current.pause();
           setIsPlaying(false);
@@ -1236,6 +1249,8 @@ const ShowView: React.FC = () => {
 
       // Stop background music when song restarts
       stopBackgroundMusic();
+      // Hide background video when song restarts
+      hideBackgroundVideo();
 
       if (isUltrastar && audioRef.current && ultrastarData) {
 
@@ -1584,6 +1599,13 @@ const ShowView: React.FC = () => {
     backgroundMusicRef.current.play().then(() => {
       setIsBackgroundMusicPlaying(true);
       console.log('🎵 Background music started:', randomSong.name);
+      
+      // Show background video when background music starts
+      setShouldShowBackgroundVideo(true);
+      setBackgroundVideoFadeOut(false);
+      setTimeout(() => {
+        setBackgroundVideoFadeIn(true);
+      }, 100); // Small delay to ensure video is ready
     }).catch(error => {
       console.error('Error playing background music:', error);
     });
@@ -1593,6 +1615,10 @@ const ShowView: React.FC = () => {
     if (!backgroundMusicRef.current || !isBackgroundMusicPlaying) {
       return;
     }
+
+    // Start fade-out for background video
+    setBackgroundVideoFadeIn(false);
+    setBackgroundVideoFadeOut(true);
 
     // Fade out background music
     const fadeOut = () => {
@@ -1610,11 +1636,32 @@ const ShowView: React.FC = () => {
         backgroundMusicRef.current.volume = backgroundMusicSettings.volume; // Reset volume
         setIsBackgroundMusicPlaying(false);
         console.log('🎵 Background music stopped');
+        
+        // Hide background video when background music stops
+        setShouldShowBackgroundVideo(false);
+        
+        // Reset fade states after fade-out is complete
+        setTimeout(() => {
+          setBackgroundVideoFadeOut(false);
+        }, 1000); // Wait for CSS transition to complete
       }
     };
     
     fadeOut();
   }, [isBackgroundMusicPlaying, backgroundMusicSettings.volume]);
+
+  // Function to hide background video when main video plays
+  const hideBackgroundVideo = useCallback(() => {
+    console.log('🎬 Hiding background video - main video is playing');
+    setShouldShowBackgroundVideo(false);
+    setBackgroundVideoFadeIn(false);
+    setBackgroundVideoFadeOut(true);
+    
+    // Reset fade states after fade-out is complete
+    setTimeout(() => {
+      setBackgroundVideoFadeOut(false);
+    }, 1000); // Wait for CSS transition to complete
+  }, []);
 
   useEffect(() => {
     globalUltrastarData = ultrastarData;
@@ -1695,6 +1742,8 @@ const ShowView: React.FC = () => {
 
     // Stop background music when song starts
     stopBackgroundMusic();
+    // Hide background video when main audio/video starts
+    hideBackgroundVideo();
 
     // Start Ultrastar timing now that audio is actually playing
     if (ultrastarData && ultrastarData.audioUrl && ultrastarData.bpm > 0) {
@@ -1708,7 +1757,7 @@ const ShowView: React.FC = () => {
       videoRef.current.currentTime = ultrastarData.videogap;
       videoRef.current.play().catch(console.error);
     }
-  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines, stopBackgroundMusic]);
+  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines, stopBackgroundMusic, hideBackgroundVideo]);
 
   const handleAudioPause = useCallback(() => {
     setPlaying(false);
@@ -2058,6 +2107,8 @@ const ShowView: React.FC = () => {
                   console.log('🎬 Video started playing');
                   // Stop background music when video starts
                   stopBackgroundMusic();
+                  // Hide background video when main video plays
+                  hideBackgroundVideo();
                 }}
                 onPause={() => {
                   setIsPlaying(false);
@@ -2134,13 +2185,15 @@ const ShowView: React.FC = () => {
               )}
               
               {/* Background loop video when background music is playing */}
-              {isBackgroundMusicPlaying && (
+              {shouldShowBackgroundVideo && (
                 <BackgroundLoopVideo
                   src={'/bg-video/bg-video.webm'}
                   muted
                   loop
                   autoPlay
                   playsInline
+                  $fadeIn={backgroundVideoFadeIn}
+                  $fadeOut={backgroundVideoFadeOut}
                   onLoadStart={() => console.log('🎬 Background loop video loading (BG music)...')}
                   onLoadedData={() => console.log('🎬 Background loop video loaded (BG music)')}
                   onCanPlay={() => console.log('🎬 Background loop video can play (BG music)')}
@@ -2176,7 +2229,7 @@ const ShowView: React.FC = () => {
             </>
           ) : (
             // Fallback area when not Ultrastar branch: show background loop if desired
-            (isBackgroundMusicPlaying || videoError || !currentSong) ? (
+            (shouldShowBackgroundVideo || videoError || !currentSong) ? (
               <>
                 <BackgroundLoopVideo
                   src={'/bg-video/bg-video.webm'}
@@ -2184,6 +2237,8 @@ const ShowView: React.FC = () => {
                   loop
                   autoPlay
                   playsInline
+                  $fadeIn={backgroundVideoFadeIn}
+                  $fadeOut={backgroundVideoFadeOut}
                   onLoadStart={() => console.log('🎬 Background loop video loading...')}
                   onLoadedData={() => console.log('🎬 Background loop video loaded')}
                   onCanPlay={() => console.log('🎬 Background loop video can play')}
@@ -2203,7 +2258,10 @@ const ShowView: React.FC = () => {
                 }}>
                   Debug: BG Music: {isBackgroundMusicPlaying ? 'ON' : 'OFF'}, 
                   Video Error: {videoError ? 'YES' : 'NO'}, 
-                  Current Song: {currentSong ? 'YES' : 'NO'}
+                  Current Song: {currentSong ? 'YES' : 'NO'},
+                  Show BG Video: {shouldShowBackgroundVideo ? 'YES' : 'NO'},
+                  Fade In: {backgroundVideoFadeIn ? 'YES' : 'NO'},
+                  Fade Out: {backgroundVideoFadeOut ? 'YES' : 'NO'}
                 </div>
               </>
             ) : (
