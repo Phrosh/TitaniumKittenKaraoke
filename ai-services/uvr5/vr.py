@@ -12,7 +12,26 @@ from lib_v5 import nets_61968KB as Nets
 from lib_v5 import spec_utils
 from lib_v5.model_param_init import ModelParameters
 from lib_v5.nets_new import CascadedNet
-from utils import inference
+try:
+    from .utils import inference
+except ImportError:
+    try:
+        # Fallback for direct import from uvr5 directory
+        from utils import inference
+    except ImportError:
+        # Final fallback - import from current directory
+        import sys
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        utils_path = os.path.join(current_dir, 'utils.py')
+        if os.path.exists(utils_path):
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("uvr5_utils", utils_path)
+            uvr5_utils = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(uvr5_utils)
+            inference = uvr5_utils.inference
+        else:
+            raise ImportError("Could not find UVR5 utils module")
 
 
 class AudioPre:

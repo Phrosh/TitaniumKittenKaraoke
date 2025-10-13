@@ -11,9 +11,14 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse, parse_qs
+import sys
 
 from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
+
+# Import sanitize_filename from routes.utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'routes'))
+from utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +397,10 @@ def download_usdb_song(meta: ProcessingMeta) -> bool:
             logger.warning(f"⚠️ Keine YouTube-URL für USDB-Song {usdb_song_id} gefunden")
         
         # Aktualisiere Ordnername basierend auf den echten Song-Informationen
-        new_folder_name = f"{meta.artist} - {meta.title}"
+        # Sanitize artist and title to ensure valid folder names
+        sanitized_artist = sanitize_filename(meta.artist)
+        sanitized_title = sanitize_filename(meta.title)
+        new_folder_name = f"{sanitized_artist} - {sanitized_title}"
         new_folder_path = os.path.join(meta.base_dir, new_folder_name)
         
         logger.info(f"🔄 Ordner-Update: {meta.folder_name} -> {new_folder_name}")
