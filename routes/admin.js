@@ -425,11 +425,9 @@ router.put('/song/:songId', [
 
     // Trigger automatic USDB search if artist or title changed and it's a YouTube song
     if (song.mode === 'youtube' && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song') {
-      // Import the function from songs.js
-      const songsModule = require('./songs');
-      if (songsModule.triggerAutomaticUSDBSearch) {
-        songsModule.triggerAutomaticUSDBSearch(songId, artist, title);
-      }
+      // Import the function from songHelpers
+      const { triggerAutomaticUSDBSearch } = require('./songs/utils/songHelpers');
+      triggerAutomaticUSDBSearch(songId, artist, title);
     }
 
     res.json({ message: 'Song updated successfully' });
