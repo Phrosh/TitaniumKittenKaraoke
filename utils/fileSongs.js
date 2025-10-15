@@ -96,25 +96,7 @@ function findFileSong(folderPath, artist, title) {
   return found;
 }
 
-/**
- * Sucht nach Dateien basierend auf einem Suchbegriff
- * @param {string} folderPath - Der Pfad zum Ordner
- * @param {string} searchTerm - Der Suchbegriff
- * @returns {Array} Array von passenden Video-Objekten
- */
-function searchFileSongs(folderPath, searchTerm) {
-  const videos = scanFileSongs(folderPath);
-  const term = searchTerm.toLowerCase();
-  
-  return videos.filter(video => 
-    video.artist.toLowerCase().includes(term) ||
-    video.title.toLowerCase().includes(term) ||
-    `${video.artist} - ${video.title}`.toLowerCase().includes(term)
-  );
-}
-
 module.exports = {
   scanFileSongs,
-  findFileSong,
-  searchFileSongs
+  findFileSong
 };

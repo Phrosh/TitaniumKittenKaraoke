@@ -269,21 +269,6 @@ function parseNoteLine(line) {
 }
 
 /**
- * Berechnet die Zeit in Millisekunden für einen bestimmten Beat
- * @param {number} beat - Beat-Nummer
- * @param {number} bpm - Beats per Minute
- * @param {number} gap - Gap in Millisekunden
- * @returns {number} Zeit in Millisekunden
- */
-function beatToMilliseconds(beat, bpm, gap) {
-  if (bpm <= 0) return 0;
-  
-  // 1 Beat = 60.000 / BPM Millisekunden
-  const beatDuration = (60000 / bpm) / 4;
-  return gap + (beat * beatDuration);
-}
-
-/**
  * Findet alle Audio-Dateien in einem Ultrastar-Ordner
  * @param {string} folderPath - Pfad zum Ultrastar-Ordner
  * @returns {string|null} Pfad zur Audio-Datei oder null
@@ -387,6 +372,5 @@ function groupNotesIntoLines(notes) {
 module.exports = {
   parseUltrastarFile,
   parseNoteLine,
-  beatToMilliseconds,
   findAudioFile
 };

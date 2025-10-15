@@ -1,44 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Download YouTube video to songs/youtube folder
-router.post('/download-youtube', async (req, res) => {
-  try {
-    const { youtubeUrl, artist, title } = req.body;
-    
-    if (!youtubeUrl || !artist || !title) {
-      return res.status(400).json({ 
-        error: 'YouTube URL, artist, and title are required' 
-      });
-    }
-    
-    const { downloadYouTubeVideo } = require('../../utils/youtubeSongs');
-    const result = await downloadYouTubeVideo(youtubeUrl, artist, title);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        folderName: result.folderName,
-        videoFile: result.videoFile,
-        videoId: result.videoId
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: result.error,
-        message: result.message
-      });
-    }
-  } catch (error) {
-    console.error('Error downloading YouTube video:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Server error',
-      message: error.message 
-    });
-  }
-});
+// Removed: POST /songs/download-youtube (unused)
 
 // Processing status endpoint (from AI services)
 router.post('/processing-status', async (req, res) => {
@@ -260,55 +223,7 @@ router.post('/ai-services/separate_audio/ultrastar/:folderName', async (req, res
   }
 });
 
-router.get('/ai-services/health', async (req, res) => {
-  try {
-    const pythonServerUrl = 'http://localhost:6000';
-    const healthUrl = `${pythonServerUrl}/health`;
-    
-    const https = require('http');
-    const url = require('url');
-    
-    const parsedUrl = url.parse(healthUrl);
-    const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port,
-      path: parsedUrl.path,
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
-    
-    const proxyReq = https.request(options, (proxyRes) => {
-      let data = '';
-      
-      proxyRes.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-      proxyRes.on('end', () => {
-        try {
-          const responseData = JSON.parse(data);
-          res.status(proxyRes.statusCode).json(responseData);
-        } catch (error) {
-          console.error('Error parsing AI service health response:', error);
-          res.status(500).json({ error: 'Invalid response from AI service' });
-        }
-      });
-    });
-    
-    proxyReq.on('error', (error) => {
-      console.error('Error proxying to AI service health:', error);
-      res.status(500).json({ error: 'AI service unavailable' });
-    });
-    
-    proxyReq.setTimeout(5000);
-    proxyReq.end();
-  } catch (error) {
-    console.error('Error proxying AI service health check:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// Removed: GET /songs/ai-services/health (unused)
 
 // Modular processing endpoint for all song types
 router.post('/modular-process/:folderName', async (req, res) => {

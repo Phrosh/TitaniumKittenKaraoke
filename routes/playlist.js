@@ -6,48 +6,48 @@ const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcas
 
 const router = express.Router();
 
-// Helper function to find next playable song
-async function findNextPlayableSong(currentSongId = null) {
-  try {
-    const db = require('../config/database');
+// // Helper function to find next playable song
+// async function findNextPlayableSong(currentSongId = null) {
+//   try {
+//     const db = require('../config/database');
     
-    // Get all songs after current position, ordered by position
-    const songs = await new Promise((resolve, reject) => {
-      const query = currentSongId 
-        ? `SELECT s.*, u.name as user_name, u.device_id 
-           FROM songs s 
-           JOIN users u ON s.user_id = u.id 
-           WHERE s.position > (
-             SELECT COALESCE(s2.position, 0) 
-             FROM songs s2 
-             WHERE s2.id = ?
-           )
-           ORDER BY s.position ASC`
-        : `SELECT s.*, u.name as user_name, u.device_id 
-           FROM songs s 
-           JOIN users u ON s.user_id = u.id 
-           ORDER BY s.position ASC`;
+//     // Get all songs after current position, ordered by position
+//     const songs = await new Promise((resolve, reject) => {
+//       const query = currentSongId 
+//         ? `SELECT s.*, u.name as user_name, u.device_id 
+//            FROM songs s 
+//            JOIN users u ON s.user_id = u.id 
+//            WHERE s.position > (
+//              SELECT COALESCE(s2.position, 0) 
+//              FROM songs s2 
+//              WHERE s2.id = ?
+//            )
+//            ORDER BY s.position ASC`
+//         : `SELECT s.*, u.name as user_name, u.device_id 
+//            FROM songs s 
+//            JOIN users u ON s.user_id = u.id 
+//            ORDER BY s.position ASC`;
       
-      db.all(query, currentSongId ? [currentSongId] : [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+//       db.all(query, currentSongId ? [currentSongId] : [], (err, rows) => {
+//         if (err) reject(err);
+//         else resolve(rows);
+//       });
+//     });
     
-    // Find first playable song
-    for (const song of songs) {
-      const validation = validateSongForPlayback(song);
-      if (validation.valid) {
-        return song;
-      }
-    }
+//     // Find first playable song
+//     for (const song of songs) {
+//       const validation = validateSongForPlayback(song);
+//       if (validation.valid) {
+//         return song;
+//       }
+//     }
     
-    return null; // No playable song found
-  } catch (error) {
-    console.error('Error finding next playable song:', error);
-    return null;
-  }
-}
+//     return null; // No playable song found
+//   } catch (error) {
+//     console.error('Error finding next playable song:', error);
+//     return null;
+//   }
+// }
 
 // Helper function to validate if a song can be played
 function validateSongForPlayback(song) {

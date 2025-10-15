@@ -100,30 +100,8 @@ function searchMagicVideos(searchTerm) {
   }
 }
 
-/**
- * Finds a specific magic video by artist and title
- * @param {string} artist - Artist name
- * @param {string} title - Video title
- * @returns {Object|null} Video object or null if not found
- */
-function findMagicVideo(artist, title) {
-  try {
-    const allVideos = scanMagicVideos();
-    
-    return allVideos.find(video => 
-      video.artist.toLowerCase() === artist.toLowerCase() && 
-      video.title.toLowerCase() === title.toLowerCase()
-    ) || null;
-
-  } catch (error) {
-    console.error('Error finding magic video:', error);
-    return null;
-  }
-}
-
 module.exports = {
   MAGIC_VIDEOS_DIR,
   scanMagicVideos,
-  searchMagicVideos,
-  findMagicVideo
+  searchMagicVideos
 };

@@ -97,30 +97,8 @@ function searchMagicSongs(searchTerm) {
   }
 }
 
-/**
- * Finds a specific magic song by artist and title
- * @param {string} artist - Artist name
- * @param {string} title - Song title
- * @returns {Object|null} Song object or null if not found
- */
-function findMagicSong(artist, title) {
-  try {
-    const allSongs = scanMagicSongs();
-    
-    return allSongs.find(song => 
-      song.artist.toLowerCase() === artist.toLowerCase() && 
-      song.title.toLowerCase() === title.toLowerCase()
-    ) || null;
-
-  } catch (error) {
-    console.error('Error finding magic song:', error);
-    return null;
-  }
-}
-
 module.exports = {
   MAGIC_SONGS_DIR,
   scanMagicSongs,
-  searchMagicSongs,
-  findMagicSong
+  searchMagicSongs
 };

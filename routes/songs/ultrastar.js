@@ -79,39 +79,7 @@ router.post('/ultrastar/organize-loose-files', async (req, res) => {
   }
 });
 
-// New endpoint to check if video download is needed
-router.get('/ultrastar/:folderName/needs-video', async (req, res) => {
-  try {
-    const { folderName } = req.params;
-    const { ULTRASTAR_DIR } = require('../../utils/ultrastarSongs');
-    
-    const folderPath = path.join(ULTRASTAR_DIR, decodeURIComponent(folderName));
-    
-    if (!fs.existsSync(folderPath)) {
-      return res.status(404).json({ error: 'Ultrastar folder not found' });
-    }
-    
-    const files = fs.readdirSync(folderPath);
-    
-    // Check for video files
-    const videoFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'].includes(ext);
-    });
-    
-    const needsVideo = videoFiles.length === 0;
-    
-    res.json({
-      needsVideo,
-      hasVideo: videoFiles.length > 0,
-      videoCount: videoFiles.length
-    });
-    
-  } catch (error) {
-    console.error('Error checking video needs:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// Removed: GET /songs/ultrastar/:folderName/needs-video (unused)
 
 // Get ultrastar song data (parsed .txt file) - MUST be before /:filename route
 router.get('/ultrastar/:folderName/data', async (req, res) => {

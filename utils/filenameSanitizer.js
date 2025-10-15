@@ -53,29 +53,7 @@ function createSanitizedFolderName(artist, title) {
   return `${artistSanitized} - ${titleSanitized}`;
 }
 
-/**
- * Sanitizes a search term for cache lookups
- * @param {string} searchTerm - The search term to sanitize
- * @returns {string} - The sanitized search term
- */
-function sanitizeSearchTerm(searchTerm) {
-  if (!searchTerm || typeof searchTerm !== 'string') {
-    return '';
-  }
-  
-  // For search terms, we can be more lenient - just remove the most problematic chars
-  const problematicChars = /[<>:"/\\|*\x00-\x1f]/g;
-  
-  let sanitized = searchTerm.replace(problematicChars, '');
-  
-  // Remove leading/trailing spaces
-  sanitized = sanitized.trim();
-  
-  return sanitized;
-}
-
 module.exports = {
   sanitizeFilename,
-  createSanitizedFolderName,
-  sanitizeSearchTerm
+  createSanitizedFolderName
 };

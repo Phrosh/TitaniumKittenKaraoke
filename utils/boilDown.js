@@ -98,49 +98,7 @@ function boilDownMatch(str1, str2) {
   return boilDown(str1) === boilDown(str2);
 }
 
-/**
- * Find a match in a list of items using boil down normalization.
- * @param {string} searchString - String to search for
- * @param {Array} items - List of items to search in
- * @param {Function} getArtist - Function to extract artist from item
- * @param {Function} getTitle - Function to extract title from item
- * @returns {*} First matching item or null if no match found
- */
-function findBoilDownMatch(searchString, items, getArtist, getTitle) {
-  const boiledSearch = boilDown(searchString);
-  
-  for (const item of items) {
-    const artist = getArtist(item);
-    const title = getTitle(item);
-    
-    // Try exact match first
-    if (boilDownMatch(artist, searchString) || boilDownMatch(title, searchString)) {
-      return item;
-    }
-    
-    // Try combined match (artist - title)
-    const combined = `${artist} - ${title}`;
-    if (boilDownMatch(combined, searchString)) {
-      return item;
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Apply boil down normalization to both artist and title.
- * @param {string} artist - Artist name
- * @param {string} title - Song title
- * @returns {Array} Array of [normalized_artist, normalized_title]
- */
-function boilDownArtistTitle(artist, title) {
-  return [boilDown(artist), boilDown(title)];
-}
-
 module.exports = {
   boilDown,
-  boilDownMatch,
-  findBoilDownMatch,
-  boilDownArtistTitle
+  boilDownMatch
 };

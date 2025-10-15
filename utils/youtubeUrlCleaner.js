@@ -95,24 +95,8 @@ function extractVideoIdFromUrl(url) {
   return null;
 }
 
-/**
- * Validates if a string is a valid YouTube video ID
- * @param {string} videoId - The video ID to validate
- * @returns {boolean} - True if valid
- */
-function isValidVideoId(videoId) {
-  if (!videoId || typeof videoId !== 'string') {
-    return false;
-  }
-
-  // YouTube video IDs are typically 11 characters long
-  // and contain alphanumeric characters, hyphens, and underscores
-  return /^[a-zA-Z0-9_-]{11}$/.test(videoId);
-}
-
 module.exports = {
   cleanYouTubeUrl,
   isYouTubeUrl,
-  extractVideoIdFromUrl,
-  isValidVideoId
+  extractVideoIdFromUrl
 };

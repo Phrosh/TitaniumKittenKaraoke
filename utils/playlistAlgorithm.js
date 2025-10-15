@@ -183,22 +183,6 @@ class PlaylistAlgorithm {
     });
   }
 
-  static async shiftPositions(fromPosition) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE songs SET position = position + 1 WHERE position >= ?',
-        [fromPosition],
-        function(err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve({ changes: this.changes });
-          }
-        }
-      );
-    });
-  }
-
   static async getMaxDelaySetting() {
     return new Promise((resolve, reject) => {
       db.get(
