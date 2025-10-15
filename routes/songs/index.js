@@ -7,7 +7,7 @@ const usdbRoutes = require('./usdb');
 const playlistRoutes = require('./playlist');
 const requestRoutes = require('./request');
 const qrRoutes = require('./qr');
-const listRoutes = require('./listRoutes');
+const listRoutes = require('./list');
 const processingRoutes = require('./processing');
 const ultrastarRoutes = require('./ultrastar');
 
