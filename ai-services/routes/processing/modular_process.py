@@ -36,6 +36,7 @@ def modular_process(folder_name):
             create_meta_from_file_path,
             ensure_source_files,
             separate_audio,
+            dereverb_audio,
             transcribe_audio,
             cleanup_files
         )
@@ -89,7 +90,16 @@ def modular_process(folder_name):
                     separate_audio(meta)
                     logger.info("✅ Audio separation completed")
                     
-                    # 3) Transcription
+                    # 3) Dereverb (vor Transcription)
+                    logger.info("🔄 Starting dereverb...")
+                    try:
+                        send_processing_status(meta, 'dereverbing')
+                    except Exception:
+                        pass
+                    dereverb_audio(meta)
+                    logger.info("✅ Dereverb completed")
+                    
+                    # 4) Transcription
                     logger.info("🔄 Starting transcription...")
                     try:
                         send_processing_status(meta, 'transcribing')
@@ -111,7 +121,16 @@ def modular_process(folder_name):
                     separate_audio(meta)
                     logger.info("✅ Audio separation completed")
                     
-                    # 3) Transcription
+                    # 3) Dereverb (vor Transcription)
+                    logger.info("🔄 Starting dereverb...")
+                    try:
+                        send_processing_status(meta, 'dereverbing')
+                    except Exception:
+                        pass
+                    dereverb_audio(meta)
+                    logger.info("✅ Dereverb completed")
+                    
+                    # 4) Transcription
                     logger.info("🔄 Starting transcription...")
                     try:
                         send_processing_status(meta, 'transcribing')

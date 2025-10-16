@@ -16,6 +16,7 @@ export const DownloadStatusBadgeStyle = styled.div<{ $status: DownloadStatus }>`
       case 'downloading': return '#ffc107';
       case 'transcoding': return 'linear-gradient(135deg, #9b59b6, #bb8fce)';
       case 'separating': return 'linear-gradient(135deg, #e74c3c, #ec7063)';
+      case 'dereverbing': return 'linear-gradient(135deg, #2ecc71, #58d68d)';
       case 'transcribing': return 'linear-gradient(135deg, #f39c12, #f7dc6f)';
       case 'finished': return '#28a745';
       case 'failed': return '#dc3545';
@@ -37,14 +38,16 @@ interface DownloadStatusBadgeProps {
     status
   }) => {
     const { t } = useTranslation();
+    const realStatus = status;
 
-    if (['none', 'ready'].includes(status))
+    if (['none', 'ready'].includes(realStatus))
       return null;
 
     const textMap: Record<DownloadStatus, string> = {
       downloading: `📥 ${t('status.downloading')}`,
       transcoding: `🎬 ${t('status.transcoding')}`,
       separating: `🎵 ${t('status.separating')}`,
+      dereverbing: `🧼 ${t('status.dereverbing')}`,
       transcribing: `📝 ${t('status.transcribing')}`,
       finished: t('status.finished'),
       failed: `❌ ${t('status.failed')}`,
@@ -52,10 +55,10 @@ interface DownloadStatusBadgeProps {
 
     return (
       <DownloadStatusBadgeStyle
-        $status={status}
+        $status={realStatus}
       >
-     {textMap[status] || `[${status}]`}
-     {/* [{status}] */}
+     {textMap[realStatus] || `[${realStatus}]`}
+     {/* [{realStatus}] */}
       </DownloadStatusBadgeStyle>
     );
   };

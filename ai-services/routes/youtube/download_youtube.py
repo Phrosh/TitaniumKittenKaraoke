@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 import os
 import logging
-from ..utils import normalize_audio_in_video, clean_youtube_url, get_ultrastar_dir
+from ..utils import normalize_audio_in_video, clean_youtube_url, get_ultrastar_dir, sanitize_filename
 
 # Erstelle einen Blueprint für YouTube-Download
 download_youtube_bp = Blueprint('download_youtube', __name__)
@@ -15,9 +15,10 @@ def download_youtube_video(folder_name):
     Download YouTube video to ultrastar folder
     """
     try:
-        # Decode folder name
+        # Decode and sanitize folder name
         folder_name = folder_name.replace('%20', ' ')
-        folder_path = os.path.join(get_ultrastar_dir(), folder_name)
+        sanitized_folder_name = sanitize_filename(folder_name)
+        folder_path = os.path.join(get_ultrastar_dir(), sanitized_folder_name)
         
         if not os.path.exists(folder_path):
             return jsonify({'error': 'Folder not found'}), 404
@@ -32,7 +33,7 @@ def download_youtube_video(folder_name):
         logger.info(f"Starting YouTube download: {youtube_url} to {folder_path}")
         
         # Generate output filename
-        output_filename = f"{folder_name}.%(ext)s"
+        output_filename = f"{sanitized_folder_name}.%(ext)s"
         output_path = os.path.join(folder_path, output_filename)
         
         # Try to import yt_dlp

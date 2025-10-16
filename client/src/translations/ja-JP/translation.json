@@ -459,6 +459,7 @@
   },
   "status": {
     "separating": "カラオケ楽曲を作成中",
+    "dereverbing": "ボーカルをクリーンアップ中",
     "transcribing": "カラオケテキストを作成中",
     "downloading": "ダウンロード中",
     "transcoding": "動画変換中",

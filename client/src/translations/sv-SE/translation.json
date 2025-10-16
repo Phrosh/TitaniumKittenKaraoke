@@ -459,6 +459,7 @@
   },
   "status": {
     "separating": "Skapar Karaoke-låt",
+    "dereverbing": "Rensar sång",
     "transcribing": "Skapar Karaoke-text",
     "downloading": "Laddar ner",
     "transcoding": "Konverterar Video",

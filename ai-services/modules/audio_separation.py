@@ -39,6 +39,7 @@ class AudioSeparator:
     def find_audio_source(self, meta: ProcessingMeta) -> Optional[str]:
         """
         Findet die beste Audio-Quelle für die Separation
+        Priorität: dereverbed.mp3 > normalized.mp3 > andere Audio-Dateien > Audio aus Video extrahieren
         
         Args:
             meta: ProcessingMeta-Objekt
@@ -46,8 +47,13 @@ class AudioSeparator:
         Returns:
             Pfad zur Audio-Quelle oder None
         """
-        # Priorität: normalized.mp3 > andere Audio-Dateien > Audio aus Video extrahieren
+        # Priorität: dereverbed.mp3 > normalized.mp3 > andere Audio-Dateien > Audio aus Video extrahieren
         audio_extensions = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.webm']
+        
+        # Suche nach dereverbed Datei (höchste Priorität)
+        for file in os.listdir(meta.folder_path):
+            if file.endswith('.dereverbed.mp3'):
+                return meta.get_file_path(file)
         
         # Wenn ein stabiler Basisname vorhanden ist, priorisiere [base].normalized.mp3
         if getattr(meta, 'base_filename', None):

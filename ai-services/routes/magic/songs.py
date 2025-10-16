@@ -50,3 +50,77 @@ def get_magic_songs():
     except Exception as e:
         logger.error(f"Error getting magic songs: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@magic_songs_bp.route('/magic-songs/<folder_name>/process', methods=['POST'])
+def process_magic_song(folder_name):
+    """Process magic song to generate UltraStar file"""
+    try:
+        folder_path = os.path.join(get_magic_songs_dir(), folder_name)
+        if not os.path.exists(folder_path):
+            return jsonify({'error': 'Folder not found'}), 404
+        
+        # Find audio file
+        audio_file = None
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(('.mp3', '.wav', '.flac', '.m4a', '.aac')):
+                audio_file = os.path.join(folder_path, file)
+                break
+        
+        if not audio_file:
+            return jsonify({'error': 'No audio file found'}), 400
+        
+        # Process with new modular system
+        from modules import (
+            ProcessingMode,
+            create_meta_from_file_path,
+            normalize_audio_files, separate_audio, dereverb_audio, transcribe_audio, cleanup_files
+        )
+        
+        # Create meta object from folder
+        meta = create_meta_from_file_path(folder_path, get_magic_songs_dir(), ProcessingMode.MAGIC_SONGS)
+        
+        # Process with modular pipeline
+        success = True
+        try:
+            # 1. Audio normalization
+            if not normalize_audio_files(meta, simple=True):
+                raise Exception("Audio normalization failed")
+            
+            # 2. Audio separation
+            if not separate_audio(meta):
+                raise Exception("Audio separation failed")
+            
+            # 3. Dereverb
+            if not dereverb_audio(meta):
+                raise Exception("Dereverb failed")
+            
+            # 4. Transcription
+            if not transcribe_audio(meta):
+                raise Exception("Transcription failed")
+            
+            # 5. Cleanup
+            if not cleanup_files(meta):
+                raise Exception("Cleanup failed")
+                
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Magic song processed successfully with modular system',
+                'output_files': meta.output_files,
+                'steps_completed': meta.steps_completed
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': error_msg,
+                'steps_failed': meta.steps_failed
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"Error processing magic song: {str(e)}")
+        return jsonify({'error': str(e)}), 500

@@ -459,6 +459,7 @@
   },
   "status": {
     "separating": "创建卡拉OK歌曲",
+    "dereverbing": "正在清理人声",
     "transcribing": "创建卡拉OK文本",
     "downloading": "下载中",
     "transcoding": "视频转换中",

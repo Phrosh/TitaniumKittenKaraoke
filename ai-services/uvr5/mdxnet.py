@@ -91,20 +91,56 @@ class Predictor:
     def __init__(self, args):
         import onnxruntime as ort
 
-        logger.info(ort.get_available_providers())
+        # Ermittele verfügbare Provider und wähle robust (CUDA → DML → CPU)
+        available = ort.get_available_providers()
+        logger.info(f"ONNX available providers: {available}")
         self.args = args
         self.model_ = get_models(
             device=cpu, dim_f=args.dim_f, dim_t=args.dim_t, n_fft=args.n_fft
         )
-        self.model = ort.InferenceSession(
-            os.path.join(args.onnx, self.model_.target_name + ".onnx"),
-            providers=[
-                "CUDAExecutionProvider",
-                "DmlExecutionProvider",
-                "CPUExecutionProvider",
-            ],
-        )
-        logger.info("ONNX load done")
+        model_path = os.path.join(args.onnx, self.model_.target_name + ".onnx")
+
+        # Optionaler strikter CUDA-Modus über Env (keine Fallbacks)
+        strict_cuda = os.getenv("UVR5_STRICT_CUDA", "0") == "1"
+        cuda_device_id = int(os.getenv("UVR5_CUDA_DEVICE_ID", "0"))
+
+        # Baue Versuchsreihenfolge dynamisch nach Verfügbarkeit
+        try_order = []
+        if "CUDAExecutionProvider" in available:
+            try_order.append("CUDAExecutionProvider")
+        if not strict_cuda and "DmlExecutionProvider" in available:
+            try_order.append("DmlExecutionProvider")
+        if not strict_cuda:
+            try_order.append("CPUExecutionProvider")
+
+        self.chosen_provider = None
+        last_err = None
+        for provider in try_order:
+            try:
+                if provider == "CUDAExecutionProvider":
+                    cuda_options = {
+                        "device_id": cuda_device_id,
+                        # Optionale Stabilitäts-/Kompatibilitäts-Options, ignoriert wenn unbekannt
+                        "arena_extend_strategy": "kSameAsRequested",
+                        "cudnn_conv_algo_search": "EXHAUSTIVE",
+                        "do_copy_in_default_stream": True,
+                    }
+                    self.model = ort.InferenceSession(
+                        model_path,
+                        providers=[("CUDAExecutionProvider", cuda_options)],
+                    )
+                else:
+                    self.model = ort.InferenceSession(model_path, providers=[provider])
+                self.chosen_provider = provider
+                logger.info(f"ONNX load done with provider: {provider}")
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                logger.warning(f"Failed to init ONNX session with {provider}: {e}")
+                self.model = None
+        if self.model is None:
+            raise last_err if last_err else RuntimeError("Failed to initialize ONNX InferenceSession")
 
     def demix(self, mix):
         samples = mix.shape[-1]
@@ -144,6 +180,7 @@ class Predictor:
         chunked_sources = []
         progress_bar = tqdm(total=len(mixes))
         progress_bar.set_description("Processing")
+        import onnxruntime as ort
         for mix in mixes:
             cmix = mixes[mix]
             sources = []
@@ -165,16 +202,46 @@ class Predictor:
             with torch.no_grad():
                 _ort = self.model
                 spek = model.stft(mix_waves)
-                if self.args.denoise:
-                    spec_pred = (
-                        -_ort.run(None, {"input": -spek.cpu().numpy()})[0] * 0.5
-                        + _ort.run(None, {"input": spek.cpu().numpy()})[0] * 0.5
-                    )
-                    tar_waves = model.istft(torch.tensor(spec_pred))
-                else:
-                    tar_waves = model.istft(
-                        torch.tensor(_ort.run(None, {"input": spek.cpu().numpy()})[0])
-                    )
+                def _run_inference(session, spec_np):
+                    return session.run(None, {"input": spec_np})[0]
+
+                try:
+                    if self.args.denoise:
+                        spec_pred = (
+                            -_run_inference(_ort, -spek.cpu().numpy()) * 0.5
+                            + _run_inference(_ort, spek.cpu().numpy()) * 0.5
+                        )
+                        tar_waves = model.istft(torch.tensor(spec_pred))
+                    else:
+                        tar_waves = model.istft(
+                            torch.tensor(_run_inference(_ort, spek.cpu().numpy()))
+                        )
+                except Exception as e:
+                    # Fallback auf CPU bei Runtime-Fehlern (z.B. CUDA PTX JIT Fehler)
+                    if not (os.getenv("UVR5_STRICT_CUDA", "0") == "1") and getattr(self, "chosen_provider", None) != "CPUExecutionProvider":
+                        logger.warning(f"ONNX inference failed on provider {getattr(self, 'chosen_provider', 'unknown')}: {e}. Falling back to CPUExecutionProvider...")
+                        try:
+                            self.model = ort.InferenceSession(
+                                os.path.join(self.args.onnx, self.model_.target_name + ".onnx"),
+                                providers=["CPUExecutionProvider"],
+                            )
+                            self.chosen_provider = "CPUExecutionProvider"
+                            _ort = self.model
+                            if self.args.denoise:
+                                spec_pred = (
+                                    -_run_inference(_ort, -spek.cpu().numpy()) * 0.5
+                                    + _run_inference(_ort, spek.cpu().numpy()) * 0.5
+                                )
+                                tar_waves = model.istft(torch.tensor(spec_pred))
+                            else:
+                                tar_waves = model.istft(
+                                    torch.tensor(_run_inference(_ort, spek.cpu().numpy()))
+                                )
+                        except Exception as e2:
+                            logger.error(f"ONNX CPU fallback also failed: {e2}")
+                            raise
+                    else:
+                        raise
                 tar_signal = (
                     tar_waves[:, :, trim:-trim]
                     .transpose(0, 1)
@@ -219,23 +286,30 @@ class Predictor:
             opt_path_vocal = path_vocal[:-4] + ".%s" % format
             opt_path_other = path_other[:-4] + ".%s" % format
             if os.path.exists(path_vocal):
-                os.system(
-                    "ffmpeg -i %s -vn %s -q:a 2 -y" % (path_vocal, opt_path_vocal)
-                )
-                if os.path.exists(opt_path_vocal):
-                    try:
-                        os.remove(path_vocal)
-                    except:
-                        pass
+                import subprocess
+                try:
+                    subprocess.run([
+                        'ffmpeg', '-i', path_vocal, '-vn', opt_path_vocal, '-q:a', '2', '-y'
+                    ], check=True, capture_output=True)
+                    if os.path.exists(opt_path_vocal):
+                        try:
+                            os.remove(path_vocal)
+                        except:
+                            pass
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"FFmpeg vocal conversion failed: {e}")
             if os.path.exists(path_other):
-                os.system(
-                    "ffmpeg -i %s -vn %s -q:a 2 -y" % (path_other, opt_path_other)
-                )
-                if os.path.exists(opt_path_other):
-                    try:
-                        os.remove(path_other)
-                    except:
-                        pass
+                try:
+                    subprocess.run([
+                        'ffmpeg', '-i', path_other, '-vn', opt_path_other, '-q:a', '2', '-y'
+                    ], check=True, capture_output=True)
+                    if os.path.exists(opt_path_other):
+                        try:
+                            os.remove(path_other)
+                        except:
+                            pass
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"FFmpeg others conversion failed: {e}")
 
 
 class MDXNetDereverb:

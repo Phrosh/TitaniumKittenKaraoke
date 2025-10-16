@@ -559,11 +559,98 @@ async function triggerAutomaticSongClassification() {
   }
 }
 
+// Helper function to check if a song requires approval
+async function checkIfSongRequiresApproval(artist, title, mode, youtubeUrl) {
+  try {
+    const db = require('../config/database');
+    
+    // Check if song already exists
+    const existingSong = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM songs WHERE artist = ? AND title = ?', [artist, title], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    if (existingSong) {
+      console.log(`Song already exists: ${artist} - ${title}`);
+      return false; // No approval needed for existing songs
+    }
+    
+    // Check if it's a YouTube song (always requires approval)
+    if (mode === 'youtube' || youtubeUrl) {
+      console.log(`YouTube song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // Check if it's a magic-youtube song (always requires approval)
+    if (mode === 'magic-youtube') {
+      console.log(`Magic-YouTube song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // Check if it's a USDB song (always requires approval)
+    if (mode === 'ultrastar') {
+      console.log(`USDB song requires approval: ${artist} - ${title}`);
+      return true;
+    }
+    
+    // For other modes, check if they exist in the file system
+    const fs = require('fs');
+    const path = require('path');
+    
+    const songsDir = path.join(process.cwd(), 'songs');
+    const modeDir = path.join(songsDir, mode);
+    
+    if (fs.existsSync(modeDir)) {
+      const folders = fs.readdirSync(modeDir);
+      const songFolder = folders.find(folder => 
+        folder.toLowerCase().includes(artist.toLowerCase()) && 
+        folder.toLowerCase().includes(title.toLowerCase())
+      );
+      
+      if (songFolder) {
+        console.log(`Song found in file system: ${artist} - ${title}`);
+        return false; // No approval needed for existing files
+      }
+    }
+    
+    // If we get here, it's a new song that requires approval
+    console.log(`New song requires approval: ${artist} - ${title}`);
+    return true;
+    
+  } catch (error) {
+    console.error('Error checking if song requires approval:', error);
+    return true; // Default to requiring approval on error
+  }
+}
+
+
+// Helper function to store song request for approval
+async function storeSongRequestForApproval(userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals) {
+  const db = require('../../../config/database');
+  
+  await new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO song_approvals (user_id, singer_name, artist, title, youtube_url, song_input, device_id, with_background_vocals, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, singerName, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals, new Date().toISOString()],
+      function(err) {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+  
+  console.log(`📝 Song request stored for approval: ${artist} - ${title} (${singerName})`);
+}
+
 module.exports = {
   cleanupTestSongs,
   triggerVideoConversionViaProxy,
   triggerAudioSeparationViaProxy,
   triggerAutomaticUSDBSearch,
   triggerAutomaticUSDBDownload,
-  triggerAutomaticSongClassification
+  triggerAutomaticSongClassification,
+  checkIfSongRequiresApproval,
+  storeSongRequestForApproval
 };

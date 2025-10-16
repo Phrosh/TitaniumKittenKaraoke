@@ -100,7 +100,7 @@ router.post('/song/:songId/magic-youtube', [
                 broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'finished' });
               }
             } else {
-              Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+              Song.updateDownloadStatus(songId, 'failed').catch(console.error);
               const io = require('../../server').io;
               if (io) {
                 broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
@@ -108,7 +108,7 @@ router.post('/song/:songId/magic-youtube', [
             }
           } catch (error) {
             console.error('✨ Error parsing Magic YouTube response:', error);
-            Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+            Song.updateDownloadStatus(songId, 'failed').catch(console.error);
             const io = require('../../server').io;
             if (io) {
               broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
@@ -119,7 +119,7 @@ router.post('/song/:songId/magic-youtube', [
       
       proxyReq.on('error', (error) => {
         console.error('✨ Error processing Magic YouTube:', error);
-        Song.updateDownloadStatus(songId, 'magic-failed').catch(console.error);
+        Song.updateDownloadStatus(songId, 'failed').catch(console.error);
         const io = require('../../server').io;
         if (io) {
           broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });
@@ -133,7 +133,7 @@ router.post('/song/:songId/magic-youtube', [
       
     } catch (error) {
       console.error('✨ Error starting Magic YouTube processing:', error);
-      await Song.updateDownloadStatus(songId, 'magic-failed');
+      await Song.updateDownloadStatus(songId, 'failed');
       const io = require('../../server').io;
       if (io) {
         broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'failed' });

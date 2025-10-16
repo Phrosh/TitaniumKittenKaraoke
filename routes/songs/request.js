@@ -5,7 +5,11 @@ const router = express.Router();
 const PlaylistAlgorithm = require('../../utils/playlistAlgorithm');
 const YouTubeMetadataService = require('../../utils/youtubeMetadata');
 const { triggerVideoConversionViaProxy, triggerAudioSeparationViaProxy, cleanupTestSongs, triggerAutomaticUSDBSearch } = require('./utils/songHelpers');
-
+const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
+const User = require('../../models/User');
+const Song = require('../../models/Song');
+const { checkIfSongRequiresApproval, storeSongRequestForApproval } = require('./utils/songHelpers');
+const { broadcastProcessingStatus, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
 
 // Submit new song request
 router.post('/request', [
@@ -165,7 +169,7 @@ router.post('/request', [
     const user = await User.create(name, deviceId);
 
     // Verwende zentrale Video-Modi-Konfiguration
-    const { findBestVideoMode } = require('../config/videoModes');
+    const { findBestVideoMode } = require('../../config/videoModes');
     let mode = 'youtube';
     let durationSeconds = null;
     let ultrastarSong = null;
@@ -182,7 +186,7 @@ router.post('/request', [
         
         // For automatically detected ultrastar songs, set withBackgroundVocals based on available files
         if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
-          const folderPath = path.join(require('../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
+          const folderPath = path.join(require('../../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
           if (fs.existsSync(folderPath)) {
             const files = fs.readdirSync(folderPath);
             const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
@@ -202,7 +206,7 @@ router.post('/request', [
       // Trigger video conversion for ultrastar song
       if (ultrastarSong) {
         try {
-            const { ULTRASTAR_DIR } = require('../utils/ultrastarSongs');
+            const { ULTRASTAR_DIR } = require('../../utils/ultrastarSongs');
             const folderPath = path.join(ULTRASTAR_DIR, ultrastarSong.folderName);
             
             // Check if folder exists and find video files
@@ -334,8 +338,8 @@ router.post('/request', [
           await storeSongRequestForApproval(user.id, name, artist, title, youtubeUrl, songInput, deviceId, withBackgroundVocals || false);
           
           // Send WebSocket notification to admin dashboard
-          const { broadcastSongApprovalNotification } = require('../utils/websocketService');
-          const io = require('../server').io;
+          const { broadcastSongApprovalNotification } = require('../../utils/websocketService');
+          const io = require('../../server').io;
           if (io) {
             await broadcastSongApprovalNotification(io, {
               singer_name: name,
@@ -454,7 +458,7 @@ router.post('/request', [
                     }
                   } catch {}
                 } else {
-                  Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+                  Song.updateDownloadStatus(song.id, 'failed').catch(console.error);
                   try {
                     const io = req.app.get('io');
                     if (io) {
@@ -464,14 +468,14 @@ router.post('/request', [
                 }
               } catch (error) {
                 console.error('✨ Error parsing Magic YouTube response from song request:', error);
-                Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+                Song.updateDownloadStatus(song.id, 'failed').catch(console.error);
               }
             });
           });
           
           proxyReq.on('error', (error) => {
             console.error('✨ Error processing Magic YouTube from song request:', error);
-            Song.updateDownloadStatus(song.id, 'magic-failed').catch(console.error);
+            Song.updateDownloadStatus(song.id, 'failed').catch(console.error);
             try {
               const io = req.app.get('io');
           if (io) {
@@ -487,7 +491,7 @@ router.post('/request', [
           
         } catch (error) {
           console.error('✨ Error starting Magic YouTube processing from song request:', error);
-          await Song.updateDownloadStatus(song.id, 'magic-failed');
+          await Song.updateDownloadStatus(song.id, 'failed');
           try {
             const io = req.app.get('io');
             if (io) {
@@ -538,7 +542,6 @@ router.post('/request', [
       
       // Set song status to "downloading" to show loading state in UI
       try {
-        const Song = require('../models/Song');
         await Song.updateStatus(song.id, 'downloading');
         await Song.updateDownloadStartTime(song.id, new Date().toISOString());
         console.log('🔄 Song status set to downloading:', { songId: song.id, artist, title });

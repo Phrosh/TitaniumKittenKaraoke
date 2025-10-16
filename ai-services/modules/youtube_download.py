@@ -126,7 +126,10 @@ class YouTubeDownloader:
             
             # Aktualisiere Ordnername falls nötig (nur wenn noch nicht korrekt gesetzt)
             if meta.folder_name == 'Unknown Artist - Unknown Title' or meta.folder_name == 'ultrastar':
-                new_folder_name = f"{meta.artist} - {meta.title}"
+                # Sanitize artist and title to ensure valid folder names
+                sanitized_artist = sanitize_filename(meta.artist)
+                sanitized_title = sanitize_filename(meta.title)
+                new_folder_name = f"{sanitized_artist} - {sanitized_title}"
                 if new_folder_name != meta.folder_name:
                     old_path = meta.folder_path
                     meta.folder_name = new_folder_name

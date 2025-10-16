@@ -3,7 +3,7 @@ import os
 import logging
 import threading
 import glob
-from ..utils import get_ultrastar_dir
+from ..utils import get_ultrastar_dir, sanitize_filename
 
 # Erstelle einen Blueprint für Recreate
 recreate_bp = Blueprint('recreate', __name__)
@@ -29,7 +29,9 @@ def recreate(folder_name):
         else:
             return jsonify({'success': False, 'error': 'Invalid song type for recreate'}), 400
         
-        folder_path = os.path.join(base_dir, folder_name)
+        # Sanitize folder name to ensure valid directory name
+        sanitized_folder_name = sanitize_filename(folder_name)
+        folder_path = os.path.join(base_dir, sanitized_folder_name)
         
         if not os.path.exists(folder_path):
             return jsonify({'success': False, 'error': 'Folder not found'}), 404
@@ -38,6 +40,7 @@ def recreate(folder_name):
             ProcessingMode,
             create_meta_from_file_path,
             separate_audio,
+            dereverb_audio,
             transcribe_audio,
             cleanup_files
         )
@@ -96,10 +99,18 @@ def recreate(folder_name):
                 except Exception:
                     pass
                 
-                # Run recreate pipeline: audio_separation → transcription → cleanup
+                # Run recreate pipeline: audio_separation → dereverb → transcription → cleanup
                 logger.info("🔄 Starting audio separation...")
                 separate_audio(meta)
                 logger.info("✅ Audio separation completed")
+                
+                logger.info("🔄 Starting dereverb...")
+                try:
+                    send_processing_status(meta, 'dereverbing')
+                except Exception:
+                    pass
+                dereverb_audio(meta)
+                logger.info("✅ Dereverb completed")
                 
                 logger.info("🔄 Starting transcription...")
                 try:

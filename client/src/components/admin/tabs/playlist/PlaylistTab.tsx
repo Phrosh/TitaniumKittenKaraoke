@@ -120,6 +120,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             failed: 100,
             finished: 90,
             transcribing: 80,
+            dereverbing: 75,
             separating: 70,
             downloading: 60,
           } as any;

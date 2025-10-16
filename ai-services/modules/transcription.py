@@ -70,6 +70,7 @@ class AudioTranscriber:
     def find_vocals_file(self, meta: ProcessingMeta) -> Optional[str]:
         """
         Findet die beste Vocals-Datei für die Transkription
+        Priorität: .dereverbed.mp3 > .vocals.mp3 > .hp5.mp3 > andere Audio-Dateien
         
         Args:
             meta: ProcessingMeta-Objekt
@@ -77,10 +78,15 @@ class AudioTranscriber:
         Returns:
             Pfad zur Vocals-Datei oder None
         """
-        # Priorität: .vocals.mp3 > .hp5.mp3 > andere Audio-Dateien
+        # Priorität: .dereverbed.mp3 > .vocals.mp3 > .hp5.mp3 > andere Audio-Dateien
         audio_extensions = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.webm']
         
-        # Suche nach Vocals-Dateien
+        # Suche nach dereverbed Vocals-Dateien (höchste Priorität)
+        for file in os.listdir(meta.folder_path):
+            if file.endswith('.dereverbed.mp3'):
+                return meta.get_file_path(file)
+        
+        # Suche nach normalen Vocals-Dateien
         for file in os.listdir(meta.folder_path):
             if file.endswith('.vocals.mp3'):
                 return meta.get_file_path(file)

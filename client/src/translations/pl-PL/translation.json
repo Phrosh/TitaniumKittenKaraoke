@@ -459,6 +459,7 @@
   },
   "status": {
     "separating": "Tworzenie piosenki karaoke",
+    "dereverbing": "Czyszczenie wokalu",
     "transcribing": "Tworzenie tekstu karaoke",
     "downloading": "Pobieranie",
     "transcoding": "Konwersja Wideo",

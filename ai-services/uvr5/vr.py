@@ -161,12 +161,18 @@ class AudioPre:
                 )
                 if os.path.exists(path):
                     opt_format_path = path[:-4] + ".%s" % format
-                    os.system("ffmpeg -i %s -vn %s -q:a 2 -y" % (path, opt_format_path))
-                    if os.path.exists(opt_format_path):
-                        try:
-                            os.remove(path)
-                        except:
-                            pass
+                    import subprocess
+                    try:
+                        subprocess.run([
+                            'ffmpeg', '-i', path, '-vn', opt_format_path, '-q:a', '2', '-y'
+                        ], check=True, capture_output=True)
+                        if os.path.exists(opt_format_path):
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f"FFmpeg conversion failed: {e}")
         if vocal_root is not None:
             if is_hp3 == True:
                 head = "instrument_"
@@ -202,12 +208,18 @@ class AudioPre:
                 )
                 if os.path.exists(path):
                     opt_format_path = path[:-4] + ".%s" % format
-                    os.system("ffmpeg -i %s -vn %s -q:a 2 -y" % (path, opt_format_path))
-                    if os.path.exists(opt_format_path):
-                        try:
-                            os.remove(path)
-                        except:
-                            pass
+                    import subprocess
+                    try:
+                        subprocess.run([
+                            'ffmpeg', '-i', path, '-vn', opt_format_path, '-q:a', '2', '-y'
+                        ], check=True, capture_output=True)
+                        if os.path.exists(opt_format_path):
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f"FFmpeg conversion failed: {e}")
 
 
 class AudioPreDeEcho:
@@ -223,7 +235,7 @@ class AudioPreDeEcho:
             "agg": agg,
             "high_end_process": "mirroring",
         }
-        mp = ModelParameters("infer/lib/uvr5_pack/lib_v5/modelparams/4band_v3.json")
+        mp = ModelParameters(os.path.join(os.path.dirname(__file__), "lib_v5", "modelparams", "4band_v3.json"))
         nout = 64 if "DeReverb" in model_path else 48
         model = CascadedNet(mp.param["bins"] * 2, nout)
         cpk = torch.load(model_path, map_location="cpu")
@@ -334,12 +346,18 @@ class AudioPreDeEcho:
                 )
                 if os.path.exists(path):
                     opt_format_path = path[:-4] + ".%s" % format
-                    os.system("ffmpeg -i %s -vn %s -q:a 2 -y" % (path, opt_format_path))
-                    if os.path.exists(opt_format_path):
-                        try:
-                            os.remove(path)
-                        except:
-                            pass
+                    import subprocess
+                    try:
+                        subprocess.run([
+                            'ffmpeg', '-i', path, '-vn', opt_format_path, '-q:a', '2', '-y'
+                        ], check=True, capture_output=True)
+                        if os.path.exists(opt_format_path):
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f"FFmpeg conversion failed: {e}")
         if vocal_root is not None:
             if self.data["high_end_process"].startswith("mirroring"):
                 input_high_end_ = spec_utils.mirroring(
@@ -371,9 +389,15 @@ class AudioPreDeEcho:
                 )
                 if os.path.exists(path):
                     opt_format_path = path[:-4] + ".%s" % format
-                    os.system("ffmpeg -i %s -vn %s -q:a 2 -y" % (path, opt_format_path))
-                    if os.path.exists(opt_format_path):
-                        try:
-                            os.remove(path)
-                        except:
-                            pass
+                    import subprocess
+                    try:
+                        subprocess.run([
+                            'ffmpeg', '-i', path, '-vn', opt_format_path, '-q:a', '2', '-y'
+                        ], check=True, capture_output=True)
+                        if os.path.exists(opt_format_path):
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f"FFmpeg conversion failed: {e}")

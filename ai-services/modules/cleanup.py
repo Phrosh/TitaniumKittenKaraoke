@@ -119,6 +119,7 @@ class FileCleaner:
                 f"{base}.normalized.mp3",
                 f"{base}.hp2.mp3",
                 f"{base}.hp5.mp3",
+                # f"{base}.dereverbed.mp3",  # Entfernt - wird jetzt gelöscht
                 f"{base}.txt",
             }
             for name in whitelist_names:
@@ -342,7 +343,7 @@ class FileCleaner:
             
             # Entferne bekannte, während der Verarbeitung entstandene Unterordner vollständig
             try:
-                known_subdirs = ['audio', 'covers', 'lyrics', 'separated', 'video']
+                known_subdirs = ['audio', 'covers', 'lyrics', 'separated', 'video', 'dereverb_vocals', 'dereverb_others']
                 for sub in known_subdirs:
                     sub_path = os.path.join(meta.folder_path, sub)
                     if os.path.isdir(sub_path):
@@ -355,25 +356,26 @@ class FileCleaner:
             except Exception as e:
                 logger.warning(f"Konnte Unterordner nicht entfernen: {e}")
 
-            # Entferne explizit Vocals-Dateien, wenn vorhanden (nicht whitelisted)
+            # Entferne explizit Vocals- und Dereverbed-Dateien, wenn vorhanden (nicht whitelisted)
             try:
                 base = getattr(meta, 'base_filename', None)
                 if base:
-                    vocal_candidates = [
+                    candidates = [
                         f"{base}.vocals.mp3",
                         f"{base}_vocals.mp3",
                         f"{base}_vocals_temp.mp3",
+                        f"{base}.dereverbed.mp3",  # Entferne dereverbed Dateien
                     ]
-                    for name in vocal_candidates:
+                    for name in candidates:
                         path = meta.get_file_path(name)
                         if os.path.exists(path) and path not in self.identify_files_to_keep(meta):
                             if dry_run:
-                                logger.info(f"[DRY RUN] Würde Vocals-Datei entfernen: {path}")
+                                logger.info(f"[DRY RUN] Würde Datei entfernen: {path}")
                             else:
                                 os.remove(path)
-                                logger.info(f"Vocals-Datei entfernt: {path}")
+                                logger.info(f"Datei entfernt: {path}")
             except Exception as e:
-                logger.warning(f"Konnte Vocals-Dateien nicht entfernen: {e}")
+                logger.warning(f"Konnte Dateien nicht entfernen: {e}")
             
             logger.info(f"✅ Cleanup erfolgreich abgeschlossen für: {meta.artist} - {meta.title}")
             meta.mark_step_completed('cleanup')

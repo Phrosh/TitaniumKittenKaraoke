@@ -478,6 +478,7 @@
   },
   "status": {
     "separating": "Creando Canción de Karaoke",
+    "dereverbing": "Limpiando voces",
     "transcribing": "Creando Texto de Karaoke",
     "downloading": "Descargando",
     "transcoding": "Convirtiendo Video",

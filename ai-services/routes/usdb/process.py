@@ -3,7 +3,7 @@ import os
 import logging
 import threading
 import shutil
-from ..utils import get_ultrastar_dir
+from ..utils import get_ultrastar_dir, sanitize_filename
 
 # Erstelle einen Blueprint für USDB-Process
 usdb_process_bp = Blueprint('usdb_process', __name__)
@@ -32,7 +32,8 @@ def process_usdb_pipeline(folder_name):
         
         # Basis-Verzeichnis für Ultrastar-Downloads
         base_dir = get_ultrastar_dir()
-        temp_folder_name = folder_name  # USDB_17878
+        # Sanitize folder name to ensure valid directory name
+        temp_folder_name = sanitize_filename(folder_name)  # USDB_17878
         temp_folder_path = os.path.join(base_dir, temp_folder_name)
         os.makedirs(temp_folder_path, exist_ok=True)
 

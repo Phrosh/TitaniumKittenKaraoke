@@ -459,6 +459,7 @@
   },
   "status": {
     "separating": "Создание караоке песни",
+    "dereverbing": "Очистка вокала",
     "transcribing": "Создание караоке текста",
     "downloading": "Загрузка",
     "transcoding": "Конвертация Видео",

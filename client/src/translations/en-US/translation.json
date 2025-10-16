@@ -483,6 +483,7 @@
   },
   "status": {
     "separating": "Creating Karaoke Song",
+    "dereverbing": "Cleaning vocals",
     "transcribing": "Creating Karaoke Text",
     "downloading": "Downloading",
     "transcoding": "Converting Video",

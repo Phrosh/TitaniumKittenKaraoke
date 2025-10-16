@@ -115,7 +115,7 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
   return found;
 }
 
-export type DownloadStatus = 'downloading' | 'transcoding' | 'failed' | 'finished' | 'separating' | 'transcribing';
+export type DownloadStatus = 'downloading' | 'transcoding' | 'failed' | 'finished' | 'separating' | 'dereverbing' | 'transcribing';
 
 // getDownloadStatusText is no longer used directly by the badge; kept for backward compatibility
 export const getDownloadStatusText = (status: DownloadStatus) => '';

@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../auth');
-// const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../../utils/youtubeSongs');
-// const { broadcastQRCodeToggle, broadcastSongChange, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastProcessingStatus } = require('../../utils/websocketService');
-// const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
 
 // All admin routes require authentication
 router.use(verifyToken);
