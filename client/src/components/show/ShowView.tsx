@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { showAPI, songAPI, adminAPI } from '../../services/api';
+import { showAPI, songAPI, adminAPI, default as api } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
-import { boilDown } from '../../utils/boilDown';
 import { useTranslation } from 'react-i18next';
 import { 
   Singer,
@@ -357,6 +356,7 @@ const ShowView: React.FC = () => {
 
     if (ultrastarData.isDuet) {
       singers[0].lines = ultrastarData.lines[0] as UltrastarLine[];
+      singers[0].notes = ultrastarData.notes[0] as UltrastarNote[];
       singers.push({
         singer: "P2",
         setLyricsScale: setLyricsScaleP2,
@@ -785,21 +785,15 @@ const ShowView: React.FC = () => {
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
     try {
-      // Extract folder name from youtube_url
-      let folderName: string;
-      if (song.youtube_url.includes('/api/ultrastar/')) {
-        // UltraStar songs: "/api/ultrastar/Artist - Title" -> "Artist - Title"
-        folderName = decodeURIComponent(song.youtube_url.replace('/api/ultrastar/', ''));
-      } else if (song.youtube_url.includes('/api/magic-youtube/')) {
-        // Magic-YouTube songs: "/api/magic-youtube/Artist - Title" -> "Artist - Title"
-        folderName = decodeURIComponent(song.youtube_url.replace('/api/magic-youtube/', ''));
-      } else {
-        throw new Error(`Unsupported YouTube URL format: ${song.youtube_url}`);
-      }
-
-      // Pass withBackgroundVocals preference as query parameter
+      // Use the new unified song data endpoint - no need to parse URLs anymore!
       const withBackgroundVocals = song.with_background_vocals ? 'true' : 'false';
-      const response = await songAPI.getUltrastarSongData(folderName, withBackgroundVocals);
+      const response = await api.get('/songs/song-data', { 
+        params: { 
+          artist: song.artist, 
+          title: song.title, 
+          withBackgroundVocals 
+        } 
+      });
       const songData = response.data.songData;
 
       setUltrastarData(songData);
@@ -882,27 +876,50 @@ const ShowView: React.FC = () => {
         }
 
         if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
-          // Use central cache function to find the correct file
-          const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
-
-          if (cacheUrl) {
-            // Cache hit - use the found file
-            normalizedSong = {
-              ...newSong,
-              youtube_url: cacheUrl,
-              mode: 'server_video' // Force to server_video mode
-            };
-
-            console.log('🌐 Cache hit - using file:', {
-              original: newSong.youtube_url,
-              cacheUrl: cacheUrl,
-              artist: newSong.artist,
-              title: newSong.title,
-              videoId: videoId,
-              originalMode: newSong.mode,
-              newMode: 'server_video'
+          // Use new unified endpoint to check for cached files
+          try {
+            const response = await api.get('/songs/song-data', { 
+              params: { 
+                artist: newSong.artist, 
+                title: newSong.title, 
+                youtubeId: videoId
+              } 
             });
-          } else {
+            
+            if (response.data.songData && response.data.songData.videoUrl) {
+              // Cache hit - use the found file
+              normalizedSong = {
+                ...newSong,
+                youtube_url: response.data.songData.videoUrl,
+                mode: 'server_video' // Force to server_video mode
+              };
+
+              console.log('🌐 Cache hit - using file:', {
+                original: newSong.youtube_url,
+                cached: response.data.songData.videoUrl,
+                artist: newSong.artist,
+                title: newSong.title,
+                videoId: videoId,
+                originalMode: newSong.mode,
+                newMode: 'server_video'
+              });
+            } else {
+              // Cache miss - use YouTube embed as fallback
+              normalizedSong = {
+                ...newSong,
+                mode: 'youtube' // Force to youtube mode for embed
+              };
+
+              console.log('🌐 Cache miss - using YouTube embed:', {
+                original: newSong.youtube_url,
+                artist: newSong.artist,
+                title: newSong.title,
+                videoId: videoId,
+                originalMode: newSong.mode,
+                newMode: 'youtube'
+              });
+            }
+          } catch (error) {
             // Cache miss - use YouTube embed as fallback
             normalizedSong = {
               ...newSong,
@@ -1039,17 +1056,40 @@ const ShowView: React.FC = () => {
       }
 
       if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
-        // Use central cache function to find the correct file
-        const cacheUrl = await findCacheFile(newSong.artist, newSong.title, videoId);
+        // Use new unified endpoint to check for cached files
+        try {
+          const response = await api.get('/songs/song-data', { 
+            params: { 
+              artist: newSong.artist, 
+              title: newSong.title, 
+              youtubeId: videoId
+            } 
+          });
+          
+          if (response.data.songData && response.data.songData.videoUrl) {
+            // Cache hit - use the found file
+            normalizedSong = {
+              ...newSong,
+              youtube_url: response.data.songData.videoUrl,
+              mode: 'server_video' // Force to server_video mode
+            };
+          } else {
+            // Cache miss - use YouTube embed as fallback
+            normalizedSong = {
+              ...newSong,
+              mode: 'youtube' // Force to youtube mode for embed
+            };
 
-        if (cacheUrl) {
-          // Cache hit - use the found file
-          normalizedSong = {
-            ...newSong,
-            youtube_url: cacheUrl,
-            mode: 'server_video' // Force to server_video mode
-          };
-        } else {
+            console.log('🔌 Cache miss - using YouTube embed:', {
+              original: newSong.youtube_url,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'youtube'
+            });
+          }
+        } catch (error) {
           // Cache miss - use YouTube embed as fallback
           normalizedSong = {
             ...newSong,
@@ -1502,46 +1542,6 @@ const ShowView: React.FC = () => {
     return url;
   };
 
-  // Central cache function: finds the correct cache file path or returns null for cache miss
-  const findCacheFile = async (artist: string, title: string, videoId: string): Promise<string | null> => {
-    // Use boil down normalization for better matching
-    const boiledArtist = boilDown(artist);
-    const boiledTitle = boilDown(title);
-
-    // Try both cache structures:
-    // #1: "youtube/[artist] - [title]/[videoId].mp4"
-    const artistTitlePath = `${artist} - ${title}`;
-    const artistTitleUrl = `http://localhost:5000/api/youtube-videos/${encodeURIComponent(artistTitlePath)}/${videoId}.mp4`;
-
-    // #2: "youtube/[videoId]/[videoId].mp4" (fallback)
-    const videoIdUrl = `http://localhost:5000/api/youtube-videos/${videoId}/${videoId}.mp4`;
-
-    try {
-      // Try artist-title structure first
-      const response1 = await fetch(artistTitleUrl, { method: 'HEAD' });
-      if (response1.ok) {
-        console.log('🎬 Cache hit: Artist-Title structure', artistTitleUrl);
-        return artistTitleUrl;
-      }
-    } catch (error) {
-      console.log('🎬 Cache miss: Artist-Title structure', artistTitleUrl);
-    }
-
-    try {
-      // Try YouTube-ID structure as fallback
-      const response2 = await fetch(videoIdUrl, { method: 'HEAD' });
-      if (response2.ok) {
-        console.log('🎬 Cache hit: YouTube-ID structure', videoIdUrl);
-        return videoIdUrl;
-      }
-    } catch (error) {
-      console.log('🎬 Cache miss: YouTube-ID structure', videoIdUrl);
-    }
-
-    // No cache found
-    console.log('🎬 Cache miss: No file found for', { artist: artist, title: title, boiledArtist: boiledArtist, boiledTitle: boiledTitle, videoId });
-    return null;
-  };
 
   const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
 
@@ -1549,8 +1549,8 @@ const ShowView: React.FC = () => {
   const loadBackgroundMusicSettings = useCallback(async () => {
     try {
       const [songsResponse, settingsResponse] = await Promise.all([
-        adminAPI.getBackgroundMusicSongs(),
-        adminAPI.getBackgroundMusicSettings()
+        api.get('/songs/background-music/songs'),
+        api.get('/songs/background-music/settings')
       ]);
       
       setBackgroundMusicSongs(songsResponse.data.songs);
@@ -1592,23 +1592,30 @@ const ShowView: React.FC = () => {
       return;
     }
 
+    // Reset audio element completely
+    backgroundMusicRef.current.pause();
+    backgroundMusicRef.current.currentTime = 0;
     backgroundMusicRef.current.src = randomSong.url;
     backgroundMusicRef.current.volume = backgroundMusicSettings.volume;
     backgroundMusicRef.current.loop = true;
     
-    backgroundMusicRef.current.play().then(() => {
-      setIsBackgroundMusicPlaying(true);
-      console.log('🎵 Background music started:', randomSong.name);
-      
-      // Show background video when background music starts
-      setShouldShowBackgroundVideo(true);
-      setBackgroundVideoFadeOut(false);
-      setTimeout(() => {
+    // Force reload the audio element
+    backgroundMusicRef.current.load();
+    
+    // Small delay to ensure audio is loaded before playing
+    setTimeout(() => {
+      backgroundMusicRef.current?.play().then(() => {
+        setIsBackgroundMusicPlaying(true);
+        console.log('🎵 Background music started:', randomSong.name);
+        
+        // Show background video when background music starts
+        setShouldShowBackgroundVideo(true);
         setBackgroundVideoFadeIn(true);
-      }, 100); // Small delay to ensure video is ready
-    }).catch(error => {
-      console.error('Error playing background music:', error);
-    });
+        setBackgroundVideoFadeOut(false);
+      }).catch(error => {
+        console.error('🎵 Error playing background music:', error);
+      });
+    }, 100);
   }, [backgroundMusicSettings, isBackgroundMusicPlaying, getRandomBackgroundSong]);
 
   const stopBackgroundMusic = useCallback(() => {
@@ -1616,51 +1623,26 @@ const ShowView: React.FC = () => {
       return;
     }
 
-    // Start fade-out for background video
-    setBackgroundVideoFadeIn(false);
-    setBackgroundVideoFadeOut(true);
-
-    // Fade out background music
-    const fadeOut = () => {
-      if (!backgroundMusicRef.current) return;
-      
-      const currentVolume = backgroundMusicRef.current.volume;
-      const fadeStep = currentVolume / 20; // 20 steps for smooth fade
-      
-      if (currentVolume > 0) {
-        backgroundMusicRef.current.volume = Math.max(0, currentVolume - fadeStep);
-        setTimeout(fadeOut, 50);
-      } else {
-        backgroundMusicRef.current.pause();
-        backgroundMusicRef.current.currentTime = 0;
-        backgroundMusicRef.current.volume = backgroundMusicSettings.volume; // Reset volume
-        setIsBackgroundMusicPlaying(false);
-        console.log('🎵 Background music stopped');
-        
-        // Hide background video when background music stops
-        setShouldShowBackgroundVideo(false);
-        
-        // Reset fade states after fade-out is complete
-        setTimeout(() => {
-          setBackgroundVideoFadeOut(false);
-        }, 1000); // Wait for CSS transition to complete
-      }
-    };
+    // Stop background music immediately
+    backgroundMusicRef.current.pause();
+    backgroundMusicRef.current.currentTime = 0;
+    backgroundMusicRef.current.src = ''; // Clear src to reset audio element
+    backgroundMusicRef.current.volume = backgroundMusicSettings.volume; // Reset volume
+    setIsBackgroundMusicPlaying(false);
     
-    fadeOut();
+    console.log('🎵 Background music stopped');
+    
+    // Hide background video when background music stops
+    setShouldShowBackgroundVideo(false);
+    setBackgroundVideoFadeIn(false);
+    setBackgroundVideoFadeOut(false);
   }, [isBackgroundMusicPlaying, backgroundMusicSettings.volume]);
 
   // Function to hide background video when main video plays
   const hideBackgroundVideo = useCallback(() => {
-    console.log('🎬 Hiding background video - main video is playing');
     setShouldShowBackgroundVideo(false);
     setBackgroundVideoFadeIn(false);
-    setBackgroundVideoFadeOut(true);
-    
-    // Reset fade states after fade-out is complete
-    setTimeout(() => {
-      setBackgroundVideoFadeOut(false);
-    }, 1000); // Wait for CSS transition to complete
+    setBackgroundVideoFadeOut(false);
   }, []);
 
   useEffect(() => {
@@ -1671,6 +1653,22 @@ const ShowView: React.FC = () => {
   useEffect(() => {
     loadBackgroundMusicSettings();
   }, [loadBackgroundMusicSettings]);
+
+  // Start background music when QR overlay is shown and no song is playing
+  useEffect(() => {
+    if (showQRCodeOverlay && !isPlaying && !isBackgroundMusicPlaying) {
+      console.log('🎵 QR overlay shown - starting background music');
+      playBackgroundMusic();
+    }
+  }, [showQRCodeOverlay, isPlaying, isBackgroundMusicPlaying, playBackgroundMusic]);
+
+  // Stop background music when QR overlay is hidden
+  useEffect(() => {
+    if (!showQRCodeOverlay && isBackgroundMusicPlaying) {
+      console.log('🎵 QR overlay hidden - stopping background music');
+      stopBackgroundMusic();
+    }
+  }, [showQRCodeOverlay, isBackgroundMusicPlaying, stopBackgroundMusic]);
 
   const handleAudioLoadedData = useCallback(() => {
     setAudioLoaded(true);

@@ -729,7 +729,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             const isDropTarget = dropTarget === song.id;
             const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
             const effectiveStatus = (song.download_status as string) === 'ready' ? 'finished' : song.download_status;
-            const isBlocked = !!effectiveStatus && !['finished', 'failed'].includes(effectiveStatus as string);
+            const isBlocked = !!effectiveStatus && !['finished', 'failed', 'none'].includes(effectiveStatus as string);
             
             return (
               <React.Fragment key={song.id}>
@@ -781,9 +781,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                           // Check if title contains [DUET] and clean it for display
                           const isDuett = song.title.includes('[DUET]');
                           const cleanTitle = isDuett ? song.title.replace(/\s*\[DUET\]\s*/gi, '').trim() : song.title;
-                          const displayTitle = song.artist ? `${song.artist} - ${cleanTitle}` : cleanTitle;
-                          
-                          return (
+                            const displayTitle = song.artist ? `${song.artist} - ${cleanTitle}` : cleanTitle;
+                            
+                            return (
                             <>
                               {displayTitle}
                               {song.modes ? (
@@ -925,7 +925,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handleDeleteSong(song.id);
                       }}
-                      disabled={actionLoading || isBlocked}
+                      disabled={actionLoading || (isBlocked && !['failed', 'none'].includes(effectiveStatus as string))}
                     >
                       🗑️
                     </Button>

@@ -82,8 +82,8 @@ function boilDown(inputString) {
     }
   }
 
-  // 4. Remove spaces, punctuation and special characters - only keep numbers and word characters
-  result = result.replace(/[^\w\d]/g, '');
+  // 4. Remove spaces, punctuation and special characters - only keep numbers and word characters (but not underscores)
+  result = result.replace(/[^\w\d]/g, '').replace(/_/g, '');
 
   return result;
 }

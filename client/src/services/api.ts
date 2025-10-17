@@ -132,12 +132,6 @@ export const adminAPI = {
     api.get('/admin/dashboard'),
   
   // Background Music API
-  getBackgroundMusicSongs: () =>
-    api.get('/admin/background-music/songs'),
-  
-  getBackgroundMusicSettings: () =>
-    api.get('/admin/background-music/settings'),
-  
   updateBackgroundMusicSettings: (data: { enabled?: boolean; volume?: number; selectedSongs?: string[] }) =>
     api.put('/admin/background-music/settings', data),
   

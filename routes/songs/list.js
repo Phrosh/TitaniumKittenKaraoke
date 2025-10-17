@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const db = require('../../config/database');
+const fs = require('fs');
+const path = require('path');
 
 // Get file songs (public)
 router.get('/file-songs', async (req, res) => {
@@ -162,6 +164,221 @@ router.get('/magic-youtube', (req, res) => {
     res.json({ magicYouTube: videos });
   } catch (error) {
     console.error('Error getting magic YouTube videos:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Unified song data endpoint - automatically detects song type and returns data
+router.get('/song-data', async (req, res) => {
+  try {
+    const { artist, title, youtubeId } = req.query;
+    const { withBackgroundVocals } = req.query;
+    const { boilDownMatch } = require('../../utils/boilDown');
+    const { parseUltrastarFile, findAudioFile } = require('../../utils/ultrastarParser');
+    
+    // Import the HP2/HP5 preference function from ultrastar route
+    function findAudioFileWithPreference(folderPath, preferBackgroundVocals = false) {
+      try {
+        const files = fs.readdirSync(folderPath);
+
+        // Look for HP2/HP5 files first
+        const hp5File = files.find(file => file.toLowerCase().includes('.hp5.mp3'));
+        const hp2File = files.find(file => file.toLowerCase().includes('.hp2.mp3'));
+
+        if (preferBackgroundVocals && hp5File) {
+          // User wants background vocals (HP5)
+          return path.join(folderPath, hp5File);
+        } else if (!preferBackgroundVocals && hp2File) {
+          // User wants no background vocals (HP2)
+          return path.join(folderPath, hp2File);
+        } else if (hp5File) {
+          // Fallback to HP5 if HP2 not available
+          return path.join(folderPath, hp5File);
+        } else if (hp2File) {
+          // Fallback to HP2 if HP5 not available
+          return path.join(folderPath, hp2File);
+        }
+
+        // If no HP2/HP5 files, fall back to original audio file
+        const originalFile = findAudioFile(folderPath);
+        return originalFile;
+      } catch (error) {
+        console.error('Error finding audio file with preference:', error);
+        return null;
+      }
+    }
+
+    console.log(`🎵 Unified song data request: artist=${artist}, title=${title}, youtubeId=${youtubeId}`);
+
+    if (!artist || !title) {
+      return res.status(400).json({ message: 'Artist and title are required' });
+    }
+
+    // Define all possible song directories with their priorities
+    const songDirectories = [
+      { name: 'ultrastar', dir: require('../../utils/ultrastarSongs').ULTRASTAR_DIR, priority: 1 },
+      { name: 'magic-songs', dir: require('../../utils/magicSongs').MAGIC_SONGS_DIR, priority: 2 },
+      { name: 'magic-videos', dir: require('../../utils/magicVideos').MAGIC_VIDEOS_DIR, priority: 3 },
+      { name: 'magic-youtube', dir: require('../../utils/magicYouTube').MAGIC_YOUTUBE_DIR, priority: 4 },
+      { name: 'youtube', dir: require('../../utils/youtubeSongs').YOUTUBE_DIR, priority: 5 }
+    ];
+
+    let foundSong = null;
+    let songType = null;
+
+    // Search in each directory by priority
+    for (const songDir of songDirectories) {
+      if (!fs.existsSync(songDir.dir)) continue;
+
+      const folders = fs.readdirSync(songDir.dir).filter(item => {
+        const itemPath = path.join(songDir.dir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      // Try to find matching folder
+      const matchingFolder = folders.find(folder => {
+        // Try exact match first
+        if (folder === `${artist} - ${title}`) return true;
+        
+        // Try boilDown match
+        return boilDownMatch(folder, `${artist} - ${title}`);
+      });
+
+      if (matchingFolder) {
+        foundSong = {
+          folderName: matchingFolder,
+          folderPath: path.join(songDir.dir, matchingFolder),
+          type: songDir.name,
+          priority: songDir.priority
+        };
+        songType = songDir.name;
+        console.log(`✅ Found song in ${songDir.name}: ${matchingFolder}`);
+        break; // Use first match (highest priority)
+      }
+    }
+
+    if (!foundSong) {
+      return res.status(404).json({ message: 'Song not found in any directory' });
+    }
+
+    // Process the found song
+    const files = fs.readdirSync(foundSong.folderPath);
+    
+    // Find ultrastar file
+    let ultrastarFiles = files.filter(file => file.endsWith('_ultrastar.txt'));
+    if (ultrastarFiles.length === 0) {
+      ultrastarFiles = files.filter(file => file.endsWith('.txt'));
+    }
+
+    let songData;
+    
+    if (ultrastarFiles.length > 0) {
+      const ultrastarFile = ultrastarFiles[0];
+      const ultrastarPath = path.join(foundSong.folderPath, ultrastarFile);
+      
+      console.log(`📄 Using ultrastar file: ${ultrastarFile}`);
+      songData = parseUltrastarFile(ultrastarPath);
+      
+      if (!songData) {
+        return res.status(500).json({ message: 'Failed to parse ultrastar file' });
+      }
+
+      // For duets, structure lines and notes as [P1_data, P2_data] (same as original route)
+      if (songData.isDuet && songData.singers && songData.singers.length >= 2) {
+        // Get lines and notes from both singers
+        const singer1Lines = songData.singers[0].lines || [];
+        const singer2Lines = songData.singers[1].lines || [];
+        const singer1Notes = songData.singers[0].notes || [];
+        const singer2Notes = songData.singers[1].notes || [];
+
+        // Structure as [P1_data, P2_data]
+        songData.lines = [singer1Lines, singer2Lines];
+        songData.notes = [singer1Notes, singer2Notes];
+
+        console.log(`🎤 Duet-Song erkannt: "${songData.title}" - Sänger 1: ${singer1Lines.length} Zeilen, ${singer1Notes.length} Noten, Sänger 2: ${singer2Lines.length} Zeilen, ${singer2Notes.length} Noten`);
+      }
+      // For non-duets, keep the original lines structure from parseUltrastarFile
+
+      // Remove legacy properties and singers array (same as original route)
+      delete songData.singer1Notes;
+      delete songData.singer2Notes;
+      delete songData.singer1Lines;
+      delete songData.singer2Lines;
+      delete songData.singers;
+    } else {
+      // Create minimal song data
+      console.log(`⚠️ No ultrastar file found, creating minimal song data`);
+      songData = {
+        title: title,
+        artist: artist,
+        bpm: 120,
+        gap: 0,
+        isDuet: false,
+        lines: [],
+        notes: [],
+        audio: '',
+        video: '',
+        background: ''
+      };
+    }
+
+    // Find audio file with HP2/HP5 preference (same logic as original route)
+    const preferBackgroundVocals = withBackgroundVocals === 'true';
+    const audioFile = findAudioFileWithPreference(foundSong.folderPath, preferBackgroundVocals);
+    if (audioFile) {
+      // Extract just the filename from the full path
+      const audioFilename = path.basename(audioFile);
+      songData.audioUrl = `/api/audio/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(audioFilename)}`;
+    }
+
+    // Find video file
+    const videoFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.mp4', '.webm', '.mkv'].includes(ext) && !file.endsWith('_remuxed.mp4');
+    });
+
+    if (videoFiles.length > 0) {
+      // Priority: .webm > .mp4 > others
+      const webmFiles = videoFiles.filter(file => file.toLowerCase().endsWith('.webm'));
+      const mp4Files = videoFiles.filter(file => file.toLowerCase().endsWith('.mp4'));
+      const otherFiles = videoFiles.filter(file =>
+        !file.toLowerCase().endsWith('.webm') && !file.toLowerCase().endsWith('.mp4')
+      );
+
+      let selectedVideoFile;
+      if (webmFiles.length > 0) {
+        selectedVideoFile = webmFiles[0];
+      } else if (mp4Files.length > 0) {
+        selectedVideoFile = mp4Files[0];
+      } else if (otherFiles.length > 0) {
+        selectedVideoFile = otherFiles[0];
+      }
+
+      if (selectedVideoFile) {
+        songData.videoUrl = `/api/video/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(selectedVideoFile)}`;
+        songData.videoFile = selectedVideoFile;
+      }
+    }
+
+    // Find background image
+    const imageFiles = files.filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      return ['.jpg', '.jpeg', '.png', '.gif', '.bmp'].includes(ext);
+    });
+
+    if (imageFiles.length > 0) {
+      const imageFile = imageFiles[0];
+      songData.backgroundImageUrl = `/api/video/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(imageFile)}`;
+    }
+
+    // Add metadata
+    songData.songType = songType;
+    songData.folderName = foundSong.folderName;
+
+    res.json({ songData });
+    
+  } catch (error) {
+    console.error('Error getting unified song data:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

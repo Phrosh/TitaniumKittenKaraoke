@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { adminAPI } from '../../../services/api';
+import { adminAPI, default as api } from '../../../services/api';
 import toast from 'react-hot-toast';
 import styled from 'styled-components';
 import { SettingsSection, SettingsTitle, SettingsLabel, SettingsDescription, SettingsRow } from '../style';
@@ -252,8 +252,8 @@ const BackgroundMusicTab: React.FC = () => {
     try {
       setLoading(true);
       const [songsResponse, settingsResponse] = await Promise.all([
-        adminAPI.getBackgroundMusicSongs(),
-        adminAPI.getBackgroundMusicSettings()
+        api.get('/songs/background-music/songs'),
+        api.get('/songs/background-music/settings')
       ]);
       
       setSongs(songsResponse.data.songs);

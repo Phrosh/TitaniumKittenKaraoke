@@ -10,6 +10,7 @@ const qrRoutes = require('./qr');
 const listRoutes = require('./list');
 const processingRoutes = require('./processing');
 const ultrastarRoutes = require('./ultrastar');
+const backgroundMusicRoutes = require('./backgroundMusic');
 
 // Mount modular routes
 router.use('/', youtubeRoutes);
@@ -20,6 +21,7 @@ router.use('/', qrRoutes);
 router.use('/', listRoutes);
 router.use('/', processingRoutes);
 router.use('/', ultrastarRoutes);
+router.use('/', backgroundMusicRoutes);
 
 module.exports = {
   router

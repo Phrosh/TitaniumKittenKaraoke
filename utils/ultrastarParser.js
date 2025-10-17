@@ -372,5 +372,6 @@ function groupNotesIntoLines(notes) {
 module.exports = {
   parseUltrastarFile,
   parseNoteLine,
-  findAudioFile
+  findAudioFile,
+  groupNotesIntoLines
 };
