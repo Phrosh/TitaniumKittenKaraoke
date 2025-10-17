@@ -1654,21 +1654,44 @@ const ShowView: React.FC = () => {
     loadBackgroundMusicSettings();
   }, [loadBackgroundMusicSettings]);
 
-  // Start background music when QR overlay is shown and no song is playing
+  // Start background music and video when QR overlay is shown and no song is playing
   useEffect(() => {
     if (showQRCodeOverlay && !isPlaying && !isBackgroundMusicPlaying) {
-      console.log('🎵 QR overlay shown - starting background music');
+      console.log('🎵 QR overlay shown - starting background music and video');
       playBackgroundMusic();
     }
   }, [showQRCodeOverlay, isPlaying, isBackgroundMusicPlaying, playBackgroundMusic]);
 
-  // Stop background music when QR overlay is hidden
+  // Stop background music and video when QR overlay is hidden
   useEffect(() => {
     if (!showQRCodeOverlay && isBackgroundMusicPlaying) {
-      console.log('🎵 QR overlay hidden - stopping background music');
+      console.log('🎵 QR overlay hidden - stopping background music and video');
       stopBackgroundMusic();
     }
   }, [showQRCodeOverlay, isBackgroundMusicPlaying, stopBackgroundMusic]);
+
+  // Show background video when QR overlay is shown (even if background music is disabled)
+  useEffect(() => {
+    console.log('🎬 Background video effect triggered:', {
+      showQRCodeOverlay,
+      isPlaying,
+      shouldShowBackgroundVideo,
+      backgroundVideoFadeIn,
+      backgroundVideoFadeOut
+    });
+    
+    if (showQRCodeOverlay && !isPlaying) {
+      console.log('🎬 QR overlay shown - showing background video');
+      setShouldShowBackgroundVideo(true);
+      setBackgroundVideoFadeIn(true);
+      setBackgroundVideoFadeOut(false);
+    } else if (!showQRCodeOverlay) {
+      console.log('🎬 QR overlay hidden - hiding background video');
+      setShouldShowBackgroundVideo(false);
+      setBackgroundVideoFadeIn(false);
+      setBackgroundVideoFadeOut(false);
+    }
+  }, [showQRCodeOverlay, isPlaying]);
 
   const handleAudioLoadedData = useCallback(() => {
     setAudioLoaded(true);
@@ -2184,20 +2207,28 @@ const ShowView: React.FC = () => {
               
               {/* Background loop video when background music is playing */}
               {shouldShowBackgroundVideo && (
-                <BackgroundLoopVideo
-                  src={'/bg-video/bg-video.webm'}
-                  muted
-                  loop
-                  autoPlay
-                  playsInline
-                  $fadeIn={backgroundVideoFadeIn}
-                  $fadeOut={backgroundVideoFadeOut}
-                  onLoadStart={() => console.log('🎬 Background loop video loading (BG music)...')}
-                  onLoadedData={() => console.log('🎬 Background loop video loaded (BG music)')}
-                  onCanPlay={() => console.log('🎬 Background loop video can play (BG music)')}
-                  onPlay={() => console.log('🎬 Background loop video started (BG music)')}
-                  onError={(e) => console.error('🎬 Background loop video error (BG music):', e)}
-                />
+                <>
+                  {console.log('🎬 Rendering BackgroundLoopVideo (BG music):', {
+                    shouldShowBackgroundVideo,
+                    backgroundVideoFadeIn,
+                    backgroundVideoFadeOut,
+                    src: '/bg-video/bg-video.webm'
+                  })}
+                  <BackgroundLoopVideo
+                    src={'/bg-video/bg-video.webm'}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    $fadeIn={backgroundVideoFadeIn}
+                    $fadeOut={backgroundVideoFadeOut}
+                    onLoadStart={() => console.log('🎬 Background loop video loading (BG music)...')}
+                    onLoadedData={() => console.log('🎬 Background loop video loaded (BG music)')}
+                    onCanPlay={() => console.log('🎬 Background loop video can play (BG music)')}
+                    onPlay={() => console.log('🎬 Background loop video started (BG music)')}
+                    onError={(e) => console.error('🎬 Background loop video error (BG music):', e)}
+                  />
+                </>
               )}
               <AudioElement
                 key={currentSong?.id}
@@ -2227,16 +2258,25 @@ const ShowView: React.FC = () => {
             </>
           ) : (
             // Fallback area when not Ultrastar branch: show background loop if desired
-            (shouldShowBackgroundVideo || videoError || !currentSong) ? (
+            (shouldShowBackgroundVideo || videoError || !currentSong || showQRCodeOverlay) ? (
               <>
+                {console.log('🎬 Rendering BackgroundLoopVideo (Fallback):', {
+                  shouldShowBackgroundVideo,
+                  videoError,
+                  currentSong: !!currentSong,
+                  showQRCodeOverlay,
+                  backgroundVideoFadeIn,
+                  backgroundVideoFadeOut,
+                  src: '/bg-video/bg-video.webm'
+                })}
                 <BackgroundLoopVideo
                   src={'/bg-video/bg-video.webm'}
                   muted
                   loop
                   autoPlay
                   playsInline
-                  $fadeIn={backgroundVideoFadeIn}
-                  $fadeOut={backgroundVideoFadeOut}
+                  $fadeIn={backgroundVideoFadeIn || showQRCodeOverlay}
+                  $fadeOut={backgroundVideoFadeOut && !showQRCodeOverlay}
                   onLoadStart={() => console.log('🎬 Background loop video loading...')}
                   onLoadedData={() => console.log('🎬 Background loop video loaded')}
                   onCanPlay={() => console.log('🎬 Background loop video can play')}
@@ -2317,8 +2357,8 @@ const ShowView: React.FC = () => {
         onStartClick={handleStartButtonClick}
       />
 
-      {/* Permanent QR Code Corner */}
-      <QRCodeCorner qrCodeUrl={qrCodeUrl} />
+      {/* Permanent QR Code Corner - Hide when overlay is visible */}
+      <QRCodeCorner qrCodeUrl={qrCodeUrl} isVisible={!showQRCodeOverlay} />
       <AdCorner />
       
       {/* Background Music Audio Element */}
@@ -2327,6 +2367,22 @@ const ShowView: React.FC = () => {
         style={{ display: 'none' }}
         preload="auto"
       />
+      
+      {/* Background Video - Always show when QR overlay is visible */}
+      {showQRCodeOverlay && !isPlaying && (
+        <BackgroundLoopVideo
+          src={'/bg-video/bg-video.webm'}
+          muted
+          loop
+          autoPlay
+          playsInline
+          onLoadStart={() => console.log('🎬 QR Background video loading...')}
+          onLoadedData={() => console.log('🎬 QR Background video loaded')}
+          onCanPlay={() => console.log('🎬 QR Background video can play')}
+          onPlay={() => console.log('🎬 QR Background video started')}
+          onError={(e) => console.error('🎬 QR Background video error:', e)}
+        />
+      )}
     </ShowContainer>
   );
 };

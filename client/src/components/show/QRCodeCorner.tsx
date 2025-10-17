@@ -5,9 +5,10 @@ import { AD_HEIGHT } from './constants';
 
 interface QRCodeCornerProps {
   qrCodeUrl: string;
+  isVisible: boolean;
 }
 
-const QRCodeCornerContainer = styled.div`
+const QRCodeCornerContainer = styled.div<{ $isVisible: boolean }>`
   position: absolute;
   bottom: 20px;
   left: 20px;
@@ -16,6 +17,9 @@ const QRCodeCornerContainer = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  opacity: ${props => props.$isVisible ? 1 : 0};
+  visibility: ${props => props.$isVisible ? 'visible' : 'hidden'};
+  transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
 `;
 
 const QRCodeImageSmall = styled.img`
@@ -36,7 +40,7 @@ const QRCodeTextSmall = styled.div`
   font-weight: 500;
 `;
 
-const QRCodeCorner: React.FC<QRCodeCornerProps> = ({ qrCodeUrl }) => {
+const QRCodeCorner: React.FC<QRCodeCornerProps> = ({ qrCodeUrl, isVisible }) => {
   const { t } = useTranslation();
 
   if (!qrCodeUrl) {
@@ -44,7 +48,7 @@ const QRCodeCorner: React.FC<QRCodeCornerProps> = ({ qrCodeUrl }) => {
   }
 
   return (
-    <QRCodeCornerContainer>
+    <QRCodeCornerContainer $isVisible={isVisible}>
       <QRCodeImageSmall 
         src={qrCodeUrl}
         alt={t('showView.qrCodeForSongRequest')}

@@ -13,7 +13,7 @@ const AdCornerContainer = styled.div`
   right: 20px;
   width: ${AD_HEIGHT};
   min-height: ${AD_HEIGHT};
-  z-index: 15;
+  z-index: 200;
   display: flex;
   flex-direction: column;
   align-items: center;

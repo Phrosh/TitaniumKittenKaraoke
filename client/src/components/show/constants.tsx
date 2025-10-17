@@ -5,7 +5,7 @@ export const TIMER_BACKGROUND = 'rgba(0, 0, 0, 0.3)';
 export const WHITE = '#ffffff';
 export const PRIMARY_COLOR = '#ffd700';
 export const GRAY = '#CCC';
-export const OVERLAY_BACKGROUND = 'rgba(0, 0, 0, 0.95)';
+export const OVERLAY_BACKGROUND = 'rgba(0, 0, 0, 0.8)';
 export const NEXT_SONG_INFO_BACKGROUND = 'rgba(255, 255, 255, 0.1)';
 
 export const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions

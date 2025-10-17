@@ -78,7 +78,7 @@ export const BackgroundLoopVideo = styled.video<{ $fadeIn?: boolean; $fadeOut?: 
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 2;
+  z-index: 5; /* Unterhalb von QR-Overlay (200), Header/Footer (10), aber oberhalb von Karaoke-Video (1) und Lyrics (10) */
   opacity: ${props => {
     if (props.$fadeOut) return 0;
     if (props.$fadeIn) return 1;
