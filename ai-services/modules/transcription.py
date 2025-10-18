@@ -450,7 +450,16 @@ class AudioTranscriber:
                     new_segments.extend(split)
                 else:
                     new_segments.append(segment)
+            # Zähle Segmente mit >30 Zeichen vor der Optimierung
+            long_segments_before = sum(1 for s in new_segments if len((s.get('text', '') or '').strip()) > CHAR_MAX)
+            logger.info(f"Segmente vor Längen-Optimierung: {len(new_segments)}, davon >{CHAR_MAX} Zeichen: {long_segments_before}")
+            
             new_segments = self._optimize_segment_lengths(new_segments, CHAR_MAX)
+            
+            # Zähle Segmente mit >30 Zeichen nach der Optimierung
+            long_segments_after = sum(1 for s in new_segments if len((s.get('text', '') or '').strip()) > CHAR_MAX)
+            logger.info(f"Segmente nach Längen-Optimierung: {len(new_segments)}, davon >{CHAR_MAX} Zeichen: {long_segments_after}")
+            
             if result.get('language', '').lower() == 'en':
                 new_segments = self._optimize_capitalization_segments(new_segments)
             new_segments = self._clean_segments(new_segments)
@@ -496,6 +505,9 @@ class AudioTranscriber:
             return [segment]
 
     def _optimize_segment_lengths(self, segments: List[Dict[str, Any]], char_max: int) -> List[Dict[str, Any]]:
+        """
+        Optimiert Segment-Längen durch rekursive Aufteilung von Segmenten mit >char_max Zeichen
+        """
         try:
             out = []
             for i, seg in enumerate(segments):
@@ -503,23 +515,75 @@ class AudioTranscriber:
                 if len(txt) <= char_max:
                     out.append(seg)
                     continue
+                
                 words = seg.get('words', [])
                 if not words or len(words) <= 1:
+                    logger.warning(f"Segment mit {len(txt)} Zeichen kann nicht aufgeteilt werden (keine/few Wörter): '{txt[:50]}...'")
                     out.append(seg)
                     continue
-                # Versuche aufzuteilen
-                mid = len(words) // 2
-                first = words[:mid]
-                second = words[mid:]
-                if first and second:
-                    s1 = {**seg, 'start': first[0]['start'], 'end': first[-1]['end'], 'words': first, 'text': ' '.join(w['word'].strip() for w in first), 'is_split': True}
-                    s2 = {**seg, 'start': second[0]['start'], 'end': second[-1]['end'], 'words': second, 'text': ' '.join(w['word'].strip() for w in second), 'is_split': True}
-                    out.extend([s1, s2])
-                else:
-                    out.append(seg)
+                
+                # Rekursive Aufteilung bis alle Teile <= char_max sind
+                split_segments = self._recursive_split_by_length(seg, char_max)
+                out.extend(split_segments)
+                
             return out
-        except Exception:
+        except Exception as e:
+            logger.error(f"Fehler bei Segment-Längen-Optimierung: {e}")
             return segments
+    
+    def _recursive_split_by_length(self, segment: Dict[str, Any], char_max: int) -> List[Dict[str, Any]]:
+        """
+        Teilt ein Segment rekursiv auf, bis alle Teile <= char_max Zeichen haben
+        """
+        try:
+            txt = (segment.get('text', '') or '').strip()
+            if len(txt) <= char_max:
+                return [segment]
+            
+            words = segment.get('words', [])
+            if not words or len(words) <= 1:
+                logger.warning(f"Segment mit {len(txt)} Zeichen kann nicht weiter aufgeteilt werden: '{txt[:50]}...'")
+                return [segment]
+            
+            # Aufteilung in der Mitte
+            mid = len(words) // 2
+            first = words[:mid]
+            second = words[mid:]
+            
+            if not first or not second:
+                logger.warning(f"Segment mit {len(txt)} Zeichen kann nicht aufgeteilt werden (ungleiche Verteilung): '{txt[:50]}...'")
+                return [segment]
+            
+            # Erstelle zwei neue Segmente
+            s1 = {
+                **segment, 
+                'start': first[0]['start'], 
+                'end': first[-1]['end'], 
+                'words': first, 
+                'text': ' '.join(w['word'].strip() for w in first), 
+                'is_split': True
+            }
+            s2 = {
+                **segment, 
+                'start': second[0]['start'], 
+                'end': second[-1]['end'], 
+                'words': second, 
+                'text': ' '.join(w['word'].strip() for w in second), 
+                'is_split': True
+            }
+            
+            logger.info(f"Segment aufgeteilt: '{txt[:30]}...' ({len(txt)} Zeichen) -> '{s1['text'][:20]}...' ({len(s1['text'])} Zeichen) + '{s2['text'][:20]}...' ({len(s2['text'])} Zeichen)")
+            
+            # Rekursive Aufteilung beider Teile
+            result = []
+            result.extend(self._recursive_split_by_length(s1, char_max))
+            result.extend(self._recursive_split_by_length(s2, char_max))
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Fehler bei rekursiver Segment-Aufteilung: {e}")
+            return [segment]
 
     def _optimize_capitalization_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         try:
@@ -646,177 +710,3 @@ def transcribe_audio(meta: ProcessingMeta) -> bool:
     transcriber = AudioTranscriber()
     return transcriber.process_meta(meta)
 
-    # --- Portierte Hilfsfunktionen aus music_to_lyrics.py ---
-
-    def _filter_hallucinations(self, result: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            hallucination_phrases = [
-                "thank you.", "thanks.", "goodbye.", "bye.", "see you later.",
-                "that's all.", "the end.", "fin", "fin.", "subtitles", "subtitles by",
-                "amara.org", "captions", "thanks for watching", "merci d'", "untertitel",
-                "copyright", "legendas pela comunidade amara.org",
-            ]
-            filtered_segments = []
-            for segment in result.get('segments', []):
-                text = (segment.get('text', '') or '').strip().lower()
-                if any(p in text for p in hallucination_phrases):
-                    continue
-                words = segment.get('words', [])
-                if words and len(words) > 1:
-                    ends = [w.get('end', 0) for w in words]
-                    if len(set(ends)) < len(ends):
-                        # Unplausible doppelte Endzeiten → verwerfen
-                        continue
-                filtered_segments.append(segment)
-            result['segments'] = filtered_segments
-            if 'text' in result:
-                result['text'] = ' '.join((s.get('text', '') or '').strip() for s in filtered_segments)
-            return result
-        except Exception:
-            return result
-
-    def _split_long_segments(self, result: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            SEG_MAX = 4.0
-            SEG_SHORT = 3.0
-            CHAR_MAX = 30
-            segments = result.get('segments', [])
-            if not segments:
-                return result
-            new_segments = []
-            for segment in segments:
-                duration = segment['end'] - segment['start']
-                if duration > SEG_MAX:
-                    num_segments = int(duration / SEG_SHORT) + 1
-                    split = self._split_segment_simple(segment, num_segments)
-                    new_segments.extend(split)
-                else:
-                    new_segments.append(segment)
-            new_segments = self._optimize_segment_lengths(new_segments, CHAR_MAX)
-            if result.get('language', '').lower() == 'en':
-                new_segments = self._optimize_capitalization_segments(new_segments)
-            new_segments = self._clean_segments(new_segments)
-            result['segments'] = new_segments
-            if 'text' in result:
-                result['text'] = ' '.join((s.get('text', '') or '').strip() for s in new_segments)
-            return result
-        except Exception:
-            return result
-
-    def _split_segment_simple(self, segment: Dict[str, Any], num_segments: int) -> List[Dict[str, Any]]:
-        try:
-            start_time = segment['start']
-            end_time = segment['end']
-            duration = end_time - start_time
-            seg_dur = duration / max(num_segments, 1)
-            words = segment.get('words', [])
-            if not words:
-                split_segments = []
-                for i in range(num_segments):
-                    seg_start = start_time + (i * seg_dur)
-                    seg_end = start_time + ((i + 1) * seg_dur)
-                    split_segments.append({**segment, 'start': seg_start, 'end': seg_end, 'is_split': True})
-                return split_segments
-            # Wörter gleichmäßig verteilen
-            per_seg = len(words) / num_segments
-            out = []
-            for i in range(num_segments):
-                s = int(i * per_seg)
-                e = int((i + 1) * per_seg) if i < num_segments - 1 else len(words)
-                seg_words = words[s:e]
-                if seg_words:
-                    seg_start = seg_words[0]['start']
-                    seg_end = seg_words[-1]['end']
-                    seg_text = ' '.join(w['word'].strip() for w in seg_words)
-                else:
-                    seg_start = start_time + (i * seg_dur)
-                    seg_end = start_time + ((i + 1) * seg_dur)
-                    seg_text = ''
-                out.append({**segment, 'start': seg_start, 'end': seg_end, 'text': seg_text, 'words': seg_words, 'is_split': True})
-            return out
-        except Exception:
-            return [segment]
-
-    def _optimize_segment_lengths(self, segments: List[Dict[str, Any]], char_max: int) -> List[Dict[str, Any]]:
-        try:
-            out = []
-            for i, seg in enumerate(segments):
-                txt = (seg.get('text', '') or '').strip()
-                if len(txt) <= char_max:
-                    out.append(seg)
-                    continue
-                words = seg.get('words', [])
-                if not words or len(words) <= 1:
-                    out.append(seg)
-                    continue
-                # Versuche aufzuteilen
-                mid = len(words) // 2
-                first = words[:mid]
-                second = words[mid:]
-                if first and second:
-                    s1 = {**seg, 'start': first[0]['start'], 'end': first[-1]['end'], 'words': first, 'text': ' '.join(w['word'].strip() for w in first), 'is_split': True}
-                    s2 = {**seg, 'start': second[0]['start'], 'end': second[-1]['end'], 'words': second, 'text': ' '.join(w['word'].strip() for w in second), 'is_split': True}
-                    out.extend([s1, s2])
-                else:
-                    out.append(seg)
-            return out
-        except Exception:
-            return segments
-
-    def _optimize_capitalization_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        try:
-            out = []
-            for i, seg in enumerate(segments):
-                words = seg.get('words', [])
-                if not words or len(words) <= 1:
-                    out.append(seg)
-                    continue
-                last = words[-1]
-                last_text = (last.get('word', '') or '').strip()
-                has_punct = any(last_text.endswith(p) for p in ['.', '!', '?', ',', ';', ':'])
-                if len(last_text) > 1 and last_text[0].isupper() and not has_punct and i < len(segments) - 1:
-                    next_seg = segments[i + 1]
-                    next_words = next_seg.get('words', [])
-                    next_words.insert(0, last)
-                    # update current seg
-                    remain = words[:-1]
-                    if remain:
-                        seg['words'] = remain
-                        seg['text'] = ' '.join(w['word'].strip() for w in remain)
-                        seg['end'] = remain[-1]['end']
-                        seg['is_split'] = True
-                        # update next seg
-                        next_seg['words'] = next_words
-                        next_seg['text'] = ' '.join(w['word'].strip() for w in next_words)
-                        next_seg['start'] = next_words[0]['start']
-                        next_seg['is_split'] = True
-                out.append(seg)
-            return out
-        except Exception:
-            return segments
-
-    def _clean_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        try:
-            cleaned = []
-            for seg in segments:
-                words = seg.get('words', [])
-                if not words:
-                    continue
-                filtered = []
-                for w in words:
-                    wt = (w.get('word', '') or '').strip()
-                    if wt and not wt.replace('.', '').replace(' ', ''):
-                        continue
-                    filtered.append(w)
-                if not filtered:
-                    continue
-                seg['words'] = filtered
-                seg['text'] = ' '.join(w['word'].strip() for w in filtered).strip()
-                if not seg['text']:
-                    continue
-                seg['start'] = filtered[0]['start']
-                seg['end'] = filtered[-1]['end']
-                cleaned.append(seg)
-            return cleaned
-        except Exception:
-            return segments
