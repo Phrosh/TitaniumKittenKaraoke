@@ -56,52 +56,28 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 - **Internet-capable Browser** (Chrome, Firefox, Safari, Edge)
 - **Stable Internet Connection** (for remote access)
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-### Automatic Installation
+**New to Titanium Kitten Karaoke?** Check out our comprehensive Getting Started Guides for detailed installation instructions, dependency setup, and first-time configuration:
+
+- 🇩🇪 [Deutsche Anleitung](docs/getting-started-de.md) - Komplette Einrichtung auf Deutsch
+- 🇬🇧 [English Guide](docs/getting-started-en.md) - Complete setup guide in English
+
+### Quick Installation
 1. **Clone repository or download files**
 2. **Run `install.bat`** - The script handles everything automatically
+3. **Run `start.bat`** - Start the complete system
 
-### Manual Installation (if needed)
-```bash
-# Install backend dependencies
-npm install
+### Essential Dependencies
+- **Node.js** (Version 18+) - [Download](https://nodejs.org/)
+- **Python 3.10+** - [Download](https://www.python.org/downloads/)
+- **FFmpeg** - [Download](https://ffmpeg.org/download.html) (add to PATH)
+- **CUDA** (optional) - [Download](https://developer.nvidia.com/cuda-downloads)
 
-# Install frontend dependencies
-cd client
-npm install
-cd ..
+For detailed installation instructions, troubleshooting, and configuration, see the Getting Started Guides:
 
-# Python dependencies for AI features
-cd ai-services
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-# source venv/bin/activate
-pip install -r requirements.txt
-cd ..
-```
-
-### Install FFmpeg
-- **Windows**: Download FFmpeg from the official website, extract it, and add the `bin` folder to your `PATH` environment variable ([FFmpeg Downloads](https://ffmpeg.org/download.html)).
-- **macOS**: `brew install ffmpeg`
-- **Linux**: `sudo apt-get install ffmpeg` (or use your distribution's package manager)
-
-#### Windows: Add FFmpeg to PATH (step-by-step)
-1. Download the latest FFmpeg release and extract the archive (e.g., to `C:\ffmpeg`).
-2. Locate the `bin` folder, e.g., `C:\ffmpeg\bin`.
-3. Press `Win` and search for "Environment Variables", open "Edit the system environment variables".
-4. Click "Environment Variables...".
-5. Under "System variables", select `Path` and click "Edit".
-6. Click "New" and paste the path to your `bin` folder (e.g., `C:\ffmpeg\bin`).
-7. Confirm all dialogs with "OK" and restart your terminal or IDE.
-
-To verify installation, run in a new terminal:
-```bash
-ffmpeg -version
-```
-You should see version information instead of a "not recognized" error.
+- 🇩🇪 [Deutsche Anleitung](docs/getting-started-de.md) - Komplette Einrichtung auf Deutsch  
+- 🇬🇧 [English Guide](docs/getting-started-en.md) - Complete setup guide in English
 
 ## 🎮 Usage
 
