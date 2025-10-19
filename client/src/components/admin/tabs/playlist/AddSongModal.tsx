@@ -154,6 +154,8 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
         setAddSongUsdbResults([]);
         setAddSongUsdbLoading(false);
         setAddSongSearchTerm('');
+    } else {
+        // Reset loading state when modal opens
         setActionLoading(false);
     }
   }, [show]);
