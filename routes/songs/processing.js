@@ -64,6 +64,37 @@ router.post('/processing-status', async (req, res) => {
             await broadcastPlaylistUpdate(io).catch(() => {});
           }
         }
+        
+        // Spezielle Behandlung für fehlgeschlagene USDB-Downloads: Modus auf youtube zurücksetzen und YouTube-Link löschen
+        if (status === 'failed') {
+          try {
+            // Prüfe ob der Song aktuell im ultrastar-Modus ist (USDB-Download)
+            const currentSong = await new Promise((resolve, reject) => {
+              db.get('SELECT mode FROM songs WHERE id = ?', [songRow.id], (err, row) => err ? reject(err) : resolve(row));
+            });
+            
+            if (currentSong && currentSong.mode === 'ultrastar') {
+              console.log('🔄 USDB download failed, resetting song to youtube mode:', { songId: songRow.id, artist, title });
+              
+              // Setze Modus auf youtube und lösche YouTube-Link
+              await new Promise((resolve, reject) => {
+                db.run('UPDATE songs SET mode = ?, youtube_url = ? WHERE id = ?', ['youtube', '', songRow.id], (err) => err ? reject(err) : resolve());
+              });
+              
+              console.log('✅ Song reset to youtube mode after failed USDB download:', { songId: songRow.id, artist, title });
+              
+              // Broadcast admin update so dashboard refreshes cached data
+              const { broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
+              const io = req.app.get('io');
+              if (io) {
+                await broadcastAdminUpdate(io).catch(() => {});
+                await broadcastPlaylistUpdate(io).catch(() => {});
+              }
+            }
+          } catch (resetError) {
+            console.error('❌ Error resetting song after failed USDB download:', resetError);
+          }
+        }
       }
     } catch (persistErr) {
       console.warn('⚠️ Could not persist processing status:', persistErr.message);

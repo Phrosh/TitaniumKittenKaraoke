@@ -74,7 +74,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     title: '',
     artist: '',
     youtubeUrl: '',
-    youtubeMode: 'karaoke' as 'karaoke' | 'magic'
+    youtubeMode: 'karaoke' as 'karaoke' | 'magic',
+    singerName: '',
+    withBackgroundVocals: false
   });
 
   const [showPastSongs, setShowPastSongs] = useState(false);
@@ -149,6 +151,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                 }
             const next = { ...(s as any) };
             next.download_status = data.status;
+            
+            // Bei fehlgeschlagenen Downloads: Modus auf youtube zurücksetzen und YouTube-Link löschen
+            if (data.status === 'failed' && s.mode === 'ultrastar') {
+              console.log('🛰️ PlaylistTab: USDB download failed, resetting song to youtube mode:', { songId: s.id, artist: s.artist, title: s.title });
+              next.mode = 'youtube';
+              next.youtube_url = '';
+            }
+            
             appliedCount++;
             return next as Song;
           });
@@ -182,6 +192,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                 if (shouldApply) {
                   const next = { ...(recentSong as any) };
                   next.download_status = data.status;
+                  
+                  // Bei fehlgeschlagenen Downloads: Modus auf youtube zurücksetzen und YouTube-Link löschen
+                  if (data.status === 'failed' && recentSong.mode === 'ultrastar') {
+                    console.log('🛰️ PlaylistTab: USDB download failed (fallback), resetting song to youtube mode:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title });
+                    next.mode = 'youtube';
+                    next.youtube_url = '';
+                  }
+                  
                   appliedCount++;
                   console.log('🛰️ PlaylistTab: applying status to fallback match:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title, status: data.status, priority: { current: getPriority(currentStatus), incoming: getPriority(incomingStatus) } });
                   

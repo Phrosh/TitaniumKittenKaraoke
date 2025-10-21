@@ -39,6 +39,12 @@ router.put('/song/:songId/youtube', [
         // Set download status to downloading
         await Song.updateDownloadStatus(songId, 'downloading', new Date().toISOString());
         
+        // Wenn der Song vorher "failed" war und jetzt ein YouTube-Link eingetragen wird, setze Status auf "ready"
+        if (song.download_status === 'failed') {
+          console.log(`🔄 Song was failed, setting status to ready after YouTube URL update: ${song.artist} - ${song.title}`);
+          await Song.updateDownloadStatus(songId, 'ready');
+        }
+        
         // Check if song is already in YouTube cache
         const existingCache = findYouTubeSong(song.artist, song.title, cleanedUrl);
         if (existingCache) {
@@ -92,7 +98,13 @@ router.put('/song/:songId/youtube', [
       }
     } else {
       // No YouTube URL, reset download status
-      await Song.updateDownloadStatus(songId, 'none');
+      // Wenn der Song vorher "failed" war und jetzt kein YouTube-Link mehr vorhanden ist, setze Status auf "none"
+      if (song.download_status === 'failed') {
+        console.log(`🔄 Song was failed, setting status to none after YouTube URL removal: ${song.artist} - ${song.title}`);
+        await Song.updateDownloadStatus(songId, 'none');
+      } else {
+        await Song.updateDownloadStatus(songId, 'none');
+      }
     }
     
     res.json({ message: 'YouTube URL updated successfully' });
