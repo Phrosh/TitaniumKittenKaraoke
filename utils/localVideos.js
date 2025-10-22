@@ -42,7 +42,8 @@ function scanLocalVideos() {
           artist: artist,
           title: title,
           extension: extension,
-          fullPath: fullPath
+          fullPath: fullPath,
+          modes: ['server_video']
         });
       }
     });

@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Modal, ModalButtons } from '../../../shared/style';
 import Button from '../../../shared/Button';
 import SongForm from '../../SongForm';
-import SmallModeBadge from '../../../shared/SmallModeBadge';
 import { useTranslation } from 'react-i18next';
 import { isSongInYouTubeCache } from '../../../../utils/helper';
 import { extractVideoIdFromUrl } from '../../../../utils/youtubeUrlCleaner';
-import { AdminDashboardData } from '../../../types';
+import { AdminDashboardData } from '../../../../types';
 
 interface AddSongModalProps {
   show: boolean;

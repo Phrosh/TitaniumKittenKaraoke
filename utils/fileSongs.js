@@ -40,7 +40,8 @@ function scanFileSongs(folderPath) {
           artist: artist,
           title: title,
           extension: extension,
-          fullPath: fullPath
+          fullPath: fullPath,
+          modes: ['file']
         });
       }
     });

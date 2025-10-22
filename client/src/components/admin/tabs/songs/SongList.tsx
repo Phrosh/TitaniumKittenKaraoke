@@ -620,7 +620,7 @@ const SongList: React.FC<SongListProps> = ({
                                         (processingStatus === 'failed' || !processingStatus);
                                     const processingNeeded = shouldShowButton;
                                     
-                                    const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus || processingStatus === 'failed';
+                                    const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus;
                                     const shouldDisableTestButton = shouldDisableButtons || processingNeeded;
                                     const isInvisible = invisibleSongs.some(invisible =>
                                         invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
@@ -753,13 +753,10 @@ const SongList: React.FC<SongListProps> = ({
                                                         }
                                                     }
                                                     
-                                                    // Show DownloadStatusBadge for failed status
+                                                    // Show DownloadStatusBadge for failed status (but continue to show buttons)
+                                                    let showFailedBadge = false;
                                                     if (processingStatus === 'failed') {
-                                                        return (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <DownloadStatusBadge status="failed" />
-                                                            </div>
-                                                        );
+                                                        showFailedBadge = true;
                                                     }
                                                     
                                                     // Show processing buttons
@@ -775,11 +772,16 @@ const SongList: React.FC<SongListProps> = ({
                                                     const shouldShowRecreateButton = (song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && 
                                                         !isProcessing && !hasActiveStatus;
                                                     
-                                                    // Only show buttons if at least one should be shown
-                                                    if (!shouldShowProcessingButton && !shouldShowRecreateButton) return null;
+                                                    // Show failed badge and/or buttons
+                                                    if (!showFailedBadge && !shouldShowProcessingButton && !shouldShowRecreateButton) return null;
                                                     
                                                     return (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {/* Failed status badge */}
+                                                            {showFailedBadge && (
+                                                                <DownloadStatusBadge status="failed" />
+                                                            )}
+                                                            
                                                             {/* Recreate button for Magic songs only */}
                                                             {shouldShowRecreateButton && (
                                                                 <Button

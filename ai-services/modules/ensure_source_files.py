@@ -391,7 +391,16 @@ class SourceFileEnsurer:
             
             # Fall 3: Audio vorhanden, Video nicht vorhanden
             if has_audio and not has_video:
-                logger.info("🎵 Audio vorhanden, Video fehlt - prüfe TXT für YouTube-ID")
+                logger.info("🎵 Audio vorhanden, Video fehlt")
+                
+                # Für Ultrastar-Songs ist Video optional - nur Audio reicht
+                if meta.mode == 'ultrastar' or str(meta.mode) == 'ProcessingMode.ULTRASTAR' or meta.mode.value == 'ultrastar':
+                    logger.info("✅ Ultrastar-Song: Audio vorhanden, Video nicht erforderlich")
+                    meta.mark_step_completed('ensure_source_files')
+                    return True
+                
+                # Für andere Modi (magic-songs, magic-videos) ist Video erforderlich
+                logger.info("🎬 Video erforderlich - prüfe TXT für YouTube-ID")
                 
                 # Prüfe TXT für YouTube-ID
                 video_id = self.extract_video_id_from_txt(meta)

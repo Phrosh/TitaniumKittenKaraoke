@@ -141,7 +141,8 @@ function scanUltrastarSongs() {
           hasPreferredVideo: hasPreferredVideo,
           hasHp2Hp5: hasHp2Hp5,
           hasAudio: hasAudio,
-          hasTxt: hasTxt
+          hasTxt: hasTxt,
+          modes: ['ultrastar']
         });
       }
     });
