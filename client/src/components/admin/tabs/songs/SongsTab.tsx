@@ -1,8 +1,9 @@
 import React from 'react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 import {
     SettingsSection,
     SettingsTitle,
@@ -35,6 +36,8 @@ const SongsTab: React.FC<SongsTabProps> = ({
     // Bulk processing state
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     const [bulkProcessingProgress, setBulkProcessingProgress] = useState({ current: 0, total: 0 });
+    const [showUnprocessedWarning, setShowUnprocessedWarning] = useState(true);
+    const bulkProcessingRef = useRef({ isBulkProcessing: false, progress: { current: 0, total: 0 } });
 
     const handleOpenUsdbDialog = () => {
         const usdbCredentials = fetchUSDBCredentials();
@@ -262,6 +265,99 @@ const SongsTab: React.FC<SongsTabProps> = ({
         }
     }, []);
 
+    // WebSocket-Updates für Verarbeitungsstatus
+    useEffect(() => {
+        const socket = io();
+        
+        const handleProcessingStatus = (data: any) => {
+            console.log('📡 Processing status update:', data);
+            // Verarbeite nur Status-Updates, aber aktualisiere nicht den Fortschritt
+            // Der Fortschritt wird nur über Queue-Status-Updates aktualisiert
+        };
+
+        const handleQueueStatus = (data: any) => {
+            console.log('📡 Queue status update:', data);
+            
+            // Aktualisiere Fortschrittsanzeige basierend auf Queue-Status
+            if (data.type === 'queue_status') {
+                const { queue_length, finished_jobs, total_jobs } = data;
+                
+                console.log('🔄 Updating progress from queue status:', {
+                    queue_length,
+                    finished_jobs,
+                    total_jobs,
+                    currentRef: bulkProcessingRef.current
+                });
+                
+                // Aktualisiere Fortschritt nur wenn total_jobs > 0
+                if (total_jobs > 0) {
+                    const newProgress = { 
+                        current: finished_jobs, 
+                        total: total_jobs 
+                    };
+                    
+                    // Aktualisiere sowohl State als auch Ref
+                    setBulkProcessingProgress(newProgress);
+                    bulkProcessingRef.current = {
+                        isBulkProcessing: bulkProcessingRef.current.isBulkProcessing,
+                        progress: newProgress
+                    };
+                    
+                    console.log('✅ Updated bulk processing progress:', newProgress);
+                    
+                    // Debug: Prüfe Bedingungen für das Beenden der Bulk-Verarbeitung
+                    console.log('🔍 Checking bulk processing end conditions:', {
+                        queue_length,
+                        is_processing: data.is_processing,
+                        finished_jobs,
+                        total_jobs,
+                        shouldEnd: queue_length === 0 && !data.is_processing,
+                        allProcessed: finished_jobs === total_jobs
+                    });
+                    
+                    // Wenn Queue leer ist und nicht mehr verarbeitet wird, beende Bulk-Verarbeitung
+                    if (queue_length === 0 && !data.is_processing) {
+                        console.log('🏁 Queue empty, ending bulk processing');
+                        setIsBulkProcessing(false);
+                        bulkProcessingRef.current.isBulkProcessing = false;
+                        
+                        // Verstecke die Warnung nur wenn alle Songs erfolgreich verarbeitet wurden
+                        if (finished_jobs === total_jobs && total_jobs > 0) {
+                            setShowUnprocessedWarning(false);
+                            console.log('✅ Warning hidden, all songs processed successfully');
+                            
+                            // Aktualisiere die Songs-Liste nach der Verarbeitung
+                            setTimeout(async () => {
+                                try {
+                                    await fetchSongs();
+                                    console.log('✅ Songs updated after bulk processing');
+                                } catch (error) {
+                                    console.error('❌ Error updating songs:', error);
+                                }
+                            }, 1000); // Warte 1 Sekunde für die Verarbeitung
+                        } else {
+                            console.log('⚠️ Not hiding warning - some songs may have failed');
+                        }
+                        
+                        toast.success(t('songList.bulkProcessingCompleted', { 
+                            completed: finished_jobs,
+                            total: total_jobs 
+                        }));
+                    }
+                }
+            }
+        };
+
+        socket.on('processing-status', handleProcessingStatus);
+        socket.on('queue-status', handleQueueStatus);
+
+        return () => {
+            socket.off('processing-status', handleProcessingStatus);
+            socket.off('queue-status', handleQueueStatus);
+            socket.disconnect();
+        };
+    }, [t]); // Nur t als Dependency, da es sich nicht ändert
+
     // Helper function to check if a song needs processing
     const needsProcessing = (song: any) => {
         // Check if song has processing button enabled (from helper.ts logic)
@@ -303,7 +399,34 @@ const SongsTab: React.FC<SongsTabProps> = ({
     };
 
     const filteredSongs = getFilteredSongs();
-    const unprocessedCount = songs.filter(song => needsProcessing(song)).length;
+    const unprocessedCount = songs.filter(song => {
+        const needs = needsProcessing(song);
+        if (needs) {
+            console.log('🔍 Song needs processing:', {
+                artist: song.artist,
+                title: song.title,
+                download_status: song.download_status,
+                hasAudio: song.hasAudio,
+                hasVideo: song.hasVideo,
+                hasLyrics: song.hasLyrics
+            });
+        }
+        return needs;
+    }).length;
+
+    // Zeige Warnung wieder an, wenn neue Songs Verarbeitung benötigen
+    useEffect(() => {
+        console.log('🔍 Warning visibility check:', {
+            unprocessedCount,
+            showUnprocessedWarning,
+            shouldShow: unprocessedCount > 0 && !showUnprocessedWarning
+        });
+        
+        if (unprocessedCount > 0 && !showUnprocessedWarning) {
+            console.log('✅ Showing warning again');
+            setShowUnprocessedWarning(true);
+        }
+    }, [unprocessedCount, showUnprocessedWarning]);
 
     const fetchUSDBCredentials = async () => {
         try {
@@ -364,18 +487,24 @@ const SongsTab: React.FC<SongsTabProps> = ({
 
         setIsBulkProcessing(true);
         setBulkProcessingProgress({ current: 0, total: songsNeedingProcessing.length });
+        
+        // Aktualisiere auch die Ref
+        bulkProcessingRef.current = {
+            isBulkProcessing: true,
+            progress: { current: 0, total: songsNeedingProcessing.length }
+        };
+        
+        console.log('🚀 Bulk processing started:', {
+            songsCount: songsNeedingProcessing.length,
+            initialProgress: { current: 0, total: songsNeedingProcessing.length }
+        });
 
         toast.success(t('songList.bulkProcessingStarted', { count: songsNeedingProcessing.length }));
 
-        // Process songs one by one
-        for (let i = 0; i < songsNeedingProcessing.length; i++) {
-            const song = songsNeedingProcessing[i];
-            
-            try {
-                // Update progress
-                setBulkProcessingProgress({ current: i, total: songsNeedingProcessing.length });
-                
-                // Determine song type and start processing
+        // Add all songs to queue at once
+        try {
+            const promises = songsNeedingProcessing.map(async (song, index) => {
+                // Determine song type
                 let songType = 'ultrastar';
                 if (song.modes?.includes('magic-songs')) {
                     songType = 'magic-songs';
@@ -384,40 +513,37 @@ const SongsTab: React.FC<SongsTabProps> = ({
                 }
 
                 const folderName = song.folderName || `${song.artist} - ${song.title}`;
-                const response = await songAPI.modularProcess(folderName, songType);
-
-                if (response.data.success) {
-                    console.log(`Started processing: ${song.artist} - ${song.title}`);
+                
+                try {
+                    const response = await songAPI.modularProcess(folderName, songType);
                     
-                    // Wait for processing to complete (simplified - just wait a bit)
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                } else {
-                    console.error(`Failed to start processing: ${song.artist} - ${song.title}`);
+                    if (response.data.success) {
+                        console.log(`✅ Song zur Queue hinzugefügt: ${song.artist} - ${song.title}`);
+                    } else {
+                        console.error(`❌ Fehler beim Hinzufügen zur Queue: ${song.artist} - ${song.title}`);
+                    }
+                } catch (error) {
+                    console.error(`❌ Fehler beim Hinzufügen zur Queue: ${song.artist} - ${song.title}`, error);
                 }
-                
-                // Update progress
-                setBulkProcessingProgress({ current: i + 1, total: songsNeedingProcessing.length });
-                
-                // Small delay between songs
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-            } catch (error) {
-                console.error(`Error processing song ${song.artist} - ${song.title}:`, error);
-                // Continue with next song even if one fails
-            }
+            });
+
+            // Wait for all songs to be added to queue
+            await Promise.all(promises);
+
+            // Songs wurden zur Queue hinzugefügt - Fortschrittsanzeige bleibt aktiv
+            toast.success(t('songList.bulkProcessingQueued', { 
+                count: songsNeedingProcessing.length 
+            }));
+
+            // Songs werden automatisch über WebSocket-Updates aktualisiert
+            // Kein manueller fetchSongs() Aufruf nötig
+            
+        } catch (error) {
+            console.error('Error in bulk processing:', error);
+            setIsBulkProcessing(false);
+            setBulkProcessingProgress({ current: 0, total: 0 });
+            toast.error(t('songList.bulkProcessingError'));
         }
-
-        // Bulk processing completed
-        setIsBulkProcessing(false);
-        setBulkProcessingProgress({ current: 0, total: 0 });
-        
-        toast.success(t('songList.bulkProcessingCompleted', { 
-            completed: songsNeedingProcessing.length, 
-            total: songsNeedingProcessing.length 
-        }));
-
-        // Refresh songs list
-        await fetchSongs();
     };
 
     const handleCancelBulkProcessing = () => {
@@ -507,7 +633,15 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         </SettingsDescription>
                         
                         {/* Unprocessed songs warning */}
-                        {unprocessedCount > 0 && songTab !== 'unprocessed' && (
+                        {(() => {
+                            const shouldShow = unprocessedCount > 0 && showUnprocessedWarning;
+                            console.log('🔍 Warning box visibility:', {
+                                unprocessedCount,
+                                showUnprocessedWarning,
+                                shouldShow
+                            });
+                            return shouldShow;
+                        })() && (
                             <div style={{
                                 marginTop: '15px',
                                 padding: '15px',

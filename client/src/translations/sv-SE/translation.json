@@ -374,7 +374,8 @@
     "bulkProcessingCompleted": "Massbearbetning slutförd: {{completed}}/{{total}} låtar framgångsrikt bearbetade",
     "bulkProcessingError": "Fel under massbearbetning",
     "bulkProcessingCancelled": "Massbearbetning avbruten",
-    "noSongsNeedProcessing": "Inga låtar behöver bearbetas"
+    "noSongsNeedProcessing": "Inga låtar behöver bearbetas",
+    "bulkProcessingQueued": "Alla låtar tillagda i bearbetningskö"
   },
   "usdbDownloadModal": {
     "title": "USDB Låthantering",

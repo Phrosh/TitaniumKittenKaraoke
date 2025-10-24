@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 
 // Removed: POST /songs/download-youtube (unused)
@@ -124,6 +125,33 @@ router.post('/processing-status', async (req, res) => {
   } catch (error) {
     console.error('❌ Error in /processing-status:', error);
     res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Queue status endpoint (from AI services)
+router.post('/queue-status', async (req, res) => {
+  try {
+    const { type, queue_length, is_processing, current_job, finished_jobs, total_jobs } = req.body || {};
+    console.log('📡 API /queue-status received:', { type, queue_length, is_processing, current_job, finished_jobs, total_jobs, ts: new Date().toISOString() });
+
+    // Broadcast over WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      const { broadcastQueueStatus } = require('../../utils/websocketService');
+      broadcastQueueStatus(io, {
+        type: 'queue_status',
+        queue_length,
+        is_processing,
+        current_job,
+        finished_jobs,
+        total_jobs
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in queue-status endpoint:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -291,56 +319,79 @@ router.post('/modular-process/:folderName', async (req, res) => {
       return res.status(404).json({ error: 'Folder not found' });
     }
     
-    // Call AI service for modular processing
-    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
-    const axios = require('axios');
+    // Extrahiere Artist und Title aus dem folderName
+    const decodedFolderName = decodeURIComponent(folderName);
+    const parts = decodedFolderName.split(' - ');
+    const artist = parts[0] || 'Unknown';
+    const title = parts.slice(1).join(' - ') || 'Unknown';
     
+    // Setze DownloadStatus auf "pending" bevor Job zur Queue hinzugefügt wird
     try {
-      console.log('🔄 Starting modular processing via AI service:', {
-        url: `${aiServiceUrl}/modular-process/${encodeURIComponent(folderName)}`,
-        songType,
-        timestamp: new Date().toISOString()
-      });
+      const Song = require('../../models/Song');
+      await Song.update(
+        { download_status: 'pending' },
+        { where: { folder_name: decodedFolderName } }
+      );
+      console.log(`📋 DownloadStatus auf "pending" gesetzt für: ${artist} - ${title}`);
       
-      const response = await axios.post(`${aiServiceUrl}/modular-process/${encodeURIComponent(folderName)}`, {
-        songType: songType,
-        baseDir: baseDir
-      }, {
-        timeout: 600000 // 10 minutes timeout
-      });
-      
-      console.log('🔄 Modular processing response:', {
-        status: response.status,
-        success: response.data.success,
-        message: response.data.message,
-        timestamp: new Date().toISOString()
-      });
-      
-      if (response.data.success) {
-        res.json({ 
-          success: true, 
-          message: 'Modular processing started successfully',
-          status: 'processing'
-        });
-      } else {
-        res.status(500).json({ 
-          success: false, 
-          error: response.data.error || 'Modular processing failed' 
+      // Sende WebSocket-Update für pending Status
+      const io = req.app.get('io');
+      if (io) {
+        const { broadcastProcessingStatus } = require('../../utils/websocketService');
+        broadcastProcessingStatus(io, {
+          id: `${artist}-${title}`,
+          artist: artist,
+          title: title,
+          status: 'pending'
         });
       }
-      
-    } catch (error) {
-      console.error('❌ Modular processing request failed:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        timestamp: new Date().toISOString()
-      });
-      res.status(500).json({ 
-        success: false, 
-        error: error.response?.data?.message || error.message 
-      });
+    } catch (statusError) {
+      console.warn('⚠️ Konnte DownloadStatus nicht auf pending setzen:', statusError.message);
     }
+    
+        // Direkter Aufruf der AI-Services (Queue wird jetzt in AI-Services verwaltet)
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:6000';
+        
+        try {
+          console.log('🚀 Starte Verarbeitung:', {
+            url: `${aiServiceUrl}/modular-process/${encodeURIComponent(decodedFolderName)}`,
+            songType,
+            baseDir,
+            artist,
+            title,
+            timestamp: new Date().toISOString()
+          });
+          
+          const response = await axios.post(`${aiServiceUrl}/modular-process/${encodeURIComponent(decodedFolderName)}`, {
+            songType: songType,
+            baseDir: baseDir
+          }, {
+            timeout: 600000 // 10 Minuten Timeout
+          });
+          
+          if (response.data.success) {
+            console.log('✅ Verarbeitung erfolgreich gestartet:', response.data);
+            res.json({ 
+              success: true, 
+              message: response.data.message || 'Verarbeitung gestartet',
+              job_id: response.data.job_id,
+              queue_position: response.data.queue_position
+            });
+          } else {
+            throw new Error(response.data.error || 'Verarbeitung fehlgeschlagen');
+          }
+          
+        } catch (error) {
+          console.error('❌ Fehler bei der Verarbeitung:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data
+          });
+          res.status(500).json({ 
+            success: false, 
+            error: error.response?.data?.error || error.message || 'Verarbeitung fehlgeschlagen' 
+          });
+        }
     
   } catch (error) {
     console.error('❌ Error in modular processing:', error);

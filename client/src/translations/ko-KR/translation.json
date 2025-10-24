@@ -374,7 +374,8 @@
     "bulkProcessingCompleted": "일괄 처리 완료: {{completed}}/{{total}}곡이 성공적으로 처리되었습니다",
     "bulkProcessingError": "일괄 처리 중 오류 발생",
     "bulkProcessingCancelled": "일괄 처리 취소됨",
-    "noSongsNeedProcessing": "처리가 필요한 곡이 없습니다"
+    "noSongsNeedProcessing": "처리가 필요한 곡이 없습니다",
+    "bulkProcessingQueued": "모든 곡이 처리 대기열에 추가되었습니다"
   },
   "usdbDownloadModal": {
     "title": "USDB 곡 관리",

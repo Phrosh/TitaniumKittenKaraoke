@@ -374,7 +374,8 @@
     "bulkProcessingCompleted": "Przetwarzanie grupowe zakończone: {{completed}}/{{total}} piosenek pomyślnie przetworzonych",
     "bulkProcessingError": "Błąd podczas przetwarzania grupowego",
     "bulkProcessingCancelled": "Przetwarzanie grupowe anulowane",
-    "noSongsNeedProcessing": "Żadne piosenki nie wymagają przetwarzania"
+    "noSongsNeedProcessing": "Żadne piosenki nie wymagają przetwarzania",
+    "bulkProcessingQueued": "Wszystkie piosenki dodane do kolejki przetwarzania"
   },
   "usdbDownloadModal": {
     "title": "Zarządzanie Piosenkami USDB",

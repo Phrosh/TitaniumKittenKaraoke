@@ -385,7 +385,8 @@
     "bulkProcessingCompleted": "Bulk-Verarbeitung abgeschlossen: {{completed}}/{{total}} Songs erfolgreich verarbeitet",
     "bulkProcessingError": "Fehler bei der Bulk-Verarbeitung",
     "bulkProcessingCancelled": "Bulk-Verarbeitung abgebrochen",
-    "noSongsNeedProcessing": "Keine Songs benötigen Verarbeitung"
+    "noSongsNeedProcessing": "Keine Songs benötigen Verarbeitung",
+    "bulkProcessingQueued": "Alle Songs zur Verarbeitungsqueue hinzugefügt"
   },
   "usdbDownloadModal": {
     "title": "USDB Song Management",

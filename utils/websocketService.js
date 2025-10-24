@@ -323,6 +323,26 @@ async function broadcastProcessingStatus(io, data) {
   }
 }
 
+/**
+ * Broadcast queue status updates (e.g., queue length, processing status)
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {{ type: string, queue_length: number, is_processing: boolean, current_job?: string, finished_jobs: number, total_jobs: number }} data
+ */
+async function broadcastQueueStatus(io, data) {
+  try {
+    if (!data || !data.type) return;
+    io.emit('queue-status', data);
+    console.log(`📡 Broadcasted queue-status:`, {
+      data,
+      totalClients: io.engine?.clientsCount || 0,
+      adminRoom: io.sockets.adapter.rooms.get('admin')?.size || 0,
+      playlistRoom: io.sockets.adapter.rooms.get('playlist')?.size || 0,
+    });
+  } catch (error) {
+    console.error('Error broadcasting queue status:', error);
+  }
+}
+
 module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
@@ -333,5 +353,6 @@ module.exports = {
   broadcastRestartSong,
   broadcastUSDBDownloadNotification,
   broadcastProcessingStatus,
+  broadcastQueueStatus,
   broadcastSongApprovalNotification
 };

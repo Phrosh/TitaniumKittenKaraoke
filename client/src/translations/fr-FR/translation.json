@@ -374,7 +374,8 @@
     "bulkProcessingCompleted": "Traitement en lot terminé: {{completed}}/{{total}} chansons traitées avec succès",
     "bulkProcessingError": "Erreur lors du traitement en lot",
     "bulkProcessingCancelled": "Traitement en lot annulé",
-    "noSongsNeedProcessing": "Aucune chanson ne nécessite de traitement"
+    "noSongsNeedProcessing": "Aucune chanson ne nécessite de traitement",
+    "bulkProcessingQueued": "Toutes les chansons ajoutées à la file de traitement"
   },
   "usdbDownloadModal": {
     "title": "Gestion des chansons USDB",

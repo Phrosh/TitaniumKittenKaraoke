@@ -48,3 +48,26 @@ def send_processing_status(meta, status: str) -> None:
         requests.post('http://localhost:5000/api/songs/processing-status', json=payload, timeout=3)
     except Exception as e:
         logger.warning(f"⚠️ send_processing_status fehlgeschlagen: {e}")
+
+
+def send_queue_status(queue_status: dict) -> None:
+    """Sendet den Queue-Status an den Node-Server (HTTP), zur Weiterleitung per WebSocket.
+
+    Args:
+        queue_status: Dictionary mit Queue-Informationen (queue_length, is_processing, etc.)
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        payload = {
+            'type': 'queue_status',
+            'queue_length': queue_status.get('queue_length', 0),
+            'is_processing': queue_status.get('is_processing', False),
+            'current_job': queue_status.get('current_job'),
+            'finished_jobs': queue_status.get('finished_jobs', 0),
+            'total_jobs': queue_status.get('total_jobs', 0)
+        }
+        logger.info(f"📡 send_queue_status → {payload}")
+        # kleiner Timeout, non-blocking Charakter
+        requests.post('http://localhost:5000/api/songs/queue-status', json=payload, timeout=3)
+    except Exception as e:
+        logger.warning(f"⚠️ send_queue_status fehlgeschlagen: {e}")

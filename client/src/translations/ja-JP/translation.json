@@ -374,7 +374,8 @@
     "bulkProcessingCompleted": "一括処理完了: {{completed}}/{{total}}曲が正常に処理されました",
     "bulkProcessingError": "一括処理中にエラーが発生しました",
     "bulkProcessingCancelled": "一括処理がキャンセルされました",
-    "noSongsNeedProcessing": "処理が必要な楽曲はありません"
+    "noSongsNeedProcessing": "処理が必要な楽曲はありません",
+    "bulkProcessingQueued": "すべての楽曲が処理キューに追加されました"
   },
   "usdbDownloadModal": {
     "title": "USDB楽曲管理",

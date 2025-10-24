@@ -373,7 +373,8 @@
     "bulkProcessingCompleted": "Massakäsittely valmis: {{completed}}/{{total}} kappaletta käsitelty onnistuneesti",
     "bulkProcessingError": "Virhe massakäsittelyssä",
     "bulkProcessingCancelled": "Massakäsittely peruutettu",
-    "noSongsNeedProcessing": "Yksikään kappale ei tarvitse käsittelyä"
+    "noSongsNeedProcessing": "Yksikään kappale ei tarvitse käsittelyä",
+    "bulkProcessingQueued": "Kaikki kappaleet lisätty käsittelyjonoon"
   },
   "usdbDownloadModal": {
     "title": "USDB-kappaleiden hallinta",

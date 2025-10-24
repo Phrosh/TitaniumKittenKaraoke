@@ -13,6 +13,7 @@ export const DownloadStatusBadgeStyle = styled.div<{ $status: DownloadStatus }>`
   text-align: center;
   background: ${props => {
     switch (props.$status) {
+      case 'pending': return '#6c757d';
       case 'downloading': return '#ffc107';
       case 'transcoding': return 'linear-gradient(135deg, #9b59b6, #bb8fce)';
       case 'separating': return 'linear-gradient(135deg, #e74c3c, #ec7063)';
@@ -44,6 +45,7 @@ interface DownloadStatusBadgeProps {
       return null;
 
     const textMap: Record<DownloadStatus, string> = {
+      pending: `⏳ ${t('status.pending')}`,
       downloading: `📥 ${t('status.downloading')}`,
       transcoding: `🎬 ${t('status.transcoding')}`,
       separating: `🎵 ${t('status.separating')}`,
