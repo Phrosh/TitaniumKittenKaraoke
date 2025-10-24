@@ -375,7 +375,9 @@
     "bulkProcessingError": "批量处理期间出错",
     "bulkProcessingCancelled": "批量处理已取消",
     "noSongsNeedProcessing": "没有歌曲需要处理",
-    "bulkProcessingQueued": "所有歌曲已添加到处理队列"
+    "bulkProcessingQueued": "所有歌曲已添加到处理队列",
+    "loadingSongs": "正在加载歌曲...",
+    "loadingSongsDescription": "请稍候，正在加载歌曲列表"
   },
   "usdbDownloadModal": {
     "title": "USDB歌曲管理",

@@ -118,3 +118,4 @@ songs/youtube/
 songs/test/
 songs/magic-*/
 ai-services/venv/
+song-cache.json

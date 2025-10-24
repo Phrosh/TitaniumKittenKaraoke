@@ -375,7 +375,9 @@
     "bulkProcessingError": "Error durante el procesamiento masivo",
     "bulkProcessingCancelled": "Procesamiento masivo cancelado",
     "noSongsNeedProcessing": "No hay canciones que necesiten procesamiento",
-    "bulkProcessingQueued": "Todas las canciones agregadas a la cola de procesamiento"
+    "bulkProcessingQueued": "Todas las canciones agregadas a la cola de procesamiento",
+    "loadingSongs": "Cargando Canciones...",
+    "loadingSongsDescription": "Por favor espere mientras se carga la lista de canciones"
   },
   "usdbDownloadModal": {
     "title": "Gestión de Canciones USDB",

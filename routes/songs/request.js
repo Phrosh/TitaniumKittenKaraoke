@@ -10,6 +10,7 @@ const User = require('../../models/User');
 const Song = require('../../models/Song');
 const { checkIfSongRequiresApproval, storeSongRequestForApproval } = require('./utils/songHelpers');
 const { broadcastProcessingStatus, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
+const songCache = require('../../utils/songCache');
 
 // Submit new song request
 router.post('/request', [
@@ -206,6 +207,8 @@ router.post('/request', [
       // Trigger video conversion for ultrastar song
       if (ultrastarSong) {
         try {
+            const path = require('path');
+            const fs = require('fs');
             const { ULTRASTAR_DIR } = require('../../utils/ultrastarSongs');
             const folderPath = path.join(ULTRASTAR_DIR, ultrastarSong.folderName);
             
@@ -563,6 +566,14 @@ router.post('/request', [
       await broadcastShowUpdate(io);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+    }
+
+    // Rebuild cache after song creation
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Song-Erstellung neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Song-Erstellung:', cacheError.message);
     }
 
     res.json({

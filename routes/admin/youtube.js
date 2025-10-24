@@ -6,6 +6,7 @@ const db = require('../../config/database');
 const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../../utils/youtubeSongs');
 const { broadcastProcessingStatus } = require('../../utils/websocketService');
 const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
+const songCache = require('../../utils/songCache');
 
 // Update YouTube URL for a song
 router.put('/song/:songId/youtube', [
@@ -105,6 +106,14 @@ router.put('/song/:songId/youtube', [
       } else {
         await Song.updateDownloadStatus(songId, 'none');
       }
+    }
+    
+    // Rebuild cache after YouTube URL update
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach YouTube-URL-Update neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach YouTube-URL-Update:', cacheError.message);
     }
     
     res.json({ message: 'YouTube URL updated successfully' });

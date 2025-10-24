@@ -374,7 +374,9 @@
     "bulkProcessingError": "Virhe massakäsittelyssä",
     "bulkProcessingCancelled": "Massakäsittely peruutettu",
     "noSongsNeedProcessing": "Yksikään kappale ei tarvitse käsittelyä",
-    "bulkProcessingQueued": "Kaikki kappaleet lisätty käsittelyjonoon"
+    "bulkProcessingQueued": "Kaikki kappaleet lisätty käsittelyjonoon",
+    "loadingSongs": "Ladataan Kappaleita...",
+    "loadingSongsDescription": "Odota kunnes kappalelista latautuu"
   },
   "usdbDownloadModal": {
     "title": "USDB-kappaleiden hallinta",

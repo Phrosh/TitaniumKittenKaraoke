@@ -7,6 +7,9 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
+// Import song cache for initialization
+const songCache = require('./utils/songCache');
+
 const { router: authRoutes } = require('./routes/auth');
 const songRoutes = require('./routes/songs').router;
 const playlistRoutes = require('./routes/playlist');
@@ -631,7 +634,7 @@ io.on('connection', (socket) => {
 // Make io available to routes
 app.set('io', io);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔌 WebSocket server ready`);
@@ -645,6 +648,15 @@ server.listen(PORT, () => {
     }
   } catch (error) {
     console.error('Error organizing loose TXT files on startup:', error);
+  }
+  
+  // Initialize song cache on server startup
+  try {
+    console.log('🚀 Initialisiere Song-Cache beim Serverstart...');
+    await songCache.buildCache();
+    console.log('✅ Song-Cache erfolgreich initialisiert');
+  } catch (error) {
+    console.error('❌ Fehler beim Initialisieren des Song-Caches:', error);
   }
 });
 

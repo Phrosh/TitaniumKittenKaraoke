@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const songCache = require('../utils/songCache');
 
 class Song {
   static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null, mode = 'youtube', withBackgroundVocals = false) {
@@ -10,7 +11,12 @@ class Song {
           if (err) {
             reject(err);
           } else {
-            resolve({ id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds, mode, with_background_vocals: withBackgroundVocals });
+            const newSong = { id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds, mode, with_background_vocals: withBackgroundVocals };
+            // Update cache
+            if (songCache && typeof songCache.addSongToCache === 'function') {
+              songCache.addSongToCache(newSong);
+            }
+            resolve(newSong);
           }
         }
       );
@@ -41,7 +47,7 @@ class Song {
           if (err) {
             reject(err);
           } else {
-            resolve({ 
+            const newSong = { 
               id: this.lastID, 
               user_id: userId, 
               artist, 
@@ -55,7 +61,12 @@ class Song {
               singer2_notes: singer2Notes,
               singer1_lines: singer1Lines,
               singer2_lines: singer2Lines
-            });
+            };
+            // Update cache
+            if (songCache && typeof songCache.addSongToCache === 'function') {
+              songCache.addSongToCache(newSong);
+            }
+            resolve(newSong);
           }
         }
       );
@@ -143,6 +154,10 @@ class Song {
           if (err) {
             reject(err);
           } else {
+            // Update cache
+            if (songCache && typeof songCache.updateSongInCache === 'function') {
+              songCache.updateSongInCache(songId, { youtube_url: youtubeUrl });
+            }
             resolve({ changes: this.changes });
           }
         }
@@ -240,6 +255,10 @@ class Song {
         if (err) {
           reject(err);
         } else {
+          // Update cache
+          if (songCache && typeof songCache.removeSongFromCache === 'function') {
+            songCache.removeSongFromCache(songId);
+          }
           resolve({ changes: this.changes });
         }
       });

@@ -50,6 +50,7 @@ const SongList: React.FC<SongListProps> = ({
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteSong, setDeleteSong] = useState<any>(null);
     const [songStatuses, setSongStatuses] = useState<Map<string, DownloadStatus>>(new Map());
+    const [isLoadingSongs, setIsLoadingSongs] = useState(true);
 
     const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
     const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
@@ -89,6 +90,20 @@ const SongList: React.FC<SongListProps> = ({
         fetchSongs();
         fetchInvisibleSongs();
     }, [fetchSongs, fetchInvisibleSongs]);
+
+    // Reset loading state when songs are loaded
+    useEffect(() => {
+        if (songs.length > 0) {
+            setIsLoadingSongs(false);
+        }
+    }, [songs]);
+
+    // Reset loading state when component mounts and songs are already available
+    useEffect(() => {
+        if (songs.length > 0) {
+            setIsLoadingSongs(false);
+        }
+    }, []);
 
     // WebSocket listener for processing status updates
     useEffect(() => {
@@ -550,7 +565,46 @@ const SongList: React.FC<SongListProps> = ({
                     invisible.title.toLowerCase() === song.title.toLowerCase()
                 )).length })}
             </SettingsLabel>
-            {songs.length === 0 ? (
+            {isLoadingSongs ? (
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '60px 20px',
+                    color: '#666'
+                }}>
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
+                        border: '4px solid #f3f3f3',
+                        borderTop: '4px solid #667eea',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '20px'
+                    }} />
+                    <div style={{
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                    }}>
+                        {t('songList.loadingSongs')}
+                    </div>
+                    <div style={{
+                        fontSize: '14px',
+                        color: '#999',
+                        textAlign: 'center'
+                    }}>
+                        {t('songList.loadingSongsDescription')}
+                    </div>
+                    <style>{`
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `}</style>
+                </div>
+            ) : songs.length === 0 ? (
                 <div style={{ color: '#666', fontStyle: 'italic' }}>
                     {t('songList.noSongsFound')}
                 </div>

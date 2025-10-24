@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../../config/database');
 const fs = require('fs');
 const path = require('path');
+const songCache = require('../../utils/songCache');
 
 // Get file songs (public)
 router.get('/file-songs', async (req, res) => {
@@ -69,16 +70,19 @@ router.get('/server-videos', (req, res) => {
 });
 
 // Get list of ultrastar songs for song selection
-router.get('/ultrastar-songs', (req, res) => {
+router.get('/ultrastar-songs', async (req, res) => {
   try {
-    const { search } = req.query;
-    const { scanUltrastarSongs, searchUltrastarSongs } = require('../../utils/ultrastarSongs');
+    const { search, rebuild_cache } = req.query;
+    const { searchUltrastarSongs } = require('../../utils/ultrastarSongs');
+    
+    // Verwende Cache für Ultrastar Songs
+    const cachedSongs = await songCache.getUltrastarSongs(rebuild_cache === 'true');
     
     let songs;
     if (search && search.trim()) {
       songs = searchUltrastarSongs(search.trim());
     } else {
-      songs = scanUltrastarSongs();
+      songs = cachedSongs;
     }
     
     res.json({ songs });
@@ -89,16 +93,19 @@ router.get('/ultrastar-songs', (req, res) => {
 });
 
 // Get list of YouTube songs for song selection
-router.get('/youtube-songs', (req, res) => {
+router.get('/youtube-songs', async (req, res) => {
   try {
-    const { search } = req.query;
-    const { scanYouTubeSongs, searchYouTubeSongs } = require('../../utils/youtubeSongs');
+    const { search, rebuild_cache } = req.query;
+    const { searchYouTubeSongs } = require('../../utils/youtubeSongs');
+    
+    // Verwende Cache für YouTube Songs
+    const cachedSongs = await songCache.getYouTubeSongs(rebuild_cache === 'true');
     
     let songs;
     if (search && search.trim()) {
       songs = searchYouTubeSongs(search.trim());
     } else {
-      songs = scanYouTubeSongs();
+      songs = cachedSongs;
     }
     
     res.json({ youtubeSongs: songs });
@@ -109,16 +116,19 @@ router.get('/youtube-songs', (req, res) => {
 });
 
 // Get list of magic songs for song selection
-router.get('/magic-songs', (req, res) => {
+router.get('/magic-songs', async (req, res) => {
   try {
-    const { search } = req.query;
-    const { scanMagicSongs, searchMagicSongs } = require('../../utils/magicSongs');
+    const { search, rebuild_cache } = req.query;
+    const { searchMagicSongs } = require('../../utils/magicSongs');
+    
+    // Verwende Cache für Magic Songs
+    const cachedSongs = await songCache.getMagicSongs(rebuild_cache === 'true');
     
     let songs;
     if (search && search.trim()) {
       songs = searchMagicSongs(search.trim());
     } else {
-      songs = scanMagicSongs();
+      songs = cachedSongs;
     }
     
     res.json({ songs: songs });
@@ -129,16 +139,19 @@ router.get('/magic-songs', (req, res) => {
 });
 
 // Get list of magic videos for song selection
-router.get('/magic-videos', (req, res) => {
+router.get('/magic-videos', async (req, res) => {
   try {
-    const { search } = req.query;
-    const { scanMagicVideos, searchMagicVideos } = require('../../utils/magicVideos');
+    const { search, rebuild_cache } = req.query;
+    const { searchMagicVideos } = require('../../utils/magicVideos');
+    
+    // Verwende Cache für Magic Videos
+    const cachedVideos = await songCache.getMagicVideos(rebuild_cache === 'true');
     
     let videos;
     if (search && search.trim()) {
       videos = searchMagicVideos(search.trim());
     } else {
-      videos = scanMagicVideos();
+      videos = cachedVideos;
     }
     
     res.json({ videos: videos });
@@ -149,16 +162,19 @@ router.get('/magic-videos', (req, res) => {
 });
 
 // Get list of magic YouTube videos for song selection
-router.get('/magic-youtube', (req, res) => {
+router.get('/magic-youtube', async (req, res) => {
   try {
-    const { search } = req.query;
-    const { scanMagicYouTube, searchMagicYouTube } = require('../../utils/magicYouTube');
+    const { search, rebuild_cache } = req.query;
+    const { searchMagicYouTube } = require('../../utils/magicYouTube');
+    
+    // Verwende Cache für Magic YouTube
+    const cachedVideos = await songCache.getMagicYouTube(rebuild_cache === 'true');
     
     let videos;
     if (search && search.trim()) {
       videos = searchMagicYouTube(search.trim());
     } else {
-      videos = scanMagicYouTube();
+      videos = cachedVideos;
     }
     
     res.json({ magicYouTube: videos });

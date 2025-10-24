@@ -375,7 +375,9 @@
     "bulkProcessingError": "Fout tijdens bulk-verwerking",
     "bulkProcessingCancelled": "Bulk-verwerking geannuleerd",
     "noSongsNeedProcessing": "Geen liederen hebben verwerking nodig",
-    "bulkProcessingQueued": "Alle liederen toegevoegd aan verwerkingswachtrij"
+    "bulkProcessingQueued": "Alle liederen toegevoegd aan verwerkingswachtrij",
+    "loadingSongs": "Liederen Laden...",
+    "loadingSongsDescription": "Even geduld terwijl de liedlijst wordt geladen"
   },
   "usdbDownloadModal": {
     "title": "USDB Liedbeheer",

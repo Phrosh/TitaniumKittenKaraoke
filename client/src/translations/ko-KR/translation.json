@@ -375,7 +375,9 @@
     "bulkProcessingError": "일괄 처리 중 오류 발생",
     "bulkProcessingCancelled": "일괄 처리 취소됨",
     "noSongsNeedProcessing": "처리가 필요한 곡이 없습니다",
-    "bulkProcessingQueued": "모든 곡이 처리 대기열에 추가되었습니다"
+    "bulkProcessingQueued": "모든 곡이 처리 대기열에 추가되었습니다",
+    "loadingSongs": "곡 로딩 중...",
+    "loadingSongsDescription": "곡 목록이 로드되는 동안 잠시 기다려 주세요"
   },
   "usdbDownloadModal": {
     "title": "USDB 곡 관리",

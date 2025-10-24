@@ -378,7 +378,9 @@
     "bulkProcessingError": "Error during bulk processing",
     "bulkProcessingCancelled": "Bulk processing cancelled",
     "noSongsNeedProcessing": "No songs need processing",
-    "bulkProcessingQueued": "All songs added to processing queue"
+    "bulkProcessingQueued": "All songs added to processing queue",
+    "loadingSongs": "Loading Songs...",
+    "loadingSongsDescription": "Please wait while the song list is being loaded"
   },
   "usdbDownloadModal": {
     "title": "USDB Song Management",

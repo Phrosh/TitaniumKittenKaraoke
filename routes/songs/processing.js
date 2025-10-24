@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
+const songCache = require('../../utils/songCache');
 
 // Removed: POST /songs/download-youtube (unused)
 
@@ -119,6 +120,14 @@ router.post('/processing-status', async (req, res) => {
       } catch (error) {
         console.error('❌ Error triggering playlist upgrade check:', error);
       }
+    }
+
+    // Rebuild cache after processing status update
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Processing-Status-Update neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Processing-Status-Update:', cacheError.message);
     }
 
     res.json({ ok: true });

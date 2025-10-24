@@ -7,6 +7,7 @@ const { scanYouTubeSongs, downloadYouTubeVideo, findYouTubeSong } = require('../
 const { broadcastProcessingStatus, broadcastSongChange, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
 const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
 const { triggerAutomaticUSDBSearch } = require('../songs/utils/songHelpers');
+const songCache = require('../../utils/songCache');
 
 // Get song details for editing
 router.get('/song/:songId', async (req, res) => {
@@ -128,6 +129,14 @@ router.put('/song/:songId', [
     if (song.mode === 'youtube' && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song') {
       // Import the function from songHelpers
       triggerAutomaticUSDBSearch(songId, artist, title);
+    }
+
+    // Rebuild cache after song update
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Song-Update neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Song-Update:', cacheError.message);
     }
 
     res.json({ message: 'Song updated successfully' });
@@ -252,6 +261,14 @@ router.delete('/clear-all', async (req, res) => {
       await broadcastSongChange(io, null);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+    }
+
+    // Rebuild cache after clearing all songs
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Löschen aller Songs neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Löschen aller Songs:', cacheError.message);
     }
 
     res.json({ message: 'All songs cleared successfully' });
@@ -477,6 +494,14 @@ router.post('/song/rename', [
     fs.renameSync(oldPath, newPath);
     console.log(`📁 Renamed ${songType} ${songType === 'server_video' ? 'file' : 'folder'}: "${path.basename(oldPath)}" → "${path.basename(newPath)}"`);
 
+    // Rebuild cache after song rename
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Song-Umbenennung neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Song-Umbenennung:', cacheError.message);
+    }
+
     // Update invisible songs database entry
     try {
       await new Promise((resolve, reject) => {
@@ -611,6 +636,14 @@ router.post('/song/delete', [
       // Delete folder recursively
       fs.rmSync(deletePath, { recursive: true, force: true });
       console.log(`🗑️ Deleted ${songType} folder: "${path.basename(deletePath)}"`);
+    }
+
+    // Rebuild cache after song deletion
+    try {
+      await songCache.buildCache(true);
+      console.log('🔄 Cache nach Song-Löschung neu aufgebaut');
+    } catch (cacheError) {
+      console.warn('⚠️ Fehler beim Cache-Rebuild nach Song-Löschung:', cacheError.message);
     }
 
     // Remove from invisible songs database entry

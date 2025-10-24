@@ -375,7 +375,9 @@
     "bulkProcessingError": "Ошибка при массовой обработке",
     "bulkProcessingCancelled": "Массовая обработка отменена",
     "noSongsNeedProcessing": "Нет песен, требующих обработки",
-    "bulkProcessingQueued": "Все песни добавлены в очередь обработки"
+    "bulkProcessingQueued": "Все песни добавлены в очередь обработки",
+    "loadingSongs": "Загрузка Песен...",
+    "loadingSongsDescription": "Пожалуйста, подождите, пока загружается список песен"
   },
   "usdbDownloadModal": {
     "title": "Управление Песнями USDB",

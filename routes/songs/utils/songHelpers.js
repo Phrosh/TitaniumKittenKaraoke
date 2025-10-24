@@ -562,7 +562,7 @@ async function triggerAutomaticSongClassification() {
 // Helper function to check if a song requires approval
 async function checkIfSongRequiresApproval(artist, title, mode, youtubeUrl) {
   try {
-    const db = require('../config/database');
+    const db = require('../../../config/database');
     
     // Check if song already exists
     const existingSong = await new Promise((resolve, reject) => {
