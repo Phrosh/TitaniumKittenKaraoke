@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 import yt_dlp
 
 from .meta import ProcessingMeta, ProcessingStatus
+from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, is_audio_file, is_video_file
 from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
@@ -216,10 +217,10 @@ class SourceFileEnsurer:
                     # Debug: Log alle gefundenen Dateien
                     logger.debug(f"🔍 Gefundene Datei: {file} (Erweiterung: {ext})")
                     
-                    if ext in ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg']:
+                    if ext in AUDIO_EXTENSIONS:
                         files['audio'].append(file_path)
                         logger.info(f"🎵 Audio-Datei gefunden: {file}")
-                    elif ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm']:
+                    elif ext in VIDEO_EXTENSIONS:
                         files['video'].append(file_path)
                         logger.info(f"🎬 Video-Datei gefunden: {file}")
                     else:

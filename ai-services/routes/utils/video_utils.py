@@ -16,7 +16,7 @@ def remove_audio_from_video(folder_path):
         # Find video files in the folder
         video_files = []
         for file in os.listdir(folder_path):
-            if file.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv', '.flv')):
+            if file.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.mpg', '.mpeg')):
                 video_files.append(file)
         
         if not video_files:

@@ -105,7 +105,7 @@ def find_youtube_song_by_video_id(video_id, youtube_dir):
                                 'folderName': folder_name,
                                 'videoFile': file_name,
                                 'videoFiles': [f for f in os.listdir(folder_path) 
-                                             if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv'))],
+                                             if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv', '.mpg', '.mpeg'))],
                                 'modes': ['youtube'],
                                 'hasVideo': True
                             }

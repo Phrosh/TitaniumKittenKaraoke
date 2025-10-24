@@ -28,7 +28,7 @@ def get_magic_videos():
                     for file in os.listdir(folder_path):
                         file_path = os.path.join(folder_path, file)
                         if os.path.isfile(file_path):
-                            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv')):
+                            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv', '.mpg', '.mpeg')):
                                 if file.endswith('_remuxed.mp4'):
                                     remuxed_files.append(file)
                                 else:
@@ -64,7 +64,7 @@ def process_magic_video(folder_name):
         # Find video file
         video_file = None
         for file in os.listdir(folder_path):
-            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv')) and not file.endswith('_remuxed.mp4'):
+            if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.wmv', '.mpg', '.mpeg')) and not file.endswith('_remuxed.mp4'):
                 video_file = os.path.join(folder_path, file)
                 break
         

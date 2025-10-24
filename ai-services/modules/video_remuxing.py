@@ -10,8 +10,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from ..constants import VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class VideoRemuxer:
             Liste der Video-Dateipfade
         """
         video_files = []
-        video_extensions = ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.wmv', '.flv']
+        video_extensions = VIDEO_EXTENSIONS
         
         # Suche in Eingabedateien
         for file_path in meta.input_files:

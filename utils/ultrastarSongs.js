@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
 
 const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
@@ -169,7 +168,7 @@ function scanUltrastarSongs() {
 function checkForVideoFiles(folderPath) {
   try {
     const files = fs.readdirSync(folderPath);
-    const videoExtensions = ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'];
+    const videoExtensions = VIDEO_EXTENSIONS;
     
     return files.some(file => {
       const ext = path.extname(file).toLowerCase();

@@ -41,7 +41,7 @@ def download_youtube_video_to_youtube_folder(folder_name):
         # Check if video already exists
         if os.path.exists(folder_path):
             existing_files = os.listdir(folder_path)
-            video_files = [f for f in existing_files if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv'))]
+            video_files = [f for f in existing_files if f.lower().endswith(('.mp4', '.webm', '.avi', '.mov', '.mkv', '.mpg', '.mpeg'))]
             
             if video_files:
                 return jsonify({
@@ -90,7 +90,7 @@ def download_youtube_video_to_youtube_folder(folder_name):
                 downloaded_video = None
                 for file in files:
                     ext = os.path.splitext(file)[1].lower()
-                    if ext in ['.mp4', '.webm', '.avi', '.mov', '.mkv']:
+                    if ext in ['.mp4', '.webm', '.avi', '.mov', '.mkv', '.mpg', '.mpeg']:
                         downloaded_video = file
                         break
                 

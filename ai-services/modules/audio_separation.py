@@ -10,8 +10,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start, send_processing_status
+from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ class AudioSeparator:
                 return file_path
         
         # Falls keine Audio-Datei gefunden wurde, prüfe auf Video-Dateien und extrahiere Audio
-        video_extensions = ['.mp4', '.mkv', '.webm', '.mov', '.avi']
+        video_extensions = VIDEO_EXTENSIONS
         for file in os.listdir(meta.folder_path):
             if any(file.lower().endswith(ext) for ext in video_extensions):
                 video_path = meta.get_file_path(file)

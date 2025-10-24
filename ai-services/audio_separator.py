@@ -1,13 +1,11 @@
-import os
-import logging
-import subprocess
+from constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
 def find_audio_file(folder_path):
     """Find the main audio file (not HP2/HP5) in the folder, or extract audio from video if no audio file exists"""
-    audio_extensions = ['.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac']
-    video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm']
+    audio_extensions = AUDIO_EXTENSIONS
+    video_extensions = VIDEO_EXTENSIONS
     
     # First, look for existing audio files
     for file in os.listdir(folder_path):

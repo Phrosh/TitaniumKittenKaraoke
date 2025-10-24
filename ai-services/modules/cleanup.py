@@ -9,8 +9,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Set
 
-from .meta import ProcessingMeta, ProcessingStatus
-from .logger_utils import log_start
+from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, LYRICS_EXTENSIONS, COVER_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -238,10 +237,10 @@ class FileCleaner:
             
             # Erstelle Unterordner falls nötig
             subdirs = {
-                'audio': ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg'],
-                'video': ['.mp4', '.webm', '.mkv', '.avi', '.mov', '.wmv'],
-                'lyrics': ['.txt'],
-                'covers': ['.jpg', '.jpeg', '.png', '.gif']
+                'audio': AUDIO_EXTENSIONS,
+                'video': VIDEO_EXTENSIONS,
+                'lyrics': LYRICS_EXTENSIONS,
+                'covers': COVER_EXTENSIONS
             }
             
             for subdir, extensions in subdirs.items():

@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
 const { createSanitizedFolderName } = require('./filenameSanitizer');
 
@@ -34,7 +33,7 @@ function scanYouTubeSongs() {
           const files = fs.readdirSync(folderPath);
           const videoFiles = files.filter(file => {
             const ext = path.extname(file).toLowerCase();
-            return ['.mp4', '.webm', '.avi', '.mov', '.mkv'].includes(ext);
+            return VIDEO_EXTENSIONS.includes(ext);
           });
 
           if (videoFiles.length > 0) {
@@ -164,7 +163,7 @@ function findYouTubeSongByVideoIdRecursive(videoId) {
         const files = fs.readdirSync(folderPath);
         const videoFiles = files.filter(file => {
           const ext = path.extname(file).toLowerCase();
-          return ['.mp4', '.webm', '.avi', '.mov', '.mkv'].includes(ext);
+          return VIDEO_EXTENSIONS.includes(ext);
         });
         
         const matchingVideoFile = videoFiles.find(file => file.startsWith(videoId));
@@ -245,7 +244,7 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
     const existingFiles = fs.readdirSync(folderPath);
     const existingVideo = existingFiles.find(file => {
       const ext = path.extname(file).toLowerCase();
-      return ['.mp4', '.webm', '.avi', '.mov', '.mkv'].includes(ext);
+      return VIDEO_EXTENSIONS.includes(ext);
     });
 
     if (existingVideo) {

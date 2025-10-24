@@ -26,7 +26,7 @@ def convert_video(folder_name):
         # Find video files in the folder
         video_files = []
         for file in os.listdir(folder_path):
-            if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv')):
+            if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.mpg', '.mpeg')):
                 video_files.append(file)
         
         if not video_files:

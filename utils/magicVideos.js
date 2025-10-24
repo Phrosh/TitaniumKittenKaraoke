@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 
 // Magic Videos Directory
 const MAGIC_VIDEOS_DIR = path.join(__dirname, '..', 'songs', 'magic-videos');
@@ -30,7 +29,7 @@ function scanMagicVideos() {
         const files = fs.readdirSync(folderPath);
         const videoFiles = files.filter(file => {
           const ext = path.extname(file).toLowerCase();
-          return ['.mp4', '.avi', '.mkv', '.mov', '.wmv'].includes(ext) && !file.endsWith('_remuxed.mp4');
+          return VIDEO_EXTENSIONS.includes(ext) && !file.endsWith('_remuxed.mp4');
         });
 
         const remuxedFiles = files.filter(file => file.endsWith('_remuxed.mp4'));

@@ -11,6 +11,7 @@ const Song = require('../../models/Song');
 const { checkIfSongRequiresApproval, storeSongRequestForApproval } = require('./utils/songHelpers');
 const { broadcastProcessingStatus, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
 const songCache = require('../../utils/songCache');
+const { VIDEO_EXTENSIONS } = require('../../utils/fileExtensions');
 
 // Submit new song request
 router.post('/request', [
@@ -228,7 +229,7 @@ router.post('/request', [
               
               const videoFiles = files.filter(file => {
                 const ext = path.extname(file).toLowerCase();
-                return ['.webm', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.xvid', '.mpeg', '.mpg'].includes(ext);
+                return VIDEO_EXTENSIONS.includes(ext);
               });
               
               if (videoFiles.length > 0) {

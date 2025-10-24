@@ -25,7 +25,7 @@ def get_video_info(folder_name):
         # Find video files
         video_files = []
         for file in os.listdir(folder_path):
-            if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm')):
+            if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.mpg', '.mpeg')):
                 file_path = os.path.join(folder_path, file)
                 file_size = os.path.getsize(file_path)
                 video_files.append({
