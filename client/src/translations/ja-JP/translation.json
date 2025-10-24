@@ -366,7 +366,15 @@
     "processingRunning": "処理中...",
     "startProcessing": "処理を開始",
     "test": "テスト",
-    "invisibleDescription": "非表示楽曲はパブリック楽曲リスト（/new）に表示されませんが、管理者ダッシュボードでは表示されたままです。"
+    "invisibleDescription": "非表示楽曲はパブリック楽曲リスト（/new）に表示されませんが、管理者ダッシュボードでは表示されたままです。",
+    "processAllSongs": "すべての楽曲を処理",
+    "processingAllSongs": "すべての楽曲を処理中...",
+    "bulkProcessingStarted": "一括処理開始: {{count}}曲が処理されます",
+    "bulkProcessingProgress": "{{current}}/{{total}}曲完了",
+    "bulkProcessingCompleted": "一括処理完了: {{completed}}/{{total}}曲が正常に処理されました",
+    "bulkProcessingError": "一括処理中にエラーが発生しました",
+    "bulkProcessingCancelled": "一括処理がキャンセルされました",
+    "noSongsNeedProcessing": "処理が必要な楽曲はありません"
   },
   "usdbDownloadModal": {
     "title": "USDB楽曲管理",

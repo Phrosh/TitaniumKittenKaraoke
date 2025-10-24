@@ -366,7 +366,15 @@
     "processingRunning": "Обработка выполняется...",
     "startProcessing": "Запустить Обработку",
     "test": "Тест",
-    "invisibleDescription": "Невидимые песни не появляются в публичном списке песен (/new), но остаются видимыми в панели администратора."
+    "invisibleDescription": "Невидимые песни не появляются в публичном списке песен (/new), но остаются видимыми в панели администратора.",
+    "processAllSongs": "Обработать Все Песни",
+    "processingAllSongs": "Обработка всех песен...",
+    "bulkProcessingStarted": "Массовая обработка начата: {{count}} песен будет обработано",
+    "bulkProcessingProgress": "{{current}}/{{total}} песен завершено",
+    "bulkProcessingCompleted": "Массовая обработка завершена: {{completed}}/{{total}} песен успешно обработано",
+    "bulkProcessingError": "Ошибка при массовой обработке",
+    "bulkProcessingCancelled": "Массовая обработка отменена",
+    "noSongsNeedProcessing": "Нет песен, требующих обработки"
   },
   "usdbDownloadModal": {
     "title": "Управление Песнями USDB",

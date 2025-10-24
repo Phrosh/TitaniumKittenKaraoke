@@ -377,7 +377,15 @@
     "processingRunning": "Verarbeitung läuft...",
     "startProcessing": "Verarbeitung starten",
     "test": "Testen",
-    "invisibleDescription": "Unsichtbare Songs erscheinen nicht in der öffentlichen Songliste (/new), sind aber im Admin-Dashboard weiterhin sichtbar."
+    "invisibleDescription": "Unsichtbare Songs erscheinen nicht in der öffentlichen Songliste (/new), sind aber im Admin-Dashboard weiterhin sichtbar.",
+    "processAllSongs": "Alle Songs verarbeiten",
+    "processingAllSongs": "Verarbeite alle Songs...",
+    "bulkProcessingStarted": "Bulk-Verarbeitung gestartet: {{count}} Songs werden verarbeitet",
+    "bulkProcessingProgress": "{{current}}/{{total}} Songs fertig gestellt",
+    "bulkProcessingCompleted": "Bulk-Verarbeitung abgeschlossen: {{completed}}/{{total}} Songs erfolgreich verarbeitet",
+    "bulkProcessingError": "Fehler bei der Bulk-Verarbeitung",
+    "bulkProcessingCancelled": "Bulk-Verarbeitung abgebrochen",
+    "noSongsNeedProcessing": "Keine Songs benötigen Verarbeitung"
   },
   "usdbDownloadModal": {
     "title": "USDB Song Management",

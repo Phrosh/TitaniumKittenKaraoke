@@ -366,7 +366,15 @@
     "processingRunning": "처리 중...",
     "startProcessing": "처리 시작",
     "test": "테스트",
-    "invisibleDescription": "숨겨진 곡은 공개 곡 목록(/new)에 나타나지 않지만 관리자 대시보드에서는 계속 보입니다."
+    "invisibleDescription": "숨겨진 곡은 공개 곡 목록(/new)에 나타나지 않지만 관리자 대시보드에서는 계속 보입니다.",
+    "processAllSongs": "모든 곡 처리",
+    "processingAllSongs": "모든 곡 처리 중...",
+    "bulkProcessingStarted": "일괄 처리 시작: {{count}}곡이 처리됩니다",
+    "bulkProcessingProgress": "{{current}}/{{total}}곡 완료",
+    "bulkProcessingCompleted": "일괄 처리 완료: {{completed}}/{{total}}곡이 성공적으로 처리되었습니다",
+    "bulkProcessingError": "일괄 처리 중 오류 발생",
+    "bulkProcessingCancelled": "일괄 처리 취소됨",
+    "noSongsNeedProcessing": "처리가 필요한 곡이 없습니다"
   },
   "usdbDownloadModal": {
     "title": "USDB 곡 관리",

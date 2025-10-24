@@ -213,12 +213,17 @@ class SourceFileEnsurer:
                 if os.path.isfile(file_path):
                     ext = Path(file).suffix.lower()
                     
+                    # Debug: Log alle gefundenen Dateien
+                    logger.debug(f"🔍 Gefundene Datei: {file} (Erweiterung: {ext})")
+                    
                     if ext in ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg']:
                         files['audio'].append(file_path)
                         logger.info(f"🎵 Audio-Datei gefunden: {file}")
                     elif ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.webm']:
                         files['video'].append(file_path)
                         logger.info(f"🎬 Video-Datei gefunden: {file}")
+                    else:
+                        logger.debug(f"📄 Andere Datei ignoriert: {file} (Erweiterung: {ext})")
             
             logger.info(f"📁 Gefundene Dateien - Audio: {len(files['audio'])}, Video: {len(files['video'])}")
             return files
@@ -276,6 +281,10 @@ class SourceFileEnsurer:
             has_audio = len(files['audio']) > 0
             has_video = len(files['video']) > 0
             
+            # Debug: Log die gefundenen Dateien
+            logger.info(f"🔍 Gefundene Audio-Dateien: {[Path(f).name for f in files['audio']]}")
+            logger.info(f"🔍 Gefundene Video-Dateien: {[Path(f).name for f in files['video']]}")
+            
             # Speichere initiale Dateien für spätere Entscheidungen
             meta.metadata['initial_files'] = {
                 'audio': has_audio,
@@ -324,11 +333,22 @@ class SourceFileEnsurer:
             
             # Fall 2: Video vorhanden, Audio nicht vorhanden
             if has_video and not has_audio:
-                logger.info("🎬 Video vorhanden, Audio fehlt - extrahiere Audio")
+                logger.info("🎬 Video vorhanden, Audio fehlt - prüfe ob Audio-Datei existiert")
                 
                 video_file = files['video'][0]  # Nimm erste Video-Datei
                 base_name = Path(video_file).stem
                 extracted_audio = os.path.join(meta.folder_path, f"{base_name}.mp3")
+                
+                # Prüfe, ob Audio-Datei bereits existiert (falls sie nicht erkannt wurde)
+                if os.path.exists(extracted_audio):
+                    logger.info(f"✅ Audio-Datei bereits vorhanden: {base_name}.mp3")
+                    # Dateien zum Meta hinzufügen
+                    meta.add_output_file(extracted_audio)
+                    meta.add_keep_file(f"{base_name}.mp3")
+                    meta.mark_step_completed('ensure_source_files')
+                    return True
+                
+                logger.info("🎬 Audio-Datei nicht vorhanden - extrahiere Audio")
                 
                 # Backup erstellen falls Audio-Datei bereits existiert
                 if os.path.exists(extracted_audio):

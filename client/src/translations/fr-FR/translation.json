@@ -366,7 +366,15 @@
     "processingRunning": "Traitement en cours...",
     "startProcessing": "Démarrer le traitement",
     "test": "Tester",
-    "invisibleDescription": "Les chansons invisibles n'apparaissent pas dans la liste publique (/new), mais restent visibles dans le tableau de bord admin."
+    "invisibleDescription": "Les chansons invisibles n'apparaissent pas dans la liste publique (/new), mais restent visibles dans le tableau de bord admin.",
+    "processAllSongs": "Traiter Toutes les Chansons",
+    "processingAllSongs": "Traitement de toutes les chansons...",
+    "bulkProcessingStarted": "Traitement en lot démarré: {{count}} chansons seront traitées",
+    "bulkProcessingProgress": "{{current}}/{{total}} chansons terminées",
+    "bulkProcessingCompleted": "Traitement en lot terminé: {{completed}}/{{total}} chansons traitées avec succès",
+    "bulkProcessingError": "Erreur lors du traitement en lot",
+    "bulkProcessingCancelled": "Traitement en lot annulé",
+    "noSongsNeedProcessing": "Aucune chanson ne nécessite de traitement"
   },
   "usdbDownloadModal": {
     "title": "Gestion des chansons USDB",

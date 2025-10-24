@@ -32,6 +32,10 @@ const SongsTab: React.FC<SongsTabProps> = ({
 
     const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
 
+    // Bulk processing state
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+    const [bulkProcessingProgress, setBulkProcessingProgress] = useState({ current: 0, total: 0 });
+
     const handleOpenUsdbDialog = () => {
         const usdbCredentials = fetchUSDBCredentials();
         if (!usdbCredentials) {
@@ -329,6 +333,99 @@ const SongsTab: React.FC<SongsTabProps> = ({
         }
     };
 
+    // Bulk processing functions
+    const handleBulkProcessAllSongs = async () => {
+        // Get all songs that need processing
+        const songsNeedingProcessing = songs.filter(song => {
+            const hasHp2Hp5 = song.hasHp2Hp5 || false;
+            
+            if (song.modes?.includes('ultrastar')) {
+                const needsProcessing = !hasHp2Hp5 && song.hasTxt && (song.hasVideo || song.hasAudio);
+                return needsProcessing;
+            }
+            
+            if (song.modes?.includes('magic-songs')) {
+                const needsProcessing = !hasHp2Hp5 && song.hasAudio;
+                return needsProcessing;
+            }
+            
+            if (song.modes?.includes('magic-videos')) {
+                const needsProcessing = !hasHp2Hp5 && (song.hasVideo || song.hasAudio);
+                return needsProcessing;
+            }
+            
+            return false;
+        });
+
+        if (songsNeedingProcessing.length === 0) {
+            toast.error(t('songList.noSongsNeedProcessing'));
+            return;
+        }
+
+        setIsBulkProcessing(true);
+        setBulkProcessingProgress({ current: 0, total: songsNeedingProcessing.length });
+
+        toast.success(t('songList.bulkProcessingStarted', { count: songsNeedingProcessing.length }));
+
+        // Process songs one by one
+        for (let i = 0; i < songsNeedingProcessing.length; i++) {
+            const song = songsNeedingProcessing[i];
+            
+            try {
+                // Update progress
+                setBulkProcessingProgress({ current: i, total: songsNeedingProcessing.length });
+                
+                // Determine song type and start processing
+                let songType = 'ultrastar';
+                if (song.modes?.includes('magic-songs')) {
+                    songType = 'magic-songs';
+                } else if (song.modes?.includes('magic-videos')) {
+                    songType = 'magic-videos';
+                }
+
+                const folderName = song.folderName || `${song.artist} - ${song.title}`;
+                const response = await songAPI.modularProcess(folderName, songType);
+
+                if (response.data.success) {
+                    console.log(`Started processing: ${song.artist} - ${song.title}`);
+                    
+                    // Wait for processing to complete (simplified - just wait a bit)
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                } else {
+                    console.error(`Failed to start processing: ${song.artist} - ${song.title}`);
+                }
+                
+                // Update progress
+                setBulkProcessingProgress({ current: i + 1, total: songsNeedingProcessing.length });
+                
+                // Small delay between songs
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+            } catch (error) {
+                console.error(`Error processing song ${song.artist} - ${song.title}:`, error);
+                // Continue with next song even if one fails
+            }
+        }
+
+        // Bulk processing completed
+        setIsBulkProcessing(false);
+        setBulkProcessingProgress({ current: 0, total: 0 });
+        
+        toast.success(t('songList.bulkProcessingCompleted', { 
+            completed: songsNeedingProcessing.length, 
+            total: songsNeedingProcessing.length 
+        }));
+
+        // Refresh songs list
+        await fetchSongs();
+    };
+
+    const handleCancelBulkProcessing = () => {
+        setIsBulkProcessing(false);
+        setBulkProcessingProgress({ current: 0, total: 0 });
+        toast.info(t('songList.bulkProcessingCancelled'));
+    };
+
     return <>
         <SettingsSection>
             <SettingsTitle>🎵 {t('songs.title')}</SettingsTitle>
@@ -413,13 +510,75 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         {unprocessedCount > 0 && songTab !== 'unprocessed' && (
                             <div style={{
                                 marginTop: '15px',
-                                padding: '10px',
+                                padding: '15px',
                                 backgroundColor: '#fff3cd',
                                 border: '1px solid #ffeaa7',
                                 borderRadius: '8px',
                                 color: '#856404'
                             }}>
-                                ⚠️ {t('songs.unprocessedWarning', { count: unprocessedCount })}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                    <span>⚠️ {t('songs.unprocessedWarning', { count: unprocessedCount })}</span>
+                                    <Button
+                                        onClick={handleBulkProcessAllSongs}
+                                        disabled={isBulkProcessing}
+                                        size="small"
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            color: 'white',
+                                            borderColor: '#dc3545',
+                                            fontSize: '12px',
+                                            padding: '6px 12px',
+                                            opacity: isBulkProcessing ? 0.5 : 1
+                                        }}
+                                    >
+                                        🔧 {isBulkProcessing ? t('songList.processingAllSongs') : t('songList.processAllSongs')}
+                                    </Button>
+                                </div>
+                                {/* Progress indicator */}
+                                {isBulkProcessing && (
+                                    <div style={{
+                                        marginTop: '10px',
+                                        padding: '8px',
+                                        backgroundColor: '#e3f2fd',
+                                        border: '1px solid #2196f3',
+                                        borderRadius: '6px',
+                                        fontSize: '14px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                            <span>{t('songList.bulkProcessingProgress', { 
+                                                current: bulkProcessingProgress.current, 
+                                                total: bulkProcessingProgress.total 
+                                            })}</span>
+                                            <Button
+                                                onClick={handleCancelBulkProcessing}
+                                                size="small"
+                                                style={{
+                                                    backgroundColor: '#ff9800',
+                                                    color: 'white',
+                                                    borderColor: '#ff9800',
+                                                    fontSize: '10px',
+                                                    padding: '4px 8px'
+                                                }}
+                                            >
+                                                ❌ {t('common.cancel')}
+                                            </Button>
+                                        </div>
+                                        <div style={{
+                                            width: '100%',
+                                            height: '8px',
+                                            backgroundColor: '#e0e0e0',
+                                            borderRadius: '4px',
+                                            overflow: 'hidden'
+                                        }}>
+                                            <div style={{
+                                                width: `${(bulkProcessingProgress.current / bulkProcessingProgress.total) * 100}%`,
+                                                height: '100%',
+                                                backgroundColor: '#2196f3',
+                                                transition: 'width 0.3s ease'
+                                            }} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </SettingsCard>

@@ -366,7 +366,15 @@
     "processingRunning": "Verwerking loopt...",
     "startProcessing": "Verwerking Starten",
     "test": "Testen",
-    "invisibleDescription": "Onzichtbare liederen verschijnen niet in de openbare liedlijst (/new), maar blijven zichtbaar in het admin-dashboard."
+    "invisibleDescription": "Onzichtbare liederen verschijnen niet in de openbare liedlijst (/new), maar blijven zichtbaar in het admin-dashboard.",
+    "processAllSongs": "Alle Liederen Verwerken",
+    "processingAllSongs": "Alle liederen verwerken...",
+    "bulkProcessingStarted": "Bulk-verwerking gestart: {{count}} liederen worden verwerkt",
+    "bulkProcessingProgress": "{{current}}/{{total}} liederen voltooid",
+    "bulkProcessingCompleted": "Bulk-verwerking voltooid: {{completed}}/{{total}} liederen succesvol verwerkt",
+    "bulkProcessingError": "Fout tijdens bulk-verwerking",
+    "bulkProcessingCancelled": "Bulk-verwerking geannuleerd",
+    "noSongsNeedProcessing": "Geen liederen hebben verwerking nodig"
   },
   "usdbDownloadModal": {
     "title": "USDB Liedbeheer",

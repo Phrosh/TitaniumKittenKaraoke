@@ -366,7 +366,15 @@
     "processingRunning": "Bearbetning pågår...",
     "startProcessing": "Starta Bearbetning",
     "test": "Testa",
-    "invisibleDescription": "Osynliga låtar visas inte i den offentliga låtlistan (/new), men förblir synliga i admin-dashboardet."
+    "invisibleDescription": "Osynliga låtar visas inte i den offentliga låtlistan (/new), men förblir synliga i admin-dashboardet.",
+    "processAllSongs": "Bearbeta Alla Låtar",
+    "processingAllSongs": "Bearbetar alla låtar...",
+    "bulkProcessingStarted": "Massbearbetning startad: {{count}} låtar kommer att bearbetas",
+    "bulkProcessingProgress": "{{current}}/{{total}} låtar slutförda",
+    "bulkProcessingCompleted": "Massbearbetning slutförd: {{completed}}/{{total}} låtar framgångsrikt bearbetade",
+    "bulkProcessingError": "Fel under massbearbetning",
+    "bulkProcessingCancelled": "Massbearbetning avbruten",
+    "noSongsNeedProcessing": "Inga låtar behöver bearbetas"
   },
   "usdbDownloadModal": {
     "title": "USDB Låthantering",

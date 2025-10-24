@@ -366,7 +366,15 @@
     "processingRunning": "Przetwarzanie w toku...",
     "startProcessing": "Uruchom Przetwarzanie",
     "test": "Testuj",
-    "invisibleDescription": "Niewidoczne piosenki nie pojawiają się na publicznej liście piosenek (/new), ale pozostają widoczne w panelu administracyjnym."
+    "invisibleDescription": "Niewidoczne piosenki nie pojawiają się na publicznej liście piosenek (/new), ale pozostają widoczne w panelu administracyjnym.",
+    "processAllSongs": "Przetwórz Wszystkie Piosenki",
+    "processingAllSongs": "Przetwarzanie wszystkich piosenek...",
+    "bulkProcessingStarted": "Przetwarzanie grupowe rozpoczęte: {{count}} piosenek będzie przetwarzanych",
+    "bulkProcessingProgress": "{{current}}/{{total}} piosenek ukończonych",
+    "bulkProcessingCompleted": "Przetwarzanie grupowe zakończone: {{completed}}/{{total}} piosenek pomyślnie przetworzonych",
+    "bulkProcessingError": "Błąd podczas przetwarzania grupowego",
+    "bulkProcessingCancelled": "Przetwarzanie grupowe anulowane",
+    "noSongsNeedProcessing": "Żadne piosenki nie wymagają przetwarzania"
   },
   "usdbDownloadModal": {
     "title": "Zarządzanie Piosenkami USDB",

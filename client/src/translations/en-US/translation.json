@@ -369,7 +369,15 @@
     "processingRunning": "Processing running...",
     "startProcessing": "Start Processing",
     "test": "Test",
-    "invisibleDescription": "Hidden songs do not appear in the public song list (/new), but remain visible in the admin dashboard."
+    "invisibleDescription": "Hidden songs do not appear in the public song list (/new), but remain visible in the admin dashboard.",
+    "processAllSongs": "Process All Songs",
+    "processingAllSongs": "Processing all songs...",
+    "bulkProcessingStarted": "Bulk processing started: {{count}} songs will be processed",
+    "bulkProcessingProgress": "{{current}}/{{total}} songs completed",
+    "bulkProcessingCompleted": "Bulk processing completed: {{completed}}/{{total}} songs successfully processed",
+    "bulkProcessingError": "Error during bulk processing",
+    "bulkProcessingCancelled": "Bulk processing cancelled",
+    "noSongsNeedProcessing": "No songs need processing"
   },
   "usdbDownloadModal": {
     "title": "USDB Song Management",

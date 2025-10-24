@@ -365,7 +365,15 @@
     "processingRunning": "Käsittely käynnissä...",
     "startProcessing": "Käynnistä käsittely",
     "test": "Testaa",
-    "invisibleDescription": "Näkymättömät kappaleet eivät näy julkisessa kappalelistassa (/new), mutta pysyvät näkyvissä admin-hallintapaneelissa."
+    "invisibleDescription": "Näkymättömät kappaleet eivät näy julkisessa kappalelistassa (/new), mutta pysyvät näkyvissä admin-hallintapaneelissa.",
+    "processAllSongs": "Käsittele Kaikki Kappaleet",
+    "processingAllSongs": "Käsitellään kaikkia kappaleita...",
+    "bulkProcessingStarted": "Massakäsittely aloitettu: {{count}} kappaletta käsitellään",
+    "bulkProcessingProgress": "{{current}}/{{total}} kappaletta valmiina",
+    "bulkProcessingCompleted": "Massakäsittely valmis: {{completed}}/{{total}} kappaletta käsitelty onnistuneesti",
+    "bulkProcessingError": "Virhe massakäsittelyssä",
+    "bulkProcessingCancelled": "Massakäsittely peruutettu",
+    "noSongsNeedProcessing": "Yksikään kappale ei tarvitse käsittelyä"
   },
   "usdbDownloadModal": {
     "title": "USDB-kappaleiden hallinta",

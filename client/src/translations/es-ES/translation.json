@@ -366,7 +366,15 @@
     "processingRunning": "Procesamiento ejecutándose...",
     "startProcessing": "Iniciar Procesamiento",
     "test": "Probar",
-    "invisibleDescription": "Las canciones ocultas no aparecen en la lista pública de canciones (/new), pero permanecen visibles en el panel de administración."
+    "invisibleDescription": "Las canciones ocultas no aparecen en la lista pública de canciones (/new), pero permanecen visibles en el panel de administración.",
+    "processAllSongs": "Procesar Todas las Canciones",
+    "processingAllSongs": "Procesando todas las canciones...",
+    "bulkProcessingStarted": "Procesamiento masivo iniciado: {{count}} canciones serán procesadas",
+    "bulkProcessingProgress": "{{current}}/{{total}} canciones completadas",
+    "bulkProcessingCompleted": "Procesamiento masivo completado: {{completed}}/{{total}} canciones procesadas exitosamente",
+    "bulkProcessingError": "Error durante el procesamiento masivo",
+    "bulkProcessingCancelled": "Procesamiento masivo cancelado",
+    "noSongsNeedProcessing": "No hay canciones que necesiten procesamiento"
   },
   "usdbDownloadModal": {
     "title": "Gestión de Canciones USDB",

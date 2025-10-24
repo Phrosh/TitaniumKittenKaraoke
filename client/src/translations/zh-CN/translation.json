@@ -366,7 +366,15 @@
     "processingRunning": "处理中...",
     "startProcessing": "开始处理",
     "test": "测试",
-    "invisibleDescription": "不可见歌曲不会出现在公共歌曲列表中(/new)，但在管理员仪表板中仍然可见。"
+    "invisibleDescription": "不可见歌曲不会出现在公共歌曲列表中(/new)，但在管理员仪表板中仍然可见。",
+    "processAllSongs": "处理所有歌曲",
+    "processingAllSongs": "正在处理所有歌曲...",
+    "bulkProcessingStarted": "批量处理已开始：{{count}}首歌曲将被处理",
+    "bulkProcessingProgress": "{{current}}/{{total}}首歌曲已完成",
+    "bulkProcessingCompleted": "批量处理完成：{{completed}}/{{total}}首歌曲成功处理",
+    "bulkProcessingError": "批量处理期间出错",
+    "bulkProcessingCancelled": "批量处理已取消",
+    "noSongsNeedProcessing": "没有歌曲需要处理"
   },
   "usdbDownloadModal": {
     "title": "USDB歌曲管理",
