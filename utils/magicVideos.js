@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 
 // Magic Videos Directory
