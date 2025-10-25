@@ -131,7 +131,9 @@ const ShowView: React.FC = () => {
   });
   const [backgroundMusicSongs, setBackgroundMusicSongs] = useState<Array<{filename: string, name: string, url: string}>>([]);
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
+  const nextBackgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
+  const [nextBackgroundSong, setNextBackgroundSong] = useState<{filename: string, name: string, url: string} | null>(null);
   const [videoError, setVideoError] = useState(false);
   const [backgroundVideoFadeIn, setBackgroundVideoFadeIn] = useState(false);
   const [backgroundVideoFadeOut, setBackgroundVideoFadeOut] = useState(false);
@@ -1587,36 +1589,55 @@ const ShowView: React.FC = () => {
       return;
     }
 
-    const randomSong = getRandomBackgroundSong();
-    if (!randomSong || !backgroundMusicRef.current) {
+    // Use pre-loaded next song if available, otherwise get a new random song
+    const songToPlay = nextBackgroundSong || getRandomBackgroundSong();
+    if (!songToPlay || !backgroundMusicRef.current) {
       return;
     }
 
-    // Reset audio element completely
+    // Prepare next song for seamless transition
+    const nextSong = getRandomBackgroundSong();
+    if (nextSong && nextBackgroundMusicRef.current) {
+      nextBackgroundMusicRef.current.src = nextSong.url;
+      nextBackgroundMusicRef.current.load();
+      setNextBackgroundSong(nextSong);
+      console.log('🎵 Next background song prepared:', nextSong.name);
+    }
+
+    // Reset current audio element completely
     backgroundMusicRef.current.pause();
     backgroundMusicRef.current.currentTime = 0;
-    backgroundMusicRef.current.src = randomSong.url;
+    backgroundMusicRef.current.src = ''; // Clear src first
+    backgroundMusicRef.current.load(); // Load empty src to reset
+    
+    // Set new source after reset
+    backgroundMusicRef.current.src = songToPlay.url;
     backgroundMusicRef.current.volume = backgroundMusicSettings.volume;
     backgroundMusicRef.current.loop = true;
     
-    // Force reload the audio element
+    // Force reload the audio element with new source
     backgroundMusicRef.current.load();
     
-    // Small delay to ensure audio is loaded before playing
-    setTimeout(() => {
-      backgroundMusicRef.current?.play().then(() => {
-        setIsBackgroundMusicPlaying(true);
-        console.log('🎵 Background music started:', randomSong.name);
-        
-        // Show background video when background music starts
-        setShouldShowBackgroundVideo(true);
-        setBackgroundVideoFadeIn(true);
-        setBackgroundVideoFadeOut(false);
-      }).catch(error => {
-        console.error('🎵 Error playing background music:', error);
-      });
-    }, 100);
-  }, [backgroundMusicSettings, isBackgroundMusicPlaying, getRandomBackgroundSong]);
+    // Wait for the audio to be ready before playing
+    const handleCanPlay = () => {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.removeEventListener('canplay', handleCanPlay);
+        backgroundMusicRef.current.play().then(() => {
+          setIsBackgroundMusicPlaying(true);
+          console.log('🎵 Background music started:', songToPlay.name);
+          
+          // Show background video when background music starts
+          setShouldShowBackgroundVideo(true);
+          setBackgroundVideoFadeIn(true);
+          setBackgroundVideoFadeOut(false);
+        }).catch(error => {
+          console.error('🎵 Error playing background music:', error);
+        });
+      }
+    };
+    
+    backgroundMusicRef.current.addEventListener('canplay', handleCanPlay);
+  }, [backgroundMusicSettings, isBackgroundMusicPlaying, getRandomBackgroundSong, nextBackgroundSong]);
 
   const stopBackgroundMusic = useCallback(() => {
     if (!backgroundMusicRef.current || !isBackgroundMusicPlaying) {
@@ -1629,6 +1650,13 @@ const ShowView: React.FC = () => {
     backgroundMusicRef.current.src = ''; // Clear src to reset audio element
     backgroundMusicRef.current.volume = backgroundMusicSettings.volume; // Reset volume
     setIsBackgroundMusicPlaying(false);
+    
+    // Clear next song when stopping
+    setNextBackgroundSong(null);
+    if (nextBackgroundMusicRef.current) {
+      nextBackgroundMusicRef.current.src = '';
+      nextBackgroundMusicRef.current.load();
+    }
     
     console.log('🎵 Background music stopped');
     
@@ -2364,6 +2392,13 @@ const ShowView: React.FC = () => {
       {/* Background Music Audio Element */}
       <AudioElement
         ref={backgroundMusicRef}
+        style={{ display: 'none' }}
+        preload="auto"
+      />
+      
+      {/* Next Background Music Audio Element (for preloading) */}
+      <AudioElement
+        ref={nextBackgroundMusicRef}
         style={{ display: 'none' }}
         preload="auto"
       />
