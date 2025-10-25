@@ -17,6 +17,7 @@ import SmallModeBadge from '../../../shared/SmallModeBadge';
 import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
 import { DownloadStatus } from '../../../../utils/helper';
 import websocketService from '../../../../services/websocket';
+import { ProcessingAnimationWrapper, isSongProcessing } from '../../../shared/ProcessingAnimation';
 
 interface SongListProps {
     songTab: 'all' | 'visible' | 'invisible';
@@ -665,8 +666,8 @@ const SongList: React.FC<SongListProps> = ({
                                     const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
                                     const apiStatus = song.download_status || song.status;
                                     const processingStatus = wsStatus || apiStatus;
-                                    const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
                                     const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                    const isSongCurrentlyProcessing = isSongProcessing(song, processingSongs, songStatuses);
                                     
                                     // Check if processing is needed (red border condition)
                                     const buttonState = getProcessingButtonState(song);
@@ -674,7 +675,7 @@ const SongList: React.FC<SongListProps> = ({
                                         (processingStatus === 'failed' || !processingStatus);
                                     const processingNeeded = shouldShowButton;
                                     
-                                    const shouldDisableButtons = actionLoading || isProcessing || hasActiveStatus;
+                                    const shouldDisableButtons = actionLoading || isSongCurrentlyProcessing || hasActiveStatus;
                                     const shouldDisableTestButton = shouldDisableButtons || processingNeeded;
                                     const isInvisible = invisibleSongs.some(invisible =>
                                         invisible.artist.toLowerCase() === song.artist.toLowerCase() &&
@@ -685,7 +686,7 @@ const SongList: React.FC<SongListProps> = ({
                                     let borderColor = '#eee'; // default
                                     let borderWidth = '1px';
                                     
-                                    if (hasActiveStatus || isProcessing) {
+                                    if (hasActiveStatus || isSongCurrentlyProcessing) {
                                         // Yellow border for active processing
                                         borderColor = '#ffc107';
                                         borderWidth = '2px';
@@ -706,10 +707,10 @@ const SongList: React.FC<SongListProps> = ({
                                         }
                                     }
                                     
-                                    
                                     return (
-                                        <div
+                                        <ProcessingAnimationWrapper
                                             key={`${song.artist}-${song.title}`}
+                                            $isProcessing={isSongCurrentlyProcessing}
                                             style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -717,7 +718,7 @@ const SongList: React.FC<SongListProps> = ({
                                                 border: `${borderWidth} solid ${borderColor}`,
                                                 borderRadius: '6px',
                                                 marginBottom: '8px',
-                                                background: isInvisible ? '#f8f9fa' : '#fff',
+                                                background: isInvisible ? '#f8f9fa' : (isSongCurrentlyProcessing ? 'transparent' : '#fff'),
                                                 opacity: isInvisible ? 0.7 : 1,
                                                 gap: '12px',
                                                 transition: 'border-color 0.2s ease, border-width 0.2s ease'
@@ -768,16 +769,16 @@ const SongList: React.FC<SongListProps> = ({
                                                 {/* Status badges and processing button */}
                                                 {(() => {
                                                     // Check if song is currently being processed
-                                                    const isProcessing = processingSongs.has(`${song.artist}-${song.title}`);
-                                                    
-                                                    // Check if song has a processing status (from WebSocket or API)
-                                                    const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
-                                                    const apiStatus = song.download_status || song.status;
-                                                    const processingStatus = wsStatus || apiStatus;
-                                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                    const isSongCurrentlyProcessing = processingSongs.has(`${song.artist}-${song.title}`);
+                                    
+                                    // Check if song has a processing status (from WebSocket or API)
+                                    const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
+                                    const apiStatus = song.download_status || song.status;
+                                    const processingStatus = wsStatus || apiStatus;
+                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
                                                     
                                                     // Show DownloadStatusBadge if processing or has active status
-                                                    if (isProcessing || hasActiveStatus) {
+                                                    if (isSongCurrentlyProcessing || hasActiveStatus) {
                                                         // Only show badge if we have a valid status
                                                         if (processingStatus) {
                                                             return (
@@ -787,7 +788,7 @@ const SongList: React.FC<SongListProps> = ({
                                                             );
                                                         }
                                                         // If processing but no status, show processing indicator
-                                                        if (isProcessing) {
+                                                        if (isSongCurrentlyProcessing) {
                                                             return (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <div style={{
@@ -824,7 +825,7 @@ const SongList: React.FC<SongListProps> = ({
                                                     
                                                     // Show recreate button for Magic songs (always visible if not processing)
                                                     const shouldShowRecreateButton = (song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && 
-                                                        !isProcessing && !hasActiveStatus;
+                                                        !isSongCurrentlyProcessing && !hasActiveStatus;
                                                     
                                                     // Show failed badge and/or buttons
                                                     if (!showFailedBadge && !shouldShowProcessingButton && !shouldShowRecreateButton) return null;
@@ -975,7 +976,7 @@ const SongList: React.FC<SongListProps> = ({
                                                     })()}
                                                 </div>
                                             </div>
-                                        </div>
+                                        </ProcessingAnimationWrapper>
                                     );
                                 })}
                             </div>

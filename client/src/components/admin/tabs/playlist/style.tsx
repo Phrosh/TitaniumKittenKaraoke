@@ -1,4 +1,14 @@
-import { styled } from "styled-components";
+import { styled, keyframes, css } from "styled-components";
+
+// Keyframe-Animation für wandernden Farbverlauf (von links nach rechts)
+const processingGradientAnimation = keyframes`
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+`;
 
 export const PlaylistContainer = styled.div`
   background: transparent;
@@ -134,7 +144,7 @@ export const DropZone = styled.div<{ $isVisible?: boolean }>`
   box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
 `;
 
-export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean; $isBlocked?: boolean }>`
+export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boolean; $isPast?: boolean; $isDragging?: boolean; $isDropTarget?: boolean; $isBlocked?: boolean; $isProcessing?: boolean }>`
   position: relative;
   display: flex;
   justify-content: space-between;
@@ -142,12 +152,22 @@ export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boole
   padding: 15px;
   border-radius: 8px;
   margin: 10px 0;
-  background: ${props => 
-    props.$isCurrent ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%)' :
-    props.$isPast ? '#f8f9fa' :
-    props.$hasNoYoutube ? '#fff3cd' :
-    '#f8f9fa'
-  };
+  background: ${props => {
+    if (props.$isProcessing) {
+      return `linear-gradient(
+        90deg,
+        rgb(248, 249, 250) 0%,
+        rgb(248, 249, 250) 30%,
+        rgba(255, 243, 201, 1) 50%,
+        rgb(248, 249, 250) 70%,
+        rgb(248, 249, 250) 100%
+      )`;
+    }
+    return props.$isCurrent ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%)' :
+           props.$isPast ? '#f8f9fa' :
+           props.$hasNoYoutube ? '#fff3cd' :
+           '#f8f9fa';
+  }};
   border: ${props => 
     props.$isCurrent ? '3px solid #5a6fd8' :
     props.$hasNoYoutube ? '2px solid #dc3545' :
@@ -169,6 +189,11 @@ export const SongItem = styled.div<{ $isCurrent?: boolean; $hasNoYoutube?: boole
     props.$isCurrent ? '0 4px 15px rgba(102, 126, 234, 0.3)' :
     'none'
   };
+  
+  ${props => props.$isProcessing && css`
+    background-size: 200% 100%;
+    animation: ${processingGradientAnimation} 2s ease-in-out infinite;
+  `}
 `;
 
 export const DragHandle = styled.div`

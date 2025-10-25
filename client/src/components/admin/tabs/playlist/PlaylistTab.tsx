@@ -748,6 +748,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
             const effectiveStatus = (song.download_status as string) === 'ready' ? 'finished' : song.download_status;
             const isBlocked = !!effectiveStatus && !['finished', 'failed', 'none'].includes(effectiveStatus as string);
+            const isProcessing = isBlocked; // In PlaylistTab ist isBlocked bereits der Processing-Status
             
             return (
               <React.Fragment key={song.id}>
@@ -762,6 +763,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                   $isPast={isPast || false}
                   $isDragging={isDragging}
                   $isDropTarget={isDropTarget || false}
+                  $isProcessing={isProcessing}
                   draggable
                   onDragStart={(e) => handleDragStart(e, song.id)}
                   onDragOver={(e) => handleDragOver(e, song.id)}
