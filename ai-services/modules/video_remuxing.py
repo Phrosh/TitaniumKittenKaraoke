@@ -10,7 +10,17 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from ..constants import VIDEO_EXTENSIONS
+from .meta import ProcessingMeta, ProcessingStatus
+from .logger_utils import log_start, send_processing_status
+
+try:
+    from ..constants import VIDEO_EXTENSIONS
+except ImportError:
+    try:
+        from constants import VIDEO_EXTENSIONS
+    except ImportError:
+        # Fallback: define constants locally
+        VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
 
 logger = logging.getLogger(__name__)
 

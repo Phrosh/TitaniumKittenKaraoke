@@ -17,8 +17,44 @@ from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
 
 # Import sanitize_filename from routes.utils
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'routes'))
-from utils import sanitize_filename
+try:
+    # Try relative import first
+    from ..routes.utils import sanitize_filename
+except ImportError:
+    try:
+        # Try absolute import
+        from routes.utils import sanitize_filename
+    except ImportError:
+        # Fallback: define sanitize_filename locally
+        import re
+        def sanitize_filename(filename):
+            """Sanitizes a filename by removing or replacing invalid characters"""
+            if not filename or not isinstance(filename, str):
+                return ''
+            
+            # Characters not allowed in Windows/Linux filenames
+            invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
+            
+            # Replace invalid characters with underscores
+            sanitized = re.sub(invalid_chars, '_', filename)
+            
+            # Remove leading/trailing dots and spaces
+            sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
+            
+            # Replace multiple consecutive underscores with single underscore
+            sanitized = re.sub(r'_+', '_', sanitized)
+            
+            # Remove leading/trailing underscores
+            sanitized = re.sub(r'^_+|_+$', '', sanitized)
+            
+            # Ensure the filename is not empty and not too long
+            if not sanitized or len(sanitized) == 0:
+                sanitized = 'unnamed'
+            
+            if len(sanitized) > 200:
+                sanitized = sanitized[:200]
+            
+            return sanitized
 
 logger = logging.getLogger(__name__)
 

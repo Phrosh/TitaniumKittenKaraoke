@@ -13,7 +13,21 @@ from typing import Optional, Dict, Any, List
 import yt_dlp
 
 from .meta import ProcessingMeta, ProcessingStatus
-from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, is_audio_file, is_video_file
+try:
+    from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, is_audio_file, is_video_file
+except ImportError:
+    try:
+        from constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, is_audio_file, is_video_file
+    except ImportError:
+        # Fallback: define constants and functions locally
+        AUDIO_EXTENSIONS = {'.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma'}
+        VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
+        
+        def is_audio_file(file_path):
+            return any(str(file_path).lower().endswith(ext) for ext in AUDIO_EXTENSIONS)
+        
+        def is_video_file(file_path):
+            return any(str(file_path).lower().endswith(ext) for ext in VIDEO_EXTENSIONS)
 from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,20 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Set
 
-from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, LYRICS_EXTENSIONS, COVER_EXTENSIONS
+from .meta import ProcessingMeta, ProcessingStatus
+from .logger_utils import log_start, send_processing_status
+
+try:
+    from ..constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, LYRICS_EXTENSIONS, COVER_EXTENSIONS
+except ImportError:
+    try:
+        from constants import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, LYRICS_EXTENSIONS, COVER_EXTENSIONS
+    except ImportError:
+        # Fallback: define constants locally
+        AUDIO_EXTENSIONS = {'.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma'}
+        VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
+        LYRICS_EXTENSIONS = {'.txt', '.lrc', '.srt', '.vtt'}
+        COVER_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
 
 logger = logging.getLogger(__name__)
 
