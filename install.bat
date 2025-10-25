@@ -50,7 +50,7 @@ echo.
 echo [2/7] Installing Client Dependencies...
 echo ----------------------------------------
 cd client
-call npm install
+call npm install --legacy-peer-deps
 if %errorlevel% neq 0 (
     echo ERROR: Client Dependencies installation failed!
     pause
