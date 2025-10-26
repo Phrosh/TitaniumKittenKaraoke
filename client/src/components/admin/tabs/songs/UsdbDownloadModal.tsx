@@ -27,7 +27,6 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
-  const [usdbBatchProgress, setUsdbBatchProgress] = useState({ current: 0, total: 0 });
   const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
   const [usdbBatchCurrentDownloading, setUsdbBatchCurrentDownloading] = useState<number | null>(null);
   const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'separating' | 'finished' | 'failed', message?: string, songId?: number, batchId?: string}>>([]);
@@ -38,9 +37,6 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
   
   // Ref to track download status for sequential processing
   const downloadStatusRef = useRef<Map<string, string>>(new Map());
-
-  // Derived flag: a batch is active if any result is pending/downloading/separating
-  const isBatchActive = usdbBatchResults.some(r => r.status === 'pending' || r.status === 'downloading' || r.status === 'separating');
 
   // USDB Search Management
   const [usdbSearchInterpret, setUsdbSearchInterpret] = useState('');
@@ -179,7 +175,6 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
       }]);
       
       // Update progress
-      setUsdbBatchProgress(prev => ({ ...prev, total: prev.total + 1 }));
       
       const response = await adminAPI.downloadFromUSDB(url, batchId);
       
@@ -223,7 +218,6 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
     }
 
     setUsdbBatchDownloading(true);
-    setUsdbBatchProgress({ current: 0, total: validUrls.length });
     
     // Initialize results with batch IDs using modal session ID
     const initialResults = validUrls.map((url, index) => ({
@@ -419,7 +413,6 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
       // Reset batch states
       setUsdbBatchUrls(['']);
       setUsdbBatchDownloading(false);
-      setUsdbBatchProgress({ current: 0, total: 0 });
       setUsdbBatchResults([]);
       setUsdbBatchCurrentDownloading(null);
       
@@ -487,47 +480,11 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
                   fontSize: '16px',
                   fontWeight: '600'
                 }}>
-                  📥 {t('usdbDownloadModal.batchDownload')}
+                  📥 {t('usdbDownloadModal.usdbUrls')}
                 </h4>
-            
-                {/* Progress Bar */}
-                {usdbBatchDownloading && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      marginBottom: '8px'
-                    }}>
-                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
-                        {t('usdbDownloadModal.progress')}:
-                      </span>
-                      <span style={{ fontSize: '14px', color: '#666' }}>
-                        {usdbBatchProgress.current} / {usdbBatchProgress.total} {t('usdbDownloadModal.downloads')}
-                      </span>
-                    </div>
-                    <div style={{
-                      width: '100%',
-                      height: '8px',
-                      backgroundColor: '#e1e5e9',
-                      borderRadius: '4px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        width: `${(usdbBatchProgress.current / usdbBatchProgress.total) * 100}%`,
-                        height: '100%',
-                        backgroundColor: '#6f42c1',
-                        transition: 'width 0.3s ease'
-                      }} />
-                    </div>
-                  </div>
-                )}
             
                 {/* Batch URL Fields */}
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: '#333' }}>
-                    {t('usdbDownloadModal.usdbUrls')}:
-                  </label>
                   
                   {usdbBatchUrls.map((url, index) => {
                     const result = usdbBatchResults[index];
