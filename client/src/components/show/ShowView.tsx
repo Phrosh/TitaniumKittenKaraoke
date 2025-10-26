@@ -264,6 +264,10 @@ const ShowView: React.FC = () => {
     }
     singer.progress.setVisible(false);
     singer.progress.setValue(0);
+    
+    setTimeout(() => {
+      singer.progress.setValue(100);
+    }, 300);
   }, []);
 
   const startProgress = useCallback((secondsUntilNextLine: number, singer: Singer) => {
@@ -325,9 +329,9 @@ const ShowView: React.FC = () => {
     
     // Reset progress states
     setProgressVisible1(false);
-    setProgressValue1(0);
+    setProgressValue1(100);
     setProgressVisible2(false);
-    setProgressValue2(0);
+    setProgressValue2(100);
   }, []);
 
   const getSingers = useCallback((ultrastarData: UltrastarSongData | null) => {
