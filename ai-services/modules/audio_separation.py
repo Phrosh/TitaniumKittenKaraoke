@@ -180,6 +180,19 @@ class AudioSeparator:
             return False
         
         try:
+            # Konvertierer-Funktion
+            def wav_to_mp3(src: str, dst: str) -> bool:
+                cmd = ['ffmpeg', '-i', src, '-c:a', 'libmp3lame', '-b:a', '192k', '-y', dst]
+                res = subprocess.run(cmd, capture_output=True, text=True)
+                return res.returncode == 0 and os.path.exists(dst)
+
+            # Ziel-Dateien
+            hp2_mp3 = os.path.join(output_dir, f"{base_root}.hp2.mp3")
+            hp5_mp3 = os.path.join(output_dir, f"{base_root}.hp5.mp3")
+            vocals_mp3 = os.path.join(output_dir, f"{base_root}.vocals.mp3")
+
+            success_any = False
+
             # 1) HP5-Separation (liefert Vocals und auch eine Instrumentalspur nach HP5-Modell)
             wrapper_hp5 = UVR5Wrapper(model_choice="HP5")
             wrapper_hp5.separate(input_path)
@@ -189,43 +202,34 @@ class AudioSeparator:
             hp5_vocals_wavs = [f for f in os.listdir(hp5_vocals_dir) if f.lower().endswith('.wav')] if os.path.isdir(hp5_vocals_dir) else []
             hp5_inst_wavs = [f for f in os.listdir(hp5_inst_dir) if f.lower().endswith('.wav')] if os.path.isdir(hp5_inst_dir) else []
 
+            # Konvertiere HP5-Ergebnisse SOFORT nach der Separation zu MP3,
+            # bevor HP2 die Dateien überschreibt
+            if hp5_inst_wavs:
+                hp5_inst_wav_path = os.path.join(hp5_inst_dir, hp5_inst_wavs[0])
+                if wav_to_mp3(hp5_inst_wav_path, hp5_mp3):
+                    success_any = True
+                    logger.info(f"HP5-Instrumental gespeichert: {hp5_mp3}")
+
+            if hp5_vocals_wavs:
+                hp5_vocals_wav_path = os.path.join(hp5_vocals_dir, hp5_vocals_wavs[0])
+                if wav_to_mp3(hp5_vocals_wav_path, vocals_mp3):
+                    success_any = True
+                    logger.info(f"Vocals gespeichert: {vocals_mp3}")
+
             # 2) HP2-Separation für alternative Instrumentalspur
+            # Überschreibt die Dateien in separated/, aber HP5 ist bereits gespeichert
             wrapper_hp2 = UVR5Wrapper(model_choice="HP2")
             wrapper_hp2.separate(input_path)
-            # Nach dem zweiten Lauf zeigen die Ordner auf HP2-Ergebnis
             hp2_vocals_dir = os.path.join(sep_dir, 'vocals')
             hp2_inst_dir = os.path.join(sep_dir, 'instrumental')
             hp2_inst_wavs = [f for f in os.listdir(hp2_inst_dir) if f.lower().endswith('.wav')] if os.path.isdir(hp2_inst_dir) else []
 
-            # Ziel-Dateien
-            hp2_mp3 = os.path.join(output_dir, f"{base_root}.hp2.mp3")
-            hp5_mp3 = os.path.join(output_dir, f"{base_root}.hp5.mp3")
-            vocals_mp3 = os.path.join(output_dir, f"{base_root}.vocals.mp3")
-
-            # Konvertierer
-            def wav_to_mp3(src: str, dst: str) -> bool:
-                cmd = ['ffmpeg', '-i', src, '-c:a', 'libmp3lame', '-b:a', '192k', '-y', dst]
-                res = subprocess.run(cmd, capture_output=True, text=True)
-                return res.returncode == 0 and os.path.exists(dst)
-
-            success_any = False
-            # Erzeuge hp2 aus HP2-Instrumental, falls vorhanden, sonst fallback auf HP5-Instrumental
+            # Konvertiere HP2-Ergebnisse
             if hp2_inst_wavs:
-                if wav_to_mp3(os.path.join(hp2_inst_dir, hp2_inst_wavs[0]), hp2_mp3):
+                hp2_inst_wav_path = os.path.join(hp2_inst_dir, hp2_inst_wavs[0])
+                if wav_to_mp3(hp2_inst_wav_path, hp2_mp3):
                     success_any = True
-            elif hp5_inst_wavs:
-                if wav_to_mp3(os.path.join(hp5_inst_dir, hp5_inst_wavs[0]), hp2_mp3):
-                    success_any = True
-
-            # Erzeuge hp5 aus HP5-Instrumental
-            if hp5_inst_wavs:
-                if wav_to_mp3(os.path.join(hp5_inst_dir, hp5_inst_wavs[0]), hp5_mp3):
-                    success_any = True
-
-            # Erzeuge vocals.mp3 aus HP5-Vocals
-            if hp5_vocals_wavs:
-                if wav_to_mp3(os.path.join(hp5_vocals_dir, hp5_vocals_wavs[0]), vocals_mp3):
-                    success_any = True
+                    logger.info(f"HP2-Instrumental gespeichert: {hp2_mp3}")
 
             return success_any
         except Exception as e:
