@@ -227,7 +227,8 @@ class USDBScraperImproved:
                 'preview': '',
                 'download_url': '',
                 'cover_url': '',
-                'video_url': ''
+                'video_url': '',
+                'youtube_url': ''
             }
             
             # First try to get from page title (most reliable)
@@ -300,11 +301,55 @@ class USDBScraperImproved:
                             # Format is usually: v=VIDEO_ID,co=COVER_IMAGE,bg=BACKGROUND_IMAGE
                             if 'v=' in video_info:
                                 video_id = video_info.split('v=')[1].split(',')[0]
-                                song_info['video_url'] = f"https://www.youtube.com/watch?v={video_id}"
+                                youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+                                song_info['video_url'] = youtube_url
+                                song_info['youtube_url'] = youtube_url
                                 logger.info(f"Found YouTube video ID: {video_id}")
                             break
             except Exception as e:
-                logger.warning(f"Could not extract video URL: {str(e)}")
+                logger.warning(f"Could not extract video URL from song text: {str(e)}")
+            
+            # Fallback: Try to extract embedded YouTube video from the detail page HTML
+            if not song_info.get('video_url'):
+                try:
+                    logger.info("Trying to extract YouTube video from embedded iframe on detail page...")
+                    
+                    # Look for iframe elements with YouTube embeds
+                    iframes = soup.find_all('iframe', class_='embed')
+                    
+                    for iframe in iframes:
+                        src = iframe.get('src', '')
+                        if 'youtube.com/embed' in src or 'youtu.be' in src:
+                            # Extract video ID from embed URL
+                            # Examples: 
+                            # - https://www.youtube.com/embed/WeZgjAORWjM
+                            # - https://youtu.be/WeZgjAORWjM
+                            video_id_match = re.search(r'(?:embed/|youtu\.be/)([a-zA-Z0-9_-]+)', src)
+                            if video_id_match:
+                                video_id = video_id_match.group(1)
+                                youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+                                song_info['video_url'] = youtube_url
+                                song_info['youtube_url'] = youtube_url
+                                logger.info(f"Found YouTube video ID from embedded iframe: {video_id}")
+                                break
+                    
+                    # Also try to find other iframe patterns
+                    if not song_info.get('video_url'):
+                        iframes = soup.find_all('iframe')
+                        for iframe in iframes:
+                            src = iframe.get('src', '')
+                            if 'youtube.com/embed' in src or 'youtu.be' in src:
+                                video_id_match = re.search(r'(?:embed/|youtu\.be/)([a-zA-Z0-9_-]+)', src)
+                                if video_id_match:
+                                    video_id = video_id_match.group(1)
+                                    youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+                                    song_info['video_url'] = youtube_url
+                                    song_info['youtube_url'] = youtube_url
+                                    logger.info(f"Found YouTube video ID from iframe: {video_id}")
+                                    break
+                                    
+                except Exception as e:
+                    logger.warning(f"Could not extract video URL from embedded iframe: {str(e)}")
             
             return song_info
             
@@ -504,7 +549,7 @@ class USDBScraperImproved:
             output_filename = f"{filename_base}.%(ext)s"
             output_path = os.path.join(output_dir, output_filename)
             
-            # Configure yt-dlp options
+            # Configure yt-dlp options with enhanced settings to bypass YouTube restrictions
             ydl_opts = {
                 'outtmpl': output_path,
                 'format': 'best[ext=mp4]/best[ext=webm]/best',
@@ -512,6 +557,13 @@ class USDBScraperImproved:
                 'extract_flat': False,
                 'quiet': False,
                 'no_warnings': False,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'skip': ['dash', 'hls']
+                    }
+                }
             }
             
             logger.info(f"Downloading YouTube video: {youtube_url}")

@@ -15,6 +15,45 @@ import yt_dlp
 from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
 
+# Import sanitize_filename from routes.utils
+try:
+    # Try relative import first
+    from ..routes.utils import sanitize_filename
+except ImportError:
+    try:
+        # Try absolute import
+        from routes.utils import sanitize_filename
+    except ImportError:
+        # Fallback: define sanitize_filename locally
+        def sanitize_filename(filename):
+            """Sanitizes a filename by removing or replacing invalid characters"""
+            if not filename or not isinstance(filename, str):
+                return ''
+            
+            # Characters not allowed in Windows/Linux filenames
+            invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
+            
+            # Replace invalid characters with underscores
+            sanitized = re.sub(invalid_chars, '_', filename)
+            
+            # Remove leading/trailing dots and spaces
+            sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
+            
+            # Replace multiple consecutive underscores with single underscore
+            sanitized = re.sub(r'_+', '_', sanitized)
+            
+            # Remove leading/trailing underscores
+            sanitized = re.sub(r'^_+|_+$', '', sanitized)
+            
+            # Ensure the filename is not empty and not too long
+            if not sanitized or len(sanitized) == 0:
+                sanitized = 'unnamed'
+            
+            if len(sanitized) > 200:
+                sanitized = sanitized[:200]
+            
+            return sanitized
+
 logger = logging.getLogger(__name__)
 
 class YouTubeDownloader:
@@ -74,7 +113,17 @@ class YouTubeDownloader:
         """
         try:
             config = {**self.default_config, **self.config}
-            config['quiet'] = True
+            config.update({
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'quiet': True,
+                'extract_flat': False,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'skip': ['dash', 'hls']
+                    }
+                }
+            })
             
             with yt_dlp.YoutubeDL(config) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -152,6 +201,22 @@ class YouTubeDownloader:
                 return False
             
             config = {**self.default_config, **self.config}
+            
+            # Enhanced options to bypass YouTube restrictions
+            config.update({
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'extract_flat': False,
+                'noplaylist': True,
+                'no_warnings': False,
+                'quiet': False,
+                'cookiefile': None,  # Optional: Path to cookies file if available
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'skip': ['dash', 'hls']
+                    }
+                }
+            })
             
             # Entscheide Dateiname basierend auf Flag
             if meta.use_youtube_id_as_filename:
@@ -232,7 +297,23 @@ class YouTubeDownloader:
                 return False
             
             config = {**self.default_config, **self.config}
-            config['format'] = 'bestaudio/best'
+            
+            # Enhanced options to bypass YouTube restrictions
+            config.update({
+                'format': 'bestaudio/best',
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'extract_flat': False,
+                'noplaylist': True,
+                'no_warnings': False,
+                'quiet': False,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'skip': ['dash', 'hls']
+                    }
+                }
+            })
+            
             config['outtmpl'] = os.path.join(meta.folder_path, f"{video_id}.%(ext)s")
             
             # Download starten
