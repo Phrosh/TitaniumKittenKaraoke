@@ -8,8 +8,13 @@ import os
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
-import whisper
 import torch
+try:
+    from faster_whisper import WhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    import whisper
+    FASTER_WHISPER_AVAILABLE = False
 
 from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
@@ -58,7 +63,12 @@ class AudioTranscriber:
                 
                 logger.info(f"Lade Whisper-Modell '{model_name}' auf {device}")
                 
-                self.model = whisper.load_model(model_name, device=device)
+                # Verwende faster-whisper falls verfügbar (Windows-kompatibel)
+                if FASTER_WHISPER_AVAILABLE:
+                    self.model = WhisperModel(model_name, device=device)
+                else:
+                    self.model = whisper.load_model(model_name, device=device)
+                
                 self.model_name = model_name
                 
                 logger.info(f"✅ Whisper-Modell '{model_name}' erfolgreich geladen")
@@ -121,15 +131,59 @@ class AudioTranscriber:
             
             logger.info(f"Transkribiere Audio: {audio_path}")
             
-            # Transkription mit Whisper
-            result = self.model.transcribe(
-                audio_path,
-                language=config['language'],
-                task=config['task'],
-                verbose=config['verbose'],
-                word_timestamps=config['word_timestamps'],
-                fp16=config['fp16']
-            )
+            # Transkription mit Whisper (unterstützt beide APIs)
+            if FASTER_WHISPER_AVAILABLE:
+                # faster-whisper API
+                segments, info = self.model.transcribe(
+                    audio_path,
+                    language=config['language'] if config['language'] else None,
+                    task=config['task'],
+                    word_timestamps=config['word_timestamps'],
+                    beam_size=5
+                )
+                
+                # Konvertiere zu openai-whisper Format
+                result = {
+                    'text': '',
+                    'language': info.language if hasattr(info, 'language') else config.get('language', 'en'),
+                    'segments': []
+                }
+                
+                full_text = []
+                for segment in segments:
+                    seg_dict = {
+                        'id': len(result['segments']),
+                        'seek': 0,
+                        'start': segment.start,
+                        'end': segment.end,
+                        'text': segment.text,
+                        'words': []
+                    }
+                    
+                    # Füge Wörter hinzu falls verfügbar
+                    if hasattr(segment, 'words') and segment.words:
+                        for word in segment.words:
+                            seg_dict['words'].append({
+                                'word': word.word,
+                                'start': word.start,
+                                'end': word.end
+                            })
+                    
+                    result['segments'].append(seg_dict)
+                    full_text.append(segment.text)
+                
+                result['text'] = ' '.join(full_text)
+                
+            else:
+                # Original openai-whisper API
+                result = self.model.transcribe(
+                    audio_path,
+                    language=config['language'],
+                    task=config['task'],
+                    verbose=config['verbose'],
+                    word_timestamps=config['word_timestamps'],
+                    fp16=config['fp16']
+                )
             
             logger.info(f"✅ Audio erfolgreich transkribiert: {audio_path}")
             return result
