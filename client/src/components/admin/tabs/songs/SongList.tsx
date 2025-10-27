@@ -180,7 +180,7 @@ const SongList: React.FC<SongListProps> = ({
                     ...prev,
                     [songKey]: audioPreference
                 }));
-                const preferenceText = audioPreference === 'hp2' ? t('songList.background') : t('songList.instrumental');
+                const preferenceText = audioPreference === 'hp2' ? t('songList.instrumental') : t('songList.background');
                 toast.success(t('songList.audioSettingBackground', { artist: song.artist, title: song.title, preference: preferenceText }));
             }
         } catch (error: any) {

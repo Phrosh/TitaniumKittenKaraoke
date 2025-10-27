@@ -186,21 +186,54 @@ router.post('/request', [
       if (mode === 'ultrastar' && result.foundItem) {
         ultrastarSong = result.foundItem;
         
-        // For automatically detected ultrastar songs, set withBackgroundVocals based on available files
+        // For automatically detected ultrastar songs, set withBackgroundVocals based on database setting or available files
         if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
-          const folderPath = path.join(require('../../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
-          if (fs.existsSync(folderPath)) {
-            const files = fs.readdirSync(folderPath);
-            const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
-            const hasHp2File = files.some(file => file.toLowerCase().includes('.hp2.mp3'));
-            
-            // Default to HP5 (with background vocals) if available, otherwise HP2
-            withBackgroundVocals = hasHp5File || !hasHp2File;
-            console.log(`Auto-detected ultrastar song background vocals preference: ${withBackgroundVocals} (HP5 available: ${hasHp5File}, HP2 available: ${hasHp2File})`);
-          } else {
-            // If folder doesn't exist, default to false
-            withBackgroundVocals = false;
-            console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
+          // First check database for saved audio preference
+          try {
+            const db = require('../../config/database');
+            const setting = await new Promise((resolve, reject) => {
+              db.get(
+                'SELECT audio_preference FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
+                [artist, title],
+                (err, row) => {
+                  if (err) reject(err);
+                  else resolve(row);
+                }
+              );
+            });
+
+            if (setting && setting.audio_preference) {
+              if (setting.audio_preference === 'hp5') {
+                // Background vocals preferred
+                withBackgroundVocals = true;
+                console.log(`📋 Using saved audio preference (database): hp5 for ${artist} - ${title}`);
+              } else if (setting.audio_preference === 'hp2') {
+                // Instrumental preferred
+                withBackgroundVocals = false;
+                console.log(`📋 Using saved audio preference (database): hp2 for ${artist} - ${title}`);
+              }
+              // If 'choice', continue to auto-detection based on available files
+            }
+          } catch (error) {
+            console.error('Error getting audio preference from database:', error);
+          }
+
+          // If still not set (no database entry or 'choice' setting), detect based on available files
+          if (withBackgroundVocals === undefined || withBackgroundVocals === null) {
+            const folderPath = path.join(require('../../utils/ultrastarSongs').ULTRASTAR_DIR, ultrastarSong.folderName);
+            if (fs.existsSync(folderPath)) {
+              const files = fs.readdirSync(folderPath);
+              const hasHp5File = files.some(file => file.toLowerCase().includes('.hp5.mp3'));
+              const hasHp2File = files.some(file => file.toLowerCase().includes('.hp2.mp3'));
+              
+              // Default to HP5 (with background vocals) if available, otherwise HP2
+              withBackgroundVocals = hasHp5File || !hasHp2File;
+              console.log(`Auto-detected ultrastar song background vocals preference: ${withBackgroundVocals} (HP5 available: ${hasHp5File}, HP2 available: ${hasHp2File})`);
+            } else {
+              // If folder doesn't exist, default to false
+              withBackgroundVocals = false;
+              console.log(`Ultrastar folder not found, defaulting withBackgroundVocals to false`);
+            }
           }
         }
       }

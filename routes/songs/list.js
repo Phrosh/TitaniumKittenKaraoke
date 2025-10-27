@@ -224,10 +224,47 @@ router.get('/song-data', async (req, res) => {
       }
     }
 
-    console.log(`🎵 Unified song data request: artist=${artist}, title=${title}, youtubeId=${youtubeId}`);
+    console.log(`🎵 [SONG-DATA] Unified song data request: artist=${artist}, title=${title}, youtubeId=${youtubeId}, withBackgroundVocals=${withBackgroundVocals}`);
 
     if (!artist || !title) {
       return res.status(400).json({ message: 'Artist and title are required' });
+    }
+
+    // Get audio preference from database - always check database first as it's the source of truth
+    let resolvedWithBackgroundVocals = withBackgroundVocals;
+    try {
+      const db = require('../../config/database');
+      const setting = await new Promise((resolve, reject) => {
+        db.get(
+          'SELECT audio_preference FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
+          [artist, title],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+
+      if (setting && setting.audio_preference) {
+        console.log(`📋 Found audio preference in database for ${artist} - ${title}: ${setting.audio_preference}`);
+        if (setting.audio_preference === 'hp5') {
+          // Background vocals preferred - override any passed parameter
+          resolvedWithBackgroundVocals = 'true';
+          console.log(`📋 Using saved audio preference (database) for ${artist} - ${title}: hp5 (overriding passed value: ${withBackgroundVocals})`);
+        } else if (setting.audio_preference === 'hp2') {
+          // Instrumental preferred - override any passed parameter
+          resolvedWithBackgroundVocals = 'false';
+          console.log(`📋 Using saved audio preference (database) for ${artist} - ${title}: hp2 (overriding passed value: ${withBackgroundVocals})`);
+        } else if (setting.audio_preference === 'choice') {
+          console.log(`📋 Setting is 'choice' for ${artist} - ${title}, using passed value: ${withBackgroundVocals}`);
+        }
+        // If 'choice', use the passed parameter (fallback to song's saved preference)
+      } else {
+        console.log(`📋 No audio preference found in database for ${artist} - ${title}, using passed value: ${withBackgroundVocals}`);
+      }
+    } catch (error) {
+      console.error('Error getting audio preference from database:', error);
+      // Fallback to passed parameter on error
     }
 
     // Define all possible song directories with their priorities
@@ -339,12 +376,17 @@ router.get('/song-data', async (req, res) => {
     }
 
     // Find audio file with HP2/HP5 preference (same logic as original route)
-    const preferBackgroundVocals = withBackgroundVocals === 'true';
+    const preferBackgroundVocals = resolvedWithBackgroundVocals === 'true';
+    console.log(`🎵 Resolving audio file for ${artist} - ${title}: preferBackgroundVocals=${preferBackgroundVocals}, resolvedWithBackgroundVocals=${resolvedWithBackgroundVocals}`);
+    
     const audioFile = findAudioFileWithPreference(foundSong.folderPath, preferBackgroundVocals);
     if (audioFile) {
       // Extract just the filename from the full path
       const audioFilename = path.basename(audioFile);
       songData.audioUrl = `/api/audio/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(audioFilename)}`;
+      console.log(`🎵 Selected audio file: ${audioFilename} for ${artist} - ${title}`);
+    } else {
+      console.log(`⚠️ No audio file found for ${artist} - ${title}`);
     }
 
     // Find video file
