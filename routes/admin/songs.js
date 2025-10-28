@@ -374,6 +374,9 @@ router.post('/song/rename', [
     const { scanYouTubeSongs } = require('../../utils/youtubeSongs');
     const { scanLocalVideos } = require('../../utils/localVideos');
     const { scanFileSongs } = require('../../utils/fileSongs');
+    const { scanMagicVideos } = require('../../utils/magicVideos');
+    const { scanMagicSongs } = require('../../utils/magicSongs');
+    const { scanMagicYouTube } = require('../../utils/magicYouTube');
 
     // Find the song in all possible locations
     let songType = null;
@@ -438,6 +441,69 @@ router.post('/song/rename', [
         const newFileName = `${newArtist} - ${newTitle}${localVideo.extension}`;
         newPath = path.join(path.dirname(oldPath), newFileName);
         console.log(`🔍 Found local video: ${oldArtist} - ${oldTitle}`);
+        console.log(`📁 Old path: ${oldPath}`);
+        console.log(`📁 New path: ${newPath}`);
+      }
+    }
+
+    // Check magic videos (folder-based)
+    if (!songData) {
+      const magicVideos = scanMagicVideos();
+      const magicVideo = magicVideos.find(video => 
+        video.artist.toLowerCase() === oldArtist.toLowerCase() &&
+        video.title.toLowerCase() === oldTitle.toLowerCase()
+      );
+      
+      if (magicVideo) {
+        songType = 'magic_video';
+        songData = magicVideo;
+        oldPath = magicVideo.fullPath;
+        const oldFolderName = path.basename(oldPath);
+        const newFolderName = `${newArtist} - ${newTitle}`;
+        newPath = path.join(path.dirname(oldPath), newFolderName);
+        console.log(`🔍 Found magic video: ${oldArtist} - ${oldTitle}`);
+        console.log(`📁 Old path: ${oldPath}`);
+        console.log(`📁 New path: ${newPath}`);
+      }
+    }
+
+    // Check magic songs (folder-based)
+    if (!songData) {
+      const magicSongs = scanMagicSongs();
+      const magicSong = magicSongs.find(song => 
+        song.artist.toLowerCase() === oldArtist.toLowerCase() &&
+        song.title.toLowerCase() === oldTitle.toLowerCase()
+      );
+      
+      if (magicSong) {
+        songType = 'magic_song';
+        songData = magicSong;
+        oldPath = magicSong.fullPath;
+        const oldFolderName = path.basename(oldPath);
+        const newFolderName = `${newArtist} - ${newTitle}`;
+        newPath = path.join(path.dirname(oldPath), newFolderName);
+        console.log(`🔍 Found magic song: ${oldArtist} - ${oldTitle}`);
+        console.log(`📁 Old path: ${oldPath}`);
+        console.log(`📁 New path: ${newPath}`);
+      }
+    }
+
+    // Check magic YouTube (folder-based)
+    if (!songData) {
+      const magicYouTube = scanMagicYouTube();
+      const magicYouTubeSong = magicYouTube.find(video => 
+        video.artist.toLowerCase() === oldArtist.toLowerCase() &&
+        video.title.toLowerCase() === oldTitle.toLowerCase()
+      );
+      
+      if (magicYouTubeSong) {
+        songType = 'magic_youtube';
+        songData = magicYouTubeSong;
+        oldPath = magicYouTubeSong.fullPath;
+        const oldFolderName = path.basename(oldPath);
+        const newFolderName = `${newArtist} - ${newTitle}`;
+        newPath = path.join(path.dirname(oldPath), newFolderName);
+        console.log(`🔍 Found magic YouTube song: ${oldArtist} - ${oldTitle}`);
         console.log(`📁 Old path: ${oldPath}`);
         console.log(`📁 New path: ${newPath}`);
       }
@@ -572,6 +638,9 @@ router.post('/song/delete', [
     const { scanUltrastarSongs } = require('../../utils/ultrastarSongs');
     const { scanYouTubeSongs } = require('../../utils/youtubeSongs');
     const { scanLocalVideos } = require('../../utils/localVideos');
+    const { scanMagicVideos } = require('../../utils/magicVideos');
+    const { scanMagicSongs } = require('../../utils/magicSongs');
+    const { scanMagicYouTube } = require('../../utils/magicYouTube');
 
     // Find the song in all possible locations
     let songType = null;
@@ -623,6 +692,57 @@ router.post('/song/delete', [
         songData = localVideo;
         deletePath = localVideo.fullPath;
         console.log(`🔍 Found local video for deletion: ${artist} - ${title}`);
+        console.log(`📁 Delete path: ${deletePath}`);
+      }
+    }
+
+    // Check magic videos (folder-based)
+    if (!songData) {
+      const magicVideos = scanMagicVideos();
+      const magicVideo = magicVideos.find(video => 
+        video.artist.toLowerCase() === artist.toLowerCase() &&
+        video.title.toLowerCase() === title.toLowerCase()
+      );
+      
+      if (magicVideo) {
+        songType = 'magic_video';
+        songData = magicVideo;
+        deletePath = magicVideo.fullPath;
+        console.log(`🔍 Found magic video for deletion: ${artist} - ${title}`);
+        console.log(`📁 Delete path: ${deletePath}`);
+      }
+    }
+
+    // Check magic songs (folder-based)
+    if (!songData) {
+      const magicSongs = scanMagicSongs();
+      const magicSong = magicSongs.find(song => 
+        song.artist.toLowerCase() === artist.toLowerCase() &&
+        song.title.toLowerCase() === title.toLowerCase()
+      );
+      
+      if (magicSong) {
+        songType = 'magic_song';
+        songData = magicSong;
+        deletePath = magicSong.fullPath;
+        console.log(`🔍 Found magic song for deletion: ${artist} - ${title}`);
+        console.log(`📁 Delete path: ${deletePath}`);
+      }
+    }
+
+    // Check magic YouTube (folder-based)
+    if (!songData) {
+      const magicYouTube = scanMagicYouTube();
+      const magicYouTubeSong = magicYouTube.find(video => 
+        video.artist.toLowerCase() === artist.toLowerCase() &&
+        video.title.toLowerCase() === title.toLowerCase()
+      );
+      
+      if (magicYouTubeSong) {
+        songType = 'magic_youtube';
+        songData = magicYouTubeSong;
+        deletePath = magicYouTubeSong.fullPath;
+        console.log(`🔍 Found magic YouTube song for deletion: ${artist} - ${title}`);
         console.log(`📁 Delete path: ${deletePath}`);
       }
     }

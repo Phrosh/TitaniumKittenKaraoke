@@ -58,6 +58,7 @@ function scanMagicSongs() {
             hasVideo: false, // Magic songs don't have videos
             hasHp2Hp5: hasHp2Hp5,
             hasTxt: ultrastarFiles.length > 0,
+            fullPath: folderPath,
             modes: ['magic-songs'],
             magic: true
           });

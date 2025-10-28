@@ -62,6 +62,7 @@ function scanMagicVideos() {
             hasAudio: audioFiles.length > 0,
             hasHp2Hp5: hasHp2Hp5,
             hasTxt: ultrastarFiles.length > 0,
+            fullPath: folderPath,
             modes: ['magic-videos'],
             magic: true
           });

@@ -46,6 +46,7 @@ function scanMagicYouTube() {
             ultrastarFiles: ultrastarFiles,
             hasUltrastar: ultrastarFiles.length > 0,
             isRemuxed: remuxedFiles.length > 0,
+            fullPath: folderPath,
             modes: ['magic-youtube'],
             magic: true
           });
