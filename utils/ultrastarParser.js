@@ -208,7 +208,18 @@ function parseNoteLine(line) {
     } else {
       // Normal notes: parse pitch and text
       pitch = parts[3] ? parseInt(parts[3]) : 0;
-      text = parts[4];
+      // Combine all parts after pitch (parts[4], parts[5], etc.) as the text
+      text = parts.slice(4).join(' ') || '';
+      
+      if (text && text.length > 0) {
+        // Remove spaces inside text, but keep leading/trailing spaces
+        const leadingSpaces = text.match(/^\s*/)[0] || '';
+        const trailingSpaces = text.match(/\s*$/)[0] || '';
+        const middle = text.slice(leadingSpaces.length, -trailingSpaces.length || undefined);
+        const middleNoSpaces = middle.replace(/\s+/g, '');
+        text = leadingSpaces + middleNoSpaces + trailingSpaces;
+      }
+      
       if (text.length > 1) {
         text = text.replace("~", "");
       }
