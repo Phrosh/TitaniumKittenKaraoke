@@ -892,7 +892,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                     onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                                                     disabled={actionLoading}
                                                                 />
-                                                                {t('songList.background')}
+                                                                {t('songList.instrumental')}
                                                             </label>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                                                                 <input
@@ -903,7 +903,7 @@ const SongList: React.FC<SongListProps> = ({
                                                                     onChange={(e) => handleUltrastarAudioChange(song, e.target.value)}
                                                                     disabled={actionLoading}
                                                                 />
-                                                                {t('songList.instrumental')}
+                                                                {t('songList.background')}
                                                             </label>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
                                                                 <input
