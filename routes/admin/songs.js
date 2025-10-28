@@ -391,10 +391,13 @@ router.post('/song/rename', [
     if (ultrastarSong) {
       songType = 'ultrastar';
       songData = ultrastarSong;
-      const oldFolderName = `${oldArtist} - ${oldTitle}`;
+      oldPath = ultrastarSong.fullPath;
+      const oldFolderName = path.basename(oldPath);
       const newFolderName = `${newArtist} - ${newTitle}`;
-      oldPath = path.join(__dirname, '..', 'songs', 'ultrastar', oldFolderName);
-      newPath = path.join(__dirname, '..', 'songs', 'ultrastar', newFolderName);
+      newPath = path.join(path.dirname(oldPath), newFolderName);
+      console.log(`🔍 Found ultrastar song: ${oldArtist} - ${oldTitle}`);
+      console.log(`📁 Old path: ${oldPath}`);
+      console.log(`📁 New path: ${newPath}`);
     }
 
     // Check YouTube cache songs (folder-based)
@@ -408,10 +411,13 @@ router.post('/song/rename', [
       if (youtubeSong) {
         songType = 'youtube_cache';
         songData = youtubeSong;
-        const oldFolderName = `${oldArtist} - ${oldTitle}`;
+        oldPath = youtubeSong.fullPath;
+        const oldFolderName = path.basename(oldPath);
         const newFolderName = `${newArtist} - ${newTitle}`;
-        oldPath = path.join(__dirname, '..', 'songs', 'youtube', oldFolderName);
-        newPath = path.join(__dirname, '..', 'songs', 'youtube', newFolderName);
+        newPath = path.join(path.dirname(oldPath), newFolderName);
+        console.log(`🔍 Found YouTube cache song: ${oldArtist} - ${oldTitle}`);
+        console.log(`📁 Old path: ${oldPath}`);
+        console.log(`📁 New path: ${newPath}`);
       }
     }
 
@@ -426,10 +432,14 @@ router.post('/song/rename', [
       if (localVideo) {
         songType = 'server_video';
         songData = localVideo;
-        const oldFileName = `${oldArtist} - ${oldTitle}${localVideo.extension}`;
+        oldPath = localVideo.fullPath;
+        const fileNameWithoutExt = path.basename(oldPath, localVideo.extension);
+        const oldFolderName = fileNameWithoutExt.replace(/\.[^.]+$/, ''); // Remove any extension
         const newFileName = `${newArtist} - ${newTitle}${localVideo.extension}`;
-        oldPath = path.join(__dirname, '..', 'songs', 'videos', oldFileName);
-        newPath = path.join(__dirname, '..', 'songs', 'videos', newFileName);
+        newPath = path.join(path.dirname(oldPath), newFileName);
+        console.log(`🔍 Found local video: ${oldArtist} - ${oldTitle}`);
+        console.log(`📁 Old path: ${oldPath}`);
+        console.log(`📁 New path: ${newPath}`);
       }
     }
 
@@ -438,6 +448,7 @@ router.post('/song/rename', [
     // For now, we'll skip this and focus on the main song types
 
     if (!songData) {
+      console.error(`❌ Song not found in any location: ${oldArtist} - ${oldTitle}`);
       return res.status(404).json({ 
         message: 'Song nicht gefunden',
         success: false
@@ -476,6 +487,7 @@ router.post('/song/rename', [
 
     // Check if old path exists
     if (!fs.existsSync(oldPath)) {
+      console.error(`❌ Path does not exist: ${oldPath}`);
       return res.status(404).json({ 
         message: `${songType === 'server_video' ? 'Video-Datei' : 'Ordner'} nicht gefunden`,
         success: false

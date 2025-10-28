@@ -45,6 +45,7 @@ function scanYouTubeSongs() {
               folderName: folder,
               videoFile: videoFiles[0], // Use first video file found
               videoFiles: videoFiles, // Store all video files for video ID matching
+              fullPath: folderPath,
               modes: ['youtube'],
               hasVideo: true
             });
@@ -183,6 +184,7 @@ function findYouTubeSongByVideoIdRecursive(videoId) {
               folderName: folder,
               videoFile: matchingVideoFile,
               videoFiles: videoFiles,
+              fullPath: folderPath,
               modes: ['youtube'],
               hasVideo: true
             };
