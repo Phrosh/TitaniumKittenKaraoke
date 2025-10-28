@@ -588,8 +588,9 @@ router.post('/song/delete', [
     if (ultrastarSong) {
       songType = 'ultrastar';
       songData = ultrastarSong;
-      const folderName = `${artist} - ${title}`;
-      deletePath = path.join(__dirname, '..', 'songs', 'ultrastar', folderName);
+      deletePath = ultrastarSong.fullPath;
+      console.log(`🔍 Found ultrastar song for deletion: ${artist} - ${title}`);
+      console.log(`📁 Delete path: ${deletePath}`);
     }
 
     // Check YouTube cache songs (folder-based)
@@ -603,8 +604,9 @@ router.post('/song/delete', [
       if (youtubeSong) {
         songType = 'youtube_cache';
         songData = youtubeSong;
-        const folderName = `${artist} - ${title}`;
-        deletePath = path.join(__dirname, '..', 'songs', 'youtube', folderName);
+        deletePath = youtubeSong.fullPath;
+        console.log(`🔍 Found YouTube cache song for deletion: ${artist} - ${title}`);
+        console.log(`📁 Delete path: ${deletePath}`);
       }
     }
 
@@ -619,12 +621,14 @@ router.post('/song/delete', [
       if (localVideo) {
         songType = 'server_video';
         songData = localVideo;
-        const fileName = `${artist} - ${title}${localVideo.extension}`;
-        deletePath = path.join(__dirname, '..', 'songs', 'videos', fileName);
+        deletePath = localVideo.fullPath;
+        console.log(`🔍 Found local video for deletion: ${artist} - ${title}`);
+        console.log(`📁 Delete path: ${deletePath}`);
       }
     }
 
     if (!songData) {
+      console.error(`❌ Song not found in any location for deletion: ${artist} - ${title}`);
       return res.status(404).json({ 
         message: 'Song nicht gefunden',
         success: false
@@ -633,6 +637,7 @@ router.post('/song/delete', [
 
     // Check if path exists
     if (!fs.existsSync(deletePath)) {
+      console.error(`❌ Path does not exist for deletion: ${deletePath}`);
       return res.status(404).json({ 
         message: `${songType === 'server_video' ? 'Video-Datei' : 'Ordner'} nicht gefunden`,
         success: false
