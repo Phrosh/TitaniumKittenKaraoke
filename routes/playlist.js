@@ -192,44 +192,67 @@ router.put('/reorder', verifyToken, async (req, res) => {
 
     const oldPosition = song.position;
     
+    console.log('🔄 Backend reorder:', {
+      songId,
+      songTitle: song.title,
+      oldPosition,
+      newPosition,
+      direction: newPosition < oldPosition ? 'up' : 'down'
+    });
+    
     if (oldPosition === newPosition) {
       return res.json({ message: 'Position unchanged' });
     }
 
-    // Update positions
-    if (newPosition < oldPosition) {
-      // Moving up - shift songs down
-      await new Promise((resolve, reject) => {
-        const db = require('../config/database');
-        db.run(
-          'UPDATE songs SET position = position + 1 WHERE position >= ? AND position < ?',
-          [newPosition, oldPosition],
-          function(err) {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    } else {
-      // Moving down - shift songs up
-      await new Promise((resolve, reject) => {
-        const db = require('../config/database');
-        db.run(
-          'UPDATE songs SET position = position - 1 WHERE position > ? AND position <= ?',
-          [oldPosition, newPosition],
-          function(err) {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+    // Get all songs sorted by current position
+    const allSongs = await Song.getAll();
+    allSongs.sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      // If positions are equal, use created_at as tiebreaker
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    // Find the dragged song in the sorted list
+    const draggedSongIndex = allSongs.findIndex(s => s.id === songId);
+    if (draggedSongIndex === -1) {
+      return res.status(404).json({ message: 'Song not found in playlist' });
     }
 
-    // Update the song's position
-    await Song.updatePosition(songId, newPosition);
+    // Remove the dragged song from the list
+    const [draggedSong] = allSongs.splice(draggedSongIndex, 1);
+
+    // Insert the dragged song at the new position (newPosition is 1-based, so subtract 1 for array index)
+    const insertIndex = newPosition - 1;
+    allSongs.splice(insertIndex, 0, draggedSong);
+
+    // Renumber all positions sequentially based on the new order
+    const db = require('../config/database');
+    const updatePromises = [];
+    for (let i = 0; i < allSongs.length; i++) {
+      const newPos = i + 1;
+      if (allSongs[i].position !== newPos) {
+        updatePromises.push(Song.updatePosition(allSongs[i].id, newPos));
+      }
+    }
+    await Promise.all(updatePromises);
 
     // Calculate and update priority based on neighboring songs
     await updateSongPriorityBasedOnPosition(songId, newPosition);
+
+    // Rebuild cache to ensure updated positions are reflected immediately
+    const songCache = require('../utils/songCache');
+    try {
+      // Reload songs from database to update cache with new positions
+      const updatedSongs = await Song.getAll();
+      // Update cache directly with new sorted songs
+      if (songCache.cache) {
+        songCache.cache.songs = updatedSongs;
+        songCache.cache.lastUpdated = new Date().toISOString();
+        console.log('🔄 Cache updated with new positions after reorder');
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Error updating cache:', cacheError.message);
+    }
 
     // Broadcast playlist update via WebSocket
     const io = req.app.get('io');

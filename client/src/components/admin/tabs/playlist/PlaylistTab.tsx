@@ -376,21 +376,42 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         return;
       }
 
-      // Update local state immediately for better UX
+      const draggedSong = dashboardData.playlist[draggedIndex];
+      const targetSong = dashboardData.playlist[targetIndex];
+
+      // Simulate the reordering to find the final position
       const newPlaylist = Array.from(dashboardData.playlist);
       const [reorderedItem] = newPlaylist.splice(draggedIndex, 1);
       newPlaylist.splice(targetIndex, 0, reorderedItem);
+      
+      // Find the final index of the dragged song after reordering
+      const finalIndex = newPlaylist.findIndex(song => song.id === draggedSong.id);
+      // Position is 1-based, so finalIndex + 1
+      const newPosition = finalIndex + 1;
 
+      console.log('🔄 Reordering:', {
+        draggedSong: { id: draggedSong.id, title: draggedSong.title, oldPosition: draggedSong.position },
+        targetSong: { id: targetSong.id, title: targetSong.title, position: targetSong.position },
+        draggedIndex,
+        targetIndex,
+        finalIndex,
+        newPosition
+      });
+
+      // Update local state immediately for better UX
       setDashboardData(dashboardData ? {
         ...dashboardData,
         playlist: newPlaylist
       } : null);
 
-      // Update positions in backend
+      // Update positions in backend using the calculated final position
       await playlistAPI.reorderPlaylist(
-        reorderedItem.id,
-        targetIndex + 1
+        draggedSong.id,
+        newPosition
       );
+
+      // Refresh data to get updated positions from backend
+      await fetchDashboardData();
 
       toast.success(t('playlist.playlistReordered'));
     } catch (error) {
