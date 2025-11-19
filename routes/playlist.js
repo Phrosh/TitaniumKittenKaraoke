@@ -614,18 +614,40 @@ router.delete('/:songId', verifyToken, async (req, res) => {
     // Delete the song
     await Song.delete(songId);
     
-    // Reorder remaining songs
-    await new Promise((resolve, reject) => {
-      const db = require('../config/database');
-      db.run(
-        'UPDATE songs SET position = position - 1 WHERE position > ?',
-        [song.position],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+    // Renumber all remaining songs to ensure positions are continuous (1, 2, 3, ...)
+    const allSongsAfterDelete = await Song.getAll();
+    // Sort by current position to maintain order
+    allSongsAfterDelete.sort((a, b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      // If positions are equal, use created_at as tiebreaker
+      return new Date(a.created_at) - new Date(b.created_at);
     });
+    
+    // Renumber positions sequentially
+    const db = require('../config/database');
+    const updatePromises = [];
+    for (let i = 0; i < allSongsAfterDelete.length; i++) {
+      const expectedPosition = i + 1;
+      if (allSongsAfterDelete[i].position !== expectedPosition) {
+        updatePromises.push(Song.updatePosition(allSongsAfterDelete[i].id, expectedPosition));
+      }
+    }
+    await Promise.all(updatePromises);
+
+    // Update cache to ensure deleted song is removed and positions are correct
+    const songCache = require('../utils/songCache');
+    try {
+      // Reload songs from database to update cache
+      const updatedSongs = await Song.getAll();
+      // Update cache directly with new sorted songs
+      if (songCache.cache) {
+        songCache.cache.songs = updatedSongs;
+        songCache.cache.lastUpdated = new Date().toISOString();
+        console.log('🔄 Cache updated after song deletion');
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Error updating cache after deletion:', cacheError.message);
+    }
 
     // Broadcast playlist update via WebSocket
     const io = req.app.get('io');
