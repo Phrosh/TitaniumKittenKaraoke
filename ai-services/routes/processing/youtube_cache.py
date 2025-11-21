@@ -61,7 +61,11 @@ def process_youtube_cache(folder_name):
                 # 1) normalize (simple)
                 normalize_audio_files(meta, simple=True)
                 # 2) cleanup
-                cleanup_files(meta)
+                try:
+                    cleanup_files(meta)
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Cleanup fehlgeschlagen, aber Pipeline wird fortgesetzt: {cleanup_error}", exc_info=True)
+                    # Cleanup ist nicht kritisch, Pipeline wird fortgesetzt
                 
                 # 3) finish - setze korrekte API-URL
                 from modules.finish import finish_processing

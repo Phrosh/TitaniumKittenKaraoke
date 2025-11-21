@@ -157,8 +157,11 @@ def process_magic_youtube_from_url(folder_name):
                 raise Exception("Transcription failed")
             
             # 6. Cleanup
-            if not cleanup_files(meta):
-                raise Exception("Cleanup failed")
+            try:
+                cleanup_files(meta)
+            except Exception as cleanup_error:
+                logger.error(f"❌ Cleanup fehlgeschlagen, aber Pipeline wird fortgesetzt: {cleanup_error}", exc_info=True)
+                # Cleanup ist nicht kritisch, Pipeline wird fortgesetzt
             
             # Send finished status
             try:

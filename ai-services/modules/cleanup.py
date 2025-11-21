@@ -6,6 +6,7 @@ Bereinigt temporäre Dateien und organisiert Ausgabedateien
 
 import os
 import logging
+import traceback
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Set
 
@@ -70,20 +71,41 @@ class FileCleaner:
         - Entferne .normalized aus Dateinamen (umbenennen)
         """
         try:
+            # Prüfe ob Ordner existiert
+            if not os.path.exists(meta.folder_path) or not os.path.isdir(meta.folder_path):
+                logger.warning(f"Ordner existiert nicht oder ist kein Verzeichnis: {meta.folder_path}")
+                return
+            
             # 1) Lösche .vocals Dateien
-            for file in os.listdir(meta.folder_path):
+            try:
+                files = os.listdir(meta.folder_path)
+            except Exception as e:
+                logger.warning(f"Konnte Ordner nicht lesen: {e}")
+                return
+                
+            for file in files:
                 if file.endswith('.vocals.mp3'):
                     file_path = os.path.join(meta.folder_path, file)
                     try:
-                        os.remove(file_path)
-                        logger.info(f"🗑️ .vocals Datei gelöscht: {file}")
+                        if os.path.exists(file_path) and os.path.isfile(file_path):
+                            os.remove(file_path)
+                            logger.info(f"🗑️ .vocals Datei gelöscht: {file}")
                     except Exception as e:
                         logger.warning(f"⚠️ Konnte .vocals Datei nicht löschen {file}: {e}")
             
             # 2) Entferne .normalized aus Dateinamen
-            for file in os.listdir(meta.folder_path):
+            try:
+                files = os.listdir(meta.folder_path)
+            except Exception as e:
+                logger.warning(f"Konnte Ordner nicht lesen (zweiter Durchlauf): {e}")
+                return
+                
+            for file in files:
                 if '.normalized.' in file:
                     old_path = os.path.join(meta.folder_path, file)
+                    if not os.path.exists(old_path) or not os.path.isfile(old_path):
+                        continue
+                        
                     new_name = file.replace('.normalized', '')
                     new_path = os.path.join(meta.folder_path, new_name)
                     
@@ -104,7 +126,7 @@ class FileCleaner:
                             logger.warning(f"⚠️ Konnte Datei nicht umbenennen {file}: {e}")
                             
         except Exception as e:
-            logger.error(f"❌ Fehler bei speziellen Cleanup-Operationen: {e}")
+            logger.error(f"❌ Fehler bei speziellen Cleanup-Operationen: {e}", exc_info=True)
     
     def identify_files_to_keep(self, meta: ProcessingMeta) -> Set[str]:
         """
@@ -323,6 +345,7 @@ class FileCleaner:
         Returns:
             True wenn erfolgreich, False sonst
         """
+        logger.info("🔍 CLEANUP.process_meta START")
         log_start('cleanup.process_meta', meta)
         try:
             config = {**self.default_config, **self.config}
@@ -355,18 +378,24 @@ class FileCleaner:
             
             # Entferne bekannte, während der Verarbeitung entstandene Unterordner vollständig
             try:
-                known_subdirs = ['audio', 'covers', 'lyrics', 'separated', 'video', 'dereverb_vocals', 'dereverb_others']
-                for sub in known_subdirs:
-                    sub_path = os.path.join(meta.folder_path, sub)
-                    if os.path.isdir(sub_path):
-                        if dry_run:
-                            logger.info(f"[DRY RUN] Würde Ordner entfernen: {sub_path}")
-                        else:
-                            import shutil
-                            shutil.rmtree(sub_path, ignore_errors=True)
-                            logger.info(f"Ordner entfernt: {sub_path}")
+                if not os.path.exists(meta.folder_path) or not os.path.isdir(meta.folder_path):
+                    logger.warning(f"Ordner existiert nicht: {meta.folder_path}")
+                else:
+                    known_subdirs = ['audio', 'covers', 'lyrics', 'separated', 'video', 'dereverb_vocals', 'dereverb_others']
+                    import shutil
+                    for sub in known_subdirs:
+                        sub_path = os.path.join(meta.folder_path, sub)
+                        try:
+                            if os.path.isdir(sub_path):
+                                if dry_run:
+                                    logger.info(f"[DRY RUN] Würde Ordner entfernen: {sub_path}")
+                                else:
+                                    shutil.rmtree(sub_path, ignore_errors=True)
+                                    logger.info(f"Ordner entfernt: {sub_path}")
+                        except Exception as sub_error:
+                            logger.warning(f"Konnte Unterordner {sub} nicht entfernen: {sub_error}")
             except Exception as e:
-                logger.warning(f"Konnte Unterordner nicht entfernen: {e}")
+                logger.warning(f"Konnte Unterordner nicht entfernen: {e}", exc_info=True)
 
             # Entferne explizit Vocals- und Dereverbed-Dateien, wenn vorhanden (nicht whitelisted)
             try:
@@ -378,27 +407,45 @@ class FileCleaner:
                         f"{base}_vocals_temp.mp3",
                         f"{base}.dereverbed.mp3",  # Entferne dereverbed Dateien
                     ]
+                    keep_files = self.identify_files_to_keep(meta)
                     for name in candidates:
-                        path = meta.get_file_path(name)
-                        if os.path.exists(path) and path not in self.identify_files_to_keep(meta):
-                            if dry_run:
-                                logger.info(f"[DRY RUN] Würde Datei entfernen: {path}")
-                            else:
-                                os.remove(path)
-                                logger.info(f"Datei entfernt: {path}")
+                        try:
+                            path = meta.get_file_path(name)
+                            if os.path.exists(path) and os.path.isfile(path) and path not in keep_files:
+                                if dry_run:
+                                    logger.info(f"[DRY RUN] Würde Datei entfernen: {path}")
+                                else:
+                                    os.remove(path)
+                                    logger.info(f"Datei entfernt: {path}")
+                        except Exception as file_error:
+                            logger.warning(f"Konnte Datei {name} nicht entfernen: {file_error}")
             except Exception as e:
-                logger.warning(f"Konnte Dateien nicht entfernen: {e}")
+                logger.warning(f"Konnte Dateien nicht entfernen: {e}", exc_info=True)
             
             logger.info(f"✅ Cleanup erfolgreich abgeschlossen für: {meta.artist} - {meta.title}")
+            logger.info("🔍 CLEANUP.process_meta - Vor mark_step_completed")
             meta.mark_step_completed('cleanup')
+            logger.info("🔍 CLEANUP.process_meta - Nach mark_step_completed")
             meta.status = ProcessingStatus.COMPLETED
-            
+            logger.info("🔍 CLEANUP.process_meta - Status auf COMPLETED gesetzt")
+            logger.info("🔍 CLEANUP.process_meta ENDE - return True")
             return True
             
         except Exception as e:
-            logger.error(f"Fehler bei Cleanup: {e}")
-            meta.mark_step_failed('cleanup')
-            meta.status = ProcessingStatus.FAILED
+            logger.error("=" * 80)
+            logger.error(f"❌ FEHLER in process_meta: {e}", exc_info=True)
+            logger.error(f"Exception Type: {type(e).__name__}")
+            logger.error(f"Exception Args: {e.args}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+            logger.error("=" * 80)
+            try:
+                logger.info("🔍 Versuche Meta-Status auf FAILED zu setzen...")
+                meta.mark_step_failed('cleanup')
+                meta.status = ProcessingStatus.FAILED
+                logger.info("🔍 Meta-Status erfolgreich auf FAILED gesetzt")
+            except Exception as meta_error:
+                logger.warning(f"⚠️ Konnte Meta-Status nicht setzen: {meta_error}", exc_info=True)
+            logger.info("🔍 CLEANUP.process_meta ENDE - return False")
             return False
     
     def get_folder_summary(self, meta: ProcessingMeta) -> Dict[str, Any]:
@@ -470,9 +517,31 @@ def cleanup_files(meta: ProcessingMeta) -> bool:
     Returns:
         True wenn erfolgreich, False sonst
     """
-    log_start('cleanup_files', meta)
-    cleaner = FileCleaner()
-    return cleaner.process_meta(meta)
+    logger.info("=" * 80)
+    logger.info(f"🚀 CLEANUP_START für: {meta.artist} - {meta.title}")
+    logger.info(f"Ordner: {meta.folder_path}")
+    logger.info("=" * 80)
+    
+    try:
+        log_start('cleanup_files', meta)
+        logger.info("📋 Erstelle FileCleaner-Instanz...")
+        cleaner = FileCleaner()
+        logger.info("📋 Rufe cleaner.process_meta() auf...")
+        result = cleaner.process_meta(meta)
+        logger.info(f"📋 cleaner.process_meta() zurückgegeben: {result}")
+        logger.info("=" * 80)
+        logger.info(f"✅ CLEANUP_ERFOLGREICH für: {meta.artist} - {meta.title}")
+        logger.info("=" * 80)
+        return result
+    except Exception as e:
+        logger.error("=" * 80)
+        logger.error(f"❌ KRITISCHER FEHLER in cleanup_files: {e}", exc_info=True)
+        logger.error(f"Exception Type: {type(e).__name__}")
+        logger.error(f"Exception Args: {e.args}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
+        logger.error("=" * 80)
+        # Stelle sicher, dass der Server nicht abstürzt
+        return False
 
 def get_folder_summary(meta: ProcessingMeta) -> Dict[str, Any]:
     """

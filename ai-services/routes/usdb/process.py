@@ -167,8 +167,12 @@ def process_usdb_pipeline(folder_name):
                 
                 # 6) Cleanup
                 logger.info("🔄 Starting cleanup...")
-                cleanup_files(meta)
-                logger.info("✅ Cleanup completed")
+                try:
+                    cleanup_files(meta)
+                    logger.info("✅ Cleanup completed")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Cleanup fehlgeschlagen, aber Pipeline wird fortgesetzt: {cleanup_error}", exc_info=True)
+                    # Pipeline wird trotzdem fortgesetzt, da Cleanup nicht kritisch ist
                 
                 # 7) Finish - setze korrekte API-URL
                 logger.info("🔄 Starting finish...")
