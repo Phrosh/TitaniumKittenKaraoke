@@ -33,7 +33,7 @@ api.interceptors.response.use(
 );
 
 export const songAPI = {
-  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean; youtubeMode?: 'karaoke' | 'magic' }) =>
+  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean; youtubeMode?: 'karaoke' | 'magic'; artist?: string; title?: string }) =>
     api.post('/songs/request', data),
   
   getPlaylist: () =>

@@ -636,7 +636,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         songInput: songInput,
         deviceId: 'ADM', // Admin device ID
         withBackgroundVocals: addSongData.withBackgroundVocals,
-        youtubeMode: addSongData.youtubeMode
+        youtubeMode: addSongData.youtubeMode,
+        // Send manual artist/title if provided (they will have priority over YouTube metadata)
+        artist: addSongData.artist.trim() || undefined,
+        title: addSongData.title.trim() || undefined
       });
       
       if (addSongData.youtubeUrl.trim() && addSongData.youtubeMode === 'magic') {

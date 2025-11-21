@@ -26,7 +26,7 @@ router.post('/request', [
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { name, songInput, deviceId, youtubeMode } = req.body;
+    const { name, songInput, deviceId, youtubeMode, artist: manualArtist, title: manualTitle } = req.body;
     let { withBackgroundVocals } = req.body;
     // Check if YouTube is enabled
     const db = require('../../config/database');
@@ -78,24 +78,41 @@ router.post('/request', [
       // It's a YouTube URL - clean it and try to extract metadata
       youtubeUrl = cleanYouTubeUrl(songInput);
       
-      try {
-        const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
-        title = metadata.title;
-        artist = metadata.artist || 'Unknown Artist';
-        
-        // Try to download YouTube video to songs/youtube folder (skip for magic mode)
-        if (youtubeMode !== 'magic') {
-          console.log(`📥 Will download YouTube video (async): ${artist} - ${title}`);
-          downloadStatus = 'downloading';
-          // Note: Download will be started after song creation (see line ~563)
-        } else {
-          console.log(`✨ Skipping normal YouTube download for magic mode: ${artist} - ${title}`);
+      // If manual artist/title are provided, use them (higher priority than YouTube metadata)
+      if (manualArtist && manualArtist.trim() && manualTitle && manualTitle.trim()) {
+        console.log(`📝 Using manually provided artist/title: ${manualArtist} - ${manualTitle}`);
+        artist = manualArtist.trim();
+        title = manualTitle.trim();
+      } else {
+        // Only extract metadata if no manual values provided
+        try {
+          const metadata = await YouTubeMetadataService.getMetadata(youtubeUrl);
+          title = metadata.title;
+          artist = metadata.artist || 'Unknown Artist';
+          console.log(`📥 Extracted YouTube metadata: ${artist} - ${title}`);
+        } catch (error) {
+          console.error('Failed to extract YouTube metadata:', error.message);
+          // Fallback: use manual values if available, otherwise generic values
+          if (manualArtist && manualArtist.trim()) {
+            artist = manualArtist.trim();
+          } else {
+            artist = 'Unknown Artist';
+          }
+          if (manualTitle && manualTitle.trim()) {
+            title = manualTitle.trim();
+          } else {
+            title = 'YouTube Song';
+          }
         }
-      } catch (error) {
-        console.error('Failed to extract YouTube metadata:', error.message);
-        // Fallback to generic values
-        title = 'YouTube Song';
-        artist = 'Unknown Artist';
+      }
+      
+      // Try to download YouTube video to songs/youtube folder (skip for magic mode)
+      if (youtubeMode !== 'magic') {
+        console.log(`📥 Will download YouTube video (async): ${artist} - ${title}`);
+        downloadStatus = 'downloading';
+        // Note: Download will be started after song creation (see line ~563)
+      } else {
+        console.log(`✨ Skipping normal YouTube download for magic mode: ${artist} - ${title}`);
       }
     } else if (songInput.includes(' - ')) {
       // It's "Artist - Title" format
