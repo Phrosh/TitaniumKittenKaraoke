@@ -345,7 +345,6 @@ class FileCleaner:
         Returns:
             True wenn erfolgreich, False sonst
         """
-        logger.info("🔍 CLEANUP.process_meta START")
         log_start('cleanup.process_meta', meta)
         try:
             config = {**self.default_config, **self.config}
@@ -423,29 +422,17 @@ class FileCleaner:
                 logger.warning(f"Konnte Dateien nicht entfernen: {e}", exc_info=True)
             
             logger.info(f"✅ Cleanup erfolgreich abgeschlossen für: {meta.artist} - {meta.title}")
-            logger.info("🔍 CLEANUP.process_meta - Vor mark_step_completed")
             meta.mark_step_completed('cleanup')
-            logger.info("🔍 CLEANUP.process_meta - Nach mark_step_completed")
             meta.status = ProcessingStatus.COMPLETED
-            logger.info("🔍 CLEANUP.process_meta - Status auf COMPLETED gesetzt")
-            logger.info("🔍 CLEANUP.process_meta ENDE - return True")
             return True
             
         except Exception as e:
-            logger.error("=" * 80)
-            logger.error(f"❌ FEHLER in process_meta: {e}", exc_info=True)
-            logger.error(f"Exception Type: {type(e).__name__}")
-            logger.error(f"Exception Args: {e.args}")
-            logger.error(f"Traceback:\n{traceback.format_exc()}")
-            logger.error("=" * 80)
+            logger.error(f"Fehler bei Cleanup: {e}", exc_info=True)
             try:
-                logger.info("🔍 Versuche Meta-Status auf FAILED zu setzen...")
                 meta.mark_step_failed('cleanup')
                 meta.status = ProcessingStatus.FAILED
-                logger.info("🔍 Meta-Status erfolgreich auf FAILED gesetzt")
             except Exception as meta_error:
-                logger.warning(f"⚠️ Konnte Meta-Status nicht setzen: {meta_error}", exc_info=True)
-            logger.info("🔍 CLEANUP.process_meta ENDE - return False")
+                logger.warning(f"Konnte Meta-Status nicht setzen: {meta_error}")
             return False
     
     def get_folder_summary(self, meta: ProcessingMeta) -> Dict[str, Any]:
@@ -517,31 +504,9 @@ def cleanup_files(meta: ProcessingMeta) -> bool:
     Returns:
         True wenn erfolgreich, False sonst
     """
-    logger.info("=" * 80)
-    logger.info(f"🚀 CLEANUP_START für: {meta.artist} - {meta.title}")
-    logger.info(f"Ordner: {meta.folder_path}")
-    logger.info("=" * 80)
-    
-    try:
-        log_start('cleanup_files', meta)
-        logger.info("📋 Erstelle FileCleaner-Instanz...")
-        cleaner = FileCleaner()
-        logger.info("📋 Rufe cleaner.process_meta() auf...")
-        result = cleaner.process_meta(meta)
-        logger.info(f"📋 cleaner.process_meta() zurückgegeben: {result}")
-        logger.info("=" * 80)
-        logger.info(f"✅ CLEANUP_ERFOLGREICH für: {meta.artist} - {meta.title}")
-        logger.info("=" * 80)
-        return result
-    except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"❌ KRITISCHER FEHLER in cleanup_files: {e}", exc_info=True)
-        logger.error(f"Exception Type: {type(e).__name__}")
-        logger.error(f"Exception Args: {e.args}")
-        logger.error(f"Traceback:\n{traceback.format_exc()}")
-        logger.error("=" * 80)
-        # Stelle sicher, dass der Server nicht abstürzt
-        return False
+    log_start('cleanup_files', meta)
+    cleaner = FileCleaner()
+    return cleaner.process_meta(meta)
 
 def get_folder_summary(meta: ProcessingMeta) -> Dict[str, Any]:
     """

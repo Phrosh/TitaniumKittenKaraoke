@@ -136,7 +136,7 @@ const SongList: React.FC<SongListProps> = ({
                 });
                 
                 // Also update processingSongs for active statuses
-                if (data.status && !['finished', 'ready', 'failed'].includes(data.status)) {
+                if (data.status && !['finished', 'ready', 'failed', 'completed'].includes(data.status)) {
                     setProcessingSongs(prev => new Set(prev).add(songKey));
                 } else {
                     setProcessingSongs(prev => {
@@ -144,6 +144,15 @@ const SongList: React.FC<SongListProps> = ({
                         newSet.delete(songKey);
                         return newSet;
                     });
+                }
+                
+                // Reload songs when processing is finished/completed to show updated song data
+                if (data.status === 'finished' || data.status === 'completed') {
+                    console.log('🔄 Song finished processing, reloading songs list...');
+                    // Delay to ensure backend cache is rebuilt
+                    setTimeout(() => {
+                        fetchSongs();
+                    }, 2500); // 2.5 seconds delay to ensure cache is rebuilt
                 }
                 
                 console.log('🛰️ SongList: Updated status for', songKey, 'to', data.status);
@@ -157,7 +166,7 @@ const SongList: React.FC<SongListProps> = ({
         return () => {
             websocketService.off('processing-status', handleProcessingStatus);
         };
-    }, [songs]); // Add songs dependency
+    }, [songs, fetchSongs]); // Add fetchSongs dependency
 
     const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
         setActionLoading(true);
@@ -666,7 +675,7 @@ const SongList: React.FC<SongListProps> = ({
                                     const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
                                     const apiStatus = song.download_status || song.status;
                                     const processingStatus = wsStatus || apiStatus;
-                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                    const hasActiveStatus = processingStatus && !['finished', 'completed', 'ready', 'failed'].includes(processingStatus);
                                     const isSongCurrentlyProcessing = isSongProcessing(song, processingSongs, songStatuses);
                                     
                                     // Check if processing is needed (red border condition)
@@ -775,7 +784,7 @@ const SongList: React.FC<SongListProps> = ({
                                     const wsStatus = songStatuses.get(`${song.artist}-${song.title}`);
                                     const apiStatus = song.download_status || song.status;
                                     const processingStatus = wsStatus || apiStatus;
-                                    const hasActiveStatus = processingStatus && !['finished', 'ready', 'failed'].includes(processingStatus);
+                                    const hasActiveStatus = processingStatus && !['finished', 'completed', 'ready', 'failed'].includes(processingStatus);
                                                     
                                                     // Show DownloadStatusBadge if processing or has active status
                                                     if (isSongCurrentlyProcessing || hasActiveStatus) {
@@ -821,7 +830,7 @@ const SongList: React.FC<SongListProps> = ({
                                                     // 1. Button is enabled AND
                                                     // 2. Status is 'failed' (retry) OR no status at all (first time)
                                                     const shouldShowProcessingButton = buttonState.enabled && 
-                                                        (processingStatus === 'failed' || !processingStatus);
+                                                        (processingStatus === 'failed' || !processingStatus || processingStatus === 'completed');
                                                     
                                                     // Show recreate button for Magic songs (always visible if not processing)
                                                     const shouldShowRecreateButton = (song.modes?.includes('magic-songs') || song.modes?.includes('magic-videos') || song.modes?.includes('magic-youtube')) && 

@@ -66,11 +66,6 @@ def recreate(folder_name):
         
         # Start processing in background thread
         def run_recreate_pipeline():
-            logger.info("=" * 80)
-            logger.info("🚀 RECREATE PIPELINE THREAD START")
-            logger.info(f"Thread ID: {threading.current_thread().ident}")
-            logger.info(f"Thread Name: {threading.current_thread().name}")
-            logger.info("=" * 80)
             try:
                 # Delete processed files (.txt, .hp2.mp3, .hp5.mp3)
                 files_to_delete = []
@@ -117,69 +112,20 @@ def recreate(folder_name):
                 dereverb_audio(meta)
                 logger.info("✅ Dereverb completed")
                 
-                logger.info("=" * 80)
-                logger.info("🔄 RECREATE PIPELINE: Starting transcription...")
-                logger.info(f"Meta: {meta.artist} - {meta.title}")
-                logger.info("=" * 80)
+                logger.info("🔄 Starting transcription...")
                 try:
                     send_processing_status(meta, 'transcribing')
                 except Exception:
                     pass
-                logger.info("📞 Rufe transcribe_audio() auf...")
-                logger.info(f"Meta-Objekt: {type(meta).__name__}")
-                logger.info(f"Meta-Status vor Aufruf: {meta.status}")
-                logger.info(f"Thread ID vor Aufruf: {threading.current_thread().ident}")
-                
-                # Wrapper um transcribe_audio mit zusätzlichem Logging
-                result = None
-                try:
-                    logger.info("🔍 DIREKT VOR transcribe_audio() Aufruf")
-                    logger.info("🔍 Thread ID: " + str(threading.current_thread().ident))
-                    result = transcribe_audio(meta)
-                    logger.info("🔍 DIREKT NACH transcribe_audio() Aufruf - ERFOLGREICH")
-                    logger.info(f"🔍 Result: {result}")
-                    logger.info(f"🔍 Result Type: {type(result)}")
-                    logger.info("🔍 Thread ID nach Aufruf: " + str(threading.current_thread().ident))
-                    logger.info(f"📞 transcribe_audio() zurückgegeben: {result}")
-                    logger.info(f"Result Type: {type(result)}")
-                    logger.info(f"Meta-Status nach Aufruf: {meta.status}")
-                    logger.info(f"Thread ID nach Aufruf: {threading.current_thread().ident}")
-                    logger.info(f"📞 transcribe_audio() zurückgegeben: {result}")
-                    logger.info(f"Result Type: {type(result)}")
-                    logger.info(f"Meta-Status nach Aufruf: {meta.status}")
-                    logger.info(f"Thread ID nach Aufruf: {threading.current_thread().ident}")
-                except BaseException as transcribe_error:
-                    import traceback
-                    logger.error("=" * 80)
-                    logger.error(f"❌ KRITISCHER FEHLER in transcribe_audio: {transcribe_error}", exc_info=True)
-                    logger.error(f"Exception Type: {type(transcribe_error).__name__}")
-                    logger.error(f"Traceback:\n{traceback.format_exc()}")
-                    logger.error("=" * 80)
-                    raise
-                finally:
-                    logger.info("🔍 FINALLY Block nach transcribe_audio()")
-                    logger.info(f"Result im FINALLY: {result}")
-                
-                logger.info("🔍 NACH dem try/except Block - Code wird fortgesetzt")
+                transcribe_audio(meta)
                 logger.info("✅ Transcription completed")
-                logger.info("=" * 80)
                 
-                logger.info("=" * 80)
-                logger.info("🔄 RECREATE PIPELINE: Starting cleanup...")
-                logger.info(f"Meta: {meta.artist} - {meta.title}")
-                logger.info("=" * 80)
+                logger.info("🔄 Starting cleanup...")
                 try:
-                    logger.info("📞 Rufe cleanup_files() auf...")
-                    result = cleanup_files(meta)
-                    logger.info(f"📞 cleanup_files() zurückgegeben: {result}")
+                    cleanup_files(meta)
                     logger.info("✅ Cleanup completed")
                 except Exception as cleanup_error:
-                    import traceback
-                    logger.error("=" * 80)
                     logger.error(f"❌ Cleanup fehlgeschlagen, aber Pipeline wird fortgesetzt: {cleanup_error}", exc_info=True)
-                    logger.error(f"Exception Type: {type(cleanup_error).__name__}")
-                    logger.error(f"Traceback:\n{traceback.format_exc()}")
-                    logger.error("=" * 80)
                     # Pipeline wird trotzdem fortgesetzt, da Cleanup nicht kritisch ist
                 
                 # Finish - setze korrekte API-URL
@@ -195,22 +141,12 @@ def recreate(folder_name):
                 except Exception as e:
                     logger.error(f"❌ Failed to send finished status: {e}")
                     
-            except BaseException as e:
-                import traceback
-                logger.error("=" * 80)
-                logger.error(f"❌ KRITISCHER FEHLER in recreate pipeline background thread: {e}", exc_info=True)
-                logger.error(f"Exception Type: {type(e).__name__}")
-                logger.error(f"Traceback:\n{traceback.format_exc()}")
-                logger.error("=" * 80)
+            except Exception as e:
+                logger.error(f"Error in recreate pipeline background thread: {e}", exc_info=True)
                 try:
                     send_processing_status(meta, 'failed')
                 except Exception:
                     pass
-            finally:
-                logger.info("=" * 80)
-                logger.info("🏁 RECREATE PIPELINE THREAD ENDE")
-                logger.info(f"Thread ID: {threading.current_thread().ident}")
-                logger.info("=" * 80)
 
         # Start background thread
         thread = threading.Thread(target=run_recreate_pipeline)

@@ -103,7 +103,7 @@ router.post('/processing-status', async (req, res) => {
     }
 
     // Trigger playlist upgrade check when a song finishes processing
-    if (status === 'finished') {
+    if (status === 'finished' || status === 'completed') {
       try {
         console.log('🔄 Song finished processing, triggering playlist upgrade check:', { id, artist, title, status });
         
@@ -122,12 +122,24 @@ router.post('/processing-status', async (req, res) => {
       }
     }
 
-    // Rebuild cache after processing status update
-    try {
-      await songCache.buildCache(true);
-      console.log('🔄 Cache nach Processing-Status-Update neu aufgebaut');
-    } catch (cacheError) {
-      console.warn('⚠️ Fehler beim Cache-Rebuild nach Processing-Status-Update:', cacheError.message);
+    // Rebuild cache after processing status update (especially for finished/completed)
+    // Use a small delay for finished/completed to ensure file system is ready
+    const shouldDelayCache = (status === 'finished' || status === 'completed');
+    const cacheRebuild = async () => {
+      try {
+        await songCache.buildCache(true);
+        console.log('🔄 Cache nach Processing-Status-Update neu aufgebaut');
+      } catch (cacheError) {
+        console.warn('⚠️ Fehler beim Cache-Rebuild nach Processing-Status-Update:', cacheError.message);
+      }
+    };
+    
+    if (shouldDelayCache) {
+      // Delay cache rebuild for finished/completed to ensure file system is ready
+      setTimeout(cacheRebuild, 2000); // 2 second delay
+    } else {
+      // Immediate cache rebuild for other statuses
+      await cacheRebuild();
     }
 
     res.json({ ok: true });

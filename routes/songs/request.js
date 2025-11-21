@@ -85,67 +85,9 @@ router.post('/request', [
         
         // Try to download YouTube video to songs/youtube folder (skip for magic mode)
         if (youtubeMode !== 'magic') {
-          console.log(`📥 Attempting to download YouTube video (async): ${artist} - ${title}`);
+          console.log(`📥 Will download YouTube video (async): ${artist} - ${title}`);
           downloadStatus = 'downloading';
-          // Start async download without awaiting to allow immediate response and UI closing
-          try {
-            const io = req.app.get('io');
-            // Kick off download in background
-            downloadYouTubeVideo(youtubeUrl, artist, title)
-              .then(async (downloadResult) => {
-                if (downloadResult && downloadResult.success) {
-                  console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-                  try {
-                    await Song.updateDownloadStatus(song.id, 'ready');
-                  } catch {}
-                  // Add to invisible songs list
-                  try {
-                    const db = require('../../config/database');
-                    await new Promise((resolve, reject) => {
-                      db.run(
-                        'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
-                        [artist, title],
-                        function(err) {
-                          if (err) reject(err);
-                          else resolve();
-                        }
-                      );
-                    });
-                    console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
-                  } catch (error) {
-                    console.error('Error adding to invisible songs:', error);
-                  }
-                  // Broadcast finished to update badge
-                  try {
-                    if (io) {
-                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'finished' });
-                    }
-                  } catch {}
-                } else {
-                  console.log(`⚠️ YouTube download failed: ${downloadResult?.error}`);
-                  try {
-                    await Song.updateDownloadStatus(song.id, 'failed');
-                  } catch {}
-                  try {
-                    if (io) {
-                      broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
-                    }
-                  } catch {}
-                }
-              })
-              .catch(async (err) => {
-                console.error('❌ Async YouTube download error:', err?.message || err);
-                try { await Song.updateDownloadStatus(song.id, 'failed'); } catch {}
-                try {
-                  const io2 = req.app.get('io');
-                  if (io2) {
-                    broadcastProcessingStatus(io2, { id: song.id, artist, title, status: 'failed' });
-                  }
-                } catch {}
-              });
-          } catch (kickErr) {
-            console.error('❌ Failed to kick off async YouTube download:', kickErr?.message || kickErr);
-          }
+          // Note: Download will be started after song creation (see line ~563)
         } else {
           console.log(`✨ Skipping normal YouTube download for magic mode: ${artist} - ${title}`);
         }
@@ -538,13 +480,80 @@ router.post('/request', [
         }
       } else {
         // Regular YouTube processing
+        console.log(`📥 Setting download status to '${downloadStatus}' for song ID ${song.id}: ${artist} - ${title}`);
         await Song.updateDownloadStatus(song.id, downloadStatus);
         try {
           const io = req.app.get('io');
           if (io) {
+            const { broadcastProcessingStatus } = require('../../utils/websocketService');
             broadcastProcessingStatus(io, { id: song.id, artist, title, status: downloadStatus });
+            console.log(`📡 Broadcasted '${downloadStatus}' status for: ${artist} - ${title}`);
           }
         } catch {}
+        
+        // If download status is 'downloading', start the actual download
+        if (downloadStatus === 'downloading' && youtubeUrl) {
+          console.log(`🚀 Starting YouTube download for song ID ${song.id}: ${artist} - ${title}`);
+          const { downloadYouTubeVideo } = require('../../utils/youtubeSongs');
+          const io = req.app.get('io');
+          
+          // Start async download without awaiting to allow immediate response and UI closing
+          downloadYouTubeVideo(youtubeUrl, artist, title)
+            .then(async (downloadResult) => {
+              if (downloadResult && downloadResult.success) {
+                console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                try {
+                  await Song.updateDownloadStatus(song.id, 'ready');
+                } catch {}
+                // Add to invisible songs list
+                try {
+                  const db = require('../../config/database');
+                  await new Promise((resolve, reject) => {
+                    db.run(
+                      'INSERT OR IGNORE INTO invisible_songs (artist, title) VALUES (?, ?)',
+                      [artist, title],
+                      function(err) {
+                        if (err) reject(err);
+                        else resolve();
+                      }
+                    );
+                  });
+                  console.log(`📝 Added to invisible songs: ${artist} - ${title}`);
+                } catch (error) {
+                  console.error('Error adding to invisible songs:', error);
+                }
+                // Broadcast finished to update badge
+                try {
+                  if (io) {
+                    const { broadcastProcessingStatus } = require('../../utils/websocketService');
+                    broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'finished' });
+                  }
+                } catch {}
+              } else {
+                console.log(`⚠️ YouTube download failed: ${downloadResult?.error}`);
+                try {
+                  await Song.updateDownloadStatus(song.id, 'failed');
+                } catch {}
+                try {
+                  if (io) {
+                    const { broadcastProcessingStatus } = require('../../utils/websocketService');
+                    broadcastProcessingStatus(io, { id: song.id, artist, title, status: 'failed' });
+                  }
+                } catch {}
+              }
+            })
+            .catch(async (err) => {
+              console.error('❌ Async YouTube download error:', err?.message || err);
+              try { await Song.updateDownloadStatus(song.id, 'failed'); } catch {}
+              try {
+                const io2 = req.app.get('io');
+                if (io2) {
+                  const { broadcastProcessingStatus } = require('../../utils/websocketService');
+                  broadcastProcessingStatus(io2, { id: song.id, artist, title, status: 'failed' });
+                }
+              } catch {}
+            });
+        }
       }
     }
     

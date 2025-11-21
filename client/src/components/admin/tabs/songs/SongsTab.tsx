@@ -67,7 +67,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
             const youtubeSongs = youtubeResponse.data.youtubeSongs || [];
             const magicSongs = magicSongsResponse.data.songs || [];
             const magicVideos = magicVideosResponse.data.videos || [];
-            const magicYouTube = magicYouTubeResponse.data.videos || [];
+            const magicYouTube = magicYouTubeResponse.data.magicYouTube || []; // API returns 'magicYouTube', not 'videos'
             const audioSettings = audioSettingsResponse.data.ultrastarAudioSettings || [];
 
             // Convert audio settings to a lookup object

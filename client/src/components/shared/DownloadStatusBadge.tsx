@@ -52,6 +52,7 @@ interface DownloadStatusBadgeProps {
       dereverbing: `🧼 ${t('status.dereverbing')}`,
       transcribing: `📝 ${t('status.transcribing')}`,
       finished: t('status.finished'),
+      completed: t('status.finished'), // Treat 'completed' same as 'finished'
       failed: `❌ ${t('status.failed')}`,
     };
 

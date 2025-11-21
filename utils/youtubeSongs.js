@@ -229,15 +229,19 @@ function extractYouTubeVideoId(url) {
  * @returns {Promise<Object>} Download result
  */
 async function downloadYouTubeVideo(youtubeUrl, artist, title) {
+  console.log(`📥 downloadYouTubeVideo called: ${artist} - ${title}, URL: ${youtubeUrl}`);
   try {
     const videoId = extractYouTubeVideoId(youtubeUrl);
     if (!videoId) {
+      console.error('❌ Invalid YouTube URL - no video ID extracted');
       throw new Error('Invalid YouTube URL');
     }
+    console.log(`📥 Extracted video ID: ${videoId}`);
 
     // Create sanitized folder name: "Artist - Songname"
     const folderName = createSanitizedFolderName(artist, title);
     const folderPath = path.join(YOUTUBE_DIR, folderName);
+    console.log(`📥 Folder path: ${folderPath}`);
 
     // Create folder if it doesn't exist
     if (!fs.existsSync(folderPath)) {
@@ -264,6 +268,8 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
     // Call AI service to download video
     const axios = require('axios');
     const downloadUrl = `http://localhost:6000/download_youtube/youtube/${encodeURIComponent(folderName)}`;
+    console.log(`📥 Calling AI service download endpoint: ${downloadUrl}`);
+    console.log(`📥 Request payload:`, { youtubeUrl, videoId, artist, title });
     
     const response = await axios.post(downloadUrl, {
       youtubeUrl,
@@ -273,6 +279,9 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
     }, {
       timeout: 300000 // 5 minutes timeout
     });
+    
+    console.log(`📥 AI service response status: ${response.status}`);
+    console.log(`📥 AI service response data:`, response.data);
 
     // After successful download, trigger modular processing for youtube cache (normalize + cleanup)
     try {

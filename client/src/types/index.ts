@@ -7,7 +7,7 @@ export interface User {
 
 export type LegacyStatus = 'none' | 'downloading' | 'downloaded' | 'cached' | 'failed';
 
-export type DownloadStatus = 'pending' | 'downloading' | 'failed' | 'finished' | 'separating' | 'transcribing';
+export type DownloadStatus = 'pending' | 'downloading' | 'failed' | 'finished' | 'completed' | 'separating' | 'transcribing';
 
 export interface Song {
   id: number;

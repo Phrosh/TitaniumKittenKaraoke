@@ -144,31 +144,13 @@ def run_modular_pipeline(job_data):
             logger.info("✅ Dereverb completed")
             
             # 4) Transcription
-            logger.info("=" * 80)
-            logger.info("🔄 MODULAR PIPELINE: Starting transcription...")
-            logger.info(f"Meta: {meta.artist} - {meta.title}")
-            logger.info("=" * 80)
+            logger.info("🔄 Starting transcription...")
             try:
                 send_processing_status(meta, 'transcribing')
             except Exception:
                 pass
-            logger.info("📞 Rufe transcribe_audio() auf...")
-            logger.info(f"Meta-Objekt: {type(meta).__name__}")
-            logger.info(f"Meta-Status vor Aufruf: {meta.status}")
-            try:
-                result = transcribe_audio(meta)
-                logger.info(f"📞 transcribe_audio() zurückgegeben: {result}")
-                logger.info(f"Meta-Status nach Aufruf: {meta.status}")
-            except Exception as transcribe_error:
-                import traceback
-                logger.error("=" * 80)
-                logger.error(f"❌ KRITISCHER FEHLER in transcribe_audio: {transcribe_error}", exc_info=True)
-                logger.error(f"Exception Type: {type(transcribe_error).__name__}")
-                logger.error(f"Traceback:\n{traceback.format_exc()}")
-                logger.error("=" * 80)
-                raise
+            transcribe_audio(meta)
             logger.info("✅ Transcription completed")
-            logger.info("=" * 80)
             
         elif song_type == 'magic-songs':
             # Magic-Songs-Pipeline: ensure_source_files → audio_separation → transcription → remux_videos → cleanup
@@ -232,22 +214,12 @@ def run_modular_pipeline(job_data):
                 logger.info("⏭️ Skipping video remuxing (Video war bereits vorhanden)")
         
         # 4) Cleanup (für alle Song-Typen)
-        logger.info("=" * 80)
-        logger.info("🔄 PIPELINE: Starting cleanup...")
-        logger.info(f"Meta: {meta.artist} - {meta.title}")
-        logger.info("=" * 80)
+        logger.info("🔄 Starting cleanup...")
         try:
-            logger.info("📞 Rufe cleanup_files() auf...")
-            result = cleanup_files(meta)
-            logger.info(f"📞 cleanup_files() zurückgegeben: {result}")
+            cleanup_files(meta)
             logger.info("✅ Cleanup completed")
         except Exception as cleanup_error:
-            logger.error("=" * 80)
             logger.error(f"❌ Cleanup fehlgeschlagen, aber Pipeline wird fortgesetzt: {cleanup_error}", exc_info=True)
-            import traceback
-            logger.error(f"Exception Type: {type(cleanup_error).__name__}")
-            logger.error(f"Traceback:\n{traceback.format_exc()}")
-            logger.error("=" * 80)
             # Pipeline wird trotzdem fortgesetzt, da Cleanup nicht kritisch ist
         
         # 5) Finish - setze korrekte API-URL

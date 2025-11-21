@@ -458,40 +458,15 @@ class AudioTranscriber:
             
             logger.info("=" * 80)
             logger.info(f"✅ Audio erfolgreich transkribiert für: {meta.artist} - {meta.title}")
-            logger.info("🔍 TRANSCRIPTION: Vor mark_step_completed")
             meta.mark_step_completed('transcription')
-            logger.info("🔍 TRANSCRIPTION: Nach mark_step_completed")
             meta.status = ProcessingStatus.COMPLETED
-            logger.info("🔍 TRANSCRIPTION: Status auf COMPLETED gesetzt")
             
             # Sende Status-Update nach erfolgreicher Transkription
-            logger.info("🔍 TRANSCRIPTION: Vor send_processing_status")
             try:
                 send_processing_status(meta, 'completed')
-                logger.info("🔍 TRANSCRIPTION: send_processing_status erfolgreich")
             except Exception as status_error:
-                logger.warning(f"⚠️ Fehler beim Senden des Erfolgsstatus: {status_error}", exc_info=True)
+                logger.warning(f"⚠️ Fehler beim Senden des Erfolgsstatus: {status_error}")
             
-            # Explizite Bereinigung: Gib Speicher frei
-            logger.info("🔍 TRANSCRIPTION: Vor GPU-Speicherbereinigung")
-            try:
-                # Bereinige das Modell nicht, da es wiederverwendet werden kann
-                # Aber gib GPU-Speicher frei falls CUDA verwendet wird
-                # WICHTIG: torch.cuda.empty_cache() kann auf Windows zu Problemen führen
-                # Daher deaktiviert, um Abstürze zu vermeiden
-                if False and torch.cuda.is_available():  # Deaktiviert - kann zu Abstürzen führen
-                    logger.info("🔍 TRANSCRIPTION: GPU-Speicherbereinigung würde ausgeführt werden (deaktiviert)")
-                    # torch.cuda.empty_cache()  # DEAKTIVIERT
-                    logger.info("🔍 TRANSCRIPTION: GPU-Speicher nach Transkription freigegeben")
-                else:
-                    logger.info("🔍 TRANSCRIPTION: GPU-Speicherbereinigung übersprungen (deaktiviert oder CUDA nicht verfügbar)")
-            except Exception as cleanup_error:
-                logger.warning(f"⚠️ Fehler bei Speicherbereinigung: {cleanup_error}", exc_info=True)
-            
-            logger.info("🔍 TRANSCRIPTION: Vor return True")
-            logger.info("=" * 80)
-            logger.info("🔍 TRANSCRIPTION.process_meta ENDE - return True")
-            logger.info("=" * 80)
             return True
             
         except Exception as e:
@@ -816,55 +791,21 @@ def transcribe_audio(meta: ProcessingMeta) -> bool:
     Returns:
         True wenn erfolgreich, False sonst
     """
-    logger.info("=" * 80)
-    logger.info("🔍 transcribe_audio() START")
-    logger.info(f"Meta: {meta.artist} - {meta.title}")
-    logger.info(f"Meta-Objekt: {type(meta).__name__}")
-    logger.info("=" * 80)
-    
     global _global_transcriber
     
     try:
         log_start('transcribe_audio', meta)
-        logger.info("📋 Erstelle oder verwende globale AudioTranscriber-Instanz...")
         
         # Verwende globale Instanz, um das Modell im Speicher zu halten
         # Das verhindert Abstürze beim Garbage Collection
         if _global_transcriber is None:
-            logger.info("📋 Erstelle neue AudioTranscriber-Instanz...")
             _global_transcriber = AudioTranscriber()
-        else:
-            logger.info("📋 Verwende existierende globale AudioTranscriber-Instanz...")
         
         transcriber = _global_transcriber
-        logger.info("📋 Rufe transcriber.process_meta() auf...")
         result = transcriber.process_meta(meta)
-        logger.info(f"📋 transcriber.process_meta() zurückgegeben: {result}")
-        logger.info(f"Result Type: {type(result)}")
-        logger.info("=" * 80)
         
-        # WICHTIG: Lösche das Modell NICHT - es bleibt in der globalen Instanz
-        # Das Modell bleibt im Speicher in _global_transcriber, um Abstürze zu vermeiden
-        logger.info("🔍 Modell bleibt in globaler Instanz (verhindert Abstürze)")
-        # Das Modell wird NICHT gelöscht, sondern bleibt in _global_transcriber
-        # Das verhindert Segfaults beim Garbage Collection
-        
-        logger.info(f"🔍 transcribe_audio() ENDE - Vor return Statement")
-        logger.info(f"Return Value: {result}")
-        
-        # Versuche das Return explizit zu loggen
-        # WICHTIG: Keine komplexen Operationen nach dem Return, um Abstürze zu vermeiden
-        return_value = result
-        logger.info(f"🔍 Return Value gesetzt: {return_value}")
-        logger.info("🔍 DIREKT VOR return Statement")
-        
-        # Flush Logs vor dem Return, um sicherzustellen, dass sie geschrieben werden
-        import sys
-        sys.stdout.flush()
-        sys.stderr.flush()
-        
-        # Return ohne try/except/finally, um mögliche Probleme zu vermeiden
-        return return_value
+        # Das Modell bleibt in _global_transcriber, um Abstürze zu vermeiden
+        return result
     except Exception as e:
         logger.error("=" * 80)
         logger.error(f"❌ KRITISCHER FEHLER in transcribe_audio(): {e}", exc_info=True)
