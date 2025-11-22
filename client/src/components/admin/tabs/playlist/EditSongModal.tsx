@@ -4,7 +4,7 @@ import Button from '../../../shared/Button';
 import { useTranslation } from 'react-i18next';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
 import { isSongInYouTubeCache } from '../../../../utils/helper';
-import { extractVideoIdFromUrl } from '../../../../utils/youtubeUrlCleaner';
+import { extractVideoIdFromUrl, isYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { AdminDashboardData } from '../../../types';
 
 type ModalType = 'edit' | 'youtube';
@@ -65,6 +65,20 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   // Check if background vocals option should be shown
   const shouldShowBackgroundVocals = () => {
     return currentSong && (currentSong.mode === 'ultrastar' || currentSong.mode === 'magic-youtube' || currentSong.modes?.includes('ultrastar') || currentSong.modes?.includes('magic-youtube'));
+  };
+  
+  // Check if YouTube mode options should be shown
+  const shouldShowYouTubeMode = () => {
+    // Only show if there's a YouTube URL and it's a real YouTube URL (not an API route)
+    if (!formData.youtubeUrl || !formData.youtubeUrl.trim()) {
+      return false;
+    }
+    
+    // Check if it's a real YouTube URL (not an API route)
+    const isRealYouTubeUrl = isYouTubeUrl(formData.youtubeUrl);
+    
+    // Only show if it's a real YouTube URL and no cache info is available
+    return isRealYouTubeUrl && !cacheInfo;
   };
   
   // Cache detection logic
@@ -208,7 +222,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 )}
 
                 {/* YouTube Mode Radio Buttons */}
-                {formData.youtubeUrl && !cacheInfo && (
+                {shouldShowYouTubeMode() && (
                   <FormGroup>
                     <Label>{t('modals.editSong.youtubeMode')}:</Label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
