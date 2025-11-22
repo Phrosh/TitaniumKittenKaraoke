@@ -1049,8 +1049,9 @@ const ShowView: React.FC = () => {
         } : null
       });
 
-      // Update QR code if provided
-      if (qrCodeDataUrl) {
+      // Update QR code if provided and valid (not null/empty)
+      // Only update if we have a valid QR code to prevent showing empty/broken QR codes
+      if (qrCodeDataUrl && qrCodeDataUrl.trim() && qrCodeDataUrl.startsWith('data:image')) {
         setQrCodeUrl(qrCodeDataUrl);
       }
 
@@ -1145,7 +1146,9 @@ const ShowView: React.FC = () => {
 
     // Update QR overlay state
     setShowQRCodeOverlay(showQRCodeOverlay);
-    if (qrCodeDataUrl) {
+    // Update QR code if provided and valid (not null/empty)
+    // Only update if we have a valid QR code to prevent showing empty/broken QR codes
+    if (qrCodeDataUrl && qrCodeDataUrl.trim() && qrCodeDataUrl.startsWith('data:image')) {
       setQrCodeUrl(qrCodeDataUrl);
     }
 
@@ -1504,11 +1507,35 @@ const ShowView: React.FC = () => {
     
     websocketService.on('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
 
+    // Listen for direct QR code updates (e.g., when custom URL changes)
+    const handleQRCodeUpdate = (data: {
+      qrCodeDataUrl: string;
+      qrUrl?: string;
+      timestamp?: string;
+    }) => {
+      console.log('📱 QR code update received:', {
+        hasQrCode: !!data.qrCodeDataUrl,
+        qrUrl: data.qrUrl,
+        timestamp: data.timestamp
+      });
+      
+      // Only update if we have a valid QR code
+      if (data.qrCodeDataUrl && data.qrCodeDataUrl.trim() && data.qrCodeDataUrl.startsWith('data:image')) {
+        setQrCodeUrl(data.qrCodeDataUrl);
+        console.log('📱 QR code updated successfully');
+      } else {
+        console.warn('📱 QR code update ignored - invalid QR code data');
+      }
+    };
+    
+    websocketService.on('qr-code-update', handleQRCodeUpdate);
+
     return () => {
       websocketService.offShowUpdate(handleWebSocketUpdate);
       websocketService.off('toggle-play-pause', handleTogglePlayPause);
       websocketService.off('restart-song', handleRestartSong);
       websocketService.off('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
+      websocketService.off('qr-code-update', handleQRCodeUpdate);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };

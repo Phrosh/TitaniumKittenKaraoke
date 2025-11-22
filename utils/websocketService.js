@@ -74,11 +74,21 @@ async function broadcastShowUpdate(io) {
       
       const customUrl = customUrlSetting ? customUrlSetting.value : '';
       
-      // Use centralized QR code generation function
-      const { generateQRCodeDataUrl } = require('./qrCodeGenerator');
-      qrCodeDataUrl = await generateQRCodeDataUrl(customUrl, 'http://localhost:5000/new');
+      // Only generate QR code if custom URL is set, otherwise return null
+      // This prevents generating QR codes with wrong fallback URLs
+      // The frontend will keep the last valid QR code if this is null
+      if (customUrl && customUrl.trim()) {
+        // Use centralized QR code generation function
+        const { generateQRCodeDataUrl } = require('./qrCodeGenerator');
+        // Use custom URL as both custom and fallback since it's set
+        qrCodeDataUrl = await generateQRCodeDataUrl(customUrl, customUrl);
+      } else {
+        // No custom URL set - return null to keep existing QR code in frontend
+        qrCodeDataUrl = null;
+      }
     } catch (error) {
       console.error('Error generating QR code:', error);
+      qrCodeDataUrl = null;
     }
 
     // Verwende zentrale Video-Modi-Konfiguration für URL-Building
