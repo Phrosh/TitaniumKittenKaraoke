@@ -243,19 +243,45 @@ const SongForm: React.FC<SongFormProps> = ({
           }}>
             {t('songForm.youtubeLink')}
           </label>
-          <input
-            type="text"
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={youtubeUrl}
-            onChange={(e) => onYoutubeUrlChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px'
-            }}
-          />
+          {youtubeUrl && youtubeUrl.trim().startsWith('/api') ? (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  // Clear all fields: artist, title, and youtubeUrl
+                  setSongData({ artist: '', title: '', singerName: songData.singerName || '', youtubeUrl: '', youtubeMode: songData.youtubeMode });
+                  onYoutubeUrlChange('');
+                  setSongSearchTerm('');
+                }}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                {t('songForm.removeSongLink')}
+              </button>
+            </div>
+          ) : (
+            <input
+              type="text"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => onYoutubeUrlChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}
+            />
+          )}
         </div>
 
         {/* Cache Status Display */}
@@ -343,67 +369,13 @@ const SongForm: React.FC<SongFormProps> = ({
             </div>
             
             <div style={{ flex: 1, overflowY: 'auto', maxHeight: '300px', border: '1px solid #ddd', borderRadius: '6px' }}>
-              {/* USDB Results Section */}
-              {usdbResults.length > 0 && (
-                <div>
-                  <div style={{
-                    position: 'sticky',
-                    top: 0,
-                    background: '#28a745',
-                    color: 'white',
-                    padding: '8px 15px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    zIndex: 10,
-                    borderBottom: '2px solid #218838'
-                  }}>
-                    {t('songForm.usdb', { count: usdbResults.length })}
-                  </div>
-                  {usdbResults.map((song, index) => (
-                    <div
-                      key={`usdb-${song.id}`}
-                      onClick={() => onSongSelect?.(song)}
-                      style={{
-                        padding: '10px',
-                        border: '1px solid #eee',
-                        borderRadius: '8px',
-                        marginBottom: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!(artist === song.artist && title === song.title)) {
-                          e.currentTarget.style.background = '#f8f9fa';
-                          e.currentTarget.style.borderColor = '#667eea';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!(artist === song.artist && title === song.title)) {
-                          e.currentTarget.style.background = 'white';
-                          e.currentTarget.style.borderColor = '#eee';
-                        }
-                      }}
-                    >
-                      <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                        {song.artist}
-                      </div>
-                      <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                        {song.title}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-  
               {/* Loading indicator for USDB search */}
               {usdbLoading && (
                 <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
                   🔍 {t('songForm.usdbSearching')}
                 </div>
               )}
-  
+
               {/* Local Songs Section */}
               {songList.length > 0 && getFirstLetter && (() => {
                 // Filter songs based on current artist and title values
@@ -513,6 +485,60 @@ const SongForm: React.FC<SongFormProps> = ({
                   </>
                 );
               })()}
+
+              {/* USDB Results Section - After Local Songs */}
+              {usdbResults.length > 0 && (
+                <div>
+                  <div style={{
+                    position: 'sticky',
+                    top: 0,
+                    background: '#28a745',
+                    color: 'white',
+                    padding: '8px 15px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    zIndex: 10,
+                    borderBottom: '2px solid #218838'
+                  }}>
+                    {t('songForm.usdb', { count: usdbResults.length })}
+                  </div>
+                  {usdbResults.map((song, index) => (
+                    <div
+                      key={`usdb-${song.id}`}
+                      onClick={() => onSongSelect?.(song)}
+                      style={{
+                        padding: '10px',
+                        border: '1px solid #eee',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        backgroundColor: artist === song.artist && title === song.title ? '#e3f2fd' : 'white'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!(artist === song.artist && title === song.title)) {
+                          e.currentTarget.style.background = '#f8f9fa';
+                          e.currentTarget.style.borderColor = '#667eea';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!(artist === song.artist && title === song.title)) {
+                          e.currentTarget.style.background = 'white';
+                          e.currentTarget.style.borderColor = '#eee';
+                        }
+                      }}
+                    >
+                      <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
+                        {song.artist}
+                      </div>
+                      <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
+                        {song.title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

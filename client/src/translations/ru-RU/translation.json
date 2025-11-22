@@ -18,7 +18,9 @@
     "songTitle": "НАЗВАНИЕ ПЕСНИ",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "Поиск USDB выполняется...",
-    "noLocalSongs": "Локальные песни не найдены"
+    "noLocalSongs": "Локальные песни не найдены",
+    "songFoundAs": "Песня найдена как",
+    "removeSongLink": "Удалить ссылку на песню"
   },
   "banlist": {
     "title": "Управление Списком Блокировок",

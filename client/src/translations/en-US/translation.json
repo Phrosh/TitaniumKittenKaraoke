@@ -19,7 +19,8 @@
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB search running...",
     "noLocalSongs": "No local songs found",
-    "songFoundAs": "Song found as"
+    "songFoundAs": "Song found as",
+    "removeSongLink": "Remove Song Link"
   },
   "banlist": {
     "title": "Banlist Management",

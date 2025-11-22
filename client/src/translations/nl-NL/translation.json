@@ -18,7 +18,9 @@
     "songTitle": "LIEDTITEL",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB-zoekopdracht loopt...",
-    "noLocalSongs": "Geen lokale liederen gevonden"
+    "noLocalSongs": "Geen lokale liederen gevonden",
+    "songFoundAs": "Lied gevonden als",
+    "removeSongLink": "Liedlink verwijderen"
   },
   "banlist": {
     "title": "Banlijst Beheer",

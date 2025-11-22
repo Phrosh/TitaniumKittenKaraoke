@@ -18,7 +18,9 @@
     "songTitle": "LÅTTITEL",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB-sökning pågår...",
-    "noLocalSongs": "Inga lokala låtar hittades"
+    "noLocalSongs": "Inga lokala låtar hittades",
+    "songFoundAs": "Låt hittades som",
+    "removeSongLink": "Ta bort låtlänk"
   },
   "banlist": {
     "title": "Banlist Hantering",

@@ -529,7 +529,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     }
   };
 
-  const openModal = (song: Song, type: 'edit' | 'youtube') => {
+  const openModal = async (song: Song, type: 'edit' | 'youtube') => {
+    // Load manual song list when opening edit modal
+    if (type === 'edit') {
+      const songs = await loadAllSongs();
+      setManualSongList(songs);
+    }
     setSelectedSong(song);
     setModalType(type);
     setFormData({
@@ -996,6 +1001,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       setFormData={setFormData}
       currentSong={selectedSong}
       dashboardData={dashboardData}
+      manualSongList={manualSongList}
     />
         <AddSongModal
           show={showAddSongModal}

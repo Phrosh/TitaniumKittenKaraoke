@@ -18,7 +18,9 @@
     "songTitle": "楽曲タイトル",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB検索中...",
-    "noLocalSongs": "ローカル楽曲が見つかりません"
+    "noLocalSongs": "ローカル楽曲が見つかりません",
+    "songFoundAs": "楽曲が見つかりました",
+    "removeSongLink": "楽曲リンクを削除"
   },
   "banlist": {
     "title": "禁止リスト管理",

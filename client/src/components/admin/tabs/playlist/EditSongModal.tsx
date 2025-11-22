@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, ModalContent, ModalTitle, FormGroup, Label, Input, ModalButtons } from '../../../shared/style';
+import { Modal, ModalContent, ModalTitle, ModalButtons } from '../../../shared/style';
 import Button from '../../../shared/Button';
+import SongForm from '../../SongForm';
 import { useTranslation } from 'react-i18next';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
 import { isSongInYouTubeCache } from '../../../../utils/helper';
@@ -32,6 +33,7 @@ interface EditSongModalProps {
   }) => void;
   currentSong?: any; // To check song mode and API routes
   dashboardData?: AdminDashboardData;
+  manualSongList?: any[];
 }
 
 const EditSongModal: React.FC<EditSongModalProps> = ({
@@ -43,9 +45,13 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   setFormData,
   currentSong,
   dashboardData,
+  manualSongList = [],
 }) => {
   const { t } = useTranslation();
   const [actionLoading, setActionLoading] = useState(false);
+  const [editSongUsdbResults, setEditSongUsdbResults] = useState<any[]>([]);
+  const [editSongUsdbLoading, setEditSongUsdbLoading] = useState(false);
+  const [editSongSearchTerm, setEditSongSearchTerm] = useState('');
   
   // Check if YouTube URL field should be shown
   const shouldShowYouTubeUrl = () => {
@@ -65,20 +71,6 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   // Check if background vocals option should be shown
   const shouldShowBackgroundVocals = () => {
     return currentSong && (currentSong.mode === 'ultrastar' || currentSong.mode === 'magic-youtube' || currentSong.modes?.includes('ultrastar') || currentSong.modes?.includes('magic-youtube'));
-  };
-  
-  // Check if YouTube mode options should be shown
-  const shouldShowYouTubeMode = () => {
-    // Only show if there's a YouTube URL and it's a real YouTube URL (not an API route)
-    if (!formData.youtubeUrl || !formData.youtubeUrl.trim()) {
-      return false;
-    }
-    
-    // Check if it's a real YouTube URL (not an API route)
-    const isRealYouTubeUrl = isYouTubeUrl(formData.youtubeUrl);
-    
-    // Only show if it's a real YouTube URL and no cache info is available
-    return isRealYouTubeUrl && !cacheInfo;
   };
   
   // Cache detection logic
@@ -141,131 +133,163 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
       }
     }
     
+    // If no YouTube URL or not found in cache, check local songs
+    if (!formData.artist.trim() || !formData.title.trim()) {
+      return null;
+    }
+    
+    const song = {
+      artist: formData.artist,
+      title: formData.title,
+      youtube_url: formData.youtubeUrl
+    };
+    
+    // Check if song is in YouTube cache
+    const isInYouTubeCache = isSongInYouTubeCache(song, dashboardData.youtubeSongs);
+    
+    // Check if song exists in local song list (ultrastar, magic-songs, etc.)
+    const localSong = manualSongList.find(s => 
+      s.artist?.toLowerCase() === formData.artist.toLowerCase() &&
+      s.title?.toLowerCase() === formData.title.toLowerCase()
+    );
+    
+    if (localSong) {
+      return {
+        found: true,
+        modes: localSong.modes || ['file'], // Use actual song modes
+        type: 'local'
+      };
+    }
+    
+    if (isInYouTubeCache) {
+      return {
+        found: true,
+        modes: ['youtube_cache'],
+        type: 'youtube_cache'
+      };
+    }
+    
     return null;
   };
   
   const cacheInfo = getCacheInfo();
+
+  // Check if YouTube mode options should be shown
+  const shouldShowYouTubeMode = () => {
+    // Only show if there's a YouTube URL and it's a real YouTube URL (not an API route)
+    if (!formData.youtubeUrl || !formData.youtubeUrl.trim()) {
+      return false;
+    }
+    
+    // Check if it's a real YouTube URL (not an API route)
+    const isRealYouTubeUrl = isYouTubeUrl(formData.youtubeUrl);
+    
+    // Only show if it's a real YouTube URL and no cache info is available
+    return isRealYouTubeUrl && !cacheInfo;
+  };
+
+  // Filter songs based on search term
+  const filteredEditSongs = manualSongList.filter(song =>
+    song.artist.toLowerCase().includes(editSongSearchTerm.toLowerCase()) ||
+    song.title.toLowerCase().includes(editSongSearchTerm.toLowerCase()) ||
+    `${song.artist} - ${song.title}`.toLowerCase().includes(editSongSearchTerm.toLowerCase())
+  );
+
+  const handleSelectEditSong = (song: any) => {
+    setFormData(prev => ({
+      ...prev,
+      artist: song.artist,
+      title: song.title,
+      youtubeUrl: '' // Clear YouTube URL when selecting from list
+    }));
+  };
+
+  useEffect(() => {
+    if (!show) {
+      setActionLoading(false);
+      setEditSongUsdbResults([]);
+      setEditSongUsdbLoading(false);
+      setEditSongSearchTerm('');
+    } else {
+      setActionLoading(false);
+    }
+  }, [show]);
   
+  // Check if song list should be shown (when YouTube URL is empty)
+  const shouldShowSongList = () => {
+    return !formData.youtubeUrl.trim();
+  };
+
   if (!show) return null;
 
     return (
         <Modal>
-            <ModalContent>
-                <ModalTitle>
-                {modalType === 'youtube' ? t('modals.editSong.addYoutubeLink') : t('modals.editSong.editSong')}
-                </ModalTitle>
-                
-                <FormGroup>
-                <Label>{t('songForm.singerName')}:</Label>
-                <Input
-                    type="text"
-                    value={formData.singerName || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, singerName: e.target.value }))}
-                    placeholder={t('songForm.singerNamePlaceholder')}
-                />
-                </FormGroup>
-                
-                <FormGroup>
-                <Label>{t('modals.editSong.title')}:</Label>
-                <Input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    disabled={modalType === 'youtube'}
-                />
-                </FormGroup>
-                
-                <FormGroup>
-                <Label>{t('modals.editSong.artist')}:</Label>
-                <Input
-                    type="text"
-                    value={formData.artist}
-                    onChange={(e) => setFormData(prev => ({ ...prev, artist: e.target.value }))}
-                    disabled={modalType === 'youtube'}
-                />
-                </FormGroup>
-                
-                {shouldShowYouTubeUrl() && (
-                <FormGroup>
-                <Label>{t('modals.editSong.youtubeUrl')}:</Label>
-                <Input
-                    type="url"
-                    value={formData.youtubeUrl}
-                    onChange={(e) => setFormData(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                    onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                        onSave();
-                    }
-                    }}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                />
-                </FormGroup>
-                )}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '20px',
+              maxWidth: '800px',
+              width: '90%',
+              maxHeight: '95vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+                borderBottom: '1px solid #eee',
+                paddingBottom: '15px'
+              }}>
+                <h3 style={{ margin: 0, color: '#333' }}>
+                  {modalType === 'youtube' ? t('modals.editSong.addYoutubeLink') : t('modals.editSong.editSong')}
+                </h3>
+                <Button
+                  onClick={onClose}
+                  type="default"
+                  size="small"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    padding: '0',
+                    minWidth: 'auto'
+                  }}
+                >
+                  ×
+                </Button>
+              </div>
 
-                {/* Cache Info */}
-                {cacheInfo && (
-                  <div style={{
-                    padding: '12px',
-                    backgroundColor: '#e8f5e8',
-                    border: '1px solid #4caf50',
-                    borderRadius: '6px',
-                    marginBottom: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#2e7d32' }}>
-                      ✅ {t('songForm.songFoundAs')}:
-                    </span>
-                    <SmallModeBadge mode="" modes={cacheInfo.modes} />
-                  </div>
-                )}
-
-                {/* YouTube Mode Radio Buttons */}
-                {shouldShowYouTubeMode() && (
-                  <FormGroup>
-                    <Label>{t('modals.editSong.youtubeMode')}:</Label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="youtubeMode"
-                          value="karaoke"
-                          checked={formData.youtubeMode === 'karaoke'}
-                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
-                        />
-                        <span>{t('modals.editSong.youtubeModeKaraoke')}</span>
-                        <SmallModeBadge mode="youtube" modes={[]} />
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                          type="radio"
-                          name="youtubeMode"
-                          value="magic"
-                          checked={formData.youtubeMode === 'magic'}
-                          onChange={(e) => setFormData(prev => ({ ...prev, youtubeMode: e.target.value as 'karaoke' | 'magic' }))}
-                        />
-                        <span>{t('modals.editSong.youtubeModeMagic')}</span>
-                        <SmallModeBadge mode="" modes={['magic-youtube']} />
-                      </label>
-                    </div>
-                  </FormGroup>
-                )}
-
-                {shouldShowBackgroundVocals() && (
-                    <FormGroup>
-                    <Label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={formData.withBackgroundVocals || false}
-                            onChange={(e) => setFormData(prev => ({ ...prev, withBackgroundVocals: e.target.checked }))}
-                        />
-                        <span>{t('songForm.withBackgroundVocals')}</span>
-                    </Label>
-                    </FormGroup>
-                )}
+              {/* Song Form */}
+              <SongForm
+                singerName={formData.singerName || ''}
+                artist={formData.artist}
+                title={formData.title}
+                youtubeUrl={formData.youtubeUrl}
+                youtubeMode={formData.youtubeMode}
+                withBackgroundVocals={Boolean(formData.withBackgroundVocals)}
+                onSingerNameChange={(value) => setFormData(prev => ({ ...prev, singerName: value }))}
+                songData={formData}
+                setSongData={setFormData}
+                setSongSearchTerm={setEditSongSearchTerm}
+                onYoutubeUrlChange={(value) => setFormData(prev => ({ ...prev, youtubeUrl: value }))}
+                onYoutubeModeChange={(mode) => setFormData(prev => ({ ...prev, youtubeMode: mode }))}
+                onWithBackgroundVocalsChange={(checked) => setFormData(prev => ({ ...prev, withBackgroundVocals: checked }))}
+                showSongList={shouldShowSongList()}
+                songList={filteredEditSongs}
+                onSongSelect={handleSelectEditSong}
+                usdbResults={editSongUsdbResults}
+                usdbLoading={editSongUsdbLoading}
+                setUsdbResults={setEditSongUsdbResults}
+                setUsdbLoading={setEditSongUsdbLoading}
+                hideYoutubeModeOptions={!!cacheInfo || !shouldShowYouTubeMode()}
+                cacheInfo={cacheInfo}
+              />
                 
-                <ModalButtons>
+              {/* Buttons */}
+              <ModalButtons>
                 <Button 
                     onClick={onClose}
                     type="default"
@@ -280,8 +304,8 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 >
                     {actionLoading ? t('modals.editSong.saving') : t('modals.editSong.save')}
                 </Button>
-                </ModalButtons>
-            </ModalContent>
+              </ModalButtons>
+            </div>
         </Modal>
     );
 };

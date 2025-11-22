@@ -18,7 +18,9 @@
     "songTitle": "KAPPALEEN NIMI",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB-haku käynnissä...",
-    "noLocalSongs": "Paikallisia kappaleita ei löytynyt"
+    "noLocalSongs": "Paikallisia kappaleita ei löytynyt",
+    "songFoundAs": "Kappale löytyi nimellä",
+    "removeSongLink": "Poista kappaleen linkki"
   },
   "banlist": {
     "title": "Kiellettyjen Listan Hallinta",

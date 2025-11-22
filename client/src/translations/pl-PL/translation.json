@@ -18,7 +18,9 @@
     "songTitle": "TYTUŁ PIOSENKI",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "Wyszukiwanie USDB w toku...",
-    "noLocalSongs": "Nie znaleziono lokalnych piosenek"
+    "noLocalSongs": "Nie znaleziono lokalnych piosenek",
+    "songFoundAs": "Piosenka znaleziona jako",
+    "removeSongLink": "Usuń link do piosenki"
   },
   "banlist": {
     "title": "Zarządzanie Listą Banów",

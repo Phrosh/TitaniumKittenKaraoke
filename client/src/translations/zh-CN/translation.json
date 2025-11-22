@@ -18,7 +18,9 @@
     "songTitle": "歌曲标题",
     "usdb": "USDB ({{count}})",
     "usdbSearching": "USDB搜索中...",
-    "noLocalSongs": "未找到本地歌曲"
+    "noLocalSongs": "未找到本地歌曲",
+    "songFoundAs": "歌曲发现为",
+    "removeSongLink": "删除歌曲链接"
   },
   "banlist": {
     "title": "封禁列表管理",
