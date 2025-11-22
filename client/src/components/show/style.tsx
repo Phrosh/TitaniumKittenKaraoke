@@ -10,7 +10,8 @@ import {
     NEXT_SONG_INFO_BACKGROUND,
     UNSUNG_COLOR,
     SECONDARY_COLOR,
-    AD_HEIGHT
+    AD_HEIGHT,
+    LYRICS_FADE_DURATION
 } from './constants';
 
 export const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
@@ -138,7 +139,7 @@ export const Header = styled.div`
   left: 0;
   right: 0;
   background: ${BLACK_BACKGROUND};
-  backdrop-filter: blur(10px);
+  /*backdrop-filter: blur(10px);*/
   padding: 20px 40px;
   z-index: 10;
 `;
@@ -194,7 +195,7 @@ export const Footer = styled.div`
   left: 0;
   right: 0;
   background: ${BLACK_BACKGROUND};
-  backdrop-filter: blur(10px);
+  /*backdrop-filter: blur(10px);*/
   padding: 20px 80px;
   z-index: 10;
 `;
@@ -295,7 +296,7 @@ export const NextSongInfo = styled.div`
   border-radius: 20px;
   padding: 30px;
   margin-bottom: 40px;
-  backdrop-filter: blur(10px);
+  /*backdrop-filter: blur(10px);*/
 `;
 
 export const NextSinger = styled.div`
@@ -532,4 +533,33 @@ export const LoadingMessage = styled.div`
   color: #666;
   background: #f8f9fa;
   border-radius: 15px;
+`;
+
+export const LyricsContainer = styled.div<{ 
+  $opacity: number; 
+  $scale: number; 
+  $transitionEnabled: boolean;
+  $top: string;
+}>`
+  position: absolute;
+  top: ${props => props.$top};
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 25vh;
+  background: rgba(0, 0, 0, 0.8);
+  /* backdrop-filter: blur(10px); */
+  border-radius: 0;
+  padding: 4vh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: ${props => props.$opacity};
+  white-space: pre;
+  box-shadow: 0px 0px 20px ${BLACK_BACKGROUND};
+  transform: translateY(-50%) scale(${props => props.$scale});
+  transition: ${props => props.$transitionEnabled ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'};
+  overflow: hidden;
 `;

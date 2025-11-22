@@ -17,16 +17,14 @@ import {
   CURRENT_LINE_OPACITY,
   NEXT_LINE_OPACITY,
   NEXT_NEXT_LINE_OPACITY,
-  LYRICS_FADE_DURATION,
   COUNTDOWN_SECONDS,
   FADE_IN_ATTACK_SECONDS,
   FADE_IN_DURATION_SECONDS,
   FADE_OUT_THRESHOLD_MS,
   FADE_IN_THRESHOLD_MS,
   START_BUTTON_MODE,
-  CURRENT_START_MODE,
-  BLACK_BACKGROUND
- } from './constants';
+  CURRENT_START_MODE
+} from './constants';
 import { 
   ProgressOverlay, 
   ProgressBarContainer, 
@@ -39,7 +37,8 @@ import {
   BackgroundVideo,
   BackgroundLoopVideo,
   BackgroundImage,
-  NoVideoMessage
+  NoVideoMessage,
+  LyricsContainer
 } from './style';
 import { UltrastarSongData } from './types';
 import Footer from './Footer';
@@ -139,43 +138,6 @@ const ShowView: React.FC = () => {
   const [backgroundVideoFadeOut, setBackgroundVideoFadeOut] = useState(false);
   const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
 
-  const lyricsDisplayStyle = {
-    position: 'absolute' as const,
-    top: '55%',
-    left: 0,
-    right: 0,
-    width: '100%',
-    height: '25vh',
-    background: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 0,
-    padding: '4vh',
-    zIndex: 10,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: showLyrics1 ? 1 : 0,
-    whiteSpace: 'pre' as const,
-    boxShadow: `0px 0px 20px ${BLACK_BACKGROUND}`,
-    transform: `translateY(-50%) scale(${lyricsScaleP1})`,
-    transition: `${lyricsTransitionEnabledP1 ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
-    overflow: 'hidden' as const
-  };
-
-  const lyricsDisplayStyle1 = !isDuet ? lyricsDisplayStyle : {
-    ...lyricsDisplayStyle,
-    top: '35%',
-  }
-
-  // console.log(showLyrics1, showLyrics2, lyricsScaleP1, lyricsScaleP2);
-
-  const lyricsDisplayStyle2 = {
-    ...lyricsDisplayStyle,
-    opacity: showLyrics2 ? 1 : 0,
-    transform: `translateY(-50%) scale(${lyricsScaleP2})`,
-    transition: `${lyricsTransitionEnabledP2 ? `opacity ${LYRICS_FADE_DURATION} ease-in-out, height 1s ease-in-out, min-height 1s ease-in-out, padding 1s ease-in-out` : 'none'}`,
-    top: '65%',
-  }
 
   const currentLyricStyle = {
     fontSize: '7vh',
@@ -2320,18 +2282,31 @@ const ShowView: React.FC = () => {
                 onPause={handleAudioPause}
                 onEnded={handleAudioEnded}
               />
-              <div style={lyricsDisplayStyle1} onClick={(e) => e.stopPropagation()}>
+              <LyricsContainer 
+                $opacity={showLyrics1 ? 1 : 0}
+                $scale={lyricsScaleP1}
+                $transitionEnabled={lyricsTransitionEnabledP1}
+                $top={!isDuet ? '55%' : '35%'}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div ref={currentLyricRef1} style={currentLyricStyle}></div>
                 <div ref={nextLyricRef1} style={previewLyricStyle}></div>
                 <div ref={nextNextLyricRef1} style={previewLyricStyle}></div>
+              </LyricsContainer>
 
-              </div>
-
-              {isDuet && <div style={lyricsDisplayStyle2} onClick={(e) => e.stopPropagation()}>
-                <div ref={currentLyricRef2} style={currentLyricStyle}></div>
-                <div ref={nextLyricRef2} style={previewLyricStyle}></div>
-                <div ref={nextNextLyricRef2} style={previewLyricStyle}></div>
-              </div>}
+              {isDuet && (
+                <LyricsContainer 
+                  $opacity={showLyrics2 ? 1 : 0}
+                  $scale={lyricsScaleP2}
+                  $transitionEnabled={lyricsTransitionEnabledP2}
+                  $top="65%"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div ref={currentLyricRef2} style={currentLyricStyle}></div>
+                  <div ref={nextLyricRef2} style={previewLyricStyle}></div>
+                  <div ref={nextNextLyricRef2} style={previewLyricStyle}></div>
+                </LyricsContainer>
+              )}
             </>
           ) : (
             // Fallback area when not Ultrastar branch: show background loop if desired
