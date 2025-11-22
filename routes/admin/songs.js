@@ -30,7 +30,23 @@ router.get('/song/:songId', async (req, res) => {
 router.put('/song/:songId', [
   body('title').notEmpty().trim(),
   body('artist').optional().trim(),
-  body('youtubeUrl').optional().isURL()
+  body('youtubeUrl').optional().custom((value) => {
+    // Allow empty string, null, undefined
+    if (!value || value.trim() === '') {
+      return true;
+    }
+    // Allow API routes (starting with /api/)
+    if (value.startsWith('/api/')) {
+      return true;
+    }
+    // Otherwise, must be a valid URL
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }).withMessage('youtubeUrl must be a valid URL, an API route, or empty')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -39,7 +55,7 @@ router.put('/song/:songId', [
     }
 
     const { songId } = req.params;
-    const { title, artist, youtubeUrl } = req.body;
+    const { title, artist, youtubeUrl, withBackgroundVocals, singerName } = req.body;
 
     const song = await Song.getById(songId);
     if (!song) {
@@ -49,17 +65,36 @@ router.put('/song/:songId', [
     // Clean the YouTube URL before saving
     const cleanedUrl = cleanYouTubeUrl(youtubeUrl);
     
+    // Determine with_background_vocals value (use existing value if not provided)
+    const withBackgroundVocalsValue = withBackgroundVocals !== undefined 
+      ? (withBackgroundVocals ? 1 : 0) 
+      : (song.with_background_vocals ? 1 : 0);
+    
     // Update song details
     await new Promise((resolve, reject) => {
       db.run(
-        'UPDATE songs SET title = ?, artist = ?, youtube_url = ? WHERE id = ?',
-        [title, artist || null, cleanedUrl || null, songId],
+        'UPDATE songs SET title = ?, artist = ?, youtube_url = ?, with_background_vocals = ? WHERE id = ?',
+        [title, artist || null, cleanedUrl || null, withBackgroundVocalsValue, songId],
         function(err) {
           if (err) reject(err);
           else resolve();
         }
       );
     });
+
+    // Update user name (singerName) if provided
+    if (singerName !== undefined && singerName !== null && song.user_id) {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE users SET name = ? WHERE id = ?',
+          [singerName.trim(), song.user_id],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
 
     // Check if this is a YouTube URL and try to download it
     if (youtubeUrl && (youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
