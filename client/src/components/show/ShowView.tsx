@@ -712,6 +712,152 @@ const ShowView: React.FC = () => {
     }
   }, [stopUltrastarTiming]);
 
+  // Helper function to normalize URLs - convert absolute URLs to relative paths
+  const normalizeVideoUrl = useCallback((url: string): string => {
+    if (!url) return url;
+    
+    // If URL is already relative (starts with /), return as-is
+    if (url.startsWith('/')) {
+      return url;
+    }
+    
+    // If URL contains /api/youtube-videos/, extract the relative path
+    if (url.includes('/api/youtube-videos/')) {
+      const match = url.match(/\/api\/youtube-videos\/.+$/);
+      if (match) {
+        return match[0]; // Return relative path starting with /api/youtube-videos/
+      }
+    }
+    
+    // If URL contains /api/videos/, extract the relative path
+    if (url.includes('/api/videos/')) {
+      const match = url.match(/\/api\/videos\/.+$/);
+      if (match) {
+        return match[0]; // Return relative path starting with /api/videos/
+      }
+    }
+    
+    // If URL contains /api/magic-videos/, extract the relative path
+    if (url.includes('/api/magic-videos/')) {
+      const match = url.match(/\/api\/magic-videos\/.+$/);
+      if (match) {
+        return match[0];
+      }
+    }
+    
+    // If URL contains /api/magic-youtube/, extract the relative path
+    if (url.includes('/api/magic-youtube/')) {
+      const match = url.match(/\/api\/magic-youtube\/.+$/);
+      if (match) {
+        return match[0];
+      }
+    }
+    
+    // Return original URL if no API path found
+    return url;
+  }, []);
+
+  // Shared function to normalize song URLs - same logic as in fetchCurrentSong
+  const normalizeSongUrl = useCallback(async (newSong: any): Promise<any> => {
+    if (!newSong || !newSong.youtube_url) {
+      return newSong;
+    }
+
+    // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
+    let normalizedSong = newSong;
+    
+    // If song already has youtube_cache mode with a cache URL, ensure it's treated as server_video
+    if (newSong.mode === 'youtube_cache' && newSong.youtube_url.includes('/api/youtube-videos/')) {
+      const normalizedUrl = normalizeVideoUrl(newSong.youtube_url);
+      normalizedSong = {
+        ...newSong,
+        youtube_url: normalizedUrl,
+        mode: 'server_video' // Convert youtube_cache to server_video for consistent handling
+      };
+      console.log('🌐 Converting youtube_cache to server_video:', {
+        original: newSong.youtube_url,
+        normalized: normalizedUrl,
+        artist: newSong.artist,
+        title: newSong.title,
+        originalMode: newSong.mode,
+        newMode: 'server_video'
+      });
+    } else {
+      // Extract video ID from any YouTube URL
+      let videoId: string | null = null;
+      const videoIdMatch = newSong.youtube_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+      if (videoIdMatch) {
+        videoId = videoIdMatch[1];
+      }
+
+      if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
+        // Use new unified endpoint to check for cached files
+        try {
+          const response = await api.get('/songs/song-data', { 
+            params: { 
+              artist: newSong.artist, 
+              title: newSong.title, 
+              youtubeId: videoId
+            } 
+          });
+          
+          if (response.data.songData && response.data.songData.videoUrl) {
+            // Cache hit - use the found file
+            const normalizedUrl = normalizeVideoUrl(response.data.songData.videoUrl);
+            normalizedSong = {
+              ...newSong,
+              youtube_url: normalizedUrl,
+              mode: 'server_video' // Force to server_video mode
+            };
+
+            console.log('🌐 Cache hit - using file:', {
+              original: newSong.youtube_url,
+              cached: response.data.songData.videoUrl,
+              normalized: normalizedUrl,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'server_video'
+            });
+          } else {
+            // Cache miss - use YouTube embed as fallback
+            normalizedSong = {
+              ...newSong,
+              mode: 'youtube' // Force to youtube mode for embed
+            };
+
+            console.log('🌐 Cache miss - using YouTube embed:', {
+              original: newSong.youtube_url,
+              artist: newSong.artist,
+              title: newSong.title,
+              videoId: videoId,
+              originalMode: newSong.mode,
+              newMode: 'youtube'
+            });
+          }
+        } catch (error) {
+          // Cache miss - use YouTube embed as fallback
+          normalizedSong = {
+            ...newSong,
+            mode: 'youtube' // Force to youtube mode for embed
+          };
+
+          console.log('🌐 Cache miss - using YouTube embed:', {
+            original: newSong.youtube_url,
+            artist: newSong.artist,
+            title: newSong.title,
+            videoId: videoId,
+            originalMode: newSong.mode,
+            newMode: 'youtube'
+          });
+        }
+      }
+    }
+    
+    return normalizedSong;
+  }, [normalizeVideoUrl]);
+
   const analyzeFadeOutLines = useCallback((songData: UltrastarSongData): Set<number>[] => {
     let fadeOutIndices = [];
     
@@ -872,77 +1018,8 @@ const ShowView: React.FC = () => {
       const title = response.data.overlayTitle;
 
       // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
-      let normalizedSong = newSong;
-      if (newSong && newSong.youtube_url) {
-        // Extract video ID from any YouTube URL
-        let videoId: string | null = null;
-        const videoIdMatch = newSong.youtube_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-        if (videoIdMatch) {
-          videoId = videoIdMatch[1];
-        }
-
-        if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
-          // Use new unified endpoint to check for cached files
-          try {
-            const response = await api.get('/songs/song-data', { 
-              params: { 
-                artist: newSong.artist, 
-                title: newSong.title, 
-                youtubeId: videoId
-              } 
-            });
-            
-            if (response.data.songData && response.data.songData.videoUrl) {
-              // Cache hit - use the found file
-              normalizedSong = {
-                ...newSong,
-                youtube_url: response.data.songData.videoUrl,
-                mode: 'server_video' // Force to server_video mode
-              };
-
-              console.log('🌐 Cache hit - using file:', {
-                original: newSong.youtube_url,
-                cached: response.data.songData.videoUrl,
-                artist: newSong.artist,
-                title: newSong.title,
-                videoId: videoId,
-                originalMode: newSong.mode,
-                newMode: 'server_video'
-              });
-            } else {
-              // Cache miss - use YouTube embed as fallback
-              normalizedSong = {
-                ...newSong,
-                mode: 'youtube' // Force to youtube mode for embed
-              };
-
-              console.log('🌐 Cache miss - using YouTube embed:', {
-                original: newSong.youtube_url,
-                artist: newSong.artist,
-                title: newSong.title,
-                videoId: videoId,
-                originalMode: newSong.mode,
-                newMode: 'youtube'
-              });
-            }
-          } catch (error) {
-            // Cache miss - use YouTube embed as fallback
-            normalizedSong = {
-              ...newSong,
-              mode: 'youtube' // Force to youtube mode for embed
-            };
-
-            console.log('🌐 Cache miss - using YouTube embed:', {
-              original: newSong.youtube_url,
-              artist: newSong.artist,
-              title: newSong.title,
-              videoId: videoId,
-              originalMode: newSong.mode,
-              newMode: 'youtube'
-            });
-          }
-        }
-      }
+      // Use the same normalization logic as in fetchCurrentSong
+      const normalizedSong = await normalizeSongUrl(newSong);
 
       console.log('🌐 API fetchCurrentSong:', {
         newSong: normalizedSong ? {
@@ -1052,67 +1129,8 @@ const ShowView: React.FC = () => {
     const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle } = data;
 
     // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
-    let normalizedSong = newSong;
-    if (newSong && newSong.youtube_url) {
-      // Extract video ID from any YouTube URL
-      let videoId: string | null = null;
-      const videoIdMatch = newSong.youtube_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-      if (videoIdMatch) {
-        videoId = videoIdMatch[1];
-      }
-
-      if (videoId && (newSong.youtube_url.includes('youtube.com') || newSong.youtube_url.includes('localhost:5000/api/youtube-videos'))) {
-        // Use new unified endpoint to check for cached files
-        try {
-          const response = await api.get('/songs/song-data', { 
-            params: { 
-              artist: newSong.artist, 
-              title: newSong.title, 
-              youtubeId: videoId
-            } 
-          });
-          
-          if (response.data.songData && response.data.songData.videoUrl) {
-            // Cache hit - use the found file
-            normalizedSong = {
-              ...newSong,
-              youtube_url: response.data.songData.videoUrl,
-              mode: 'server_video' // Force to server_video mode
-            };
-          } else {
-            // Cache miss - use YouTube embed as fallback
-            normalizedSong = {
-              ...newSong,
-              mode: 'youtube' // Force to youtube mode for embed
-            };
-
-            console.log('🔌 Cache miss - using YouTube embed:', {
-              original: newSong.youtube_url,
-              artist: newSong.artist,
-              title: newSong.title,
-              videoId: videoId,
-              originalMode: newSong.mode,
-              newMode: 'youtube'
-            });
-          }
-        } catch (error) {
-          // Cache miss - use YouTube embed as fallback
-          normalizedSong = {
-            ...newSong,
-            mode: 'youtube' // Force to youtube mode for embed
-          };
-
-          console.log('🔌 Cache miss - using YouTube embed:', {
-            original: newSong.youtube_url,
-            artist: newSong.artist,
-            title: newSong.title,
-            videoId: videoId,
-            originalMode: newSong.mode,
-            newMode: 'youtube'
-          });
-        }
-      }
-    }
+    // Use the same normalization logic as in fetchCurrentSong
+    const normalizedSong = await normalizeSongUrl(newSong);
 
     console.log('🔌 WebSocket Update received:', {
       newSong: normalizedSong ? {
