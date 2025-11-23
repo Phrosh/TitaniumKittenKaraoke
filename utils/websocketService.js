@@ -244,6 +244,65 @@ async function broadcastAdminUpdate(io) {
 }
 
 /**
+ * Sendet Song-Start-Event mit Timestamp an Admin Dashboard
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {Object} song - Der Song der gestartet wurde
+ * @param {boolean} isRestart - Ob es ein Neustart ist
+ */
+async function broadcastSongStart(io, song, isRestart = false) {
+  try {
+    const startTimestamp = new Date().toISOString();
+    
+    // Versuche, die Dauer aus der Datei zu lesen, wenn nicht in DB vorhanden
+    let durationSeconds = song.duration_seconds;
+    if (!durationSeconds || durationSeconds === null) {
+      const { getSongDuration } = require('./getFileDuration');
+      durationSeconds = await getSongDuration(song);
+      console.log(`⏱️ Read duration from file: ${durationSeconds}s for ${song?.artist} - ${song?.title}`);
+    }
+    
+    // Log song data for debugging
+    console.log(`⏱️ Broadcasting song start:`, {
+      songId: song.id,
+      artist: song.artist,
+      title: song.title,
+      duration_seconds: durationSeconds,
+      hasDuration: durationSeconds !== null && durationSeconds !== undefined
+    });
+    
+    io.to('admin').emit('song-start', {
+      songId: song.id,
+      startTimestamp,
+      durationSeconds: durationSeconds,
+      isRestart,
+      timestamp: startTimestamp
+    });
+    
+    console.log(`⏱️ Broadcasted song start to admin: ${song?.artist} - ${song?.title} (${startTimestamp}, duration: ${durationSeconds || 'null'})`);
+  } catch (error) {
+    console.error('Error broadcasting song start:', error);
+  }
+}
+
+/**
+ * Sendet Play/Pause-Status an Admin Dashboard
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {boolean} isPlaying - Ob der Song gerade spielt
+ */
+async function broadcastPlayPauseStatus(io, isPlaying) {
+  try {
+    io.to('admin').emit('play-pause-status', {
+      isPlaying,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log(`⏯️ Broadcasted play/pause status to admin: ${isPlaying ? 'playing' : 'paused'}`);
+  } catch (error) {
+    console.error('Error broadcasting play/pause status:', error);
+  }
+}
+
+/**
  * Sendet Playlist-Updates für öffentliche Playlist-Ansicht
  * @param {Object} io - Socket.IO Server Instance
  */
@@ -279,7 +338,11 @@ async function broadcastTogglePlayPause(io) {
   try {
     // Send toggle event to all clients in show room
     io.to('show').emit('toggle-play-pause');
-    console.log(`⏯️ Broadcasted play/pause toggle to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients`);
+    console.log(`⏯️ Broadcasted play/pause toggle to ${io.sockets.adapter.rooms.get('show')?.size || 0} clients in show room`);
+    
+    // Also send to admin room so admin dashboard can update play/pause state
+    io.to('admin').emit('toggle-play-pause');
+    console.log(`⏯️ Broadcasted play/pause toggle to ${io.sockets.adapter.rooms.get('admin')?.size || 0} clients in admin room`);
   } catch (error) {
     console.error('Error broadcasting play/pause toggle:', error);
   }
@@ -385,6 +448,8 @@ async function broadcastQueueStatus(io, data) {
 }
 
 module.exports = {
+  broadcastSongStart,
+  broadcastPlayPauseStatus,
   broadcastShowUpdate,
   broadcastSongChange,
   broadcastQRCodeToggle,

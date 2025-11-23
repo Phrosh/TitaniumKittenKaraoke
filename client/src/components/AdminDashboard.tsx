@@ -16,7 +16,7 @@ import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import getFirstLetter from '../utils/getFirstLetter';
 import SongForm from './admin/SongForm';
 import loadAllSongs from '../utils/loadAllSongs';
-import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent, CurrentNextSongContainer, SongDisplayBox, SongDisplayLabel, SongDisplaySinger, SongDisplayTitle } from './admin/style';
+import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent, CurrentNextSongContainer, SongDisplayBox, SongDisplayLabel, SongDisplaySinger, SongDisplayTitle, SongTimeContainer, SongTimeRow, SongTimeLabel, SongProgressBar, SongProgressFill, SongTimeValueLeft, SongTimeValueRight } from './admin/style';
 
 
 const AdminDashboard: React.FC = () => {
@@ -26,6 +26,10 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true); // Default to true - assume song is playing when dashboard loads
+  const [songStartTimestamp, setSongStartTimestamp] = useState<string | null>(null);
+  const [songDuration, setSongDuration] = useState<number | null>(null);
+  const [currentSongId, setCurrentSongId] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
 
   
   // Song Approval System State
@@ -110,6 +114,27 @@ const AdminDashboard: React.FC = () => {
   }, [navigate]);
 
   const handleAdminWebSocketUpdate = useCallback((data: AdminUpdateData) => {
+    // Check if current song changed
+    if (data.currentSong && data.currentSong.id !== currentSongId) {
+      // Song changed, reset timer (will be set by song-start event)
+      setSongStartTimestamp(null);
+      setSongDuration(data.currentSong.duration_seconds ?? null);
+      setCurrentSongId(data.currentSong.id);
+      setElapsedTime(0);
+    } else if (!data.currentSong && currentSongId !== null) {
+      // Song was removed
+      setSongStartTimestamp(null);
+      setSongDuration(null);
+      setCurrentSongId(null);
+      setElapsedTime(0);
+    } else if (data.currentSong && data.currentSong.id === currentSongId) {
+      // Same song, but maybe duration is now available
+      if (!songDuration && data.currentSong.duration_seconds) {
+        setSongDuration(data.currentSong.duration_seconds);
+        console.log('⏱️ Updated duration from admin-update:', data.currentSong.duration_seconds);
+      }
+    }
+    
     // Update dashboard data with WebSocket data
     setDashboardData(prevData => ({
       ...prevData,
@@ -126,14 +151,105 @@ const AdminDashboard: React.FC = () => {
     }
     
     setLoading(false);
-  }, []);
+  }, [currentSongId, songDuration]);
 
   useEffect(() => {
     // Initial fetch
     fetchDashboardData();
     // USDB credentials und Cloudflared werden jetzt in der SettingsTab verwaltet
     
+    // Define handleAdminToast before the .then() block so it's available in cleanup
+    const handleAdminToast = (data: { 
+      type: 'error' | 'success' | 'warning' | 'info'; 
+      message?: string; 
+      translationKey?: string;
+      translationParams?: Record<string, any>;
+      details?: string; 
+      reasonTranslationKey?: string;
+      reasonTranslationParams?: Record<string, any>;
+      timestamp: string; 
+    }) => {
+      console.log('🍞 AdminDashboard: Received admin toast:', data);
+      
+      // Get translated message
+      let message = data.message;
+      if (data.translationKey) {
+        message = t(data.translationKey, data.translationParams);
+      }
+      
+      // Get translated details if available
+      let details = data.details;
+      if (data.reasonTranslationKey) {
+        details = t(data.reasonTranslationKey, data.reasonTranslationParams);
+      }
+      
+      // Show toast based on type
+      switch (data.type) {
+        case 'error':
+          toast.error(message, {
+            duration: 5000,
+            position: 'top-right',
+            description: details
+          });
+          break;
+        case 'success':
+          toast.success(message, {
+            duration: 3000,
+            position: 'top-right',
+            description: details
+          });
+          break;
+        case 'warning':
+          toast(message, {
+            icon: '⚠️',
+            duration: 4000,
+            position: 'top-right',
+            description: details
+          });
+          break;
+        case 'info':
+          toast(message, {
+            icon: 'ℹ️',
+            duration: 3000,
+            position: 'top-right',
+            description: details
+          });
+          break;
+        default:
+          toast(message, {
+            duration: 3000,
+            position: 'top-right',
+            description: details
+          });
+      }
+    };
+    
+    // Define handleSongStart before the .then() block so it's available in cleanup
+    const handleSongStart = (data: { songId: number; startTimestamp: string; durationSeconds: number | null; isRestart: boolean }) => {
+      console.log('⏱️ Song start event received:', data);
+      setSongStartTimestamp(data.startTimestamp);
+      setCurrentSongId(data.songId);
+      setElapsedTime(0);
+      
+      // Use duration from event if available
+      if (data.durationSeconds && data.durationSeconds !== null) {
+        setSongDuration(data.durationSeconds);
+        console.log('⏱️ Using duration from song-start event:', data.durationSeconds);
+      } else {
+        // Duration not in event, will be set from admin-update event if available
+        setSongDuration(null);
+        console.log('⏱️ No duration in song-start event, waiting for admin-update');
+      }
+    };
+    
+    // Define handleTogglePlayPause before the .then() block so it's available in cleanup
+    const handleTogglePlayPause = () => {
+      console.log('⏯️ Frontend: Received toggle-play-pause event');
+      setIsPlaying(prev => !prev);
+    };
+    
     // Connect to WebSocket
+    console.log('🔌 Frontend: Attempting to connect to WebSocket...');
     websocketService.connect().then(() => {
       console.log('🔌 Frontend: Connected to WebSocket for admin updates');
       websocketService.joinAdminRoom();
@@ -147,12 +263,17 @@ const AdminDashboard: React.FC = () => {
       });
       
       // Set up WebSocket event listeners AFTER connection is established
+      console.log('🔌 Frontend: Registering event listeners...');
       websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
+      console.log('🔌 Frontend: Registered admin-update listener');
+      
+      // Listen for song start events
+      websocketService.on('song-start', handleSongStart);
+      console.log('🔌 Frontend: Registered song-start listener');
       
       // Listen for play/pause toggle events to update isPlaying state
-      websocketService.on('toggle-play-pause', () => {
-        setIsPlaying(prev => !prev);
-      });
+      websocketService.on('toggle-play-pause', handleTogglePlayPause);
+      console.log('🔌 Frontend: Registered toggle-play-pause listener');
       
       // Listen for show actions from ShowView
       const handleShowAction = (data: { action: string; timestamp: string; [key: string]: any }) => {
@@ -186,71 +307,6 @@ const AdminDashboard: React.FC = () => {
       websocketService.onShowAction(handleShowAction);
       
       // Listen for admin toast notifications
-      const handleAdminToast = (data: { 
-        type: 'error' | 'success' | 'warning' | 'info'; 
-        message?: string; 
-        translationKey?: string;
-        translationParams?: Record<string, any>;
-        details?: string; 
-        reasonTranslationKey?: string;
-        reasonTranslationParams?: Record<string, any>;
-        timestamp: string; 
-      }) => {
-        console.log('🍞 AdminDashboard: Received admin toast:', data);
-        
-        // Get translated message
-        let message = data.message;
-        if (data.translationKey) {
-          message = t(data.translationKey, data.translationParams);
-        }
-        
-        // Get translated details if available
-        let details = data.details;
-        if (data.reasonTranslationKey) {
-          details = t(data.reasonTranslationKey, data.reasonTranslationParams);
-        }
-        
-        // Show toast based on type
-        switch (data.type) {
-          case 'error':
-            toast.error(message, {
-              duration: 5000,
-              position: 'top-right',
-              description: details
-            });
-            break;
-          case 'success':
-            toast.success(message, {
-              duration: 3000,
-              position: 'top-right',
-              description: details
-            });
-            break;
-          case 'warning':
-            toast(message, {
-              icon: '⚠️',
-              duration: 4000,
-              position: 'top-right',
-              description: details
-            });
-            break;
-          case 'info':
-            toast(message, {
-              icon: 'ℹ️',
-              duration: 3000,
-              position: 'top-right',
-              description: details
-            });
-            break;
-          default:
-            toast(message, {
-              duration: 3000,
-              position: 'top-right',
-              description: details
-            });
-        }
-      };
-      
       websocketService.on('admin-toast', handleAdminToast);
       
       // Listen for playlist upgrade notifications
@@ -343,8 +399,10 @@ const AdminDashboard: React.FC = () => {
     // Event listeners are now set up AFTER WebSocket connection is established
 
     return () => {
+      console.log('🔌 Frontend: Cleaning up WebSocket event listeners');
       websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
-      websocketService.off('toggle-play-pause');
+      websocketService.off('toggle-play-pause', handleTogglePlayPause);
+      websocketService.off('song-start', handleSongStart);
       websocketService.offShowAction(() => {});
       websocketService.offPlaylistUpgrade(() => {});
       websocketService.offUSDBDownload(() => {});
@@ -353,6 +411,25 @@ const AdminDashboard: React.FC = () => {
       websocketService.disconnect();
     };
   }, [fetchDashboardData, handleAdminWebSocketUpdate]);
+
+  // Interval for calculating elapsed time
+  useEffect(() => {
+    if (!songStartTimestamp || !isPlaying || !songDuration) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const startTime = new Date(songStartTimestamp).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      
+      // Don't exceed song duration
+      const clampedElapsed = Math.min(elapsed, songDuration);
+      setElapsedTime(clampedElapsed);
+    }, 100); // Update every 100ms for smooth progress
+
+    return () => clearInterval(interval);
+  }, [songStartTimestamp, isPlaying, songDuration]);
 
 
   // Song Approval System Handlers
@@ -560,7 +637,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <Container>
-      <Header>
+      {/* <Header>
         <Title>
           <img 
             src="/tkk-logo.png" 
@@ -574,7 +651,7 @@ const AdminDashboard: React.FC = () => {
           {t('adminDashboard.title')}
         </Title>
         <LogoutButton onClick={handleLogout}>{t('adminDashboard.logout')}</LogoutButton>
-      </Header>
+      </Header> */}
 
       {/* Approval Notification Bar */}
       <ApprovalNotificationBarComponent
@@ -594,6 +671,32 @@ const AdminDashboard: React.FC = () => {
               <SongDisplayTitle>
                 {dashboardData.currentSong.artist || ''} {dashboardData.currentSong.artist && dashboardData.currentSong.title ? ' - ' : ''} {dashboardData.currentSong.title || 'Kein Titel'}
               </SongDisplayTitle>
+              
+              {/* Time Display and Progress Bar */}
+              {songDuration && songDuration > 0 && (
+                <SongTimeContainer $isCurrent={true}>
+                  <SongTimeRow>
+                    <SongTimeValueLeft>
+                      {(() => {
+                        const remaining = Math.max(0, songDuration - elapsedTime);
+                        const minutes = Math.floor(remaining / 60);
+                        const seconds = remaining % 60;
+                        return `-${minutes}:${seconds.toString().padStart(2, '0')}`;
+                      })()}
+                    </SongTimeValueLeft>
+                    <SongProgressBar>
+                      <SongProgressFill $progress={songDuration > 0 ? (elapsedTime / songDuration) * 100 : 0} />
+                    </SongProgressBar>
+                    <SongTimeValueRight>
+                      {(() => {
+                        const minutes = Math.floor(songDuration / 60);
+                        const seconds = songDuration % 60;
+                        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                      })()}
+                    </SongTimeValueRight>
+                  </SongTimeRow>
+                </SongTimeContainer>
+              )}
             </>
           ) : (
             <>

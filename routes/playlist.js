@@ -2,7 +2,7 @@ const express = require('express');
 const Song = require('../models/Song');
 const PlaylistAlgorithm = require('../utils/playlistAlgorithm');
 const { verifyToken } = require('./auth');
-const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong } = require('../utils/websocketService');
+const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong, broadcastSongStart, broadcastPlayPauseStatus } = require('../utils/websocketService');
 
 const router = express.Router();
 
@@ -328,6 +328,9 @@ router.put('/current', verifyToken, async (req, res) => {
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
       
+      // Broadcast song start event with timestamp for admin dashboard
+      await broadcastSongStart(io, song, false);
+      
       // Broadcast song start event to auto-hide QR overlay
       io.emit('song-action', {
         action: 'song-started',
@@ -405,6 +408,9 @@ router.post('/next', verifyToken, async (req, res) => {
       await broadcastSongChange(io, nextSong);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
+      
+      // Broadcast song start event with timestamp for admin dashboard
+      await broadcastSongStart(io, nextSong, false);
       
       // Broadcast song start event to auto-hide QR overlay
       io.emit('song-action', {
@@ -507,6 +513,8 @@ router.post('/toggle-play-pause', verifyToken, async (req, res) => {
     
     const io = req.app.get('io');
     if (io) {
+      // Get current playing state from ShowView (we'll need to track this)
+      // For now, we'll emit the toggle and let ShowView report back the state
       if (currentSong && currentSong.mode === 'ultrastar') {
         // For Ultrastar songs, we need to handle audio playback
         // The ShowView will handle the actual audio element control
@@ -517,6 +525,9 @@ router.post('/toggle-play-pause', verifyToken, async (req, res) => {
         await broadcastTogglePlayPause(io);
         console.log(`⏯️ Generic play/pause toggle for: ${currentSong?.artist || 'unknown'} - ${currentSong?.title || 'unknown'}`);
       }
+      
+      // Note: The actual play/pause status will be sent by ShowView via 'show-action' event
+      // We'll handle it in the frontend
     }
     
     res.json({ 
@@ -578,6 +589,9 @@ router.post('/restart', verifyToken, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       await broadcastRestartSong(io, currentSong);
+      
+      // Broadcast song restart with timestamp for admin dashboard
+      await broadcastSongStart(io, currentSong, true);
       
       // Broadcast QR overlay change if it was hidden
       if (showQRCodeOverlay) {

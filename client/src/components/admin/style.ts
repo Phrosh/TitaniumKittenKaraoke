@@ -151,7 +151,7 @@ export const CurrentNextSongContainer = styled.div`
   padding: 20px;
 `;
 
-export const SongDisplayBox = styled.div`
+export const SongDisplayBox = styled.div<{ $isCurrent?: boolean }>`
   flex: 1;
   padding: 20px;
   border-radius: 8px;
@@ -175,13 +175,66 @@ export const SongDisplayLabel = styled.div`
 
 export const SongDisplaySinger = styled.div`
   font-size: 2.4rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #333;
-  margin-bottom: 8px;
 `;
 
 export const SongDisplayTitle = styled.div`
   font-size: 2.0rem;
   color: #555;
   font-style: italic;
+  margin-bottom: 20px;
+`;
+
+export const SongTimeContainer = styled.div<{ $isCurrent?: boolean }>`
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid ${props => props.$isCurrent ? '#1976d2' : '#e9ecef'};
+`;
+
+export const SongTimeRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+`;
+
+export const SongTimeLabel = styled.div`
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #666;
+  min-width: 80px;
+`;
+
+export const SongProgressBar = styled.div`
+  flex: 1;
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 2px;
+`;
+
+export const SongProgressFill = styled.div<{ $progress: number }>`
+  height: 100%;
+  width: ${props => Math.min(100, Math.max(0, props.$progress))}%;
+  background: ${props => props.$progress >= 100 ? '#28a745' : '#1976d2'};
+  transition: width 0.1s linear;
+  border-radius: 6px;
+`;
+
+export const SongTimeValue = styled.div`
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  min-width: 80px;
+`;
+
+export const SongTimeValueLeft = styled(SongTimeValue)`
+  text-align: right;
+`;
+
+export const SongTimeValueRight = styled(SongTimeValue)`
+  text-align: left;
 `;
