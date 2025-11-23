@@ -174,14 +174,14 @@ export const SongDisplayLabel = styled.div`
 `;
 
 export const SongDisplaySinger = styled.div`
-  font-size: 1.8rem;
+  font-size: 2.4rem;
   font-weight: 600;
   color: #333;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 `;
 
 export const SongDisplayTitle = styled.div`
-  font-size: 1.5rem;
+  font-size: 2.0rem;
   color: #555;
   font-style: italic;
 `;
