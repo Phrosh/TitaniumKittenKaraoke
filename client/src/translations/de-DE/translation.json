@@ -477,6 +477,8 @@
       "settings": "Einstellungen",
       "backgroundMusic": "Hintergrundmusik"
     },
+    "currentSong": "Aktueller Song",
+    "nextSong": "Nächster Song",
     "songApprovalNotification": "{{count}} Songwunsch/Songwünsche zur Bestätigung eingegangen!",
     "newSongApprovalRequest": "Neuer Songwunsch zur Bestätigung eingegangen!",
     "songAddedSuccess": "Song erfolgreich zur Playlist hinzugefügt!",

@@ -465,6 +465,8 @@
       "settings": "Configuración",
       "backgroundMusic": "Música de Fondo"
     },
+    "currentSong": "Canción Actual",
+    "nextSong": "Siguiente Canción",
     "songApprovalNotification": "¡{{count}} solicitud/solicitudes de canción pendientes de aprobación!",
     "newSongApprovalRequest": "¡Nueva solicitud de canción pendiente de aprobación!",
     "songAddedSuccess": "¡Canción agregada exitosamente a la lista de reproducción!",

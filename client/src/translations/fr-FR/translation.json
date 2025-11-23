@@ -465,6 +465,8 @@
       "settings": "Paramètres",
       "backgroundMusic": "Musique de Fond"
     },
+    "currentSong": "Chanson Actuelle",
+    "nextSong": "Chanson Suivante",
     "songApprovalNotification": "{{count}} demande(s) de chanson(s) reçue(s) pour approbation!",
     "newSongApprovalRequest": "Nouvelle demande de chanson reçue pour approbation!",
     "songAddedSuccess": "Chanson ajoutée avec succès à la playlist!",

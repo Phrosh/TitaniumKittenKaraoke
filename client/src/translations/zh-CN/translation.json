@@ -446,6 +446,8 @@
       "users": "用户管理",
       "settings": "设置"
     },
+    "currentSong": "当前歌曲",
+    "nextSong": "下一首歌曲",
     "songApprovalNotification": "{{count}}个歌曲请求已收到等待批准！",
     "newSongApprovalRequest": "新的歌曲请求已收到等待批准！",
     "songAddedSuccess": "歌曲已成功添加到播放列表！",

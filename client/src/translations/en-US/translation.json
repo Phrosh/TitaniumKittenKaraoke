@@ -469,6 +469,8 @@
       "settings": "Settings",
       "backgroundMusic": "Background Music"
     },
+    "currentSong": "Current Song",
+    "nextSong": "Next Song",
     "songApprovalNotification": "{{count}} song request/song requests pending approval!",
     "newSongApprovalRequest": "New song request pending approval!",
     "songAddedSuccess": "Song successfully added to playlist!",

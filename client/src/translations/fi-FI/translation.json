@@ -445,6 +445,8 @@
       "users": "Käyttäjien hallinta",
       "settings": "Asetukset"
     },
+    "currentSong": "Nykyinen Kappale",
+    "nextSong": "Seuraava Kappale",
     "songApprovalNotification": "{{count}} kappalepyyntöä saapunut hyväksyntään!",
     "newSongApprovalRequest": "Uusi kappalepyyntö saapunut hyväksyntään!",
     "songAddedSuccess": "Kappale lisätty onnistuneesti soittolistaan!",

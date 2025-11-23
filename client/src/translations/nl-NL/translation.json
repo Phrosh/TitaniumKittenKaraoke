@@ -465,6 +465,8 @@
       "settings": "Instellingen",
       "backgroundMusic": "Achtergrondmuziek"
     },
+    "currentSong": "Huidig Lied",
+    "nextSong": "Volgende Lied",
     "songApprovalNotification": "{{count}} liedverzoek(en) ontvangen voor goedkeuring!",
     "newSongApprovalRequest": "Nieuw liedverzoek ontvangen voor goedkeuring!",
     "songAddedSuccess": "Lied succesvol toegevoegd aan afspeellijst!",

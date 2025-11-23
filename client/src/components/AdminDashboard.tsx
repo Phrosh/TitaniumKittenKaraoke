@@ -662,7 +662,7 @@ const AdminDashboard: React.FC = () => {
       {/* Current and Next Song Display */}
       <CurrentNextSongContainer>
         <SongDisplayBox $isCurrent={true}>
-          <SongDisplayLabel>🎵 Aktueller Song</SongDisplayLabel>
+          <SongDisplayLabel>🎵 {t('adminDashboard.currentSong')}</SongDisplayLabel>
           {dashboardData.currentSong ? (
             <>
               <SongDisplaySinger>
@@ -707,7 +707,7 @@ const AdminDashboard: React.FC = () => {
         </SongDisplayBox>
         
         <SongDisplayBox $isCurrent={false}>
-          <SongDisplayLabel>⏭️ Nächster Song</SongDisplayLabel>
+          <SongDisplayLabel>⏭️ {t('adminDashboard.nextSong')}</SongDisplayLabel>
           {(() => {
             const nextSong = dashboardData.currentSong 
               ? dashboardData.playlist.find(song => song.position > (dashboardData.currentSong?.position || 0))

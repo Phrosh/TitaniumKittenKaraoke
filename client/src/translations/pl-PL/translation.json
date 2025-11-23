@@ -446,6 +446,8 @@
       "users": "Zarządzanie Użytkownikami",
       "settings": "Ustawienia"
     },
+    "currentSong": "Aktualna Piosenka",
+    "nextSong": "Następna Piosenka",
     "songApprovalNotification": "{{count}} prośba/prośby o piosenkę otrzymana do zatwierdzenia!",
     "newSongApprovalRequest": "Nowa prośba o piosenkę otrzymana do zatwierdzenia!",
     "songAddedSuccess": "Piosenka pomyślnie dodana do listy odtwarzania!",

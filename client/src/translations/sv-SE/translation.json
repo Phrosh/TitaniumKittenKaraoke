@@ -446,6 +446,8 @@
       "users": "Användarhantering",
       "settings": "Inställningar"
     },
+    "currentSong": "Nuvarande Låt",
+    "nextSong": "Nästa Låt",
     "songApprovalNotification": "{{count}} låtförfrågan/låtförfrågningar mottagna för godkännande!",
     "newSongApprovalRequest": "Ny låtförfrågan mottagen för godkännande!",
     "songAddedSuccess": "Låt lagd till framgångsrikt i spellistan!",

@@ -446,6 +446,8 @@
       "users": "ユーザー管理",
       "settings": "設定"
     },
+    "currentSong": "現在の楽曲",
+    "nextSong": "次の楽曲",
     "songApprovalNotification": "{{count}}楽曲リクエストが承認のために受信されました！",
     "newSongApprovalRequest": "新しい楽曲リクエストが承認のために受信されました！",
     "songAddedSuccess": "楽曲がプレイリストに正常に追加されました！",

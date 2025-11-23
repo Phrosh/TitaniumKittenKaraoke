@@ -446,6 +446,8 @@
       "users": "사용자 관리",
       "settings": "설정"
     },
+    "currentSong": "현재 곡",
+    "nextSong": "다음 곡",
     "songApprovalNotification": "{{count}}곡 요청이 승인을 위해 수신됨!",
     "newSongApprovalRequest": "새 곡 요청이 승인을 위해 수신됨!",
     "songAddedSuccess": "곡이 재생 목록에 성공적으로 추가됨!",
