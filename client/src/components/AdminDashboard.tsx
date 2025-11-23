@@ -16,7 +16,7 @@ import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
 import getFirstLetter from '../utils/getFirstLetter';
 import SongForm from './admin/SongForm';
 import loadAllSongs from '../utils/loadAllSongs';
-import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent } from './admin/style';
+import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent, CurrentNextSongContainer, SongDisplayBox, SongDisplayLabel, SongDisplaySinger, SongDisplayTitle } from './admin/style';
 
 
 const AdminDashboard: React.FC = () => {
@@ -581,6 +581,53 @@ const AdminDashboard: React.FC = () => {
         pendingApprovalsCount={pendingApprovalsCount}
         onNotificationClick={loadAndShowPendingApprovals}
       />
+
+      {/* Current and Next Song Display */}
+      <CurrentNextSongContainer>
+        <SongDisplayBox $isCurrent={true}>
+          <SongDisplayLabel>🎵 Aktueller Song</SongDisplayLabel>
+          {dashboardData.currentSong ? (
+            <>
+              <SongDisplaySinger>
+                {dashboardData.currentSong.user_name || 'Unbekannt'}
+              </SongDisplaySinger>
+              <SongDisplayTitle>
+                {dashboardData.currentSong.artist || ''} {dashboardData.currentSong.artist && dashboardData.currentSong.title ? ' - ' : ''} {dashboardData.currentSong.title || 'Kein Titel'}
+              </SongDisplayTitle>
+            </>
+          ) : (
+            <>
+              <SongDisplaySinger>-</SongDisplaySinger>
+              <SongDisplayTitle>Kein Song aktiv</SongDisplayTitle>
+            </>
+          )}
+        </SongDisplayBox>
+        
+        <SongDisplayBox $isCurrent={false}>
+          <SongDisplayLabel>⏭️ Nächster Song</SongDisplayLabel>
+          {(() => {
+            const nextSong = dashboardData.currentSong 
+              ? dashboardData.playlist.find(song => song.position > (dashboardData.currentSong?.position || 0))
+              : dashboardData.playlist[0];
+            
+            return nextSong ? (
+              <>
+                <SongDisplaySinger>
+                  {nextSong.user_name || 'Unbekannt'}
+                </SongDisplaySinger>
+                <SongDisplayTitle>
+                  {nextSong.artist || ''} {nextSong.artist && nextSong.title ? ' - ' : ''} {nextSong.title || 'Kein Titel'}
+                </SongDisplayTitle>
+              </>
+            ) : (
+              <>
+                <SongDisplaySinger>-</SongDisplaySinger>
+                <SongDisplayTitle>Kein nächster Song</SongDisplayTitle>
+              </>
+            );
+          })()}
+        </SongDisplayBox>
+      </CurrentNextSongContainer>
 
       <TabContainer>
         <TabHeader>

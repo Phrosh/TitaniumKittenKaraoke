@@ -140,3 +140,48 @@ export const LoadingMessage = styled.div`
   padding: 40px;
   color: #666;
 `;
+
+export const CurrentNextSongContainer = styled.div`
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+`;
+
+export const SongDisplayBox = styled.div`
+  flex: 1;
+  padding: 20px;
+  border-radius: 8px;
+  background: ${props => props.$isCurrent ? '#e3f2fd' : '#f8f9fa'};
+  border: 2px solid ${props => props.$isCurrent ? '#1976d2' : '#e9ecef'};
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+export const SongDisplayLabel = styled.div`
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+export const SongDisplaySinger = styled.div`
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+`;
+
+export const SongDisplayTitle = styled.div`
+  font-size: 1.5rem;
+  color: #555;
+  font-style: italic;
+`;
