@@ -137,6 +137,7 @@ const ShowView: React.FC = () => {
   const [backgroundVideoFadeIn, setBackgroundVideoFadeIn] = useState(false);
   const [backgroundVideoFadeOut, setBackgroundVideoFadeOut] = useState(false);
   const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
+  const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
 
 
   const currentLyricStyle = {
@@ -978,6 +979,7 @@ const ShowView: React.FC = () => {
       const overlayStatus = response.data.showQRCodeOverlay || false;
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
       const title = response.data.overlayTitle;
+      const backgroundVideoEnabled = response.data.backgroundVideoEnabled !== undefined ? response.data.backgroundVideoEnabled : true; // Default: enabled
 
       // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
       // Use the same normalization logic as in fetchCurrentSong
@@ -996,6 +998,9 @@ const ShowView: React.FC = () => {
 
       // Update overlay status from API
       setShowQRCodeOverlay(overlayStatus);
+      
+      // Update background video status from API
+      setBackgroundVideoEnabled(backgroundVideoEnabled);
 
       // Send QR overlay change to admin dashboard
       websocketService.emit('show-action', {
@@ -1089,7 +1094,7 @@ const ShowView: React.FC = () => {
   };
 
   const handleWebSocketUpdate = useCallback(async (data: ShowUpdateData) => {
-    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle } = data;
+    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle, backgroundVideoEnabled: wsBackgroundVideoEnabled } = data;
 
     // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
     // Use the same normalization logic as in fetchCurrentSong
@@ -1116,6 +1121,11 @@ const ShowView: React.FC = () => {
 
     // Update overlay title
     setOverlayTitle(overlayTitle);
+    
+    // Update background video status from WebSocket
+    if (wsBackgroundVideoEnabled !== undefined) {
+      setBackgroundVideoEnabled(wsBackgroundVideoEnabled);
+    }
 
     // Nur State aktualisieren wenn sich der Song geändert hat
     if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
@@ -1492,12 +1502,62 @@ const ShowView: React.FC = () => {
     
     websocketService.on('qr-code-update', handleQRCodeUpdate);
 
+    // Listen for background video toggle events
+    const handleBackgroundVideoToggle = (data: { enabled: boolean }) => {
+      console.log('🎬 ShowView: Received background video toggle:', data.enabled);
+      setBackgroundVideoEnabled(data.enabled);
+    };
+    
+    // Listen for background video sync events (sent when video is enabled)
+    const handleBackgroundVideoSync = (data: { enabled: boolean }) => {
+      console.log('🎬 ShowView: Received background video sync event');
+      if (data.enabled && videoRef.current && ultrastarData?.videoUrl && audioRef.current) {
+        // Sync and play video
+        setTimeout(() => {
+          if (videoRef.current && ultrastarData?.videoUrl && audioRef.current) {
+            const video = videoRef.current;
+            const audioCurrentTime = audioRef.current.currentTime;
+            const gap = ultrastarData.gap || 0;
+            const videogap = ultrastarData.videogap || 0;
+            
+            // Calculate correct video position
+            let videoTime = videogap;
+            if (audioCurrentTime >= gap / 1000) {
+              const songTime = audioCurrentTime - (gap / 1000);
+              videoTime = songTime + videogap;
+            }
+            
+            video.muted = true;
+            video.currentTime = Math.max(0, videoTime);
+            
+            console.log('🎬 Syncing video to audio position (sync event):', {
+              audioTime: audioCurrentTime,
+              videoTime: videoTime,
+              gap: gap,
+              videogap: videogap,
+              readyState: video.readyState
+            });
+            
+            // Play video
+            video.play().catch(error => {
+              console.error('🎬 Error playing background video after sync:', error);
+            });
+          }
+        }, 100);
+      }
+    };
+    
+    websocketService.on('background-video-toggle', handleBackgroundVideoToggle);
+    websocketService.on('background-video-sync', handleBackgroundVideoSync);
+
     return () => {
       websocketService.offShowUpdate(handleWebSocketUpdate);
       websocketService.off('toggle-play-pause', handleTogglePlayPause);
       websocketService.off('restart-song', handleRestartSong);
       websocketService.off('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
       websocketService.off('qr-code-update', handleQRCodeUpdate);
+      websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
+      websocketService.off('background-video-sync', handleBackgroundVideoSync);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
@@ -2210,26 +2270,52 @@ const ShowView: React.FC = () => {
             )
           ) : isUltrastar && ultrastarData?.audioUrl ? (
             <>
-              {ultrastarData.videoUrl ? (
+              {backgroundVideoEnabled && ultrastarData.videoUrl ? (
                 <BackgroundVideo
                   ref={videoRef}
                   src={ultrastarData.videoUrl}
                   muted
                   loop
+                  autoPlay
                   playsInline
                   onLoadedData={() => {
                     setVideoLoaded(true);
                   }}
                   onCanPlay={() => {
                     setVideoLoaded(true);
+                    // Sync video to audio position when it becomes ready
+                    if (videoRef.current && audioRef.current && ultrastarData) {
+                      const audioCurrentTime = audioRef.current.currentTime;
+                      const gap = ultrastarData.gap || 0;
+                      const videogap = ultrastarData.videogap || 0;
+                      
+                      // Calculate correct video position
+                      let videoTime = videogap;
+                      if (audioCurrentTime >= gap / 1000) {
+                        const songTime = audioCurrentTime - (gap / 1000);
+                        videoTime = songTime + videogap;
+                      }
+                      
+                      videoRef.current.currentTime = Math.max(0, videoTime);
+                      
+                      // Ensure video plays
+                      if (videoRef.current.paused) {
+                        videoRef.current.play().catch(error => {
+                          console.error('🎬 Error playing video on canPlay:', error);
+                        });
+                      }
+                    }
+                  }}
+                  onPlay={() => {
+                    console.log('🎬 Background video started playing');
                   }}
                 />
-              ) : ultrastarData.backgroundImageUrl ? (
+              ) : backgroundVideoEnabled && ultrastarData.backgroundImageUrl ? (
                 <BackgroundImage
                   $imageUrl={ultrastarData.backgroundImageUrl}
                 />
               ) : (
-                // Fallback: background loop video when no US video/image
+                // Fallback: background loop video when background video is disabled or no US video/image
                 <BackgroundLoopVideo
                   src={'/bg-video/bg-video.webm'}
                   muted

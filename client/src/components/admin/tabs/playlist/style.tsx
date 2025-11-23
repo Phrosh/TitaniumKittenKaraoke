@@ -116,7 +116,7 @@ export const SmallButton = styled.button<{ variant?: 'primary' | 'success' | 'da
 `;
 
 export const QRCodeToggleButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? '#8e44ad' : '#95a5a6'};
+  background: ${props => props.$active ? '#95a5a6' : '#8e44ad'};
   color: white;
   border: none;
   padding: 15px 25px;

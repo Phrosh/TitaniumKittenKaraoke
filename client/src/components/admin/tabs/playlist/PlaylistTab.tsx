@@ -93,12 +93,18 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     withBackgroundVocals: false
   });
   const [manualSongList, setManualSongList] = useState<any[]>([]);
+  const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true);
 
   // WebSocket listener for QR overlay updates
   useEffect(() => {
     const handleQROverlayToggle = (data: { show: boolean }) => {
       console.log('📱 PlaylistTab: Received QR overlay toggle:', data.show);
       setShowQRCodeOverlay(data.show);
+    };
+
+    const handleBackgroundVideoToggle = (data: { enabled: boolean }) => {
+      console.log('🎬 PlaylistTab: Received background video toggle:', data.enabled);
+      setBackgroundVideoEnabled(data.enabled);
     };
 
         const handleProcessingStatus = (data: { id?: number; artist?: string; title?: string; status: DownloadStatus }) => {
@@ -229,11 +235,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
     // Listen for QR overlay toggle events
     websocketService.on('qr-overlay-toggle', handleQROverlayToggle);
+    // Listen for background video toggle events
+    websocketService.on('background-video-toggle', handleBackgroundVideoToggle);
     // Listen for processing status updates
     websocketService.on('processing-status', handleProcessingStatus);
 
     return () => {
       websocketService.off('qr-overlay-toggle', handleQROverlayToggle);
+      websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
       websocketService.off('processing-status', handleProcessingStatus);
     };
   }, [setShowQRCodeOverlay, setDashboardData]);
@@ -259,6 +268,18 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     } catch (error) {
       console.error('Error toggling QR code overlay:', error);
       toast.error(t('playlist.overlayToggleError'));
+    }
+  };
+
+  const handleToggleBackgroundVideo = async (enabled: boolean) => {
+    try {
+      console.log('🎬 PlaylistTab: Toggling background video to:', enabled);
+      await adminAPI.setBackgroundVideo(enabled);
+      setBackgroundVideoEnabled(enabled);
+      toast.success(enabled ? t('playlist.backgroundVideoEnabled') : t('playlist.backgroundVideoDisabled'));
+    } catch (error) {
+      console.error('Error toggling background video:', error);
+      toast.error(t('playlist.backgroundVideoToggleError'));
     }
   };
 
@@ -683,6 +704,13 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             </Button>
           </div>
           <CenterButtons>
+            <QRCodeToggleButton
+              onClick={() => handleToggleBackgroundVideo(!backgroundVideoEnabled)}
+              $active={backgroundVideoEnabled}
+              style={{ marginRight: '10px' }}
+            >
+              🎬 {backgroundVideoEnabled ? t('playlist.backgroundVideoHide') : t('playlist.backgroundVideoShow')}
+            </QRCodeToggleButton>
             <QRCodeToggleButton
               onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
               $active={showQRCodeOverlay}

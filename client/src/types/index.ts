@@ -100,6 +100,7 @@ export interface ShowData {
   showQRCodeOverlay: boolean;
   qrCodeDataUrl: string | null;
   overlayTitle: string;
+  backgroundVideoEnabled?: boolean;
 }
 
 export interface AdminUser {

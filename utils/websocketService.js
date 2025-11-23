@@ -61,6 +61,20 @@ async function broadcastShowUpdate(io) {
 
     const overlayTitle = overlayTitleSetting ? overlayTitleSetting.value : 'Willkommen beim Karaoke';
 
+    // Get background video status from settings (default: true)
+    const backgroundVideoSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['background_video_enabled'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const backgroundVideoEnabled = backgroundVideoSetting ? backgroundVideoSetting.value === 'true' : true; // Default: enabled
+
     // Generate QR code for /new endpoint
     let qrCodeDataUrl = null;
     try {
@@ -123,7 +137,8 @@ async function broadcastShowUpdate(io) {
       nextSongs,
       showQRCodeOverlay,
       qrCodeDataUrl,
-      overlayTitle
+      overlayTitle,
+      backgroundVideoEnabled
     };
 
     // Send update to all clients in show room
@@ -164,6 +179,22 @@ async function broadcastQRCodeToggle(io, show) {
     console.log(`📱 Broadcasted QR code overlay toggle: ${show}`);
   } catch (error) {
     console.error('Error broadcasting QR code toggle:', error);
+  }
+}
+
+/**
+ * Sendet einen Background Video Toggle Event
+ * @param {Object} io - Socket.IO Server Instance
+ * @param {boolean} enabled - Ob das Hintergrundvideo aktiviert ist
+ */
+async function broadcastBackgroundVideoToggle(io, enabled) {
+  try {
+    // Send background video toggle event to all clients
+    io.emit('background-video-toggle', { enabled });
+    
+    console.log(`🎬 Broadcasted background video toggle: ${enabled}`);
+  } catch (error) {
+    console.error('Error broadcasting background video toggle:', error);
   }
 }
 
@@ -357,6 +388,7 @@ module.exports = {
   broadcastShowUpdate,
   broadcastSongChange,
   broadcastQRCodeToggle,
+  broadcastBackgroundVideoToggle,
   broadcastAdminUpdate,
   broadcastPlaylistUpdate,
   broadcastTogglePlayPause,

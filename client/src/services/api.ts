@@ -143,6 +143,9 @@ export const adminAPI = {
   setQRCodeOverlay: (show: boolean) =>
     api.put('/admin/qr-overlay', { show }),
   
+  setBackgroundVideo: (enabled: boolean) =>
+    api.put('/admin/background-video', { enabled }),
+  
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),
   

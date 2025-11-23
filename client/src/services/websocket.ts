@@ -22,6 +22,7 @@ export interface ShowUpdateData {
   showQRCodeOverlay: boolean;
   qrCodeDataUrl: string | null;
   overlayTitle: string;
+  backgroundVideoEnabled?: boolean;
 }
 
 export interface AdminUpdateData {

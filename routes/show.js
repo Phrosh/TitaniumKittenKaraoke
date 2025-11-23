@@ -58,6 +58,20 @@ router.get('/', async (req, res) => {
 
     const overlayTitle = overlayTitleSetting ? overlayTitleSetting.value : 'Willkommen beim Karaoke';
 
+    // Get background video status from settings (default: true)
+    const backgroundVideoSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['background_video_enabled'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const backgroundVideoEnabled = backgroundVideoSetting ? backgroundVideoSetting.value === 'true' : true; // Default: enabled
+
     // Generate QR code for /new endpoint
     let qrCodeDataUrl = null;
     try {
@@ -133,7 +147,8 @@ router.get('/', async (req, res) => {
       nextSongs,
       showQRCodeOverlay,
       qrCodeDataUrl,
-      overlayTitle
+      overlayTitle,
+      backgroundVideoEnabled
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

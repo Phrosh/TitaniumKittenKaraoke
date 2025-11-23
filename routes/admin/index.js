@@ -19,6 +19,7 @@ const usdbRoutes = require('./usdb');
 const cloudflaredRoutes = require('./cloudflared');
 const testRoutes = require('./test');
 const backgroundMusicRoutes = require('./backgroundMusic');
+const backgroundVideoRoutes = require('./backgroundVideo');
 
 // Mount modular admin routes
 router.use('/', dashboardRoutes);
@@ -35,6 +36,7 @@ router.use('/', usdbRoutes);
 router.use('/', cloudflaredRoutes);
 router.use('/', testRoutes);
 router.use('/', backgroundMusicRoutes);
+router.use('/', backgroundVideoRoutes);
 
 module.exports = {
   router
