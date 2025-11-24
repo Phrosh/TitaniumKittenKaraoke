@@ -762,16 +762,16 @@ const AdminDashboard: React.FC = () => {
             👥 {t('adminDashboard.tabs.users')}
           </TabButton>
           <TabButton 
-            $active={activeTab === 'settings'} 
-            onClick={() => setActiveTab('settings')}
-          >
-            ⚙️ {t('adminDashboard.tabs.settings')}
-          </TabButton>
-          <TabButton 
             $active={activeTab === 'background-music'} 
             onClick={() => setActiveTab('background-music')}
           >
             🎵 {t('adminDashboard.tabs.backgroundMusic')}
+          </TabButton>
+          <TabButton 
+            $active={activeTab === 'settings'} 
+            onClick={() => setActiveTab('settings')}
+          >
+            ⚙️ {t('adminDashboard.tabs.settings')}
           </TabButton>
         </TabHeader>
         

@@ -166,7 +166,6 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '20px',
               maxWidth: '800px',
               width: '90%',
               maxHeight: '95vh',
@@ -178,9 +177,9 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '20px',
+                padding: '20px 20px 15px 20px',
                 borderBottom: '1px solid #eee',
-                paddingBottom: '15px'
+                flexShrink: 0
               }}>
                 <h3 style={{ margin: 0, color: '#333' }}>➕ {t('modals.addSong.title')}</h3>
                 <Button
@@ -199,56 +198,69 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 </Button>
               </div>
   
-              {/* Song Form */}
-            <SongForm
-              singerName={addSongData.singerName}
-              artist={addSongData.artist}
-              title={addSongData.title}
-              youtubeUrl={addSongData.youtubeUrl}
-              youtubeMode={addSongData.youtubeMode}
-              withBackgroundVocals={Boolean((addSongData as any).withBackgroundVocals)}
-              onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
-              songData={addSongData}
-              setSongData={setAddSongData}
-              setSongSearchTerm={setAddSongSearchTerm}
-              onYoutubeUrlChange={(value) => setAddSongData(prev => ({ ...prev, youtubeUrl: value }))}
-              onYoutubeModeChange={(mode) => setAddSongData(prev => ({ ...prev, youtubeMode: mode }))}
-              onWithBackgroundVocalsChange={(checked) => setAddSongData(prev => ({ ...prev, withBackgroundVocals: checked }))}
-              showSongList={true}
-              songList={filteredAddSongs}
-              onSongSelect={handleSelectAddSong}
-              usdbResults={addSongUsdbResults}
-              usdbLoading={addSongUsdbLoading}
-              setUsdbResults={setAddSongUsdbResults}
-              setUsdbLoading={setAddSongUsdbLoading}
-              hideYoutubeModeOptions={!!cacheInfo}
-              cacheInfo={cacheInfo}
-            />
+              {/* Song Form - Scrollable Content */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              minHeight: 0
+            }}>
+              <SongForm
+                singerName={addSongData.singerName}
+                artist={addSongData.artist}
+                title={addSongData.title}
+                youtubeUrl={addSongData.youtubeUrl}
+                youtubeMode={addSongData.youtubeMode}
+                withBackgroundVocals={Boolean((addSongData as any).withBackgroundVocals)}
+                onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
+                songData={addSongData}
+                setSongData={setAddSongData}
+                setSongSearchTerm={setAddSongSearchTerm}
+                onYoutubeUrlChange={(value) => setAddSongData(prev => ({ ...prev, youtubeUrl: value }))}
+                onYoutubeModeChange={(mode) => setAddSongData(prev => ({ ...prev, youtubeMode: mode }))}
+                onWithBackgroundVocalsChange={(checked) => setAddSongData(prev => ({ ...prev, withBackgroundVocals: checked }))}
+                showSongList={true}
+                songList={filteredAddSongs}
+                onSongSelect={handleSelectAddSong}
+                usdbResults={addSongUsdbResults}
+                usdbLoading={addSongUsdbLoading}
+                setUsdbResults={setAddSongUsdbResults}
+                setUsdbLoading={setAddSongUsdbLoading}
+                hideYoutubeModeOptions={!!cacheInfo}
+                cacheInfo={cacheInfo}
+              />
+            </div>
   
   
-              {/* Buttons */}
-              <ModalButtons>
-                <Button
-                  onClick={() => {
-                    onClose();
-                  }}
-                  disabled={actionLoading}
-                  type="default"
-                  size="small"
-                >
-                  {t('modals.addSong.cancel')}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setActionLoading(true);
-                    onSave();
-                  }}
-                  disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
-                  size="small"
-                >
-                  {actionLoading ? t('modals.addSong.adding') : t('modals.addSong.add')}
-                </Button>
+              {/* Buttons - Always visible at bottom */}
+              <div style={{
+                padding: '20px',
+                borderTop: '1px solid #eee',
+                flexShrink: 0
+              }}>
+                <ModalButtons>
+                  <Button
+                    onClick={() => {
+                      onClose();
+                    }}
+                    disabled={actionLoading}
+                    type="default"
+                    size="small"
+                  >
+                    {t('modals.addSong.cancel')}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setActionLoading(true);
+                      onSave();
+                    }}
+                    disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
+                    size="small"
+                  >
+                    {actionLoading ? t('modals.addSong.adding') : t('modals.addSong.add')}
+                  </Button>
                 </ModalButtons>
+              </div>
               </div>
           </Modal>
     );
