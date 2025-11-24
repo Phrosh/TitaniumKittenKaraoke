@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import getFirstLetter from '../../utils/getFirstLetter';
 import {adminAPI} from '../../services/api';
 import SmallModeBadge from '../shared/SmallModeBadge';
+import YouTubeSearchModal from './modals/YouTubeSearchModal';
 
 // Reusable Song Form Component
 interface SongFormProps {
@@ -56,6 +57,7 @@ const SongForm: React.FC<SongFormProps> = ({
   }) => {
     const { t } = useTranslation();
     const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
+    const [showYouTubeSearchModal, setShowYouTubeSearchModal] = useState(false);
 
   // Debounced USDB search
     const triggerUSDBSearch = (artist: string, title: string) => {
@@ -268,19 +270,44 @@ const SongForm: React.FC<SongFormProps> = ({
               </button>
             </div>
           ) : (
-            <input
-              type="text"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={youtubeUrl}
-              onChange={(e) => onYoutubeUrlChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-            />
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) => onYoutubeUrlChange(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (artist && title) {
+                    setShowYouTubeSearchModal(true);
+                  }
+                }}
+                disabled={!artist || !title}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: artist && title ? '#667eea' : '#ccc',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: artist && title ? 'pointer' : 'not-allowed',
+                  transition: 'background-color 0.2s ease',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {t('songForm.search')}
+              </button>
+            </div>
           )}
         </div>
 
@@ -542,6 +569,17 @@ const SongForm: React.FC<SongFormProps> = ({
             </div>
           </div>
         )}
+
+        {/* YouTube Search Modal */}
+        <YouTubeSearchModal
+          show={showYouTubeSearchModal}
+          searchQuery={artist && title ? `${artist} - ${title} Karaoke` : ''}
+          onClose={() => setShowYouTubeSearchModal(false)}
+          onSelectVideo={(url) => {
+            onYoutubeUrlChange(url);
+            setShowYouTubeSearchModal(false);
+          }}
+        />
       </>
     );
   };

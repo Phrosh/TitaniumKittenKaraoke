@@ -20,7 +20,13 @@
     "usdbSearching": "USDB-haku käynnissä...",
     "noLocalSongs": "Paikallisia kappaleita ei löytynyt",
     "songFoundAs": "Kappale löytyi nimellä",
-    "removeSongLink": "Poista kappaleen linkki"
+    "removeSongLink": "Poista kappaleen linkki",
+    "search": "Hae"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube-videohaku",
+    "searching": "Haetaan videoita...",
+    "noResults": "Videoita ei löytynyt"
   },
   "banlist": {
     "title": "Kiellettyjen Listan Hallinta",

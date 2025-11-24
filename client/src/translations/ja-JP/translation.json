@@ -20,7 +20,13 @@
     "usdbSearching": "USDB検索中...",
     "noLocalSongs": "ローカル楽曲が見つかりません",
     "songFoundAs": "楽曲が見つかりました",
-    "removeSongLink": "楽曲リンクを削除"
+    "removeSongLink": "楽曲リンクを削除",
+    "search": "検索"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube動画検索",
+    "searching": "動画を検索中...",
+    "noResults": "動画が見つかりませんでした"
   },
   "banlist": {
     "title": "禁止リスト管理",

@@ -20,7 +20,13 @@
     "usdbSearching": "USDB-zoekopdracht loopt...",
     "noLocalSongs": "Geen lokale liederen gevonden",
     "songFoundAs": "Lied gevonden als",
-    "removeSongLink": "Liedlink verwijderen"
+    "removeSongLink": "Liedlink verwijderen",
+    "search": "Zoeken"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube-video zoeken",
+    "searching": "Zoeken naar video's...",
+    "noResults": "Geen video's gevonden"
   },
   "banlist": {
     "title": "Banlijst Beheer",

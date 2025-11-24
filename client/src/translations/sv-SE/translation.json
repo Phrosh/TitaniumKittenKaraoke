@@ -20,7 +20,13 @@
     "usdbSearching": "USDB-sökning pågår...",
     "noLocalSongs": "Inga lokala låtar hittades",
     "songFoundAs": "Låt hittades som",
-    "removeSongLink": "Ta bort låtlänk"
+    "removeSongLink": "Ta bort låtlänk",
+    "search": "Sök"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube-videosökning",
+    "searching": "Söker efter videor...",
+    "noResults": "Inga videor hittades"
   },
   "banlist": {
     "title": "Banlist Hantering",

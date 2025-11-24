@@ -76,6 +76,8 @@ export const songAPI = {
   getUSDBSearchEnabled: () => api.get('/songs/usdb-search-enabled'), // Public endpoint for USDB search enabled setting
   searchUSDB: (interpret?: string, title?: string, limit?: number) =>
     api.post('/songs/usdb-search', { interpret, title, limit }), // Public endpoint for USDB search
+  searchYouTube: (query: string, maxResults?: number) =>
+    api.post('/songs/youtube/search', { query, maxResults }), // Public endpoint for YouTube search
   getInvisibleSongs: () => api.get('/songs/invisible-songs'), // Public endpoint for invisible songs
   getUltrastarAudioSettings: () => api.get('/songs/ultrastar-audio-settings'), // Public endpoint for ultrastar audio settings
   

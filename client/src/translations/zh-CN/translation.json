@@ -20,7 +20,13 @@
     "usdbSearching": "USDB搜索中...",
     "noLocalSongs": "未找到本地歌曲",
     "songFoundAs": "歌曲发现为",
-    "removeSongLink": "删除歌曲链接"
+    "removeSongLink": "删除歌曲链接",
+    "search": "搜索"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube视频搜索",
+    "searching": "正在搜索视频...",
+    "noResults": "未找到视频"
   },
   "banlist": {
     "title": "封禁列表管理",

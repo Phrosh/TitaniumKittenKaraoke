@@ -20,7 +20,13 @@
     "usdbSearching": "USDB search running...",
     "noLocalSongs": "No local songs found",
     "songFoundAs": "Song found as",
-    "removeSongLink": "Remove Song Link"
+    "removeSongLink": "Remove Song Link",
+    "search": "Search"
+  },
+  "youtubeSearchModal": {
+    "title": "YouTube Video Search",
+    "searching": "Searching for videos...",
+    "noResults": "No videos found"
   },
   "banlist": {
     "title": "Banlist Management",

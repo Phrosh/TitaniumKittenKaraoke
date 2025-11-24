@@ -20,7 +20,13 @@
     "usdbSearching": "Wyszukiwanie USDB w toku...",
     "noLocalSongs": "Nie znaleziono lokalnych piosenek",
     "songFoundAs": "Piosenka znaleziona jako",
-    "removeSongLink": "Usuń link do piosenki"
+    "removeSongLink": "Usuń link do piosenki",
+    "search": "Szukaj"
+  },
+  "youtubeSearchModal": {
+    "title": "Wyszukiwanie filmów YouTube",
+    "searching": "Wyszukiwanie filmów...",
+    "noResults": "Nie znaleziono filmów"
   },
   "banlist": {
     "title": "Zarządzanie Listą Banów",
