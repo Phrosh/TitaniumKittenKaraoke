@@ -627,14 +627,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
   const handleCloseAddSongModal = () => {
     setShowAddSongModal(false);
-    setAddSongData({
-      singerName: '',
-      artist: '',
-      title: '',
-      youtubeUrl: '',
-      youtubeMode: 'karaoke' as 'karaoke' | 'magic',
-      withBackgroundVocals: false
-    });
+    // Daten bleiben erhalten, damit sie beim nächsten Öffnen noch vorhanden sind
   };
 
   const handleAddSongSubmit = async () => {
@@ -678,6 +671,15 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         toast.success(t('playlist.songAdded'));
       }
 
+      // Daten leeren, da Song erfolgreich hinzugefügt wurde
+      setAddSongData({
+        singerName: '',
+        artist: '',
+        title: '',
+        youtubeUrl: '',
+        youtubeMode: 'karaoke' as 'karaoke' | 'magic',
+        withBackgroundVocals: false
+      });
       handleCloseAddSongModal();
 
       // Refresh playlist
