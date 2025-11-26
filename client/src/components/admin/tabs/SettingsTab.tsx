@@ -588,25 +588,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
-
-      {/* Regression Value */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.regressionValue')}</SettingsLabel>
-        <SettingsInput
-          type="number"
-          step="0.01"
-          min="0"
-          max="1"
-            value={regressionValue}
-            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
-        />
-        <SettingsDescription>
-          {t('settings.regressionValueDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
       
       {/* URL & Cloudflared Section */}
       <SpecialSection>
@@ -708,7 +690,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
 
       {/* YouTube Enabled */}
       <SettingsCard>
@@ -731,7 +713,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
       
       {/* Auto-Approve Songs Setting */}
       <SettingsCard>
@@ -754,7 +736,25 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
+
+      {/* Regression Value */}
+      <SettingsCard>
+        <SettingsLabel>{t('settings.regressionValue')}</SettingsLabel>
+        <SettingsInput
+          type="number"
+          step="0.01"
+          min="0"
+          max="1"
+            value={regressionValue}
+            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
+        />
+        <SettingsDescription>
+          {t('settings.regressionValueDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
+        </SettingsDescription>
+      </SettingsCard>
+
+      {/* <HorizontalDivider /> */}
       
       {/* USDB Search Enabled Setting */}
       <SettingsCard>
@@ -777,7 +777,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
       <SettingsCard>
         <SettingsLabel>{t('settings.usdbCredentials')}:</SettingsLabel>
         {usdbCredentials ? (
@@ -829,7 +829,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         </SettingsDescription>
       </SettingsCard>
       
-      <HorizontalDivider />
+      {/* <HorizontalDivider /> */}
       
       {/* File Songs */}
       <SettingsCard>

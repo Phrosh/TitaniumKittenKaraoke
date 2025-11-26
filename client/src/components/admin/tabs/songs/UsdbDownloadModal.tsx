@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import {adminAPI} from '../../../../services/api';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,14 +30,9 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
   const [usdbBatchDownloading, setUsdbBatchDownloading] = useState(false);
   const [usdbBatchUrls, setUsdbBatchUrls] = useState<string[]>(['']);
   const [usdbBatchCurrentDownloading, setUsdbBatchCurrentDownloading] = useState<number | null>(null);
+  // batchId verwenden wir jetzt als stabilen Key = USDB-URL
   const [usdbBatchResults, setUsdbBatchResults] = useState<Array<{url: string, status: 'pending' | 'downloading' | 'separating' | 'finished' | 'failed', message?: string, songId?: number, batchId?: string}>>([]);
   const [oldDownloadUrls, setOldDownloadUrls] = useState<string[]>([]);
-  
-  // Generate unique modal ID to prevent conflicts between multiple modal sessions
-  const [modalSessionId] = useState(() => Math.floor(Math.random() * 10000).toString());
-  
-  // Ref to track download status for sequential processing
-  const downloadStatusRef = useRef<Map<string, string>>(new Map());
 
   // USDB Search Management
   const [usdbSearchInterpret, setUsdbSearchInterpret] = useState('');
@@ -44,49 +40,72 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
   const [usdbSearchLoading, setUsdbSearchLoading] = useState(false);
   const [usdbSearchResults, setUsdbSearchResults] = useState<Array<{id: number, artist: string, title: string, url: string}>>([]);
 
-  // WebSocket listener for processing status updates
+  // Eigenen Socket.io-Listener für Status-Updates der USDB-Downloads (analog zu SongsTab)
   useEffect(() => {
+    console.log('🛰️ UsdbDownloadModal: Setting up WebSocket listener...');
+    const socket = io();
+
     const handleProcessingStatus = (data: { id?: number | string; artist?: string; title?: string; status: DownloadStatus }) => {
-      console.log('🛰️ UsdbDownloadModal: processing-status received via WS:', data);
+      console.log('🛰️ UsdbDownloadModal: processing-status received via WS (modal-socket):', data);
       
       if (data.id && data.status) {
-        // Check if this is a batch download ID (usdb-0, usdb-1, etc.)
-        const batchId = typeof data.id === 'string' && data.id.startsWith('usdb-') ? data.id : null;
+        const stringId = typeof data.id === 'string' ? data.id : null;
         
-        if (batchId) {
-          // Check if this batch ID belongs to our current modal session
-          const expectedPrefix = `usdb-${modalSessionId}-`;
-          if (batchId.startsWith(expectedPrefix)) {
-            console.log('🛰️ UsdbDownloadModal: updating batch download status for', batchId, 'to', data.status);
-            // Update the ref for sequential processing
-            downloadStatusRef.current.set(batchId, data.status);
-            
-            setUsdbBatchResults(prev => {
-              const updated = prev.map(result => {
-                if (result.batchId === batchId) {
-                  return {
-                    ...result,
-                    status: data.status as 'downloading' | 'separating' | 'finished' | 'failed',
-                    message: data.status === 'finished' ? t('usdbDownloadModal.downloadSuccessful') : 
-                             data.status === 'failed' ? t('usdbDownloadModal.downloadError') : 
-                             result.message
-                  };
-                }
-                return result;
-              });
+        if (stringId) {
+          const normalizedId = stringId.trim();
+          // Unterstütze zwei Varianten:
+          // 1) Alte/aktuelle Server-IDs wie "usdb-2381-1"  (Pattern: usdb-<session>-<index>)
+          // 2) Neue IDs, bei denen direkt die URL als ID verwendet wird
+          const legacyMatch = /^usdb-\d+-(\d+)$/.exec(normalizedId);
+          const legacyIndex = legacyMatch ? parseInt(legacyMatch[1], 10) : null;
 
-              // Check if all downloads are finished/failed and disable batch downloading
-              const allFinished = updated.length > 0 && updated.every(r => r.status === 'finished' || r.status === 'failed');
-              if (allFinished) {
-                console.log('🎉 All downloads finished, disabling batch downloading');
-                setUsdbBatchDownloading(false);
+          console.log('🛰️ UsdbDownloadModal: updating batch download status for id:', normalizedId, 'legacyIndex:', legacyIndex, 'to', data.status);
+
+          setUsdbBatchResults(prev => {
+            console.log('🛰️ UsdbDownloadModal: current batch results BEFORE update:', prev.map((r, idx) => ({
+              index: idx,
+              url: r.url,
+              batchId: r.batchId,
+              status: r.status,
+            })));
+
+            const updated = prev.map((result, index) => {
+              const normalizedBatchId = (result.batchId || '').trim();
+              const normalizedUrl = (result.url || '').trim();
+
+              const matchesByBatchId = normalizedBatchId === normalizedId;
+              const matchesByUrl = normalizedUrl === normalizedId;
+              const matchesByIndex = legacyIndex !== null && index === legacyIndex;
+
+              if (matchesByBatchId || matchesByUrl || matchesByIndex) {
+                console.log('🛰️ UsdbDownloadModal: ✅ found matching result for', normalizedId, 'at index', index, 'updating status from', result.status, 'to', data.status);
+                return {
+                  ...result,
+                  status: data.status as 'downloading' | 'separating' | 'finished' | 'failed',
+                  message: data.status === 'finished' ? t('usdbDownloadModal.downloadSuccessful') : 
+                           data.status === 'failed' ? t('usdbDownloadModal.downloadError') : 
+                           result.message
+                };
               }
-
-              return updated;
+              return result;
             });
-          } else {
-            console.log('🛰️ UsdbDownloadModal: ignoring batch ID from different session:', batchId, '(expected prefix:', expectedPrefix, ')');
-          }
+
+            console.log('🛰️ UsdbDownloadModal: batch results AFTER update:', updated.map((r, idx) => ({
+              index: idx,
+              url: r.url,
+              batchId: r.batchId,
+              status: r.status,
+            })));
+
+            // Check if all downloads are finished/failed and disable batch downloading
+            const allFinished = updated.length > 0 && updated.every(r => r.status === 'finished' || r.status === 'failed');
+            if (allFinished) {
+              console.log('🎉 All downloads finished, disabling batch downloading');
+              setUsdbBatchDownloading(false);
+            }
+
+            return updated;
+          });
         } else if (typeof data.id === 'number') {
           // Regular song ID - update by songId
           console.log('🛰️ UsdbDownloadModal: updating song status for', data.id, 'to', data.status);
@@ -102,16 +121,23 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
             }
             return result;
           }));
+        } else {
+          console.log('🛰️ UsdbDownloadModal: ⚠️ received status update but id is not a batch ID or number:', data.id);
         }
+      } else {
+        console.log('🛰️ UsdbDownloadModal: ⚠️ received status update without id or status:', data);
       }
     };
 
-    websocketService.on('processing-status', handleProcessingStatus);
+    socket.on('processing-status', handleProcessingStatus);
+    console.log('🛰️ UsdbDownloadModal: WebSocket listener registered');
 
     return () => {
-      websocketService.off('processing-status', handleProcessingStatus);
+      console.log('🛰️ UsdbDownloadModal: Cleaning up WebSocket listener');
+      socket.off('processing-status', handleProcessingStatus);
+      socket.disconnect();
     };
-  }, [t, modalSessionId]);
+  }, [t]);
 
   useEffect(() => {
     if (oldDownloadUrls.length > 0) {
@@ -159,15 +185,17 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
 
   // Function to start an additional download during an ongoing batch
   const startAdditionalDownload = async (url: string, index: number) => {
-    const batchId = `usdb-${modalSessionId}-${index}`;
+    // Für zusätzliche Downloads ebenfalls die getrimmte URL als ID verwenden
+    const normalizedUrl = url.trim();
+    const batchId = normalizedUrl;
     
     try {
-      console.log('🚀 Starting additional USDB download for URL:', url, 'with batch ID:', batchId);
+      console.log('🚀 Starting additional USDB download for URL:', normalizedUrl, 'with batch ID:', batchId);
       setUsdbBatchDownloading(true);
       
       // Add the new download to batch results
       setUsdbBatchResults(prev => [...prev, {
-        url,
+        url: normalizedUrl,
         status: 'downloading' as const,
         message: t('usdbDownloadModal.downloadStarted'),
         songId: undefined,
@@ -210,30 +238,150 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
 
   const handleBatchDownloadFromUSDB = async (event?: React.MouseEvent, urls?: string[]) => {
     // Filter out empty URLs
-    const validUrls = (urls || usdbBatchUrls).filter(url => url.trim());
+    const inputUrls = urls || usdbBatchUrls;
+    const validUrls = inputUrls.filter(url => url.trim());
     
     if (validUrls.length === 0) {
       // toast.error('Bitte mindestens eine USDB-URL eingeben');
       return;
     }
 
+    // Prüfe, ob alle aktuellen Downloads finished/failed sind
+    const allFinished = usdbBatchResults.length > 0 && 
+                       usdbBatchResults.every(r => r.status === 'finished' || r.status === 'failed');
+    
+    if (allFinished) {
+      console.log('🧹 All downloads finished, cleaning up finished entries before starting new downloads');
+      // Entferne alle finished/failed Einträge aus der Liste
+      const finishedUrls = new Set(usdbBatchResults
+        .filter(r => r.status === 'finished' || r.status === 'failed')
+        .map(r => r.url.trim()));
+      
+      // Filtere URLs: entferne die, die bereits finished/failed sind
+      const newUrls = validUrls.filter(url => !finishedUrls.has(url.trim()));
+      
+      if (newUrls.length === 0) {
+        toast.info(t('usdbDownloadModal.allUrlsAlreadyFinished') || 'Alle URLs wurden bereits heruntergeladen');
+        return;
+      }
+      
+      // Aktualisiere die URL-Liste: entferne finished URLs, behalte nur neue
+      setUsdbBatchUrls(prev => {
+        const filtered = prev.filter(url => !finishedUrls.has(url.trim()));
+        // Stelle sicher, dass mindestens ein leeres Feld vorhanden ist
+        return filtered.length > 0 ? filtered : [''];
+      });
+      
+      // Entferne finished/failed Ergebnisse
+      setUsdbBatchResults(prev => prev.filter(r => r.status !== 'finished' && r.status !== 'failed'));
+      
+      // Verwende nur die neuen URLs für den Download
+      const urlsToDownload = newUrls;
+      console.log('🚀 Starting downloads for', urlsToDownload.length, 'new URLs (removed', finishedUrls.size, 'finished entries)');
+      
+      // Setze den Status zurück und starte mit den neuen URLs
+      setUsdbBatchDownloading(true);
+      
+      const initialResults = urlsToDownload.map((rawUrl) => {
+        const url = rawUrl.trim();
+        return {
+          url,
+          status: 'pending' as const,
+          message: '',
+          songId: undefined as number | undefined,
+          batchId: url as string
+        };
+      });
+      setUsdbBatchResults(initialResults);
+      
+      // Starte Downloads für die neuen URLs
+      try {
+        for (let i = 0; i < urlsToDownload.length; i++) {
+          const url = urlsToDownload[i].trim();
+          const batchId = url;
+          
+          try {
+            console.log('🚀 Starting USDB download for URL:', url, 'with batch ID:', batchId);
+            const response = await adminAPI.downloadFromUSDB(url, batchId);
+            
+            const songId = response.data.song?.id;
+            
+            if (songId) {
+              console.log('✅ USDB download started successfully, song ID:', songId, 'batch ID:', batchId);
+              setUsdbBatchResults(prev => prev.map((result, index) => 
+                index === i ? { 
+                  ...result, 
+                  status: 'downloading',
+                  songId: songId,
+                  message: t('usdbDownloadModal.downloadStarted')
+                } : result
+              ));
+            } else {
+              console.log('⚠️ USDB download started but no song ID returned, batch ID:', batchId);
+              setUsdbBatchResults(prev => prev.map((result, index) => 
+                index === i ? { 
+                  ...result, 
+                  status: 'downloading',
+                  message: t('usdbDownloadModal.downloadStarted')
+                } : result
+              ));
+            }
+            
+          } catch (error: any) {
+            console.error('❌ Error starting USDB download:', error);
+            const errorMessage = error.response?.data?.message || t('usdbDownloadModal.downloadError');
+            setUsdbBatchResults(prev => prev.map((result, index) => 
+              index === i ? { 
+                ...result, 
+                status: 'failed', 
+                message: errorMessage
+              } : result
+            ));
+          }
+          
+          if (i < urlsToDownload.length - 1) {
+            const delayMs = 8000;
+            console.log(`⏳ Waiting ${delayMs / 1000}s before starting next USDB download...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            console.log(`🚀 Starting next USDB download`);
+          }
+        }
+        
+        console.log('🚀 All new USDB downloads started, waiting for WebSocket updates...');
+        toast.success(t('usdbDownloadModal.batchDownloadStarted', { count: urlsToDownload.length }));
+        
+      } catch (error) {
+        console.error('Error in batch download:', error);
+        toast.error(t('usdbDownloadModal.batchDownloadError'));
+      }
+      
+      return; // Früh zurückkehren, da wir die Downloads bereits gestartet haben
+    }
+
+    // Normale Logik für neue Downloads (wenn nicht alle finished sind)
     setUsdbBatchDownloading(true);
     
-    // Initialize results with batch IDs using modal session ID
-    const initialResults = validUrls.map((url, index) => ({
+    // Initialisiere Ergebnisse – als batchId verwenden wir direkt die URL
+    const initialResults = validUrls.map((rawUrl, index) => {
+      const url = rawUrl.trim();
+      return {
       url,
       status: 'pending' as const,
       message: '',
       songId: undefined as number | undefined,
-      batchId: `usdb-${modalSessionId}-${index}` as string
-    }));
+      batchId: url as string
+    }});
     setUsdbBatchResults(initialResults);
+    
+    console.log('🚀 Starting batch download with', validUrls.length, 'URLs');
+    console.log('🚀 Initial batch IDs:', initialResults.map(r => r.batchId));
 
     try {
-      // Start downloads sequentially, waiting for each to reach "separating" status
+      // Start downloads nacheinander mit einfachem Delay zwischen den Starts
       for (let i = 0; i < validUrls.length; i++) {
-        const url = validUrls[i];
-        const batchId = `usdb-${modalSessionId}-${i}`;
+        const url = validUrls[i].trim();
+        // Für Batch-Tracking verwenden wir als ID die URL
+        const batchId = url;
         
         try {
           console.log('🚀 Starting USDB download for URL:', url, 'with batch ID:', batchId);
@@ -277,37 +425,12 @@ const USDBDownloadModal: React.FC<USDBDownloadModalProps> = ({
           ));
         }
         
-        // Wait for this download to reach "separating" status before starting the next one
+        // Warte vor dem nächsten Start einfach ein paar Sekunden (Rate-Limit / Schonung externer Dienste)
         if (i < validUrls.length - 1) {
-          console.log(`⏳ Waiting for download ${i} to reach "separating" status before starting next...`);
-          
-          // Wait for the current download to reach "separating" status
-          await new Promise<void>((resolve) => {
-            const checkStatus = () => {
-              const currentBatchId = `usdb-${modalSessionId}-${i}`;
-              const currentStatus = downloadStatusRef.current.get(currentBatchId);
-              
-              if (currentStatus === 'separating') {
-                console.log(`✅ Download ${i} reached "separating" status, waiting additional 5 seconds before starting next download`);
-                // Additional 5 second delay for rate limiting
-                setTimeout(() => {
-                  console.log(`🚀 Starting next download after 5 second delay`);
-                  resolve();
-                }, 5000);
-              } else if (currentStatus === 'finished' || currentStatus === 'failed') {
-                console.log(`⚠️ Download ${i} finished/failed without reaching "separating", waiting 5 seconds before starting next download anyway`);
-                // Still wait 5 seconds even if it finished/failed
-                setTimeout(() => {
-                  console.log(`🚀 Starting next download after 5 second delay (fallback)`);
-                  resolve();
-                }, 5000);
-              } else {
-                // Check again in 1 second
-                setTimeout(checkStatus, 1000);
-              }
-            };
-            checkStatus();
-          });
+          const delayMs = 8000;
+          console.log(`⏳ Waiting ${delayMs / 1000}s before starting next USDB download...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          console.log(`🚀 Starting next USDB download`);
         }
       }
       
