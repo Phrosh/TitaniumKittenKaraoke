@@ -112,6 +112,40 @@ def process_usdb_pipeline(folder_name):
                     
                     return  # Pipeline komplett abbrechen
 
+                # Prüfe, ob der finale Ordner bereits existiert und Inhalt hat
+                # Nach dem USDB-Download kennen wir jetzt den finalen Ordnernamen (Artist - Title)
+                final_folder_path = getattr(meta, 'folder_path', None)
+                if final_folder_path and os.path.exists(final_folder_path):
+                    # Prüfe, ob der Ordner Inhalt hat (mindestens eine Datei)
+                    try:
+                        folder_contents = os.listdir(final_folder_path)
+                        # Filtere versteckte Dateien und Ordner aus
+                        visible_files = [f for f in folder_contents if not f.startswith('.')]
+                        
+                        if len(visible_files) > 0:
+                            logger.info(f"✅ Ordner {final_folder_path} existiert bereits mit {len(visible_files)} Datei(en), Pipeline wird übersprungen")
+                            
+                            # Prüfe, ob wichtige Dateien vorhanden sind (TXT, Video, Audio)
+                            has_txt = any(f.endswith('.txt') for f in visible_files)
+                            has_video = any(f.endswith(('.mp4', '.webm', '.mkv')) for f in visible_files)
+                            has_audio = any(f.endswith(('.mp3', '.wav', '.ogg', '.m4a')) for f in visible_files)
+                            
+                            if has_txt and (has_video or has_audio):
+                                logger.info(f"✅ Ordner enthält bereits alle notwendigen Dateien (TXT + Video/Audio), setze Status auf 'finished'")
+                                try:
+                                    send_processing_status(meta, 'finished')
+                                    logger.info("✅ Finished status gesendet (Ordner existiert bereits)")
+                                except Exception as e:
+                                    logger.error(f"❌ Fehler beim Senden des finished-Status: {e}")
+                                
+                                return  # Pipeline komplett überspringen
+                            else:
+                                logger.info(f"⚠️ Ordner existiert, aber wichtige Dateien fehlen (TXT: {has_txt}, Video: {has_video}, Audio: {has_audio}), Pipeline wird fortgesetzt")
+                        else:
+                            logger.info(f"ℹ️ Ordner {final_folder_path} existiert, aber ist leer, Pipeline wird fortgesetzt")
+                    except Exception as check_error:
+                        logger.warning(f"⚠️ Fehler beim Prüfen des Ordner-Inhalts: {check_error}, Pipeline wird fortgesetzt")
+
                 # YouTube-Link aus Meta für nächsten Schritt
                 youtube_url = getattr(meta, 'youtube_url', None) or getattr(meta, 'youtube_link', None)
                 if not youtube_url:
