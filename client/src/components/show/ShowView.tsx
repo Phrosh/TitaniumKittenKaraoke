@@ -1854,6 +1854,23 @@ const ShowView: React.FC = () => {
     setSongChanged(false);
   }, [ultrastarData?.gap, songChanged, playing]);
 
+  // Reaktiviere Transition nach 3 Sekunden, falls sie ausgeschaltet wurde
+  useEffect(() => {
+    if (!playing || !ultrastarData) return;
+
+    const timeout = setTimeout(() => {
+      const singers = getSingers(ultrastarData);
+      for (const singer of singers) {
+        // Reaktiviere Transition nach 3 Sekunden
+        singer.setLyricsTransitionEnabled(true);
+      }
+    }, 3000); // 3 Sekunden nach Songstart
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [playing, ultrastarData, getSingers]);
+
   const handleAudioPlay = useCallback(async () => {
     setShowLyrics1(false);
     setShowLyrics2(false);
