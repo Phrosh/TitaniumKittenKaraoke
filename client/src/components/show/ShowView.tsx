@@ -88,6 +88,7 @@ const ShowView: React.FC = () => {
   const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoInitializedRef = useRef<boolean>(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [canAutoPlay, setCanAutoPlay] = useState(false);
@@ -1334,9 +1335,21 @@ const ShowView: React.FC = () => {
 
         // Also restart video if present
         if (videoRef.current) {
-          videoRef.current.currentTime = ultrastarData.videogap || 0;
+          videoRef.current.muted = true;
+          // Reset video initialization flag for restart
+          videoInitializedRef.current = false;
+          // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap)
+          if (ultrastarData.videogap !== undefined && ultrastarData.videogap !== null) {
+            videoRef.current.currentTime = ultrastarData.videogap;
+            console.log('🎬 Restart: Video set to videogap:', ultrastarData.videogap);
+          } else {
+            // Kein videogap - Video startet sofort bei 0, parallel zum Audio (ignoriere gap)
+            videoRef.current.currentTime = 0;
+            videoInitializedRef.current = true; // Mark as initialized after setting
+            console.log('🎬 Restart: Video starting immediately at 0 (no videogap)');
+          }
           videoRef.current.play().then(() => {
-            console.log('🎬 Video play() successful');
+            console.log('🎬 Video play() successful on restart');
           }).catch(error => {
             console.error('🎬 Error restarting video playback:', error);
           });
@@ -1518,13 +1531,21 @@ const ShowView: React.FC = () => {
             const video = videoRef.current;
             const audioCurrentTime = audioRef.current.currentTime;
             const gap = ultrastarData.gap || 0;
-            const videogap = ultrastarData.videogap || 0;
+            const videogap = ultrastarData.videogap;
             
             // Calculate correct video position
-            let videoTime = videogap;
-            if (audioCurrentTime >= gap / 1000) {
-              const songTime = audioCurrentTime - (gap / 1000);
-              videoTime = songTime + videogap;
+            // Wenn kein videogap angegeben ist, starte das Video normal bei 0
+            let videoTime = 0;
+            if (videogap !== undefined && videogap !== null) {
+              // videogap ist angegeben - synchronisiere entsprechend
+              videoTime = videogap;
+              if (audioCurrentTime >= gap / 1000) {
+                const songTime = audioCurrentTime - (gap / 1000);
+                videoTime = songTime + videogap;
+              }
+            } else {
+              // Kein videogap - Video startet normal parallel zum Audio
+              videoTime = audioCurrentTime;
             }
             
             video.muted = true;
@@ -1891,8 +1912,48 @@ const ShowView: React.FC = () => {
     // Sync video with audio
     if (videoRef.current && ultrastarData?.videoUrl) {
       videoRef.current.muted = true;
-      videoRef.current.currentTime = ultrastarData.videogap;
-      videoRef.current.play().catch(console.error);
+      // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap komplett)
+      if (ultrastarData.videogap !== undefined && ultrastarData.videogap !== null) {
+        // videogap ist angegeben - synchronisiere entsprechend
+        // Nur synchronisieren, wenn Video noch nicht initialisiert wurde oder pausiert ist
+        const wasInitialized = videoInitializedRef.current;
+        const wasPaused = videoRef.current.paused;
+        if (!wasInitialized || wasPaused) {
+          const audioCurrentTime = audioRef.current?.currentTime ?? 0;
+          const gap = ultrastarData.gap || 0;
+          let videoTime = ultrastarData.videogap;
+          if (audioCurrentTime >= gap / 1000) {
+            const songTime = audioCurrentTime - (gap / 1000);
+            videoTime = songTime + ultrastarData.videogap;
+          }
+          videoRef.current.currentTime = Math.max(0, videoTime);
+          videoInitializedRef.current = true;
+          console.log('🎬 handleAudioPlay: Video syncing with videogap:', {
+            audioTime: audioCurrentTime,
+            videoTime: videoTime,
+            gap: gap,
+            videogap: ultrastarData.videogap,
+            wasInitialized: wasInitialized,
+            wasPaused: wasPaused
+          });
+          // Video abspielen
+          videoRef.current.play().catch(console.error);
+        } else {
+          console.log('🎬 handleAudioPlay: Video already initialized and playing (with videogap), currentTime:', videoRef.current.currentTime, '- not resyncing');
+        }
+      } else {
+        // Kein videogap - Video startet sofort bei 0, parallel zum Audio (ignoriere gap)
+        // Wenn Video bereits läuft, nicht mehr zurücksetzen - es läuft bereits parallel
+        if (videoRef.current.paused) {
+          // Video ist pausiert - starte es bei 0
+          videoRef.current.currentTime = 0;
+          console.log('🎬 handleAudioPlay: Video starting immediately (no videogap, was paused)');
+          videoRef.current.play().catch(console.error);
+        } else {
+          // Video läuft bereits - nicht mehr zurücksetzen, es läuft bereits parallel zum Audio
+          console.log('🎬 handleAudioPlay: Video already playing (no videogap), currentTime:', videoRef.current.currentTime, '- not resetting');
+        }
+      }
     }
   }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines, stopBackgroundMusic, hideBackgroundVideo]);
 
@@ -2130,6 +2191,7 @@ const ShowView: React.FC = () => {
       setLyricsTransitionEnabledP2(false);
       setIsPlaying(false);
       setIsApiLoadedSong(false); // Reset API-loaded flag
+      videoInitializedRef.current = false; // Reset video initialization flag
       
       // Clear lyrics content
       if (currentLyricRef1.current) currentLyricRef1.current.textContent = '';
@@ -2301,25 +2363,57 @@ const ShowView: React.FC = () => {
                   onCanPlay={() => {
                     setVideoLoaded(true);
                     // Sync video to audio position when it becomes ready
-                    if (videoRef.current && audioRef.current && ultrastarData) {
-                      const audioCurrentTime = audioRef.current.currentTime;
-                      const gap = ultrastarData.gap || 0;
-                      const videogap = ultrastarData.videogap || 0;
+                    if (videoRef.current && ultrastarData) {
+                      const videogap = ultrastarData.videogap;
                       
-                      // Calculate correct video position
-                      let videoTime = videogap;
-                      if (audioCurrentTime >= gap / 1000) {
-                        const songTime = audioCurrentTime - (gap / 1000);
-                        videoTime = songTime + videogap;
-                      }
-                      
-                      videoRef.current.currentTime = Math.max(0, videoTime);
-                      
-                      // Ensure video plays
-                      if (videoRef.current.paused) {
-                        videoRef.current.play().catch(error => {
-                          console.error('🎬 Error playing video on canPlay:', error);
-                        });
+                      // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap komplett)
+                      if (videogap === undefined || videogap === null) {
+                        // Kein videogap - Video startet sofort bei 0, parallel zum Audio (ignoriere gap)
+                        // Nur einmal initialisieren, um mehrfache Synchronisationen zu vermeiden
+                        if (!videoInitializedRef.current) {
+                          videoRef.current.currentTime = 0;
+                          videoInitializedRef.current = true;
+                          console.log('🎬 onCanPlay: Video starting immediately (no videogap, first init):', {
+                            videoTime: 0,
+                            videogap: videogap,
+                            audioTime: audioRef.current?.currentTime ?? 'not available'
+                          });
+                          // Video sofort abspielen, auch wenn Audio noch nicht läuft
+                          videoRef.current.play().catch(error => {
+                            console.error('🎬 Error playing video on canPlay (no videogap):', error);
+                          });
+                        } else {
+                          // Video bereits initialisiert - nicht mehr zurücksetzen
+                          console.log('🎬 onCanPlay: Video already initialized (no videogap), currentTime:', videoRef.current.currentTime, '- not resetting');
+                        }
+                      } else if (audioRef.current) {
+                        // videogap ist angegeben - synchronisiere entsprechend
+                        // Nur einmal synchronisieren, um mehrfache Aufrufe zu vermeiden
+                        if (!videoInitializedRef.current) {
+                          const audioCurrentTime = audioRef.current.currentTime;
+                          const gap = ultrastarData.gap || 0;
+                          let videoTime = videogap;
+                          if (audioCurrentTime >= gap / 1000) {
+                            const songTime = audioCurrentTime - (gap / 1000);
+                            videoTime = songTime + videogap;
+                          }
+                          videoRef.current.currentTime = Math.max(0, videoTime);
+                          videoInitializedRef.current = true;
+                          console.log('🎬 onCanPlay: Video syncing with videogap (first init):', {
+                            audioTime: audioCurrentTime,
+                            videoTime: videoTime,
+                            gap: gap,
+                            videogap: videogap
+                          });
+                          // Video abspielen
+                          if (videoRef.current.paused) {
+                            videoRef.current.play().catch(error => {
+                              console.error('🎬 Error playing video on canPlay (with videogap):', error);
+                            });
+                          }
+                        } else {
+                          console.log('🎬 onCanPlay: Video already initialized (with videogap), currentTime:', videoRef.current.currentTime, '- not resyncing');
+                        }
                       }
                     }
                   }}
