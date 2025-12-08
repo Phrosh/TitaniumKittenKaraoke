@@ -435,12 +435,14 @@ const ShowView: React.FC = () => {
           // Currently in a line - always show
           shouldShowLyrics = true;
         } else if (nextLineIndex >= 0) {
-          // Check if next line starts within 10 seconds
+          // Check if next line starts within 10 seconds (13 seconds for first line to show 3 seconds earlier)
           const nextLine = singer.lines[nextLineIndex];
           const timeUntilNextLine = (nextLine.startBeat - currentBeat) * beatDuration;
+          const isFirstLine = nextLineIndex === 0;
+          const threshold = isFirstLine ? 13000 : 10000; // 13 seconds for first line, 10 seconds for others
 
-          // Show lyrics within 10 seconds of any line
-          if (timeUntilNextLine <= 10000) {
+          // Show lyrics within threshold of any line
+          if (timeUntilNextLine <= threshold) {
             shouldShowLyrics = true;
           } else {
             shouldShowLyrics = false;
@@ -1853,22 +1855,44 @@ const ShowView: React.FC = () => {
       const lines = singer.lines as UltrastarLine[];
       const firstLine = lines[0];
       const firstLineStartTime = ultrastarData.gap + (firstLine.startBeat * beatDuration);
-      const showTime = Math.max(0, firstLineStartTime - 1000 * FADE_IN_ATTACK_SECONDS);
+      // Lyrics sollen 3 Sekunden vor der ersten Zeile zu 100% sichtbar sein
+      // Fade-In dauert FADE_IN_DURATION_SECONDS (4 Sekunden)
+      // Also muss das Fade-In starten bei: firstLineStartTime - 3000 - fadeInDuration
+      // Damit die Lyrics zu 100% sichtbar sind, wenn die erste Zeile startet (minus 3 Sekunden)
+      const targetVisibleTime = firstLineStartTime - 3000; // 3 Sekunden vor der ersten Zeile
+      const showTime = Math.max(0, targetVisibleTime - fadeInDuration);
       const timeUntilFirstLine = firstLineStartTime;
       const secondsUntilFirstLine = timeUntilFirstLine / 1000;
-      if (showTime <= fadeInDuration) {
+      // Wenn showTime sehr klein ist (<= 0), Lyrics sofort einblenden
+      if (showTime <= 0) {
+        // Lyrics sofort einblenden, damit sie rechtzeitig zu 100% sichtbar sind
         singer.setLyricsTransitionEnabled(false);
         singer.setLyricsScale(1);
         singer.setShowLyrics(true);
       } else {
         singer.setLyricsTransitionEnabled(true);
         singer.timeouts = [];
+        // Timer startet sofort, wenn playing true wird, und wartet showTime Millisekunden
+        // Das Fade-In startet bei showTime und dauert fadeInDuration
+        // Die Lyrics sind dann zu 100% sichtbar bei showTime + fadeInDuration = targetVisibleTime
         singer.timeouts.push(setTimeout(() => {
           singer.setLyricsScale(1);
           singer.setShowLyrics(true);
-          singer.timeouts.push(setTimeout(() => {
-            startProgress(secondsUntilFirstLine, singer);
-          }, (FADE_IN_ATTACK_SECONDS - COUNTDOWN_SECONDS) * 1000));
+          // Progress bar startet 3 Sekunden vor der ersten Zeile (COUNTDOWN_SECONDS)
+          // targetVisibleTime ist bereits 3 Sekunden vor der ersten Zeile
+          // Also starten wir den Progress bar, wenn die Lyrics zu 100% sichtbar sind
+          const fadeInEndTime = showTime + fadeInDuration;
+          const timeUntilProgress = targetVisibleTime - fadeInEndTime;
+          if (timeUntilProgress > 0) {
+            singer.timeouts.push(setTimeout(() => {
+              startProgress(secondsUntilFirstLine, singer);
+            }, timeUntilProgress));
+          } else {
+            // Wenn nicht genug Zeit, Progress sofort starten (nach Fade-In)
+            singer.timeouts.push(setTimeout(() => {
+              startProgress(secondsUntilFirstLine, singer);
+            }, fadeInDuration));
+          }
         }, showTime));
       }
     }
