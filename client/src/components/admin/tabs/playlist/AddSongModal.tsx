@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { isSongInYouTubeCache } from '../../../../utils/helper';
 import { extractVideoIdFromUrl } from '../../../../utils/youtubeUrlCleaner';
 import { AdminDashboardData } from '../../../../types';
+import CustomPipelineModal from './CustomPipelineModal';
 
 interface AddSongModalProps {
   show: boolean;
@@ -32,6 +33,8 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
     const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
     // const [addSongUsdbTimeout, setAddSongUsdbTimeout] = useState<NodeJS.Timeout | null>(null);
     const [addSongSearchTerm, setAddSongSearchTerm] = useState('');
+    const [ctrlPressed, setCtrlPressed] = useState(false);
+    const [showCustomPipelineModal, setShowCustomPipelineModal] = useState(false);
     
   // Cache detection logic
   const getCacheInfo = () => {
@@ -153,11 +156,36 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
         setAddSongUsdbResults([]);
         setAddSongUsdbLoading(false);
         setAddSongSearchTerm('');
+        setCtrlPressed(false);
+        setShowCustomPipelineModal(false);
     } else {
         // Reset loading state when modal opens
         setActionLoading(false);
     }
   }, [show]);
+
+  // Strg-Taste-Erkennung
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.ctrlKey) {
+        setCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || !e.ctrlKey) {
+        setCtrlPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
     if (!show) return null;
 
@@ -251,17 +279,49 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                   </Button>
                   <Button
                     onClick={() => {
-                      setActionLoading(true);
-                      onSave();
+                      if (ctrlPressed && addSongData.youtubeUrl.trim()) {
+                        // Öffne Custom Pipeline Modal
+                        setShowCustomPipelineModal(true);
+                      } else {
+                        // Normale Song-Hinzufügung
+                        setActionLoading(true);
+                        onSave();
+                      }
                     }}
-                    disabled={actionLoading || !addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())}
+                    disabled={actionLoading || (!ctrlPressed && (!addSongData.singerName.trim() || (!addSongData.artist.trim() && !addSongData.youtubeUrl.trim())))}
                     size="small"
+                    style={ctrlPressed ? {
+                      background: 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7, #fd79a8)',
+                      backgroundSize: '300% 300%',
+                      animation: 'magicGradient 3s ease infinite',
+                      border: 'none',
+                      color: 'white',
+                      fontWeight: 'bold'
+                    } : {}}
                   >
-                    {actionLoading ? t('modals.addSong.adding') : t('modals.addSong.add')}
+                    {actionLoading ? t('modals.addSong.adding') : (ctrlPressed ? '🔧 Custom Pipeline' : t('modals.addSong.add'))}
                   </Button>
                 </ModalButtons>
               </div>
               </div>
+          <CustomPipelineModal
+            show={showCustomPipelineModal}
+            onClose={() => setShowCustomPipelineModal(false)}
+            youtubeUrl={addSongData.youtubeUrl}
+          />
+          <style>{`
+            @keyframes magicGradient {
+              0% {
+                background-position: 0% 50%;
+              }
+              50% {
+                background-position: 100% 50%;
+              }
+              100% {
+                background-position: 0% 50%;
+              }
+            }
+          `}</style>
           </Modal>
     );
 };

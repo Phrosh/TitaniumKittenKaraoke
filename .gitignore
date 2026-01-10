@@ -117,5 +117,6 @@ songs/ultrastar/
 songs/youtube/
 songs/test/
 songs/magic-*/
+songs/custom/
 ai-services/venv/
 song-cache.json

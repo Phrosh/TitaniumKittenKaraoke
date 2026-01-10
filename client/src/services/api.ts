@@ -272,6 +272,10 @@ export const adminAPI = {
   installCloudflared: () => api.post('/admin/cloudflared/install'),
   startCloudflaredTunnel: () => api.post('/admin/cloudflared/start'),
   stopCloudflaredTunnel: () => api.post('/admin/cloudflared/stop'),
+  
+  // Custom Pipeline
+  processCustomPipeline: (youtubeUrl: string, selectedSteps: string[]) =>
+    api.post('/admin/custom-pipeline', { youtubeUrl, selectedSteps }),
 };
 
 export const showAPI = {

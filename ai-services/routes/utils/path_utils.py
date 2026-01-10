@@ -24,3 +24,7 @@ def get_magic_videos_dir():
 def get_magic_youtube_dir():
     """Hilfsfunktion um MAGIC_YOUTUBE_DIR zu bekommen"""
     return os.path.join(get_karaoke_root(), 'songs', 'magic-youtube')
+
+def get_custom_dir():
+    """Hilfsfunktion um CUSTOM_DIR zu bekommen"""
+    return os.path.join(get_karaoke_root(), 'songs', 'custom')

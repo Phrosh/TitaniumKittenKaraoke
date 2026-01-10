@@ -18,6 +18,7 @@ from routes.youtube import download_youtube_bp, youtube_folder_bp
 from routes.usdb import search_usdb_bp, song_info_bp, usdb_process_bp, usdb_download_bp
 from routes.processing import youtube_cache_bp, modular_process_bp, recreate_bp
 from routes.magic import magic_songs_bp, magic_videos_bp, magic_youtube_bp
+from routes.custom import custom_pipeline_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -86,6 +87,7 @@ app.register_blueprint(recreate_bp)
 app.register_blueprint(magic_songs_bp)
 app.register_blueprint(magic_videos_bp)
 app.register_blueprint(magic_youtube_bp)
+app.register_blueprint(custom_pipeline_bp)
 
 # Configuration
 from routes.utils import get_karaoke_root
