@@ -41,7 +41,7 @@ interface DownloadStatusBadgeProps {
     const { t } = useTranslation();
     const realStatus = status;
 
-    if (['none', 'ready'].includes(realStatus))
+    if (['none', 'ready', 'cached'].includes(realStatus))
       return null;
 
     const textMap: Record<DownloadStatus, string> = {

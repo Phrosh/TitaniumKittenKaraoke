@@ -51,15 +51,20 @@ router.put('/song/:songId/youtube', [
         if (existingCache) {
           console.log(`✅ Song already in YouTube cache: ${song.artist} - ${song.title}`);
           await Song.updateDownloadStatus(songId, 'cached');
+          const io = req.app.get('io');
+          if (io) {
+            try { broadcastProcessingStatus(io, { id: Number(songId), artist: song.artist, title: song.title, status: 'finished' }); } catch {}
+          }
         } else {
           // Fire-and-forget download; respond immediately
           const io = req.app.get('io');
           (async () => {
             try {
-              const downloadResult = await downloadYouTubeVideo(youtubeUrl, song.artist, song.title);
+              const downloadResult = await downloadYouTubeVideo(youtubeUrl, song.artist, song.title, songId);
               if (downloadResult.success) {
                 console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
-                await Song.updateDownloadStatus(songId, 'ready').catch(() => {});
+                // Don't set status to 'ready' here - wait for processing to complete
+                // Status will be updated by processing-status endpoint after normalization/cleanup
                 // Add to invisible songs list
                 try {
                   await new Promise((resolve, reject) => {

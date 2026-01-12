@@ -228,8 +228,8 @@ function extractYouTubeVideoId(url) {
  * @param {string} title - Song title
  * @returns {Promise<Object>} Download result
  */
-async function downloadYouTubeVideo(youtubeUrl, artist, title) {
-  console.log(`📥 downloadYouTubeVideo called: ${artist} - ${title}, URL: ${youtubeUrl}`);
+async function downloadYouTubeVideo(youtubeUrl, artist, title, songId = null) {
+  console.log(`📥 downloadYouTubeVideo called: ${artist} - ${title}, URL: ${youtubeUrl}, songId: ${songId}`);
   try {
     const videoId = extractYouTubeVideoId(youtubeUrl);
     if (!videoId) {
@@ -286,7 +286,7 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title) {
     // After successful download, trigger modular processing for youtube cache (normalize + cleanup)
     try {
       const processUrl = `http://localhost:6000/process_youtube_cache/${encodeURIComponent(folderName)}`;
-      await axios.post(processUrl, {}, { timeout: 180000 });
+      await axios.post(processUrl, { song_id: songId }, { timeout: 180000 });
     } catch (e) {
       console.warn('YouTube cache post-processing failed (normalize/cleanup):', e?.message || e);
     }

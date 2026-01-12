@@ -55,9 +55,9 @@ function validateSongForPlayback(song) {
     return { valid: false, reason: 'Song not found' };
   }
 
-  // Check download status - only allow 'finished', 'ready', 'none', or null/undefined
+  // Check download status - only allow 'finished', 'ready', 'cached', 'none', or null/undefined
   const downloadStatus = song.download_status;
-  if (downloadStatus && !['finished', 'ready', 'none'].includes(downloadStatus)) {
+  if (downloadStatus && !['finished', 'ready', 'cached', 'none'].includes(downloadStatus)) {
     return { 
       valid: false, 
       reason: `Song cannot be played. Download status: ${downloadStatus}`,

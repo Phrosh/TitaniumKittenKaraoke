@@ -515,12 +515,14 @@ router.post('/request', [
           const io = req.app.get('io');
           
           // Start async download without awaiting to allow immediate response and UI closing
-          downloadYouTubeVideo(youtubeUrl, artist, title)
+          downloadYouTubeVideo(youtubeUrl, artist, title, song.id)
             .then(async (downloadResult) => {
               if (downloadResult && downloadResult.success) {
                 console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                // Don't set status to 'ready' here - wait for processing to complete
+                // Status will be updated by processing-status endpoint after normalization/cleanup
                 try {
-                  await Song.updateDownloadStatus(song.id, 'ready');
+                  // Keep status as 'downloading' until processing completes
                 } catch {}
                 // Add to invisible songs list
                 try {

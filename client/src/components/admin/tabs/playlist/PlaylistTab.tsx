@@ -147,7 +147,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             if (!matches(s)) return s;
             foundMatch = true;
                 const currentStatusRaw = ((s as any).download_status || (s as any).status) as string | undefined;
-                const currentStatus = currentStatusRaw === 'ready' ? 'finished' : currentStatusRaw;
+                const currentStatus = ['ready', 'cached'].includes(currentStatusRaw || '') ? 'finished' : currentStatusRaw;
                 const incomingStatus = (data.status as string);
             
                 const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
@@ -191,7 +191,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               if (recentSong) {
                 console.log('🛰️ PlaylistTab: Found fallback match:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title });
                 const currentStatusRaw = ((recentSong as any).download_status || (recentSong as any).status) as string | undefined;
-                const currentStatus = currentStatusRaw === 'ready' ? 'finished' : currentStatusRaw;
+                const currentStatus = ['ready', 'cached'].includes(currentStatusRaw || '') ? 'finished' : currentStatusRaw;
                 const incomingStatus = (data.status as string);
                 
                 const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
@@ -225,6 +225,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             }
           }
           console.log('🛰️ PlaylistTab: status applied to entries:', appliedCount);
+          
+          // If status is finished, refresh dashboard data to update cache info
+          if (data.status === 'finished' && appliedCount > 0) {
+            setTimeout(() => {
+              fetchDashboardData();
+            }, 500); // Small delay to ensure backend cache is updated
+          }
+          
           return updated;
         });
             }, 100); // 100ms delay
@@ -245,7 +253,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
       websocketService.off('processing-status', handleProcessingStatus);
     };
-  }, [setShowQRCodeOverlay, setDashboardData]);
+  }, [setShowQRCodeOverlay, setDashboardData, fetchDashboardData]);
 
   // Filter playlist based on showPastSongs setting
   const filteredPlaylist = showPastSongs
@@ -805,7 +813,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             const isDragging = draggedItem === song.id;
             const isDropTarget = dropTarget === song.id;
             const showDropZoneAbove = draggedItem && dropTarget === song.id && draggedItem !== song.id;
-            const effectiveStatus = (song.download_status as string) === 'ready' ? 'finished' : song.download_status;
+            const effectiveStatus = ['ready', 'cached'].includes(song.download_status as string) ? 'finished' : song.download_status;
             const isBlocked = !!effectiveStatus && !['finished', 'failed', 'none'].includes(effectiveStatus as string);
             const isProcessing = isBlocked; // In PlaylistTab ist isBlocked bereits der Processing-Status
             

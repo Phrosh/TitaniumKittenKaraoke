@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 @youtube_cache_bp.route('/process_youtube_cache/<folder_name>', methods=['POST'])
 def process_youtube_cache(folder_name):
     try:
+        from flask import request
         from modules import (
             ProcessingMode,
             create_meta_from_file_path,
@@ -20,6 +21,11 @@ def process_youtube_cache(folder_name):
             cleanup_files
         )
         from modules.logger_utils import meta_to_short_dict, send_processing_status
+
+        # Get song_id from request body if provided
+        song_id = None
+        if request.is_json:
+            song_id = request.json.get('song_id')
 
         base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '..', 'songs', 'youtube'))
         folder_path = os.path.join(base_dir, folder_name)
@@ -37,6 +43,10 @@ def process_youtube_cache(folder_name):
             return jsonify({'error': 'No files in folder'}), 400
         
         meta = create_meta_from_file_path(any_file, base_dir, ProcessingMode.YOUTUBE_CACHE)
+        
+        # Store song_id in meta if provided
+        if song_id:
+            meta.song_id = song_id
         try:
             videos = [f for f in os.listdir(folder_path) if f.lower().endswith(('.mp4', '.webm', '.mkv'))]
             if videos:
@@ -54,7 +64,7 @@ def process_youtube_cache(folder_name):
                 
                 # broadcast processing started
                 try:
-                    send_processing_status(artist=meta.artist, title=meta.title, status='processing')
+                    send_processing_status(meta, 'processing')
                 except Exception:
                     pass
                 
@@ -72,13 +82,13 @@ def process_youtube_cache(folder_name):
                 finish_processing(meta)
                 
                 try:
-                    send_processing_status(artist=meta.artist, title=meta.title, status='finished')
+                    send_processing_status(meta, 'finished')
                 except Exception:
                     pass
             except Exception as e:
                 logger.error(f"Error processing youtube cache (bg): {e}")
                 try:
-                    send_processing_status(artist=meta.artist, title=meta.title, status='failed')
+                    send_processing_status(meta, 'failed')
                 except Exception:
                     pass
 
