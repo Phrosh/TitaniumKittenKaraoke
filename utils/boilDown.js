@@ -4,12 +4,14 @@
  * Rules:
  * 1. Remove "the" or "die" from the beginning
  * 2. Convert to lowercase
+ * 2.5. Normalize "&" and "&amp;" to "and" (e.g., "Hello & Goodbye" -> "Hello and Goodbye")
  * 3. Convert English number words to numeric (seven -> 7)
  * 4. Remove spaces, punctuation and special characters - only keep numbers and word characters
  * 
  * Examples:
  * "Seven Nation army" -> "7nationarmy"
  * "The White Stripes" -> "whitestripes"
+ * "Hello & Goodbye" -> "helloandgoodbye"
  */
 
 // English number words to numeric conversion
@@ -70,6 +72,10 @@ function boilDown(inputString) {
 
   // 2. Convert to lowercase
   result = result.toLowerCase();
+
+  // 2.5. Normalize "&" and "&amp;" to "and" for better matching
+  result = result.replace(/&amp;/g, ' and ');
+  result = result.replace(/&/g, ' and ');
 
   // 3. Convert English number words to numeric
   // Split by word boundaries to handle individual words
