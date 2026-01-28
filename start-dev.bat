@@ -25,6 +25,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+REM Ensure yt-dlp can use Node.js for EJS
+set YTDLP_JS_RUNTIMES=node
+
 echo [1/4] Building Client for Production...
 echo ----------------------------------------
 cd client

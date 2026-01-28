@@ -7,6 +7,7 @@ Lädt YouTube-Videos herunter und extrahiert Metadaten
 import os
 import re
 import subprocess
+import shutil
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -120,10 +121,19 @@ class YouTubeDownloader:
                 'extractor_args': {
                     'youtube': {
                         'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'player_skip': ['web', 'web_safari'],
                         'skip': ['dash', 'hls']
                     }
                 }
             })
+            js_runtimes = os.getenv('YTDLP_JS_RUNTIMES') or os.getenv('YTDLP_JS_RUNTIME')
+            if js_runtimes:
+                runtimes = [r.strip() for r in js_runtimes.split(',') if r.strip()]
+                config['js_runtimes'] = {r: {} for r in runtimes}
+            else:
+                node_path = shutil.which('node')
+                if node_path:
+                    config['js_runtimes'] = {'node': {'path': node_path}}
             
             with yt_dlp.YoutubeDL(config) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -210,13 +220,23 @@ class YouTubeDownloader:
                 'no_warnings': False,
                 'quiet': False,
                 'cookiefile': None,  # Optional: Path to cookies file if available
+                'format': 'best[height<=720][protocol^=http][ext=mp4]/best[height<=720][protocol^=http]/best[protocol^=http]',
                 'extractor_args': {
                     'youtube': {
                         'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'player_skip': ['web', 'web_safari'],
                         'skip': ['dash', 'hls']
                     }
                 }
             })
+            js_runtimes = os.getenv('YTDLP_JS_RUNTIMES') or os.getenv('YTDLP_JS_RUNTIME')
+            if js_runtimes:
+                runtimes = [r.strip() for r in js_runtimes.split(',') if r.strip()]
+                config['js_runtimes'] = {r: {} for r in runtimes}
+            else:
+                node_path = shutil.which('node')
+                if node_path:
+                    config['js_runtimes'] = {'node': {'path': node_path}}
             
             # Entscheide Dateiname basierend auf Flag
             if meta.use_youtube_id_as_filename:
@@ -240,12 +260,19 @@ class YouTubeDownloader:
                     downloaded_files.append(file)
             
             if not downloaded_files:
-                logger.error("Keine Video-Datei gefunden nach Download")
-                return False
+                logger.warning("Keine Video-Datei gefunden nach Download – fallback zu Audio-Only")
+                return self.download_audio_only(meta)
             
             # Füge die heruntergeladene Datei zum Meta-Objekt hinzu
             video_file = downloaded_files[0]  # Nehme die erste gefundene Datei
             video_path = meta.get_file_path(video_file)
+            try:
+                if os.path.getsize(video_path) == 0:
+                    logger.warning("Video-Datei ist leer – fallback zu Audio-Only")
+                    os.remove(video_path)
+                    return self.download_audio_only(meta)
+            except Exception:
+                pass
             meta.add_input_file(video_path)
             meta.add_keep_file(video_file)
             
@@ -257,10 +284,8 @@ class YouTubeDownloader:
             
         except Exception as e:
             logger.error(f"Fehler beim Herunterladen von {meta.youtube_url}: {e}")
-            meta.mark_step_failed('youtube_download')
-            meta.status = ProcessingStatus.FAILED
-            send_processing_status(meta, 'failed')
-            return False
+            logger.warning("Video-Download fehlgeschlagen – fallback zu Audio-Only")
+            return self.download_audio_only(meta)
     
     def download_audio_only(self, meta: ProcessingMeta) -> bool:
         """
@@ -300,7 +325,7 @@ class YouTubeDownloader:
             
             # Enhanced options to bypass YouTube restrictions
             config.update({
-                'format': 'bestaudio/best',
+                'format': 'bestaudio[protocol^=http]/bestaudio',
                 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'extract_flat': False,
                 'noplaylist': True,
@@ -309,10 +334,19 @@ class YouTubeDownloader:
                 'extractor_args': {
                     'youtube': {
                         'player_client': ['android', 'ios'],  # Use mobile clients to bypass SABR streaming
+                        'player_skip': ['web', 'web_safari'],
                         'skip': ['dash', 'hls']
                     }
                 }
             })
+            js_runtimes = os.getenv('YTDLP_JS_RUNTIMES') or os.getenv('YTDLP_JS_RUNTIME')
+            if js_runtimes:
+                runtimes = [r.strip() for r in js_runtimes.split(',') if r.strip()]
+                config['js_runtimes'] = {r: {} for r in runtimes}
+            else:
+                node_path = shutil.which('node')
+                if node_path:
+                    config['js_runtimes'] = {'node': {'path': node_path}}
             
             config['outtmpl'] = os.path.join(meta.folder_path, f"{video_id}.%(ext)s")
             

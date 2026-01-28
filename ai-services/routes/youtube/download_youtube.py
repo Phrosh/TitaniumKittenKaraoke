@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import os
 import logging
+import shutil
 from ..utils import normalize_audio_in_video, clean_youtube_url, get_ultrastar_dir, sanitize_filename
 
 # Erstelle einen Blueprint für YouTube-Download
@@ -46,12 +47,27 @@ def download_youtube_video(folder_name):
         # Configure yt-dlp options
         ydl_opts = {
             'outtmpl': output_path,
-            'format': 'best[ext=mp4]/best[ext=webm]/best',
+            'format': 'best[ext=mp4][protocol^=http]/best[ext=webm][protocol^=http]/best[protocol^=http]',
             'noplaylist': True,
             'extract_flat': False,
             'quiet': False,
             'no_warnings': False,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'ios'],
+                    'player_skip': ['web', 'web_safari'],
+                    'skip': ['dash', 'hls']
+                }
+            }
         }
+        js_runtimes = os.getenv('YTDLP_JS_RUNTIMES') or os.getenv('YTDLP_JS_RUNTIME')
+        if js_runtimes:
+            runtimes = [r.strip() for r in js_runtimes.split(',') if r.strip()]
+            ydl_opts['js_runtimes'] = {r: {} for r in runtimes}
+        else:
+            node_path = shutil.which('node')
+            if node_path:
+                ydl_opts['js_runtimes'] = {'node': {'path': node_path}}
         
         # Download the video
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -78,6 +94,14 @@ def download_youtube_video(folder_name):
                 if downloaded_video:
                     # Normalize audio in the downloaded video
                     video_path = os.path.join(folder_path, downloaded_video)
+                    try:
+                        if os.path.getsize(video_path) == 0:
+                            raise RuntimeError("Downloaded video is empty")
+                    except Exception as size_error:
+                        logger.warning(f"Video-Datei leer – fallback zu Audio-Only: {size_error}")
+                        downloaded_video = None
+
+                if downloaded_video:
                     logger.info(f"Starting audio normalization for: {video_path}")
                     
                     normalized_path = normalize_audio_in_video(video_path)
@@ -96,8 +120,34 @@ def download_youtube_video(folder_name):
                         'audioNormalization': normalization_status
                     })
                 else:
+                    # Fallback: Audio-Only
+                    audio_opts = dict(ydl_opts)
+                    audio_opts['format'] = 'bestaudio[protocol^=http]/bestaudio'
+                    with yt_dlp.YoutubeDL(audio_opts) as ydl_audio:
+                        ydl_audio.extract_info(youtube_url, download=True)
+                    files = os.listdir(folder_path)
+                    audio_file = None
+                    for file in files:
+                        ext = os.path.splitext(file)[1].lower()
+                        name = os.path.splitext(file)[0].lower()
+                        if (ext in ['.mp3', '.m4a', '.webm', '.ogg', '.flac'] and
+                            'hp2' not in name and 'hp5' not in name and
+                            'vocals' not in name and 'instrumental' not in name and
+                            'extracted' not in name):
+                            audio_path = os.path.join(folder_path, file)
+                            if os.path.getsize(audio_path) > 0:
+                                audio_file = file
+                                break
+                    if audio_file:
+                        return jsonify({
+                            'message': 'YouTube audio downloaded (fallback)',
+                            'status': 'success',
+                            'downloadedFile': audio_file,
+                            'folderName': folder_name,
+                            'audioNormalization': 'skipped'
+                        })
                     return jsonify({
-                        'error': 'Download completed but no video file found',
+                        'error': 'Download completed but no video/audio file found',
                         'details': f"Files in folder: {', '.join(files)}"
                     }), 500
                     
