@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 import subprocess
 import logging
+import shutil
 import re
 import sys
 import traceback
@@ -91,6 +92,26 @@ app.register_blueprint(custom_pipeline_bp)
 
 # Configuration
 from routes.utils import get_karaoke_root
+
+# Hugging Face Cache auf Laufwerk D umleiten, falls nicht gesetzt
+hf_cache_root = os.environ.get('HF_HOME') or os.environ.get('HUGGINGFACE_HUB_CACHE')
+if not hf_cache_root:
+    default_cache = os.path.join(get_karaoke_root(), ".cache", "huggingface")
+    os.environ.setdefault('HF_HOME', default_cache)
+    os.environ.setdefault('HUGGINGFACE_HUB_CACHE', os.path.join(default_cache, "hub"))
+    os.environ.setdefault('TRANSFORMERS_CACHE', os.path.join(default_cache, "transformers"))
+    try:
+        Path(os.environ['HUGGINGFACE_HUB_CACHE']).mkdir(parents=True, exist_ok=True)
+        Path(os.environ['TRANSFORMERS_CACHE']).mkdir(parents=True, exist_ok=True)
+    except Exception as cache_error:
+        logger.warning(f"Konnte HF-Cache-Verzeichnisse nicht erstellen: {cache_error}")
+
+# yt-dlp JS Runtime auf Node setzen, falls verfügbar
+if not os.environ.get("YTDLP_JS_RUNTIMES"):
+    node_path = shutil.which("node")
+    if node_path:
+        os.environ["YTDLP_JS_RUNTIMES"] = f"node:{node_path}"
+        logger.info(f"YTDLP_JS_RUNTIMES gesetzt auf Node: {node_path}")
 
 # Flask Error Handler
 @app.errorhandler(Exception)

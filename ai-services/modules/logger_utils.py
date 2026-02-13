@@ -38,7 +38,8 @@ def send_processing_status(meta, status: str) -> None:
         title = getattr(meta, 'title', None)
         song_id = getattr(meta, 'song_id', None)  # Try to get song ID if available
         youtube_url = getattr(meta, 'youtube_url', None)  # Include youtube_url
-        payload = { 'artist': artist, 'title': title, 'status': status }
+        status_out = 'finished' if status == 'completed' else status
+        payload = { 'artist': artist, 'title': title, 'status': status_out }
         if song_id:
             payload['id'] = song_id
         if youtube_url:

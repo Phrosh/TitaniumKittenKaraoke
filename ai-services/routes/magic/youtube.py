@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import os
 import logging
+import shutil
 from ..utils import get_magic_youtube_dir, sanitize_filename
 
 # Erstelle einen Blueprint für Magic-YouTube
@@ -63,7 +64,9 @@ def process_magic_youtube_from_url(folder_name):
 
         # Send initial status
         try:
-            send_processing_status(id=song_id, artist="", title="", status='downloading')
+            from types import SimpleNamespace
+            temp_meta = SimpleNamespace(artist="", title="", song_id=song_id, youtube_url=youtube_url)
+            send_processing_status(temp_meta, 'downloading')
         except Exception:
             pass
         
@@ -85,17 +88,67 @@ def process_magic_youtube_from_url(folder_name):
             
             ydl_opts = {
                 'outtmpl': os.path.join(folder_path, '%(id)s.%(ext)s'),
-                'format': 'best[height<=720]',  # Limit to 720p for faster processing
+                'format': 'best[height<=720][protocol^=http][ext=mp4]/best[height<=720][protocol^=http]/best[protocol^=http]',
                 'quiet': False,
                 'no_warnings': False,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'ios'],
+                        'player_skip': ['web', 'web_safari'],
+                        'skip': ['dash', 'hls']
+                    }
+                }
             }
+            js_runtimes = os.getenv('YTDLP_JS_RUNTIMES') or os.getenv('YTDLP_JS_RUNTIME')
+            if js_runtimes:
+                runtimes = [r.strip() for r in js_runtimes.split(',') if r.strip()]
+                js_dict = {}
+                for r in runtimes:
+                    if ":" in r:
+                        name, path = r.split(":", 1)
+                        js_dict[name] = {"path": path}
+                    else:
+                        js_dict[r] = {}
+                ydl_opts['js_runtimes'] = js_dict
+                logger.info(f"yt-dlp js_runtimes: {list(js_dict.keys())}")
+            else:
+                node_path = shutil.which('node')
+                if node_path:
+                    ydl_opts['js_runtimes'] = {'node': {'path': node_path}}
+                    logger.info(f"yt-dlp js_runtimes: node ({node_path})")
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=True)
                 video_id = info.get('id')
                 video_file = os.path.join(folder_path, f"{video_id}.{info.get('ext', 'mp4')}")
                 
-                logger.info(f"Downloaded YouTube video: {video_file}")
+                audio_only = False
+                try:
+                    if os.path.getsize(video_file) == 0:
+                        raise RuntimeError("Downloaded video is empty")
+                except Exception as size_error:
+                    logger.warning(f"Video-Datei leer – fallback zu Audio-Only: {size_error}")
+                    audio_only = True
+
+                if audio_only:
+                    audio_opts = dict(ydl_opts)
+                    audio_opts['format'] = 'bestaudio[protocol^=http]/bestaudio'
+                    with yt_dlp.YoutubeDL(audio_opts) as ydl_audio:
+                        info = ydl_audio.extract_info(youtube_url, download=True)
+                    audio_file = None
+                    for file in os.listdir(folder_path):
+                        ext = os.path.splitext(file)[1].lower()
+                        if ext in ['.mp3', '.m4a', '.webm', '.ogg', '.flac']:
+                            candidate = os.path.join(folder_path, file)
+                            if os.path.getsize(candidate) > 0:
+                                audio_file = candidate
+                                break
+                    if not audio_file:
+                        raise RuntimeError("Audio-Only Download fehlgeschlagen")
+                    video_file = audio_file
+                    logger.info(f"Downloaded YouTube audio (fallback): {video_file}")
+                else:
+                    logger.info(f"Downloaded YouTube video: {video_file}")
                 
         except Exception as e:
             logger.error(f"Error downloading YouTube video: {str(e)}")
@@ -165,7 +218,7 @@ def process_magic_youtube_from_url(folder_name):
             
             # Send finished status
             try:
-                send_processing_status(id=getattr(meta, 'song_id', None), artist=meta.artist, title=meta.title, status='finished')
+                send_processing_status(meta, 'finished')
             except Exception:
                 pass
                 
