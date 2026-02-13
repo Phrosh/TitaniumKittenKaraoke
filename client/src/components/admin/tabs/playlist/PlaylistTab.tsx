@@ -1012,7 +1012,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         e.stopPropagation();
                         handleDeleteSong(song.id);
                       }}
-                      disabled={actionLoading || (isBlocked && !['failed', 'none'].includes(effectiveStatus as string))}
+                      title={t('playlist.removeFromPlaylist')}
                     >
                       🗑️
                     </Button>

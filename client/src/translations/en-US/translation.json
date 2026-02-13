@@ -196,6 +196,7 @@
     "youtubeCacheAvailable": "✅ Available in YouTube cache",
     "clickToBan": "Click to add to banlist",
     "refreshClassification": "Update song classification (checks for local files)",
+    "removeFromPlaylist": "Remove from playlist",
     "youtubeLinkPlaceholder": "Enter YouTube link here...",
     "previous": "Previous",
     "playPause": "Play/Pause",

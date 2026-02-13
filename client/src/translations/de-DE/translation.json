@@ -196,6 +196,7 @@
     "youtubeCacheAvailable": "✅ Im YouTube-Cache verfügbar",
     "clickToBan": "Klicken um zur Banlist hinzuzufügen",
     "refreshClassification": "Song-Klassifizierung aktualisieren (prüft auf lokale Dateien)",
+    "removeFromPlaylist": "Von Playlist entfernen",
     "youtubeLinkPlaceholder": "YouTube-Link hier eingeben...",
     "addYouTubeLink": "YouTube Link eintragen",
     "magicYouTubeProcessingStarted": "✨ Magic YouTube Verarbeitung gestartet!",
