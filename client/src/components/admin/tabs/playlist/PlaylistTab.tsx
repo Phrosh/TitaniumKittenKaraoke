@@ -38,6 +38,18 @@ import AddSongModal from './AddSongModal';
 import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
 
+/** True if this song should be shown as magic-youtube (not as ultrastar) in the playlist. */
+function isMagicYouTubeDisplay(song: Song, magicYouTubeSongs?: { artist: string; title: string }[]): boolean {
+  if (song.magic) return true;
+  const mode = song.mode || 'youtube';
+  if (mode !== 'ultrastar') return false;
+  if (song.youtube_url && (song.youtube_url.includes('/api/magic') || song.youtube_url.includes('magic-youtube'))) return true;
+  if (magicYouTubeSongs?.length) {
+    const key = `${(song.artist || '').trim()} - ${(song.title || '').trim()}`;
+    return magicYouTubeSongs.some(m => `${(m.artist || '').trim()} - ${(m.title || '').trim()}` === key);
+  }
+  return false;
+}
 
 interface PlaylistTabProps {
   fetchDashboardData: () => void;
@@ -876,8 +888,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                               {song.modes ? (
                                 song.modes.map((mode, index) => (
                                   <React.Fragment key={index}>
-                                    {/* Show magic badge instead of ultrastar badge for magic songs */}
-                                    {song.magic && mode === 'ultrastar' ? (
+                                    {/* Show magic-youtube badge instead of ultrastar for magic-youtube songs */}
+                                    {isMagicYouTubeDisplay(song, dashboardData.magicYouTubeSongs) && mode === 'ultrastar' ? (
                                       <SmallModeBadge mode="magic-youtube" modes={['magic-youtube']} />
                                     ) : (
                                       <SmallModeBadge mode={mode} modes={[mode]} />
@@ -890,8 +902,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                                 ))
                               ) : (
                                 <>
-                                  {/* Show magic badge instead of ultrastar badge for magic songs */}
-                                  {song.magic && (song.mode || 'youtube') === 'ultrastar' ? (
+                                  {/* Show magic-youtube badge instead of ultrastar for magic-youtube songs */}
+                                  {isMagicYouTubeDisplay(song, dashboardData.magicYouTubeSongs) ? (
                                     <SmallModeBadge mode="magic-youtube" modes={['magic-youtube']} />
                                   ) : (
                                     <SmallModeBadge mode={song.mode || 'youtube'} modes={[song.mode || 'youtube']} />

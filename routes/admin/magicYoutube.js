@@ -77,8 +77,11 @@ router.post('/song/:songId/magic-youtube', [
             });
             
             if (proxyRes.statusCode === 200) {
-              // Update song mode to ultrastar (magic-youtube)
+              // Update song mode to ultrastar (magic-youtube) and set youtube_url to magic API path
+              // so playlist display and Song.getAll() recognize it as magic-youtube (magic: true)
+              const magicApiUrl = `/api/magic-youtube/${encodeURIComponent(`${song.artist} - ${song.title}`)}`;
               Song.updateMode(songId, 'ultrastar').catch(console.error);
+              Song.updateYoutubeUrl(songId, magicApiUrl).catch(console.error);
               Song.updateDownloadStatus(songId, 'ready').catch(console.error);
               
               // Add to invisible songs list
