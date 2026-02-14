@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { songAPI } from '../services/api';
 import { SongRequestData } from '../types';
@@ -707,64 +707,66 @@ const SongRequest: React.FC = () => {
     );
   };
 
-  // Combine all songs including USDB results
-  const allSongs = [...serverVideos, ...ultrastarSongs, ...fileSongs];
-  
-  // Add USDB results if search is active
-  const songsWithUSDB = searchTerm.trim() && usdbSearchEnabled 
-    ? [...allSongs, ...usdbResults] 
-    : allSongs;
-  
-  const filteredVideos = songsWithUSDB.filter(video => {
-    const searchLower = searchTerm.toLowerCase();
-    const fullSongName = `${video.artist} - ${video.title}`.toLowerCase();
-    
-    // Check if search term contains " - " (interpret - songtitel format)
-    if (searchLower.includes(' - ')) {
-      // For "interpret - songtitel" format, require both artist AND title to match
-      const [searchArtist, searchTitle] = searchLower.split(' - ').map(s => s.trim());
-      const videoArtist = video.artist.toLowerCase();
-      const videoTitle = video.title.toLowerCase();
-      
-      return videoArtist.includes(searchArtist) && videoTitle.includes(searchTitle);
-    } else {
-      // For single terms, search in artist, title, or full name
-      return video.artist.toLowerCase().includes(searchLower) ||
-             video.title.toLowerCase().includes(searchLower) ||
-             fullSongName.includes(searchLower);
-    }
-  });
-
-  // Remove duplicates based on artist and title combination
-  const uniqueFilteredVideos = filteredVideos.filter((video, index, self) => 
-    index === self.findIndex(v => 
-      v.artist.toLowerCase() === video.artist.toLowerCase() && 
-      v.title.toLowerCase() === video.title.toLowerCase()
-    )
+  // Combine all songs including USDB results (memoized – nicht von formData abhängig, damit Tippen nicht die ganze Liste neu berechnet)
+  const allSongs = useMemo(
+    () => [...serverVideos, ...ultrastarSongs, ...fileSongs],
+    [serverVideos, ultrastarSongs, fileSongs]
   );
 
-  // Group songs by first letter of artist
-  const getFirstLetter = (artist: string) => {
-    const firstChar = artist.charAt(0).toUpperCase();
-    if (/[A-Z]/.test(firstChar)) {
-      return firstChar;
-    } else if (/[0-9]/.test(firstChar)) {
-      return '#';
-    } else {
-      return '#';
-    }
-  };
+  const songsWithUSDB = useMemo(
+    () => (searchTerm.trim() && usdbSearchEnabled ? [...allSongs, ...usdbResults] : allSongs),
+    [allSongs, searchTerm, usdbSearchEnabled, usdbResults]
+  );
 
-  const groupedSongs = uniqueFilteredVideos.reduce((groups, song) => {
-    const letter = getFirstLetter(song.artist);
-    if (!groups[letter]) {
-      groups[letter] = [];
-    }
-    groups[letter].push(song);
-    return groups;
-  }, {} as Record<string, typeof uniqueFilteredVideos>);
+  const filteredVideos = useMemo(() => {
+    return songsWithUSDB.filter((video: any) => {
+      const searchLower = searchTerm.toLowerCase();
+      const fullSongName = `${video.artist} - ${video.title}`.toLowerCase();
 
-  const sortedGroups = Object.keys(groupedSongs).sort();
+      if (searchLower.includes(' - ')) {
+        const [searchArtist, searchTitle] = searchLower.split(' - ').map((s: string) => s.trim());
+        const videoArtist = video.artist.toLowerCase();
+        const videoTitle = video.title.toLowerCase();
+        return videoArtist.includes(searchArtist) && videoTitle.includes(searchTitle);
+      }
+      return (
+        video.artist.toLowerCase().includes(searchLower) ||
+        video.title.toLowerCase().includes(searchLower) ||
+        fullSongName.includes(searchLower)
+      );
+    });
+  }, [songsWithUSDB, searchTerm]);
+
+  const uniqueFilteredVideos = useMemo(
+    () =>
+      filteredVideos.filter(
+        (video: any, index: number, self: any[]) =>
+          index ===
+          self.findIndex(
+            (v: any) =>
+              v.artist.toLowerCase() === video.artist.toLowerCase() &&
+              v.title.toLowerCase() === video.title.toLowerCase()
+          )
+      ),
+    [filteredVideos]
+  );
+
+  const groupedSongs = useMemo(() => {
+    const getFirstLetter = (artist: string) => {
+      const firstChar = artist.charAt(0).toUpperCase();
+      if (/[A-Z]/.test(firstChar)) return firstChar;
+      if (/[0-9]/.test(firstChar)) return '#';
+      return '#';
+    };
+    return uniqueFilteredVideos.reduce((groups: Record<string, any[]>, song: any) => {
+      const letter = getFirstLetter(song.artist);
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(song);
+      return groups;
+    }, {});
+  }, [uniqueFilteredVideos]);
+
+  const sortedGroups = useMemo(() => Object.keys(groupedSongs).sort(), [groupedSongs]);
 
   return (
     <Container>
