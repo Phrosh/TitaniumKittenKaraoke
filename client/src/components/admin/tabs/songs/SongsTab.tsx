@@ -15,6 +15,7 @@ import {
 import SongList from './SongList';
 import UsdbDownloadModal from './UsdbDownloadModal';
 import Button from '../../../shared/Button';
+import { createSanitizedFolderName } from '../../../../utils/filenameSanitizer';
 
 interface SongsTabProps {
     fetchDashboardData: () => void;
@@ -512,7 +513,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
                     songType = 'magic-videos';
                 }
 
-                const folderName = song.folderName || `${song.artist} - ${song.title}`;
+                const folderName = song.folderName || createSanitizedFolderName(song.artist, song.title);
                 
                 try {
                     const response = await songAPI.modularProcess(folderName, songType);

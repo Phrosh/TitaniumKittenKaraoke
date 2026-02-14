@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
-const { createSanitizedFolderName } = require('./filenameSanitizer');
+const { createSanitizedFolderName, decodeFromPath } = require('./filenameSanitizer');
 
 // YouTube songs directory
 const YOUTUBE_DIR = path.join(__dirname, '..', 'songs', 'youtube');
@@ -25,11 +25,11 @@ function scanYouTubeSongs() {
       const folderPath = path.join(YOUTUBE_DIR, folder);
       
       if (fs.statSync(folderPath).isDirectory()) {
-        // Parse folder name: "Artist - Songname"
+        // Parse folder name: "Artist - Songname" (may contain encoded %27, %26 for ', &)
         const parts = folder.split(' - ');
         if (parts.length >= 2) {
-          const artist = parts[0].trim();
-          const title = parts.slice(1).join(' - ').trim();
+          const artist = decodeFromPath(parts[0].trim());
+          const title = decodeFromPath(parts.slice(1).join(' - ').trim());
           
           // Find video files in the folder
           const files = fs.readdirSync(folderPath);

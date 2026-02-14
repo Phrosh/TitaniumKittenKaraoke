@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 import os
 import logging
 import shutil
+from urllib.parse import unquote
 from ..utils import normalize_audio_in_video, create_sanitized_folder_name, clean_youtube_url, get_youtube_dir
 
 # Erstelle einen Blueprint für YouTube-Folder-Download
@@ -16,8 +17,8 @@ def download_youtube_video_to_youtube_folder(folder_name):
     Download YouTube video to songs/youtube folder
     """
     try:
-        # Decode folder name
-        folder_name = folder_name.replace('%20', ' ')
+        # Decode folder name from URL (handles %27, %26, %20, etc.)
+        folder_name = unquote(folder_name)
         
         # Get YouTube URL and metadata from request
         data = request.get_json()

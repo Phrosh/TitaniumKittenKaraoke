@@ -10,6 +10,7 @@ import {
 import Button from '../../../shared/Button';
 import getFirstLetter from '../../../../utils/getFirstLetter';
 import { getProcessingButtonState } from '../../../../utils/helper';
+import { createSanitizedFolderName } from '../../../../utils/filenameSanitizer';
 import DeleteModal from './DeleteModal';
 import RenameModal from './RenameModal';
 import YoutubeDownloadModal from './YoutubeDownloadModal';
@@ -68,7 +69,7 @@ const SongList: React.FC<SongListProps> = ({
         }
         
         const songKey = `${selectedSongForDownload.artist}-${selectedSongForDownload.title}`;
-        const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
+        const folderName = selectedSongForDownload.folderName || createSanitizedFolderName(selectedSongForDownload.artist, selectedSongForDownload.title);
         
         // Close dialog first
         handleCloseYouTubeDialog();
@@ -403,7 +404,7 @@ const SongList: React.FC<SongListProps> = ({
 
     const handleRecreateSong = async (song: any) => {
         const songKey = `${song.artist}-${song.title}`;
-        const folderName = song.folderName || `${song.artist} - ${song.title}`;
+        const folderName = song.folderName || createSanitizedFolderName(song.artist, song.title);
 
         // Mark song as processing
         setProcessingSongs(prev => new Set(prev).add(songKey));

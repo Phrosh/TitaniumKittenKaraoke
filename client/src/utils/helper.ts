@@ -1,6 +1,7 @@
 import { boilDown, boilDownMatch } from "./boilDown";
 import { Song } from "../types";
 import { extractVideoIdFromUrl } from './youtubeUrlCleaner';
+import { createSanitizedFolderName } from './filenameSanitizer';
 import QRCode from 'qrcode';
 
 export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
@@ -72,21 +73,11 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
     });
   }
 
-  // If still not found, try with sanitized names (fallback)
+  // If still not found, try with encoded folder name (same logic as backend: encode then sanitize)
   if (!found) {
-    const sanitizeFilename = (filename: string) => {
-      if (!filename) return '';
-      return filename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-        .replace(/^[.\s]+|[.\s]+$/g, '')
-        .replace(/_+/g, '_')
-        .replace(/^_+|_+$/g, '') || 'unnamed';
-    };
-
-    const sanitizedArtist = sanitizeFilename(song.artist);
-    const sanitizedTitle = sanitizeFilename(song.title);
-
+    const expectedFolderName = createSanitizedFolderName(song.artist, song.title);
     found = youtubeSongs.some(youtubeSong =>
-      youtubeSong.folderName === `${sanitizedArtist} - ${sanitizedTitle}`
+      youtubeSong.folderName === expectedFolderName
     );
   }
 

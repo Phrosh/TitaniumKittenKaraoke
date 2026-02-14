@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 import os
 import logging
 import threading
+from urllib.parse import unquote
 from ..utils import get_youtube_dir
 
 # Erstelle einen Blueprint für YouTube-Cache-Processing
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 def process_youtube_cache(folder_name):
     try:
         from flask import request
+        # Decode folder name from URL (handles %27, %26, %20, etc.)
+        folder_name = unquote(folder_name)
         from modules import (
             ProcessingMode,
             create_meta_from_file_path,

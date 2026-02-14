@@ -3,6 +3,7 @@ import Button from '../../../shared/Button';
 import toast from 'react-hot-toast';
 import { songAPI } from '../../../../services/api';
 import { useTranslation } from 'react-i18next';
+import { createSanitizedFolderName } from '../../../../utils/filenameSanitizer';
 
 interface YoutubeDownloadModalProps {
   show: boolean;
@@ -44,7 +45,7 @@ const YoutubeDownloadModal: React.FC<YoutubeDownloadModalProps> = ({
     setDownloadingVideo(true);
     
     try {
-      const folderName = selectedSongForDownload.folderName || `${selectedSongForDownload.artist} - ${selectedSongForDownload.title}`;
+      const folderName = selectedSongForDownload.folderName || createSanitizedFolderName(selectedSongForDownload.artist, selectedSongForDownload.title);
       
       toast(t('youtubeDownloadModal.downloadingVideo'), { icon: '📥' });
       

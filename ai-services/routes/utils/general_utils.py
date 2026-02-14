@@ -1,54 +1,47 @@
 import re
 
+# Reversible path encoding (same mapping as Node/Client): for folder/file names and URLs
+PATH_ENCODE_MAP = {"'": '%27', '&': '%26'}
+PATH_DECODE_MAP = {'%27': "'", '%26': '&'}
+
+
+def encode_for_path(s):
+    """Encode artist/title for paths/URLs. Mapping: ' -> %27, & -> %26. Use before sanitize."""
+    if not s or not isinstance(s, str):
+        return ''
+    return s.replace("'", PATH_ENCODE_MAP["'"]).replace('&', PATH_ENCODE_MAP['&'])
+
+
+def decode_from_path(s):
+    """Decode folder/file name for display or search. Only use on strings from our encoded paths."""
+    if not s or not isinstance(s, str):
+        return ''
+    return s.replace('%27', PATH_DECODE_MAP['%27']).replace('%26', PATH_DECODE_MAP['%26'])
+
+
 def sanitize_filename(filename):
     """
-    Sanitizes a filename by removing or replacing invalid characters
+    Sanitizes a filename by replacing invalid filesystem characters.
+    ', & are not replaced here – use encode_for_path() first.
     """
     if not filename or not isinstance(filename, str):
         return ''
-    
-    # Characters not allowed in Windows/Linux filenames
     invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
-    
-    # Replace invalid characters with underscores
     sanitized = re.sub(invalid_chars, '_', filename)
-    
-    # Remove leading/trailing dots and spaces
     sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
-    
-    # Replace multiple consecutive underscores with single underscore
     sanitized = re.sub(r'_+', '_', sanitized)
-    
-    # Remove leading/trailing underscores
     sanitized = re.sub(r'^_+|_+$', '', sanitized)
-    
-    # Ensure the filename is not empty and not too long
     if not sanitized or len(sanitized) == 0:
         sanitized = 'unnamed'
-    
     if len(sanitized) > 200:
         sanitized = sanitized[:200]
-    
     return sanitized
 
+
 def create_sanitized_folder_name(artist, title):
-    """
-    Creates a sanitized folder name for YouTube downloads
-    """
-    artist_sanitized = sanitize_filename(artist or 'Unknown Artist')
-    title_sanitized = sanitize_filename(title or 'Unknown Title')
-    
-    # Combine artist and title
-    folder_name = f"{artist_sanitized} - {title_sanitized}"
-    
-    # Remove or replace invalid characters
-    folder_name = re.sub(r'[<>:"/\\|?*]', '', folder_name)
-    folder_name = re.sub(r'[^\w\s\-_\.]', '', folder_name)
-    
-    # Replace multiple spaces with single space
-    folder_name = re.sub(r'\s+', ' ', folder_name)
-    
-    # Trim and limit length
-    folder_name = folder_name.strip()[:100]
-    
+    """Creates a sanitized folder name: encode then sanitize (reversible for display)."""
+    artist_enc = encode_for_path(artist or 'Unknown Artist')
+    title_enc = encode_for_path(title or 'Unknown Title')
+    folder_name = f"{sanitize_filename(artist_enc)} - {sanitize_filename(title_enc)}"
+    folder_name = re.sub(r'\s+', ' ', folder_name).strip()[:200]
     return folder_name

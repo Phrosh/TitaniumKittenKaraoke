@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 import os
 import logging
 import shutil
+from urllib.parse import unquote
 from ..utils import normalize_audio_in_video, clean_youtube_url, get_ultrastar_dir, sanitize_filename
 
 # Erstelle einen Blueprint für YouTube-Download
@@ -16,8 +17,8 @@ def download_youtube_video(folder_name):
     Download YouTube video to ultrastar folder
     """
     try:
-        # Decode and sanitize folder name
-        folder_name = folder_name.replace('%20', ' ')
+        # Decode folder name from URL (handles %27, %26, %20, etc.) then sanitize
+        folder_name = unquote(folder_name)
         sanitized_folder_name = sanitize_filename(folder_name)
         folder_path = os.path.join(get_ultrastar_dir(), sanitized_folder_name)
         

@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 import os
 import logging
 import shutil
+from urllib.parse import unquote
 from ..utils import get_magic_youtube_dir, sanitize_filename
 
 # Erstelle einen Blueprint für Magic-YouTube
@@ -73,7 +74,8 @@ def process_magic_youtube_from_url(folder_name):
         if not youtube_url:
             return jsonify({'error': 'YouTube URL is required'}), 400
         
-        # Sanitize folder name to remove invalid characters
+        # Decode folder name from URL then sanitize (handles ', &, etc.)
+        folder_name = unquote(folder_name)
         sanitized_folder_name = sanitize_filename(folder_name)
         
         logger.info(f"Processing Magic YouTube: {folder_name} -> {sanitized_folder_name} with URL: {youtube_url}, Song ID: {song_id}")

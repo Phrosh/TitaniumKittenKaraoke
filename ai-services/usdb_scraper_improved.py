@@ -14,45 +14,34 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Same reversible path encoding as routes.utils (for folder/file names)
+def _encode_for_path(s):
+    if not s or not isinstance(s, str):
+        return ''
+    return s.replace("'", '%27').replace('&', '%26')
+
+
 def sanitize_filename(filename):
-    """
-    Sanitizes a filename by removing or replacing invalid characters
-    """
+    """Sanitizes a filename; ', & should be encoded with _encode_for_path first."""
     if not filename or not isinstance(filename, str):
         return ''
-    
-    # Characters not allowed in Windows/Linux filenames
     invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
-    
-    # Replace invalid characters with underscores
     sanitized = re.sub(invalid_chars, '_', filename)
-    
-    # Remove leading/trailing dots and spaces
     sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
-    
-    # Replace multiple consecutive underscores with single underscore
     sanitized = re.sub(r'_+', '_', sanitized)
-    
-    # Remove leading/trailing underscores
     sanitized = re.sub(r'^_+|_+$', '', sanitized)
-    
-    # Ensure the filename is not empty and not too long
     if not sanitized or len(sanitized) == 0:
         sanitized = 'unnamed'
-    
     if len(sanitized) > 200:
         sanitized = sanitized[:200]
-    
     return sanitized
 
+
 def create_sanitized_folder_name(artist, title):
-    """
-    Creates a sanitized folder name for YouTube downloads
-    """
-    artist_sanitized = sanitize_filename(artist or 'Unknown Artist')
-    title_sanitized = sanitize_filename(title or 'Unknown Title')
-    
-    return f"{artist_sanitized} - {title_sanitized}"
+    """Encodes then sanitizes (reversible for display; same mapping as Node/Python utils)."""
+    artist_enc = _encode_for_path(artist or 'Unknown Artist')
+    title_enc = _encode_for_path(title or 'Unknown Title')
+    return f"{sanitize_filename(artist_enc)} - {sanitize_filename(title_enc)}"
 
 class USDBScraperImproved:
     def __init__(self, username=None, password=None):

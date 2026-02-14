@@ -16,22 +16,22 @@ import yt_dlp
 from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
 
-# Import sanitize_filename from routes.utils
+# Import sanitize_filename and encode_for_path from routes.utils
 try:
-    # Try relative import first
-    from ..routes.utils import sanitize_filename
+    from ..routes.utils import sanitize_filename, encode_for_path
 except ImportError:
     try:
-        # Try absolute import
-        from routes.utils import sanitize_filename
+        from routes.utils import sanitize_filename, encode_for_path
     except ImportError:
-        # Fallback: define sanitize_filename locally
+        def encode_for_path(s):
+            if not s or not isinstance(s, str): return ''
+            return s.replace("'", '%27').replace('&', '%26')
         def sanitize_filename(filename):
             """Sanitizes a filename by removing or replacing invalid characters"""
             if not filename or not isinstance(filename, str):
                 return ''
             
-            # Characters not allowed in Windows/Linux filenames
+            # Characters not allowed in Windows/Linux filenames or problematic in URLs (e.g. & in path)
             invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
             
             # Replace invalid characters with underscores
@@ -185,9 +185,9 @@ class YouTubeDownloader:
             
             # Aktualisiere Ordnername falls nötig (nur wenn noch nicht korrekt gesetzt)
             if meta.folder_name == 'Unknown Artist - Unknown Title' or meta.folder_name == 'ultrastar':
-                # Sanitize artist and title to ensure valid folder names
-                sanitized_artist = sanitize_filename(meta.artist)
-                sanitized_title = sanitize_filename(meta.title)
+                # Encode then sanitize (same mapping as Node/Client)
+                sanitized_artist = sanitize_filename(encode_for_path(meta.artist))
+                sanitized_title = sanitize_filename(encode_for_path(meta.title))
                 new_folder_name = f"{sanitized_artist} - {sanitized_title}"
                 if new_folder_name != meta.folder_name:
                     old_path = meta.folder_path

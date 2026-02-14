@@ -1,11 +1,46 @@
 /**
- * Utility functions for sanitizing filenames and folder names
- * Removes or replaces characters that are not allowed in file systems
+ * Utility functions for sanitizing filenames and folder names.
+ * Uses reversible encoding for ' and & so they are path/URL-safe but
+ * can be decoded for display and search (same mapping on Node and Python).
  */
 
+/** Reversible path encoding: character -> encoded form (for folder/file names and URLs) */
+const PATH_ENCODE_MAP = {
+  "'": '%27',
+  '&': '%26'
+};
+
+/** Reversible path decoding: encoded form -> character (when reading folder names for display/search) */
+const PATH_DECODE_MAP = {
+  '%27': "'",
+  '%26': '&'
+};
+
 /**
- * Sanitizes a filename by removing or replacing invalid characters
- * @param {string} filename - The filename to sanitize
+ * Encodes artist/title for use in folder names and URLs. Use before sanitize.
+ * Mapping: ' -> %27, & -> %26 (reversible via decodeFromPath).
+ * @param {string} str - Raw string (e.g. artist or title)
+ * @returns {string} - Encoded string safe for paths/URLs
+ */
+function encodeForPath(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/'/g, PATH_ENCODE_MAP["'"]).replace(/&/g, PATH_ENCODE_MAP['&']);
+}
+
+/**
+ * Decodes a folder/file name segment for display or search comparison.
+ * Only use on strings that came from our encoded paths (folder names, file names).
+ * @param {string} str - Encoded string (e.g. from folder name)
+ * @returns {string} - Decoded string for display
+ */
+function decodeFromPath(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/%27/g, PATH_DECODE_MAP['%27']).replace(/%26/g, PATH_DECODE_MAP['%26']);
+}
+
+/**
+ * Sanitizes a filename by replacing invalid filesystem/URL characters (not ', & – use encodeForPath first).
+ * @param {string} filename - The filename to sanitize (should be already encoded if it may contain ' or &)
  * @returns {string} - The sanitized filename
  */
 function sanitizeFilename(filename) {
@@ -13,47 +48,33 @@ function sanitizeFilename(filename) {
     return '';
   }
 
-  // Characters not allowed in Windows/Linux filenames
+  // Characters not allowed in Windows/Linux filenames (', & handled by encodeForPath before calling)
   const invalidChars = /[<>:"/\\|?*\x00-\x1f]/g;
   
-  // Replace invalid characters with underscores
   let sanitized = filename.replace(invalidChars, '_');
-  
-  // Remove leading/trailing dots and spaces
   sanitized = sanitized.replace(/^[.\s]+|[.\s]+$/g, '');
-  
-  // Replace multiple consecutive underscores with single underscore
   sanitized = sanitized.replace(/_+/g, '_');
-  
-  // Remove leading/trailing underscores
   sanitized = sanitized.replace(/^_+|_+$/g, '');
-  
-  // Ensure the filename is not empty and not too long (Windows limit: 255 chars)
-  if (!sanitized || sanitized.length === 0) {
-    sanitized = 'unnamed';
-  }
-  
-  if (sanitized.length > 200) {
-    sanitized = sanitized.substring(0, 200);
-  }
-  
+  if (!sanitized || sanitized.length === 0) sanitized = 'unnamed';
+  if (sanitized.length > 200) sanitized = sanitized.substring(0, 200);
   return sanitized;
 }
 
 /**
- * Creates a sanitized folder name for YouTube downloads
+ * Creates a sanitized folder name for YouTube/downloads: encode then sanitize (reversible for display).
  * @param {string} artist - The artist name
  * @param {string} title - The song title
- * @returns {string} - The sanitized folder name
+ * @returns {string} - Encoded folder name for paths/URLs
  */
 function createSanitizedFolderName(artist, title) {
-  const artistSanitized = sanitizeFilename(artist || 'Unknown Artist');
-  const titleSanitized = sanitizeFilename(title || 'Unknown Title');
-  
-  return `${artistSanitized} - ${titleSanitized}`;
+  const artistEnc = encodeForPath(artist || 'Unknown Artist');
+  const titleEnc = encodeForPath(title || 'Unknown Title');
+  return `${sanitizeFilename(artistEnc)} - ${sanitizeFilename(titleEnc)}`;
 }
 
 module.exports = {
+  encodeForPath,
+  decodeFromPath,
   sanitizeFilename,
   createSanitizedFolderName
 };

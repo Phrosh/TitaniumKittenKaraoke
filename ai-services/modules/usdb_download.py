@@ -16,45 +16,25 @@ import sys
 from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
 
-# Import sanitize_filename from routes.utils
+# Import sanitize_filename and encode_for_path from routes.utils
 try:
-    # Try relative import first
-    from ..routes.utils import sanitize_filename
+    from ..routes.utils import sanitize_filename, encode_for_path
 except ImportError:
     try:
-        # Try absolute import
-        from routes.utils import sanitize_filename
+        from routes.utils import sanitize_filename, encode_for_path
     except ImportError:
-        # Fallback: define sanitize_filename locally
         import re
+        def encode_for_path(s):
+            if not s or not isinstance(s, str): return ''
+            return s.replace("'", '%27').replace('&', '%26')
         def sanitize_filename(filename):
-            """Sanitizes a filename by removing or replacing invalid characters"""
-            if not filename or not isinstance(filename, str):
-                return ''
-            
-            # Characters not allowed in Windows/Linux filenames
-            invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
-            
-            # Replace invalid characters with underscores
-            sanitized = re.sub(invalid_chars, '_', filename)
-            
-            # Remove leading/trailing dots and spaces
+            if not filename or not isinstance(filename, str): return ''
+            sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', filename)
             sanitized = re.sub(r'^[.\s]+|[.\s]+$', '', sanitized)
-            
-            # Replace multiple consecutive underscores with single underscore
             sanitized = re.sub(r'_+', '_', sanitized)
-            
-            # Remove leading/trailing underscores
             sanitized = re.sub(r'^_+|_+$', '', sanitized)
-            
-            # Ensure the filename is not empty and not too long
-            if not sanitized or len(sanitized) == 0:
-                sanitized = 'unnamed'
-            
-            if len(sanitized) > 200:
-                sanitized = sanitized[:200]
-            
-            return sanitized
+            if not sanitized: sanitized = 'unnamed'
+            return sanitized[:200]
 
 logger = logging.getLogger(__name__)
 
@@ -229,10 +209,9 @@ class USDBDownloader:
             meta.title = metadata.get('title', meta.title)
             meta.update_metadata('usdb_metadata', metadata)
             
-            # Aktualisiere Ordnername falls nötig
-            # Sanitize artist and title to ensure valid folder names
-            sanitized_artist = sanitize_filename(meta.artist)
-            sanitized_title = sanitize_filename(meta.title)
+            # Aktualisiere Ordnername falls nötig (encode then sanitize, same mapping as Node/Client)
+            sanitized_artist = sanitize_filename(encode_for_path(meta.artist))
+            sanitized_title = sanitize_filename(encode_for_path(meta.title))
             new_folder_name = f"{sanitized_artist} - {sanitized_title}"
             if new_folder_name != meta.folder_name:
                 old_path = meta.folder_path
@@ -435,10 +414,9 @@ def download_usdb_song(meta: ProcessingMeta) -> bool:
         else:
             logger.warning(f"⚠️ Keine YouTube-URL für USDB-Song {usdb_song_id} gefunden")
         
-        # Aktualisiere Ordnername basierend auf den echten Song-Informationen
-        # Sanitize artist and title to ensure valid folder names
-        sanitized_artist = sanitize_filename(meta.artist)
-        sanitized_title = sanitize_filename(meta.title)
+        # Aktualisiere Ordnername basierend auf den echten Song-Informationen (encode then sanitize)
+        sanitized_artist = sanitize_filename(encode_for_path(meta.artist))
+        sanitized_title = sanitize_filename(encode_for_path(meta.title))
         new_folder_name = f"{sanitized_artist} - {sanitized_title}"
         new_folder_path = os.path.join(meta.base_dir, new_folder_name)
         
