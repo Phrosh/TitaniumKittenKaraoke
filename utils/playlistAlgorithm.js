@@ -1,98 +1,143 @@
 const db = require('../config/database');
 const Song = require('../models/Song');
 
+/** Zusätzlicher Prioritäts-Abstand, den ein Song haben muss, damit wir uns vor ihn setzen dürfen (Progressive-Penalty). */
+const PENALTY_FOR_FORWARD_SLOT = 1.0;
+
+/** Geschützte Zone: neue Songs landen nicht in den nächsten 3 Slots (außer es gibt zu wenig Songs). */
+const PROTECTED_SLOTS = 3;
+
 class PlaylistAlgorithm {
+  /**
+   * Fügt einen neuen Song fair in die Playlist ein.
+   * - Kein Song wird "in die Vergangenheit" gesetzt (Index nie < aktueller Song).
+   * - Neue Sänger (weniger Songs) kommen weiter vorne; gleiche Priorität = Reihenfolge bleibt.
+   * - Der neue Song wird nicht zu einem der nächsten 3 Songs (außer es gibt ≤3 zukünftige Songs).
+   * - Kein Sänger soll direkt zweimal hintereinander vorkommen.
+   * - Songs, die sich nach vorne "kämpfen", haben es pro Position schwerer (Progressive Penalty).
+   * Es wird nur eingefügt und verschoben – keine globale Neu-Sortierung.
+   */
   static async insertSong(songId) {
     try {
-      // Get current playlist
       const playlist = await Song.getAll();
-      
-      // Get the new song to find its user ID and device ID
       const newSong = await Song.getById(songId);
       if (!newSong) {
         throw new Error('Song not found');
       }
-      
-      // Get current song position
+
       const currentSongPosition = await this.getCurrentSongPosition();
-      
-      // Calculate minimum position for new song
-      // If there's a current song, new song must be at least 4 positions after it
-      // If playlist has less than 4 songs, allow normal insertion
-      let minPosition = 1;
-      if (currentSongPosition !== null && playlist.length >= 4) {
-        minPosition = currentSongPosition + 4;
-      }
-      
-      // Calculate priority based on name + device_id combination
+      const currentPos = currentSongPosition != null ? currentSongPosition : 0;
+
+      // Nur Songs in der "Zukunft" (Position > aktueller Song), ohne den neuen Song; nach Position sortiert
+      const future = playlist
+        .filter((s) => s.id !== songId && s.position != null && s.position > currentPos)
+        .sort((a, b) => a.position - b.position);
+
       const priority = await this.calculatePriority(newSong.user_id, newSong.device_id);
-      
-      // Update the song's priority
       await this.updateSongPriority(songId, priority);
-      
-      // Add song to end of playlist or at minimum position
-      const maxPosition = playlist.length === 0 ? 0 : Math.max(...playlist.map(song => song.position));
-      const nextPosition = Math.max(minPosition, maxPosition + 1);
-      await Song.updatePosition(songId, nextPosition);
-      
-      // Apply priority-based sorting (with constraints)
-      await this.sortByPriority();
-      
-      return nextPosition;
+
+      let insertIndex;
+
+      if (future.length === 0) {
+        insertIndex = 0;
+      } else if (future.length <= PROTECTED_SLOTS) {
+        // Wenig Songs: erlaubte Einfügeposition nach Priorität, inkl. „vorne“
+        insertIndex = this.computeNaturalIndex(future, priority);
+        insertIndex = Math.min(insertIndex, future.length);
+        insertIndex = this.resolveSameSingerConflict(future, insertIndex, newSong.user_id, future.length);
+      } else {
+        // Genug Songs: neue Songs nicht in die nächsten 3 (Indizes 0,1,2)
+        const naturalIndex = this.computeNaturalIndex(future, priority);
+        let candidateIndex = Math.max(PROTECTED_SLOTS, naturalIndex);
+        candidateIndex = Math.min(candidateIndex, future.length);
+
+        // Progressive Penalty: direkt nach der geschützten Zone nur, wenn der verdrängte Song „deutlich“ mehr Priorität hat
+        if (candidateIndex === PROTECTED_SLOTS && future[PROTECTED_SLOTS] != null) {
+          const displacedPriority = future[PROTECTED_SLOTS].priority;
+          if (priority + PENALTY_FOR_FORWARD_SLOT > displacedPriority) {
+            candidateIndex++;
+          }
+        }
+
+        candidateIndex = this.resolveSameSingerConflict(future, candidateIndex, newSong.user_id, future.length);
+        insertIndex = candidateIndex;
+      }
+
+      const newPosition = currentPos + 1 + insertIndex;
+
+      await Song.updatePosition(songId, newPosition);
+
+      // Alle Songs mit Position >= newPosition um 1 nach hinten schieben (ohne den neuen)
+      const toShift = playlist.filter(
+        (s) => s.id !== songId && s.position != null && s.position >= newPosition
+      );
+      for (const s of toShift) {
+        await Song.updatePosition(s.id, s.position + 1);
+      }
+
+      return newPosition;
     } catch (error) {
       console.error('Error inserting song:', error);
       throw error;
     }
   }
 
+  /** Anzahl der Songs in future, die eine höhere (schlechtere) Priorität haben als die gegebene. */
+  static computeNaturalIndex(future, newPriority) {
+    let count = 0;
+    for (const s of future) {
+      if (s.priority > newPriority) count++;
+    }
+    return count;
+  }
+
+  /** Findet den nächsten Index ohne „gleicher Teilnehmer direkt davor/danach“ (Identität = user_id = Name + Device-ID). */
+  static resolveSameSingerConflict(future, startIndex, newSongUserId, maxIndex) {
+    let i = startIndex;
+    while (i <= maxIndex) {
+      const prev = i > 0 ? future[i - 1] : null;
+      const next = i < future.length ? future[i] : null;
+      const conflictBefore = prev && prev.user_id === newSongUserId;
+      const conflictAfter = next && next.user_id === newSongUserId;
+      if (!conflictBefore && !conflictAfter) return i;
+      i++;
+    }
+    return maxIndex;
+  }
+
+  /**
+   * Priorität pro Teilnehmer (Name + Device-ID).
+   * user_id entspricht genau einem Eintrag (Name + device_id); über ein Gerät können sich mehrere Leute eintragen (verschiedene Namen → verschiedene user_id).
+   */
   static async calculatePriority(userId, deviceId) {
     return new Promise((resolve, reject) => {
-      // Get the user's name
+      // Song-Anzahl dieses Teilnehmers (Name + Device-ID = user_id)
       db.get(`
-        SELECT name FROM users WHERE id = ?
-      `, [userId], (err, user) => {
+        SELECT COUNT(*) as count FROM songs WHERE user_id = ?
+      `, [userId], (err, row) => {
         if (err) {
           reject(err);
           return;
         }
-        
-        // Count existing songs from users with the same name
+        const userSongCount = row ? row.count : 0;
+
+        // Aktueller Song-Priorität als Untergrenze
         db.get(`
-          SELECT COUNT(*) as count 
+          SELECT s.priority 
           FROM songs s 
-          JOIN users u ON s.user_id = u.id 
-          WHERE u.name = ?
-        `, [user.name], (err, row) => {
+          WHERE s.id = (
+            SELECT CAST(value AS INTEGER) 
+            FROM settings 
+            WHERE key = 'current_song_id'
+            )
+        `, (err, currentSong) => {
           if (err) {
             reject(err);
             return;
           }
-          
-          const userSongCount = row.count || 0;
-          
-          // Get current song's priority
-          db.get(`
-            SELECT s.priority 
-            FROM songs s 
-            WHERE s.id = (
-              SELECT CAST(value AS INTEGER) 
-              FROM settings 
-              WHERE key = 'current_song_id'
-            )
-          `, (err, currentSong) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            
-            // Minimum priority is current song's priority (or 1 if no current song)
-            const minPriority = currentSong ? currentSong.priority : 1;
-            
-            // User's priority is max of: (user's song count + 1) and minPriority
-            const finalPriority = Math.max(userSongCount + 1, minPriority);
-            
-            resolve(finalPriority);
-          });
+          const minPriority = currentSong ? currentSong.priority : 1;
+          const finalPriority = Math.max(userSongCount + 1, minPriority);
+          resolve(finalPriority);
         });
       });
     });
