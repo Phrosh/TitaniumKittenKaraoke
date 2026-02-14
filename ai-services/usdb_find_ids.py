@@ -1,4 +1,5 @@
 import argparse, re, sys, requests
+from urllib.parse import urlencode, quote
 from bs4 import BeautifulSoup as BS
 from boil_down import boil_down, boil_down_match
 
@@ -21,10 +22,23 @@ def login(session: requests.Session, user: str, pw: str):
         raise RuntimeError("Login fehlgeschlagen oder Session nicht aktiv.")
     return True
 
+def _usdb_form_encode(values: dict) -> str:
+    """Encode form data for USDB: keep apostrophe (') unencoded so search terms
+    like \"Don't stop\" are sent correctly; some form parsers break on %27."""
+    return urlencode(values, quote_via=lambda s: quote(s, safe="'"))
+
+
 def list_page(session: requests.Session, interpret: str, title: str, limit: int, start: int) -> str:
+    form_data = {
+        "interpret": interpret,
+        "title": title,
+        "limit": str(limit),
+        "start": str(start),
+    }
+    body = _usdb_form_encode(form_data)
     r = session.post(
         LIST_URL,
-        data={"interpret": interpret, "title": title, "limit": str(limit), "start": str(start)},
+        data=body,
         headers={**UA, "Content-Type": "application/x-www-form-urlencoded", "Referer": LIST_URL},
         timeout=30
     )
