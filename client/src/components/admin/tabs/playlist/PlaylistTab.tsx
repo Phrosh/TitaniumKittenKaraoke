@@ -600,9 +600,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       } else {
         await adminAPI.updateSong(selectedSong.id, {
           title: formData.title,
-          artist: formData.artist,
-          youtubeUrl: formData.youtubeUrl,
-          singerName: formData.singerName,
+          artist: formData.artist ?? '',
+          youtubeUrl: formData.youtubeUrl != null ? String(formData.youtubeUrl) : '',
+          singerName: formData.singerName != null ? String(formData.singerName) : '',
           withBackgroundVocals: formData.withBackgroundVocals
         });
         toast.success(t('playlist.songUpdated'));

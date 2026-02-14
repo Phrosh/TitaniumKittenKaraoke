@@ -31,17 +31,21 @@ router.put('/song/:songId', [
   body('title').notEmpty().trim(),
   body('artist').optional().trim(),
   body('youtubeUrl').optional().custom((value) => {
-    // Allow empty string, null, undefined
-    if (!value || value.trim() === '') {
+    // Allow null, undefined, or non-string (treat as empty – e.g. when switching from YouTube to Ultrastar)
+    if (value == null || typeof value !== 'string') {
+      return true;
+    }
+    const trimmed = value.trim();
+    if (trimmed === '') {
       return true;
     }
     // Allow API routes (starting with /api/)
-    if (value.startsWith('/api/')) {
+    if (trimmed.startsWith('/api/')) {
       return true;
     }
     // Otherwise, must be a valid URL
     try {
-      new URL(value);
+      new URL(trimmed);
       return true;
     } catch {
       return false;
@@ -83,11 +87,12 @@ router.put('/song/:songId', [
     });
 
     // Update user name (singerName) if provided
-    if (singerName !== undefined && singerName !== null && song.user_id) {
+    const singerNameStr = (singerName != null && typeof singerName === 'string') ? singerName.trim() : null;
+    if (singerNameStr !== null && song.user_id) {
       await new Promise((resolve, reject) => {
         db.run(
           'UPDATE users SET name = ? WHERE id = ?',
-          [singerName.trim(), song.user_id],
+          [singerNameStr, song.user_id],
           function(err) {
             if (err) reject(err);
             else resolve();
