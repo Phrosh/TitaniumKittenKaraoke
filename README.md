@@ -9,6 +9,7 @@
 </div>
 
 Titanium Kitten Karaoke is a professional karaoke management system specifically designed for organizers of karaoke events in bars, clubs, or parties. It handles complete song and playlist management and provides an intuitive user interface for both organizers and participants.
+<img src="assets/Screenshot 2026-03-06 235039.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 100%; max-height: 500px; margin-top: 20px;">
 
 ## 🎯 What is Titanium Kitten Karaoke?
 
@@ -17,26 +18,39 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 **💡 Tip:** Use a web server with a custom domain or a powerful desktop PC with Cloudflare Tunnel as server. During the live karaoke show, you then access it with a laptop through the browser.
 
 ## ✨ Features
-
 ### 🎵 Song Management
+
+<img src="assets/Screenshot 2026-03-06 234522.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 600px; float: right; margin-left: 20px;">
+
 - **Multi-Format Support**: YouTube videos, local videos from live PC and UltraStar songs
 - **USDB Integration**: Direct download of songs from the largest UltraStar database
 - **AI-powered Conversion**: Automatic creation of instrumental versions without vocals
 - **Magic Songs**: AI-powered on-the-fly karaoke creation from any song - convert any YouTube video, local video or audio file into a karaoke version with lyrics and perfect instrumental tracks
 - **Comprehensive Song Management**: Complete control over the music library
+<div style="clear: both"></div>
 
 ### 👥 User Experience
+
+<img src="assets/Screenshot 2026-03-06 235451.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 200px; float: right; margin-left: 20px;">
+
 - **QR-Code Song Requests**: Participants simply scan a QR code and enter their song requests
 - **Fairness Algorithm**: Intelligent playlist management ensuring every participant is treated fairly
 - **Live Playlist**: Real-time display of current song order
 - **Responsive Design**: Works on all devices - desktop, tablet, smartphone
 - **🌍 Multilingual**: Full support for 12 languages (DE, EN, ES, FR, FI, NL, PL, SV, RU, JA, KO, ZH)
 
+<div style="clear: both;"></div>
+
 ### 🛠️ Admin Features
+
+<img src="assets/Screenshot 2026-03-06 234606.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 600px; float: right; margin-left: 20px;">
+
 - **Complete Admin Dashboard**: Full control over playlist and settings
 - **User Management**: Ban lists and user management
 - **Live Controls**: Direct control of current karaoke session
 - **Configurable Parameters**: Adjustment of fairness algorithm and other system settings
+
+<div style="clear: both;"></div>
 
 ### 🎬 Live Features
 - **Live Video Stream**: Direct transmission of current karaoke session
