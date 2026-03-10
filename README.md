@@ -6,9 +6,10 @@
 
 **The ultimate web-based karaoke system for event organizers**
 
+Titanium Kitten Karaoke is a professional karaoke management system specifically designed for organizers of karaoke events in bars, clubs, or parties. It handles complete song and playlist management and provides an intuitive user interface for both organizers and participants.
+
 </div>
 
-Titanium Kitten Karaoke is a professional karaoke management system specifically designed for organizers of karaoke events in bars, clubs, or parties. It handles complete song and playlist management and provides an intuitive user interface for both organizers and participants.
 <img src="assets/Screenshot 2026-03-06 235039.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 100%; max-height: 500px; margin-top: 20px;">
 
 ## 🎯 What is Titanium Kitten Karaoke?
@@ -16,6 +17,8 @@ Titanium Kitten Karaoke is a professional karaoke management system specifically
 Titanium Kitten Karaoke is a complete karaoke system accessible through a web browser. It works best on a web server with a static IP or custom domain, but can also be operated from home using Cloudflare Tunnel. Both administration and live videos are accessible through any modern web browser.
 
 **💡 Tip:** Use a web server with a custom domain or a powerful desktop PC with Cloudflare Tunnel as server. During the live karaoke show, you then access it with a laptop through the browser.
+
+<div style="clear: both;"></div>
 
 ## ✨ Features
 ### 🎵 Song Management
@@ -53,9 +56,14 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 <div style="clear: both;"></div>
 
 ### 🎬 Live Features
+
+<img src="assets/Screenshot 2026-03-06 235319.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 600px; float: right; margin-left: 20px;">
+
 - **Live Video Stream**: Direct transmission of current karaoke session
 - **Multi-Browser Support**: Different browser windows for different functions
 - **Projector Integration**: Optimized for transmission to large screens
+
+<div style="clear: both;"></div>
 
 ## 🔧 Requirements
 
@@ -71,6 +79,8 @@ Titanium Kitten Karaoke is a complete karaoke system accessible through a web br
 - **Stable Internet Connection** (for remote access)
 
 ## 🚀 Quick Start
+
+<img src="assets/Screenshot 2026-03-06 234751.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 400px; float: right; margin-left: 20px;">
 
 **New to Titanium Kitten Karaoke?** Check out our comprehensive Getting Started Guides for detailed installation instructions, dependency setup, and first-time configuration:
 
@@ -93,6 +103,7 @@ For detailed installation instructions, troubleshooting, and configuration, see 
 - 🇩🇪 [Deutsche Anleitung](docs/getting-started-de.md) - Komplette Einrichtung auf Deutsch  
 - 🇬🇧 [English Guide](docs/getting-started-en.md) - Complete setup guide in English
 
+<div style="clear: both;"></div>
 ## 🎮 Usage
 
 ### Starting the Server
@@ -126,6 +137,9 @@ For remote access without exposing your local network, Titanium Kitten Karaoke i
 4. **Click "Install & Start"** button - The system handles everything automatically
 
 ### Benefits of Built-in Cloudflare Tunnel
+
+<img src="assets/Screenshot 2026-03-06 234440.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 600px; float: right; margin-left: 20px;">
+
 - **One-click installation** and setup
 - **No manual configuration** required
 - **Automatic HTTPS** with Cloudflare certificates
@@ -145,7 +159,11 @@ If you prefer manual setup or need custom configuration:
 3. **Create and configure tunnel** as needed
 4. **Add DNS records** in your Cloudflare dashboard
 
+<div style="clear: both;"></div>
+
 ## 🧠 Fairness Algorithm
+
+<img src="assets/Screenshot 2026-03-06 234721.jpg" alt="Titanium Kitten Karaoke Logo" style="width: 500px; float: right; margin-left: 20px;">
 
 The integrated fairness algorithm ensures fair distribution of songs:
 
@@ -162,6 +180,8 @@ The integrated fairness algorithm ensures fair distribution of songs:
 - **UltraStar Songs**: Support for UltraStar format
 - **USDB Downloads**: Automatic download from UltraStar database
 - **AI Conversion**: Automatic creation of instrumental versions and lyrics
+
+<div style="clear: both;></div>
 
 ## 🔒 Security & Management
 
