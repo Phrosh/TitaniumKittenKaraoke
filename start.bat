@@ -1,4 +1,7 @@
 @echo off
+REM Always run relative to this script (double-click / different cwd)
+cd /d "%~dp0"
+
 echo ========================================
 echo Titanium Kitten Karaoke - Production Mode
 echo ========================================
@@ -62,7 +65,7 @@ echo.
 
 echo [4/5] Installing Production Dependencies...
 echo ----------------------------------------
-cd ..
+cd /d "%~dp0"
 call npm install --production
 if %errorlevel% neq 0 (
     echo WARNING: Production Dependencies installation failed!
@@ -73,7 +76,7 @@ echo.
 
 echo [5/5] Starting Node.js Production Server...
 echo ----------------------------------------
-start "Node.js Production Server" cmd /k "npm start"
+start "Node.js Production Server" /D "%~dp0" cmd /k "npm start"
 echo Node.js Production Server started!
 echo.
 

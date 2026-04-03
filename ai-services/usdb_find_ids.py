@@ -22,10 +22,18 @@ def login(session: requests.Session, user: str, pw: str):
         raise RuntimeError("Login fehlgeschlagen oder Session nicht aktiv.")
     return True
 
+def _usdb_quote_via(string, safe="", encoding=None, errors=None):
+    """quote_via for urlencode: same contract as urllib.parse.quote / quote_plus."""
+    merged_safe = safe + b"'" if isinstance(safe, bytes) else safe + "'"
+    if isinstance(string, bytes):
+        return quote(string, safe=merged_safe)
+    return quote(string, safe=merged_safe, encoding=encoding, errors=errors)
+
+
 def _usdb_form_encode(values: dict) -> str:
     """Encode form data for USDB: keep apostrophe (') unencoded so search terms
     like \"Don't stop\" are sent correctly; some form parsers break on %27."""
-    return urlencode(values, quote_via=lambda s: quote(s, safe="'"))
+    return urlencode(values, quote_via=_usdb_quote_via)
 
 
 def list_page(session: requests.Session, interpret: str, title: str, limit: int, start: int) -> str:

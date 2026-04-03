@@ -1,4 +1,7 @@
 @echo off
+REM Always run relative to this script (double-click / nvm / different cwd)
+cd /d "%~dp0"
+
 echo ========================================
 echo Titanium Kitten Karaoke - Development Mode
 echo ========================================
@@ -62,8 +65,8 @@ echo.
 
 echo [4/4] Starting Node.js Development Server...
 echo ----------------------------------------
-cd ..
-start "Node.js Dev Server" cmd /k "npm run dev"
+cd /d "%~dp0"
+start "Node.js Dev Server" /D "%~dp0" cmd /k "npm run dev"
 echo Node.js Development Server started!
 echo.
 
