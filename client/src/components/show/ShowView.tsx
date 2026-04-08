@@ -157,6 +157,7 @@ const ShowView: React.FC = () => {
   );
   const [donationOsdVisible, setDonationOsdVisible] = useState(false);
   const [donationOsdText, setDonationOsdText] = useState('');
+  const [donationOsdHighlightName, setDonationOsdHighlightName] = useState<string | null>(null);
   const donationNudgeTimerRef = useRef<number | null>(null);
   const donationOsdHideRef = useRef<number | null>(null);
 
@@ -1263,44 +1264,6 @@ const ShowView: React.FC = () => {
   }, [showAPI, stopUltrastarTiming, stopProgress]);
 
   useEffect(() => {
-    donationNudgeTimerRef.current = window.setTimeout(() => {
-      setDonationOsdText(t('showView.donationNudge'));
-      setDonationOsdVisible(true);
-      donationOsdHideRef.current = window.setTimeout(() => {
-        setDonationOsdVisible(false);
-      }, 6500);
-    }, 14000);
-
-    const onThanks = (payload: { name?: string; osdText?: string }) => {
-      if (donationNudgeTimerRef.current) {
-        window.clearTimeout(donationNudgeTimerRef.current);
-        donationNudgeTimerRef.current = null;
-      }
-      if (donationOsdHideRef.current) {
-        window.clearTimeout(donationOsdHideRef.current);
-      }
-      const name = payload?.name?.trim() || '';
-      const pre = payload?.osdText?.trim();
-      const line = pre
-        ? pre
-        : name
-          ? applyNotificationTemplate(donationNotificationTemplate, name)
-          : t('showView.donationThanksGeneric');
-      setDonationOsdText(line);
-      setDonationOsdVisible(true);
-      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
-    };
-
-    websocketService.on('donation-thanks', onThanks);
-
-    return () => {
-      if (donationNudgeTimerRef.current) window.clearTimeout(donationNudgeTimerRef.current);
-      if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
-      websocketService.off('donation-thanks', onThanks);
-    };
-  }, [t, donationNotificationTemplate]);
-
-  useEffect(() => {
     // Initial fetch
     fetchCurrentSong();
 
@@ -1685,6 +1648,66 @@ const ShowView: React.FC = () => {
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
   }, [handleWebSocketUpdate, currentSong, ultrastarData, startUltrastarTiming, youtubeIsPaused]);
+
+  useEffect(() => {
+    donationNudgeTimerRef.current = window.setTimeout(() => {
+      setDonationOsdHighlightName(null);
+      setDonationOsdText(t('showView.donationNudge'));
+      setDonationOsdVisible(true);
+      donationOsdHideRef.current = window.setTimeout(() => {
+        setDonationOsdVisible(false);
+      }, 6500);
+    }, 14000);
+
+    const onThanks = (payload: { name?: string; osdText?: string }) => {
+      if (donationNudgeTimerRef.current) {
+        window.clearTimeout(donationNudgeTimerRef.current);
+        donationNudgeTimerRef.current = null;
+      }
+      if (donationOsdHideRef.current) {
+        window.clearTimeout(donationOsdHideRef.current);
+      }
+      const name = payload?.name?.trim() || '';
+      const pre = payload?.osdText?.trim();
+      const line = pre
+        ? pre
+        : name
+          ? applyNotificationTemplate(donationNotificationTemplate, name)
+          : t('showView.donationThanksGeneric');
+      setDonationOsdHighlightName(name || null);
+      setDonationOsdText(line);
+      setDonationOsdVisible(true);
+      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
+    };
+
+    websocketService.on('donation-thanks', onThanks);
+
+    const w = window as Window & { showTestDonation?: (name?: string) => void };
+    w.showTestDonation = (name?: string) => {
+      if (donationNudgeTimerRef.current) {
+        window.clearTimeout(donationNudgeTimerRef.current);
+        donationNudgeTimerRef.current = null;
+      }
+      if (donationOsdHideRef.current) {
+        window.clearTimeout(donationOsdHideRef.current);
+      }
+      const displayName =
+        typeof name === 'string' && name.trim() ? name.trim() : 'Testspender';
+      const line = applyNotificationTemplate(donationNotificationTemplate, displayName);
+      console.log('[show] showTestDonation:', displayName);
+      setDonationOsdHighlightName(displayName);
+      setDonationOsdText(line);
+      setDonationOsdVisible(true);
+      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
+    };
+
+    return () => {
+      if (donationNudgeTimerRef.current) window.clearTimeout(donationNudgeTimerRef.current);
+      if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
+      websocketService.off('donation-thanks', onThanks);
+      delete w.showTestDonation;
+    };
+  }, [t, donationNotificationTemplate]);
 
   // Timer effect
   useEffect(() => {
@@ -2386,7 +2409,7 @@ const ShowView: React.FC = () => {
       <DonationTopOsd
         visible={donationOsdVisible}
         text={donationOsdText}
-        topPx={sessionDonors.length > 0 ? 52 : 16}
+        highlightName={donationOsdHighlightName}
       />
       {/* Control Buttons - only show when not in fullscreen */}
       <ControlButtons 
