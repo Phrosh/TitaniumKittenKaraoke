@@ -107,9 +107,13 @@ function extractWebhookPayment(resource) {
   };
 }
 
-async function emitAfterDonation(getIo, name) {
+async function emitAfterDonation(getIo, summary) {
   const io = getIo();
   if (!io) return;
+  const name = summary?.name ?? 'Gast';
+  const amount = summary?.amount ?? '0.00';
+  const currency = summary?.currency ?? 'EUR';
+  const at = summary?.at ?? new Date().toISOString();
   const dd = require('../utils/donationDisplaySettings');
   let osdText;
   try {
@@ -120,8 +124,14 @@ async function emitAfterDonation(getIo, name) {
   }
   io.to('show').emit('donation-thanks', {
     name,
-    timestamp: new Date().toISOString(),
+    timestamp: at,
     osdText,
+  });
+  io.to('admin').emit('admin-donation-received', {
+    name,
+    amount,
+    currency,
+    at,
   });
   io.to('admin').emit('donations-session-update', donationsStore.getSessionDonationsReport());
 }
@@ -287,15 +297,15 @@ module.exports = function createDonationsRouter(getIo) {
         console.warn('PayPal capture: custom_id/ref Prüfung', { ref, meta });
       }
       if (meta?.captureId) {
-        const { added, name } = donationsStore.finalizeDonation(meta.customId, meta.captureId, {
+        const fin = donationsStore.finalizeDonation(meta.customId, meta.captureId, {
           amount: meta.amount,
           currency: meta.currency,
         });
-        if (added) {
+        if (fin.added) {
           const io = getIo();
           if (io) {
             await broadcastShowUpdate(io);
-            await emitAfterDonation(getIo, name);
+            await emitAfterDonation(getIo, fin);
           }
         }
       }
@@ -318,15 +328,15 @@ module.exports = function createDonationsRouter(getIo) {
           );
           const meta = extractCaptureMeta(orderData);
           if (meta?.captureId) {
-            const { added, name } = donationsStore.finalizeDonation(meta.customId, meta.captureId, {
+            const fin = donationsStore.finalizeDonation(meta.customId, meta.captureId, {
               amount: meta.amount,
               currency: meta.currency,
             });
-            if (added) {
+            if (fin.added) {
               const io = getIo();
               if (io) {
                 await broadcastShowUpdate(io);
-                await emitAfterDonation(getIo, name);
+                await emitAfterDonation(getIo, fin);
               }
             }
           }
@@ -384,13 +394,13 @@ module.exports = function createDonationsRouter(getIo) {
     }
 
     const pay = extractWebhookPayment(resource);
-    const { added, name } = donationsStore.finalizeDonation(customIdRaw, captureId, pay);
-    if (added) {
+    const fin = donationsStore.finalizeDonation(customIdRaw, captureId, pay);
+    if (fin.added) {
       try {
         const io = getIo();
         if (io) {
           await broadcastShowUpdate(io);
-          await emitAfterDonation(getIo, name);
+          await emitAfterDonation(getIo, fin);
         }
       } catch (e) {
         console.error('Donation broadcast error:', e);

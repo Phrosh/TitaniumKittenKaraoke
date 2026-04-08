@@ -558,6 +558,8 @@
     "donations": {
       "title": "Session donations",
       "sessionHint": "List of completed PayPal donations since the server was last restarted. Updates automatically when a new payment is captured.",
+      "incomingNotification": "New donation: {{name}} · {{amount}}",
+      "anonymousDonor": "Guest",
       "empty": "No donations in this session yet.",
       "colTime": "Time",
       "colDonor": "Donor (name from request page)",

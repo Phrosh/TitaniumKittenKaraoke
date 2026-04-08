@@ -19,9 +19,22 @@ import SongForm from './admin/SongForm';
 import loadAllSongs from '../utils/loadAllSongs';
 import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent, CurrentNextSongContainer, SongDisplayBox, SongDisplayLabel, SongDisplaySinger, SongDisplayTitle, SongTimeContainer, SongTimeRow, SongTimeLabel, SongProgressBar, SongProgressFill, SongTimeValueLeft, SongTimeValueRight } from './admin/style';
 
+function formatAdminDonationAmount(amountStr: string, currency: string, locale: string): string {
+  const raw = String(amountStr ?? '0').trim().replace(',', '.');
+  const n = parseFloat(raw);
+  const cur = (currency || 'EUR').toUpperCase();
+  if (!Number.isFinite(n)) {
+    return [amountStr, cur].filter(Boolean).join(' ').trim() || cur;
+  }
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: cur }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${cur}`;
+  }
+}
 
 const AdminDashboard: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,7 +239,32 @@ const AdminDashboard: React.FC = () => {
           });
       }
     };
-    
+
+    const handleAdminDonationReceived = (payload: {
+      name?: string;
+      amount?: string;
+      currency?: string;
+      at?: string;
+    }) => {
+      const amountLabel = formatAdminDonationAmount(
+        payload.amount ?? '0',
+        payload.currency ?? 'EUR',
+        i18n.language
+      );
+      toast.success(
+        t('adminDashboard.donations.incomingNotification', {
+          name: (payload.name || '').trim() || t('adminDashboard.donations.anonymousDonor'),
+          amount: amountLabel,
+        }),
+        {
+          duration: 4500,
+          position: 'top-center',
+          icon: '💜',
+          style: { marginTop: 14 },
+        }
+      );
+    };
+
     // Define handleSongStart before the .then() block so it's available in cleanup
     const handleSongStart = (data: { songId: number; startTimestamp: string; durationSeconds: number | null; isRestart: boolean }) => {
       console.log('⏱️ Song start event received:', data);
@@ -311,6 +349,8 @@ const AdminDashboard: React.FC = () => {
       
       // Listen for admin toast notifications
       websocketService.on('admin-toast', handleAdminToast);
+
+      websocketService.on('admin-donation-received', handleAdminDonationReceived);
       
       // Listen for playlist upgrade notifications
       websocketService.onPlaylistUpgrade((data) => {
@@ -410,10 +450,11 @@ const AdminDashboard: React.FC = () => {
       websocketService.offPlaylistUpgrade(() => {});
       websocketService.offUSDBDownload(() => {});
       websocketService.off('admin-toast', handleAdminToast);
+      websocketService.off('admin-donation-received', handleAdminDonationReceived);
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };
-  }, [fetchDashboardData, handleAdminWebSocketUpdate]);
+  }, [fetchDashboardData, handleAdminWebSocketUpdate, t, i18n.language]);
 
   // Interval for calculating elapsed time
   useEffect(() => {

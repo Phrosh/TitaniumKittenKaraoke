@@ -126,7 +126,7 @@ function registerPending(ref, name) {
 
  * @param {{ amount?: string | null, currency?: string | null }} [paymentMeta]
 
- * @returns {{ added: boolean, name?: string }}
+ * @returns {{ added: boolean, name?: string, amount?: string, currency?: string, at?: string }}
 
  */
 
@@ -176,11 +176,13 @@ function finalizeDonation(rawCustomId, captureId, paymentMeta = {}) {
 
   pending.delete(ref);
 
+  const at = new Date().toISOString();
+
   donors.push({
 
     name,
 
-    at: new Date().toISOString(),
+    at,
 
     amount,
 
@@ -188,7 +190,7 @@ function finalizeDonation(rawCustomId, captureId, paymentMeta = {}) {
 
   });
 
-  return { added: true, name };
+  return { added: true, name, amount, currency, at };
 
 }
 

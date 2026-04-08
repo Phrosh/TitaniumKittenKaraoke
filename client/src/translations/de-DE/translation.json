@@ -566,6 +566,8 @@
     "donations": {
       "title": "Spenden (aktuelle Session)",
       "sessionHint": "Abgeschlossene PayPal-Spenden seit dem letzten Server-Neustart. Die Liste aktualisiert sich automatisch bei neuer Zahlung.",
+      "incomingNotification": "Neue Spende: {{name}} · {{amount}}",
+      "anonymousDonor": "Gast",
       "empty": "In dieser Session wurden noch keine Spenden erfasst.",
       "colTime": "Zeit",
       "colDonor": "Spender (Name von der Wunschseite)",
