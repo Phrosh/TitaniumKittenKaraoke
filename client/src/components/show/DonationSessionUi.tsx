@@ -3,10 +3,15 @@ import styled, { css, keyframes } from 'styled-components';
 import { buildMarqueeSegment } from '../../utils/donationDisplay';
 import { HIGHLIGHT_COLOR, PRIMARY_COLOR } from './constants';
 
-const OSDEnterMs = 580;
-const OSDExitMs = 380;
-const CONFETTI_AFTER_MS = Math.round(OSDEnterMs * 0.72);
-const CONFETTI_SHOW_MS = 2000;
+const OSDEnterMs = 180;
+const OSDExitMs = 480;
+/** Feuerwerk/Konfetti: längere, langzamere Animationen (Faktor auf Basis der „normalen“ Dauer) */
+const CELEBRATION_TIME_MULTIPLIER = 3;
+/** Kurz nach Sichtbarkeit – parallel zum Aufklappen der Box */
+const CONFETTI_AFTER_MS = 45;
+/** Layer sichtbar, bis alle langsamen Partikel ausgelaufen sind */
+const CONFETTI_SHOW_MS = 4800 * CELEBRATION_TIME_MULTIPLIER;
+const FLASH_BURST_MS = 650 * CELEBRATION_TIME_MULTIPLIER;
 
 const marqueeScroll = keyframes`
   0% {
@@ -111,11 +116,95 @@ const ConfettiHost = styled.div`
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(520px, 95vw);
-  height: min(280px, 38vh);
+  width: min(720px, 98vw);
+  height: min(440px, 52vh);
   transform: translate(-50%, -50%);
   z-index: 0;
   overflow: visible;
+`;
+
+const flashPop = keyframes`
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+`;
+
+const FlashBurst = styled.div`
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(560px, 96vw);
+  height: min(380px, 58vh);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 78% 68% at 50% 44%,
+    rgba(255, 232, 150, 0.5) 0%,
+    rgba(255, 200, 90, 0.28) 22%,
+    rgba(78, 145, 201, 0.2) 42%,
+    transparent 70%
+  );
+  animation: ${flashPop} ${FLASH_BURST_MS}ms ease-out forwards;
+  filter: blur(0.5px);
+`;
+
+const fireworkStreakAnim = keyframes`
+  0% {
+    opacity: 0;
+    transform: rotate(var(--streak-deg)) scaleY(0.06);
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--streak-deg)) scaleY(1.08);
+  }
+`;
+
+const FireworkStreak = styled.div<{
+  $deg: number;
+  $len: number;
+  $delay: number;
+  $dur: number;
+  $color: string;
+}>`
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  --streak-deg: ${(p) => p.$deg}deg;
+  width: 4px;
+  height: ${(p) => p.$len}px;
+  margin-left: -2px;
+  margin-top: ${(p) => -p.$len}px;
+  transform-origin: 50% 100%;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    transparent 0%,
+    ${(p) => p.$color} 45%,
+    rgba(255, 255, 255, 0.85) 100%
+  );
+  box-shadow:
+    0 0 10px ${(p) => p.$color},
+    0 0 18px rgba(255, 255, 255, 0.35);
+  filter: blur(0.4px);
+  animation-name: ${fireworkStreakAnim};
+  animation-duration: ${(p) => p.$dur}ms;
+  animation-timing-function: cubic-bezier(0.2, 0.85, 0.36, 1);
+  animation-fill-mode: forwards;
+  animation-delay: ${(p) => p.$delay}ms;
 `;
 
 const confettiBurst = keyframes`
@@ -154,6 +243,7 @@ const ConfettiBit = styled.span<{
   --ty: ${(p) => p.$ty};
   --rot: ${(p) => p.$rot};
   opacity: 0;
+  z-index: 2;
   animation-name: ${confettiBurst};
   animation-duration: ${(p) => p.$dur}ms;
   animation-timing-function: cubic-bezier(0.22, 0.82, 0.42, 0.97);
@@ -164,7 +254,7 @@ const ConfettiBit = styled.span<{
 const OsdWrap = styled.div<{ $motion: 'in' | 'out' }>`
   position: relative;
   z-index: 1;
-  transform-origin: center top;
+  transform-origin: center center;
   max-width: min(860px, 94vw);
   padding: 28px 36px;
   border-radius: 22px;
@@ -252,27 +342,37 @@ type ConfettiParticle = {
   delay: number;
 };
 
-function buildConfettiParticles(seed: number, count: number): ConfettiParticle[] {
-  const rnd = (() => {
-    let s = seed % 2147483647;
-    if (s <= 0) s += 2147483646;
-    return () => {
-      s = (s * 16807) % 2147483647;
-      return (s - 1) / 2147483646;
-    };
-  })();
+type FireworkStreakParticle = {
+  id: number;
+  deg: number;
+  len: number;
+  delay: number;
+  dur: number;
+  color: string;
+};
 
+function makeRng(seed: number): () => number {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function buildConfettiParticles(seed: number, count: number): ConfettiParticle[] {
+  const rnd = makeRng(seed);
   const particles: ConfettiParticle[] = [];
   for (let i = 0; i < count; i++) {
     const angle = rnd() * Math.PI * 2;
-    const dist = 95 + rnd() * 165;
+    const dist = 110 + rnd() * 220;
     const tx = `${Math.cos(angle) * dist}px`;
-    const ty = `${Math.sin(angle) * dist - rnd() * 40}px`;
-    const rot = `${(rnd() - 0.5) * 980}deg`;
-    const square = rnd() > 0.45;
-    const w = square ? 5 + rnd() * 6 : 4 + rnd() * 3;
-    const h = square ? w : 7 + rnd() * 9;
-    const br = rnd() > 0.6 ? '50%' : `${rnd() * 3}px`;
+    const ty = `${Math.sin(angle) * dist - rnd() * 55}px`;
+    const rot = `${(rnd() - 0.5) * 1080}deg`;
+    const square = rnd() > 0.42;
+    const w = square ? 5 + rnd() * 7 : 3 + rnd() * 4;
+    const h = square ? w : 8 + rnd() * 11;
+    const br = rnd() > 0.58 ? '50%' : `${rnd() * 3}px`;
     const bg = CONFETTI_COLORS[Math.floor(rnd() * CONFETTI_COLORS.length)];
     particles.push({
       id: i,
@@ -283,11 +383,27 @@ function buildConfettiParticles(seed: number, count: number): ConfettiParticle[]
       tx,
       ty,
       rot,
-      dur: 900 + Math.floor(rnd() * 700),
-      delay: Math.floor(rnd() * 90),
+      dur: (950 + Math.floor(rnd() * 850)) * CELEBRATION_TIME_MULTIPLIER,
+      delay: Math.floor(rnd() * 120) * CELEBRATION_TIME_MULTIPLIER,
     });
   }
   return particles;
+}
+
+function buildFireworkStreaks(seed: number, count: number): FireworkStreakParticle[] {
+  const rnd = makeRng(seed + 31_337);
+  const streaks: FireworkStreakParticle[] = [];
+  for (let i = 0; i < count; i++) {
+    streaks.push({
+      id: i,
+      deg: rnd() * 360,
+      len: 62 + rnd() * 118,
+      delay: Math.floor(rnd() * 140) * CELEBRATION_TIME_MULTIPLIER,
+      dur: (480 + Math.floor(rnd() * 520)) * CELEBRATION_TIME_MULTIPLIER,
+      color: CONFETTI_COLORS[Math.floor(rnd() * CONFETTI_COLORS.length)],
+    });
+  }
+  return streaks;
 }
 
 export interface SessionDonor {
@@ -404,9 +520,16 @@ export const DonationTopOsd: React.FC<DonationTopOsdProps> = ({ visible, text, h
     };
   }, [visible, text]);
 
+  const celebrationSeed = confettiBurstId * 9973 + text.length * 13;
+
   const confettiParticles = useMemo(
-    () => (confettiActive ? buildConfettiParticles(confettiBurstId * 9973 + text.length * 13, 52) : []),
-    [confettiActive, confettiBurstId, text]
+    () => (confettiActive ? buildConfettiParticles(celebrationSeed, 78) : []),
+    [confettiActive, celebrationSeed]
+  );
+
+  const fireworkStreaks = useMemo(
+    () => (confettiActive ? buildFireworkStreaks(celebrationSeed, 44) : []),
+    [confettiActive, celebrationSeed]
   );
 
   if (!mounted && !visible) {
@@ -417,11 +540,22 @@ export const DonationTopOsd: React.FC<DonationTopOsdProps> = ({ visible, text, h
 
   return (
     <OsdStage>
-      {confettiActive && confettiParticles.length > 0 ? (
+      {confettiActive ? (
         <ConfettiHost aria-hidden>
+          <FlashBurst />
+          {fireworkStreaks.map((s) => (
+            <FireworkStreak
+              key={`fw-${confettiBurstId}-${s.id}`}
+              $deg={s.deg}
+              $len={s.len}
+              $delay={s.delay}
+              $dur={s.dur}
+              $color={s.color}
+            />
+          ))}
           {confettiParticles.map((p) => (
             <ConfettiBit
-              key={`${confettiBurstId}-${p.id}`}
+              key={`cf-${confettiBurstId}-${p.id}`}
               $w={p.w}
               $h={p.h}
               $bg={p.bg}

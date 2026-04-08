@@ -54,6 +54,9 @@ import {
   applyNotificationTemplate,
 } from '../../utils/donationDisplay';
 
+/** Anzeigedauer der Spendendank-Box (vorher 8 s, um 3 s verkürzt) */
+const DONATION_OSD_VISIBLE_MS = 5000;
+
 let globalUltrastarData: UltrastarSongData | null = null;
 
 let p1Timeouts: NodeJS.Timeout[] = [];
@@ -1663,7 +1666,10 @@ const ShowView: React.FC = () => {
       setDonationOsdHighlightName(name || null);
       setDonationOsdText(line);
       setDonationOsdVisible(true);
-      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
+      donationOsdHideRef.current = window.setTimeout(
+        () => setDonationOsdVisible(false),
+        DONATION_OSD_VISIBLE_MS
+      );
     };
 
     websocketService.on('donation-thanks', onThanks);
@@ -1680,7 +1686,10 @@ const ShowView: React.FC = () => {
       setDonationOsdHighlightName(displayName);
       setDonationOsdText(line);
       setDonationOsdVisible(true);
-      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
+      donationOsdHideRef.current = window.setTimeout(
+        () => setDonationOsdVisible(false),
+        DONATION_OSD_VISIBLE_MS
+      );
     };
 
     return () => {
