@@ -36,7 +36,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [1/7] Installing Server Dependencies...
+echo [1/8] Installing Server Dependencies...
 echo ----------------------------------------
 call npm install
 if %errorlevel% neq 0 (
@@ -47,7 +47,7 @@ if %errorlevel% neq 0 (
 echo Server Dependencies successfully installed!
 echo.
 
-echo [2/7] Installing Client Dependencies...
+echo [2/8] Installing Client Dependencies...
 echo ----------------------------------------
 cd client
 call npm install --legacy-peer-deps
@@ -60,7 +60,7 @@ cd ..
 echo Client Dependencies successfully installed!
 echo.
 
-echo [3/7] Creating Python Virtual Environment...
+echo [3/8] Creating Python Virtual Environment...
 echo ----------------------------------------
 cd ai-services
 if exist venv (
@@ -77,7 +77,7 @@ if %errorlevel% neq 0 (
 echo Virtual Environment successfully created!
 echo.
 
-echo [4/7] Activating Virtual Environment...
+echo [4/8] Activating Virtual Environment...
 echo ----------------------------------------
 call venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
@@ -88,7 +88,7 @@ if %errorlevel% neq 0 (
 echo Virtual Environment successfully activated!
 echo.
 
-echo [5/7] Installing Python Dependencies...
+echo [5/8] Installing Python Dependencies (includes Whisper and Qwen3-ASR base packages)...
 echo ----------------------------------------
 call pip install -r requirements.txt
 if %errorlevel% neq 0 (
@@ -99,7 +99,7 @@ if %errorlevel% neq 0 (
 echo Python Dependencies successfully installed!
 echo.
 
-echo [6/7] Detecting CUDA Version...
+echo [6/8] Detecting CUDA Version...
 echo ----------------------------------------
 set CUDA_VERSION=
 set CUDA_INDEX_URL=
@@ -163,7 +163,7 @@ if %errorlevel% equ 0 (
 
 echo.
 
-echo [7/7] Installing PyTorch for CUDA !CUDA_VERSION!...
+echo [7/8] Installing PyTorch for CUDA !CUDA_VERSION!...
 echo ----------------------------------------
 if "!CUDA_VERSION!"=="CPU" (
     echo Installing PyTorch CPU version...
@@ -187,6 +187,16 @@ if %errorlevel% neq 0 (
     echo PyTorch for CUDA !CUDA_VERSION! successfully installed!
 )
 
+echo.
+echo [8/8] Optional: vLLM for Qwen3-ASR (faster backend; often Linux/WSL only)...
+echo ----------------------------------------
+call pip install "vllm==0.14.0"
+if %errorlevel% neq 0 (
+    echo INFO: vLLM was not installed. Qwen3-ASR will use the Transformers backend ^(default^).
+) else (
+    echo vLLM installed successfully. Set qwen3_backend: vllm in your transcription config to use it.
+)
+
 cd ..
 
 echo.
@@ -198,8 +208,9 @@ echo What was installed:
 echo - Server Dependencies (Node.js)
 echo - Client Dependencies (React)
 echo - Python Virtual Environment
-echo - Python Dependencies
+echo - Python Dependencies ^(including qwen-asr / Qwen3-ASR^)
 echo - PyTorch for CUDA !CUDA_VERSION!
+echo - optional: vLLM 0.14.0 ^(if step 8 succeeded^)
 echo.
 echo Next steps:
 echo 1. Start the system with start-dev.bat (Development)

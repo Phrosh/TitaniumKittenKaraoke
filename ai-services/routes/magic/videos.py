@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 import os
 import logging
 from ..utils import get_magic_videos_dir
@@ -57,6 +57,7 @@ def get_magic_videos():
 def process_magic_video(folder_name):
     """Process magic video to generate UltraStar file"""
     try:
+        data = request.get_json(silent=True) or {}
         folder_path = os.path.join(get_magic_videos_dir(), folder_name)
         if not os.path.exists(folder_path):
             return jsonify({'error': 'Folder not found'}), 404
@@ -81,6 +82,8 @@ def process_magic_video(folder_name):
         
         # Create meta object from folder
         meta = create_meta_from_file_path(folder_path, get_magic_videos_dir(), ProcessingMode.MAGIC_VIDEOS)
+        from modules.transcription import apply_transcription_request_config
+        apply_transcription_request_config(meta, data)
         
         # Process with modular pipeline
         success = True

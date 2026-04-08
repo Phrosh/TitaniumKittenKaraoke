@@ -4,10 +4,12 @@ Transcription Module
 Transkribiert Audio zu Text und konvertiert ins UltraStar-Format
 """
 
+import json
 import os
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
+
 import torch
 try:
     from faster_whisper import WhisperModel
@@ -20,6 +22,147 @@ from .meta import ProcessingMeta, ProcessingStatus
 from .logger_utils import log_start, send_processing_status
 
 logger = logging.getLogger(__name__)
+
+# Gemeinsame Default-Konfiguration (Whisper + Platzhalter für Qwen3-Optionen)
+TRANSCRIPTION_DEFAULTS: Dict[str, Any] = {
+    'transcription_engine': 'qwen3-asr',
+    'model': 'large-v3',
+    'device': 'auto',
+    'language': None,
+    'task': 'transcribe',
+    'verbose': False,
+    'word_timestamps': True,
+    'fp16': True,
+    'qwen3_asr_model': 'Qwen/Qwen3-ASR-1.7B',
+    'qwen3_forced_aligner': 'Qwen/Qwen3-ForcedAligner-0.6B',
+    'qwen3_backend': 'transformers',
+}
+
+
+def merge_transcription_config(meta: ProcessingMeta) -> Dict[str, Any]:
+    """Merge: Defaults → meta.config → Unterobjekt transcription → Umgebungsvariablen."""
+    cfg: Dict[str, Any] = {**TRANSCRIPTION_DEFAULTS}
+    if meta.config:
+        cfg.update(meta.config)
+    nested = cfg.get('transcription')
+    if isinstance(nested, dict):
+        if nested.get('engine') is not None:
+            cfg['transcription_engine'] = nested['engine']
+        for k, v in nested.items():
+            if k == 'engine':
+                continue
+            cfg[k] = v
+    env_engine = os.environ.get('TRANSCRIPTION_ENGINE') or os.environ.get('KARAOKE_TRANSCRIPTION_ENGINE')
+    if env_engine:
+        cfg['transcription_engine'] = env_engine.strip()
+    try:
+        from .transcription_qwen import default_qwen_env_overrides
+        cfg.update(default_qwen_env_overrides())
+    except ImportError:
+        pass
+    return cfg
+
+
+def _normalize_transcription_engine(name: Optional[str]) -> str:
+    raw = (name or 'qwen3-asr').strip().lower()
+    if 'qwen' in raw.replace('_', '-'):
+        return 'qwen3'
+    return 'whisper'
+
+
+def _whisper_only_config(effective: Dict[str, Any]) -> Dict[str, Any]:
+    """Nur für Whisper/faster-whisper relevante Keys (qwen3_* und Engine-Identifier rausfiltern)."""
+    skip = {'transcription_engine', 'transcription'}
+    return {
+        k: v
+        for k, v in effective.items()
+        if k not in skip and not str(k).startswith('qwen3_')
+    }
+
+
+def apply_transcription_request_config(meta: ProcessingMeta, payload: Optional[Dict[str, Any]]) -> None:
+    """Übernimmt API-Body-Felder transcription / transcription_engine in meta.config."""
+    if not payload:
+        return
+    tc = payload.get('transcription')
+    if isinstance(tc, dict):
+        meta.config = {**(meta.config or {})}
+        for k, v in tc.items():
+            if k == 'engine':
+                meta.config['transcription_engine'] = v
+            else:
+                meta.config[k] = v
+    if payload.get('transcription_engine'):
+        meta.config = {**(meta.config or {}), 'transcription_engine': payload['transcription_engine']}
+
+
+def _transcription_raw_basename(meta: ProcessingMeta) -> str:
+    if getattr(meta, 'base_filename', None):
+        return str(meta.base_filename)
+    return f"{meta.artist} - {meta.title}"
+
+
+def format_transcription_raw_text(result: Dict[str, Any]) -> str:
+    """Lesbare Roh-Ausgabe mit Segment- und Wort-Timestamps (vor Post-Processing)."""
+    lines: List[str] = [
+        "# Raw ASR / transcription (before cleanup)",
+        f"language: {result.get('language', '')}",
+        "",
+        "--- full text ---",
+        (result.get('text') or "").strip(),
+        "",
+        "--- segments ---",
+    ]
+    segments = result.get('segments') or []
+    for i, seg in enumerate(segments):
+        st = seg.get('start', 0.0)
+        en = seg.get('end', 0.0)
+        txt = (seg.get('text') or "").strip()
+        lines.append(f"[seg {i}] {st:.3f}s – {en:.3f}s | {txt}")
+        for w in seg.get('words') or []:
+            word = (w.get('word') or "").strip()
+            ws = w.get('start', 0.0)
+            we = w.get('end', 0.0)
+            lines.append(f"    {ws:.3f}s – {we:.3f}s  {word}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def save_raw_transcription_artifacts(meta: ProcessingMeta, result: Dict[str, Any]) -> None:
+    """JSON + lesbare .txt im Songordner; Logs mit Kurzüberblick."""
+    base = _transcription_raw_basename(meta)
+    path_json = meta.get_file_path(f"{base}_asr_raw.json")
+    path_txt = meta.get_file_path(f"{base}_asr_raw_timestamps.txt")
+    try:
+        with open(path_json, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2, default=str)
+        txt_body = format_transcription_raw_text(result)
+        with open(path_txt, "w", encoding="utf-8") as f:
+            f.write(txt_body)
+        meta.add_output_file(path_json)
+        meta.add_output_file(path_txt)
+        meta.add_keep_file(os.path.basename(path_json))
+        meta.add_keep_file(os.path.basename(path_txt))
+    except Exception as ex:
+        logger.warning("Konnte Roh-Transkript-Artefakte nicht schreiben: %s", ex, exc_info=True)
+        return
+    n_seg = len(result.get("segments") or [])
+    n_words = sum(len((s.get("words") or [])) for s in (result.get("segments") or []))
+    text = result.get("text") or ""
+    logger.info(
+        "Raw ASR (pre-cleanup): segments=%s words=%s text_len=%s — saved %s and %s",
+        n_seg,
+        n_words,
+        len(text),
+        os.path.basename(path_json),
+        os.path.basename(path_txt),
+    )
+    preview = 600
+    if len(text) <= preview:
+        logger.info("Raw ASR text:\n%s", text)
+    else:
+        logger.info("Raw ASR text (first %s chars):\n%s…", preview, text[:preview])
+
 
 # Globale Instanz des Transcribers, um das Modell im Speicher zu halten
 # Das verhindert, dass das Modell beim Garbage Collection gelöscht wird und Abstürze verursacht
@@ -36,15 +179,7 @@ class AudioTranscriber:
             config: Konfiguration für Whisper
         """
         self.config = config or {}
-        self.default_config = {
-            'model': 'large-v3',
-            'device': 'auto',  # 'auto', 'cuda', 'cpu'
-            'language': None,  # None für automatische Erkennung
-            'task': 'transcribe',
-            'verbose': False,
-            'word_timestamps': True,
-            'fp16': True
-        }
+        self.default_config = {**TRANSCRIPTION_DEFAULTS}
         
         self.model = None
         self.model_name = None
@@ -358,39 +493,50 @@ class AudioTranscriber:
             logger.error(f"Fehler beim Speichern der UltraStar-Datei: {e}")
             return False
     
-    def process_meta(self, meta: ProcessingMeta) -> bool:
+    def process_meta(
+        self,
+        meta: ProcessingMeta,
+        transcription_cfg: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
-        Transkribiert Audio im Meta-Objekt
-        
+        Transkribiert Audio im Meta-Objekt.
+
         Args:
             meta: ProcessingMeta-Objekt
-            
-        Returns:
-            True wenn erfolgreich, False sonst
+            transcription_cfg: Optional vorgemergter Dict (sonst merge_transcription_config(meta))
         """
         log_start('transcription.process_meta', meta)
         send_processing_status(meta, 'transcribing')
         try:
-            # Finde Vocals-Datei
+            effective = transcription_cfg if transcription_cfg is not None else merge_transcription_config(meta)
+            engine = _normalize_transcription_engine(effective.get('transcription_engine'))
+
             vocals_file = self.find_vocals_file(meta)
             if not vocals_file:
                 logger.error("Keine Vocals-Datei für Transkription gefunden")
                 meta.mark_step_failed('transcription')
                 return False
-            
-            logger.info(f"Verwende Vocals-Datei: {vocals_file}")
-            # Merke Vocals-Pfad für optionale Lautstärke-Filter
+
+            logger.info("Verwende Vocals-Datei: %s | Engine: %s", vocals_file, engine)
             try:
                 self._last_vocals_path = vocals_file
             except Exception:
                 pass
             meta.status = ProcessingStatus.IN_PROGRESS
-            
-            # Transkribiere Audio
-            config = {**self.default_config, **self.config}
-            model_name = config.get('model', 'large-v3')
-            
-            transcription_result = self.transcribe_audio(vocals_file, model_name)
+
+            transcription_result: Optional[Dict[str, Any]] = None
+            if engine == 'qwen3':
+                from .transcription_qwen import transcribe_audio_file_qwen3
+                try:
+                    transcription_result = transcribe_audio_file_qwen3(vocals_file, effective)
+                except Exception as qe:
+                    logger.error("Qwen3-ASR Transkription fehlgeschlagen: %s", qe, exc_info=True)
+                    transcription_result = None
+            else:
+                self.config = _whisper_only_config(effective)
+                model_name = effective.get('model', 'large-v3')
+                transcription_result = self.transcribe_audio(vocals_file, model_name)
+
             if not transcription_result:
                 logger.error("Transkription fehlgeschlagen")
                 meta.mark_step_failed('transcription')
@@ -398,76 +544,8 @@ class AudioTranscriber:
                 send_processing_status(meta, 'failed')
                 return False
             
-            # Übernehme alte Post-Processing-Pipeline (Segment-Splitting & Halluzinations-Filter)
-            try:
-                # 1) Erste Filterung
-                transcription_result = self._filter_hallucinations(dict(transcription_result))
-                # 2) Lange Segmente splitten und optimieren
-                before_cnt = len(transcription_result.get('segments', []) or [])
-                transcription_result = self._split_long_segments(dict(transcription_result))
-                after_cnt = len(transcription_result.get('segments', []) or [])
-                # Diagnose: zähle sehr lange Segmente
-                try:
-                    long_before = sum(1 for s in transcription_result.get('segments', []) if (s.get('end',0)-s.get('start',0))>4.0)
-                    logger.info(f"Segmente nach Split: {after_cnt} (vorher unbekannt), >4s: {long_before}")
-                except Exception:
-                    pass
-                # 2b) Lautstärke-basierte Filterung wie früher (logge Entscheidung pro Segment)
-                if hasattr(self, '_last_vocals_path') and getattr(self, '_last_vocals_path'):
-                    try:
-                        transcription_result = self._filter_by_volume(transcription_result, getattr(self, '_last_vocals_path'))
-                    except Exception as ve:
-                        logger.warning(f"Lautstärke-Filterung übersprungen: {ve}")
-                # 3) Zweite Filterung nach dem Split
-                transcription_result = self._filter_hallucinations(dict(transcription_result))
-            except Exception as e:
-                logger.warning(f"Post-Processing übersprungen: {e}")
+            return self._finalize_transcription(meta, transcription_result, vocals_file)
 
-            # Konvertiere zu UltraStar-Format
-            ultrastar_content = self.convert_to_ultrastar(transcription_result, meta)
-            if not ultrastar_content:
-                logger.error("UltraStar-Konvertierung fehlgeschlagen")
-                meta.mark_step_failed('transcription')
-                meta.status = ProcessingStatus.FAILED
-                send_processing_status(meta, 'failed')
-                return False
-            
-            # Speichere UltraStar-Datei (benenne nach stabilem Basisnamen, falls vorhanden)
-            if getattr(meta, 'base_filename', None):
-                filename = f"{meta.base_filename}.txt"
-            else:
-                filename = f"{meta.artist} - {meta.title}.txt"
-            if not self.save_ultrastar_file(ultrastar_content, meta, filename):
-                logger.error("Speichern der UltraStar-Datei fehlgeschlagen")
-                meta.mark_step_failed('transcription')
-                meta.status = ProcessingStatus.FAILED
-                return False
-            
-            # Speichere auch Roh-Transkription (temporär, wird beim Cleanup entfernt)
-            if getattr(meta, 'base_filename', None):
-                raw_filename = f"{meta.base_filename}_raw.txt"
-            else:
-                raw_filename = f"{meta.artist} - {meta.title}_raw.txt"
-            raw_content = transcription_result.get('text', '')
-            if raw_content:
-                raw_path = meta.get_file_path(raw_filename)
-                with open(raw_path, 'w', encoding='utf-8') as f:
-                    f.write(raw_content)
-                meta.add_output_file(raw_path)
-                meta.add_temp_file(raw_filename)  # Als temporär markieren
-            
-            logger.info("=" * 80)
-            logger.info(f"✅ Audio erfolgreich transkribiert für: {meta.artist} - {meta.title}")
-            meta.mark_step_completed('transcription')
-            meta.status = ProcessingStatus.COMPLETED
-            
-            # Sende Status-Update nach erfolgreicher Transkription
-            try:
-                send_processing_status(meta, 'completed')
-            except Exception as status_error:
-                logger.warning(f"⚠️ Fehler beim Senden des Erfolgsstatus: {status_error}")
-            
-            return True
             
         except Exception as e:
             logger.error(f"Fehler bei Audio-Transkription: {e}", exc_info=True)
@@ -489,6 +567,171 @@ class AudioTranscriber:
             
             return False
 
+    def _finalize_transcription(
+        self,
+        meta: ProcessingMeta,
+        transcription_result: Dict[str, Any],
+        vocals_file: str,
+    ) -> bool:
+        """Post-Processing, UltraStar, Roh-Text — gemeinsam für Whisper und Qwen3."""
+        _ = vocals_file
+        try:
+            save_raw_transcription_artifacts(meta, dict(transcription_result))
+            try:
+                transcription_result = self._split_monolithic_asr_segments(
+                    dict(transcription_result)
+                )
+                transcription_result = self._filter_hallucinations(dict(transcription_result))
+                transcription_result = self._split_long_segments(dict(transcription_result))
+                after_cnt = len(transcription_result.get('segments', []) or [])
+                try:
+                    long_before = sum(
+                        1
+                        for s in transcription_result.get('segments', [])
+                        if (s.get('end', 0) - s.get('start', 0)) > 4.0
+                    )
+                    logger.info(
+                        "Segmente nach Split: %s, >4s: %s",
+                        after_cnt,
+                        long_before,
+                    )
+                except Exception:
+                    pass
+                if hasattr(self, '_last_vocals_path') and getattr(self, '_last_vocals_path'):
+                    try:
+                        transcription_result = self._filter_by_volume(
+                            transcription_result, getattr(self, '_last_vocals_path')
+                        )
+                    except Exception as ve:
+                        logger.warning(f"Lautstärke-Filterung übersprungen: {ve}")
+                transcription_result = self._filter_hallucinations(dict(transcription_result))
+            except Exception as e:
+                logger.warning(f"Post-Processing übersprungen: {e}")
+
+            ultrastar_content = self.convert_to_ultrastar(transcription_result, meta)
+            if not ultrastar_content:
+                logger.error("UltraStar-Konvertierung fehlgeschlagen")
+                meta.mark_step_failed('transcription')
+                meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
+                return False
+
+            if getattr(meta, 'base_filename', None):
+                filename = f"{meta.base_filename}.txt"
+            else:
+                filename = f"{meta.artist} - {meta.title}.txt"
+            if not self.save_ultrastar_file(ultrastar_content, meta, filename):
+                logger.error("Speichern der UltraStar-Datei fehlgeschlagen")
+                meta.mark_step_failed('transcription')
+                meta.status = ProcessingStatus.FAILED
+                send_processing_status(meta, 'failed')
+                return False
+
+            if getattr(meta, 'base_filename', None):
+                raw_filename = f"{meta.base_filename}_raw.txt"
+            else:
+                raw_filename = f"{meta.artist} - {meta.title}_raw.txt"
+            raw_content = transcription_result.get('text', '')
+            if raw_content:
+                raw_path = meta.get_file_path(raw_filename)
+                with open(raw_path, 'w', encoding='utf-8') as f:
+                    f.write(raw_content)
+                meta.add_output_file(raw_path)
+                meta.add_temp_file(raw_filename)
+
+            logger.info("=" * 80)
+            logger.info(f"✅ Audio erfolgreich transkribiert für: {meta.artist} - {meta.title}")
+            meta.mark_step_completed('transcription')
+            meta.status = ProcessingStatus.COMPLETED
+            try:
+                send_processing_status(meta, 'completed')
+            except Exception as status_error:
+                logger.warning(f"⚠️ Fehler beim Senden des Erfolgsstatus: {status_error}")
+            return True
+        except Exception as e:
+            logger.error("_finalize_transcription: %s", e, exc_info=True)
+            meta.mark_step_failed('transcription')
+            meta.status = ProcessingStatus.FAILED
+            try:
+                send_processing_status(meta, 'failed')
+            except Exception:
+                pass
+            return False
+
+    def _build_segment_from_words(
+        self,
+        words: List[Dict[str, Any]],
+        template: Dict[str, Any],
+        idx: int,
+    ) -> Dict[str, Any]:
+        text = ' '.join(str(w.get('word', '') or '').strip() for w in words).strip()
+        base = {k: v for k, v in template.items() if k not in (
+            'id', 'seek', 'start', 'end', 'text', 'words'
+        )}
+        return {
+            **base,
+            'id': idx,
+            'seek': 0,
+            'start': float(words[0].get('start', 0)),
+            'end': float(words[-1].get('end', 0)),
+            'text': text,
+            'words': list(words),
+        }
+
+    def _split_monolithic_asr_segments(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Qwen3 liefert oft ein einziges langes Segment. Aufteilung an:
+        - größeren Pausen zwischen Wort-Timestamps
+        - Satzende (. ! ?), sobald genug Tokens im Puffer liegen
+        """
+        try:
+            segments = list(result.get('segments') or [])
+            if len(segments) != 1:
+                return result
+            seg = segments[0]
+            words = list(seg.get('words') or [])
+            if len(words) < 24:
+                return result
+            dur = float(seg.get('end', 0)) - float(seg.get('start', 0))
+            if dur < 30.0 and len(words) < 64:
+                return result
+
+            gap_break = 1.15
+            min_flush = 2
+            min_for_punct = 4
+
+            new_segs: List[Dict[str, Any]] = []
+            buf: List[Dict[str, Any]] = []
+            for i, w in enumerate(words):
+                buf.append(w)
+                if i + 1 >= len(words):
+                    break
+                nw = words[i + 1]
+                gap = float(nw.get('start', 0)) - float(w.get('end', 0))
+                wtxt = str(w.get('word', '') or '').strip()
+                sentence_break = bool(wtxt) and wtxt[-1] in '.!?'
+                if (gap > gap_break and len(buf) >= min_flush) or (
+                    sentence_break and len(buf) >= min_for_punct
+                ):
+                    new_segs.append(self._build_segment_from_words(buf, seg, len(new_segs)))
+                    buf = []
+            if buf:
+                new_segs.append(self._build_segment_from_words(buf, seg, len(new_segs)))
+            if len(new_segs) <= 1:
+                return result
+
+            out = dict(result)
+            out['segments'] = new_segs
+            out['text'] = ' '.join((s.get('text') or '').strip() for s in new_segs)
+            logger.info(
+                'Monolith-Segment aufgeteilt: 1 → %s Teil-Segmente (Pausen/Satzenden).',
+                len(new_segs),
+            )
+            return out
+        except Exception as ex:
+            logger.warning('Monolith-Segment-Split übersprungen: %s', ex)
+            return result
+
     # --- Portierte Hilfsfunktionen aus music_to_lyrics.py (als Klassen-Methoden) ---
 
     def _filter_hallucinations(self, result: Dict[str, Any]) -> Dict[str, Any]:
@@ -504,12 +747,6 @@ class AudioTranscriber:
                 text = (segment.get('text', '') or '').strip().lower()
                 if any(p in text for p in hallucination_phrases):
                     continue
-                words = segment.get('words', [])
-                if words and len(words) > 1:
-                    ends = [w.get('end', 0) for w in words]
-                    if len(set(ends)) < len(ends):
-                        # Unplausible doppelte Endzeiten → verwerfen
-                        continue
                 filtered_segments.append(segment)
             result['segments'] = filtered_segments
             if 'text' in result:
@@ -545,7 +782,7 @@ class AudioTranscriber:
             long_segments_after = sum(1 for s in new_segments if len((s.get('text', '') or '').strip()) > CHAR_MAX)
             logger.info(f"Segmente nach Längen-Optimierung: {len(new_segments)}, davon >{CHAR_MAX} Zeichen: {long_segments_after}")
             
-            if result.get('language', '').lower() == 'en':
+            if result.get('language', '').lower() in ('en', 'english'):
                 new_segments = self._optimize_capitalization_segments(new_segments)
             new_segments = self._clean_segments(new_segments)
             result['segments'] = new_segments
@@ -708,6 +945,8 @@ class AudioTranscriber:
             for seg in segments:
                 words = seg.get('words', [])
                 if not words:
+                    if (seg.get('text') or '').strip():
+                        cleaned.append(seg)
                     continue
                 filtered = []
                 for w in words:
@@ -742,6 +981,8 @@ class AudioTranscriber:
                 end_time = segment.get('end', 0)
                 duration = max(0, end_time - start_time)
                 if duration <= 0:
+                    # viele Aligner (z. B. Qwen) haben start==end auf Token-Ebene — Segment nicht verwerfen
+                    filtered_segments.append(segment)
                     continue
                 cmd = [
                     'ffmpeg', '-hide_banner', '-nostats',
@@ -773,6 +1014,13 @@ class AudioTranscriber:
                 else:
                     logger.info(f"Segment entfernt (zu leise: {mean_volume:.1f} dB): '{segment.get('text','').strip()}'")
 
+            if not filtered_segments and segments:
+                logger.warning(
+                    "Lautstärke-Filter: alle Segmente entfernt — behalte Original (%s Segmente).",
+                    len(segments),
+                )
+                return result
+
             result['segments'] = filtered_segments
             if 'text' in result:
                 result['text'] = ' '.join((s.get('text', '') or '').strip() for s in filtered_segments)
@@ -802,7 +1050,8 @@ def transcribe_audio(meta: ProcessingMeta) -> bool:
             _global_transcriber = AudioTranscriber()
         
         transcriber = _global_transcriber
-        result = transcriber.process_meta(meta)
+        cfg = merge_transcription_config(meta)
+        result = transcriber.process_meta(meta, cfg)
         
         # Das Modell bleibt in _global_transcriber, um Abstürze zu vermeiden
         return result

@@ -22,6 +22,8 @@ def modular_process(folder_name):
     try:
         data = request.get_json(silent=True) or {}
         song_type = data.get('songType', 'ultrastar')
+        transcription_payload = data.get('transcription')
+        transcription_engine = data.get('transcription_engine')
         base_dir = data.get('baseDir', get_ultrastar_dir())
         
         # Basis-Verzeichnis für verschiedene Song-Typen
@@ -54,7 +56,9 @@ def modular_process(folder_name):
             'base_dir': base_dir,
             'song_type': song_type,
             'artist': artist,
-            'title': title
+            'title': title,
+            'transcription': transcription_payload,
+            'transcription_engine': transcription_engine,
         }
         
         # Füge Job zur Queue hinzu
@@ -104,6 +108,9 @@ def run_modular_pipeline(job_data):
         meta.folder_path = folder_path
         meta.artist = artist
         meta.title = title
+
+        from modules.transcription import apply_transcription_request_config
+        apply_transcription_request_config(meta, job_data)
         
         logger.info(f"📁 Korrigierte Meta-Daten: artist='{meta.artist}', title='{meta.title}', folder_path='{meta.folder_path}'")
         

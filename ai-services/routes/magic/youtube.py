@@ -187,6 +187,9 @@ def process_magic_youtube_from_url(folder_name):
         meta.youtube_file = video_file
         meta.add_input_file(video_file)
         meta.add_output_file(video_file)
+
+        from modules.transcription import apply_transcription_request_config
+        apply_transcription_request_config(meta, data)
         
         # Process with modular pipeline
         success = True

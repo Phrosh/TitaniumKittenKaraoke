@@ -74,6 +74,9 @@ def process_custom_pipeline():
                 
                 # Set base filename
                 meta.base_filename = video_id
+
+                from modules.transcription import apply_transcription_request_config
+                apply_transcription_request_config(meta, data)
                 
                 success = True
                 error_msg = None
