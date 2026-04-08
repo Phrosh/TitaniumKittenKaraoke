@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Gemeinsame Default-Konfiguration (Whisper + Platzhalter für Qwen3-Optionen)
 TRANSCRIPTION_DEFAULTS: Dict[str, Any] = {
-    'transcription_engine': 'qwen3-asr',
+    'transcription_engine': 'whisper',
     'model': 'large-v3',
     'device': 'auto',
     'language': None,
@@ -64,7 +64,7 @@ def merge_transcription_config(meta: ProcessingMeta) -> Dict[str, Any]:
 
 
 def _normalize_transcription_engine(name: Optional[str]) -> str:
-    raw = (name or 'qwen3-asr').strip().lower()
+    raw = (name or 'whisper').strip().lower()
     if 'qwen' in raw.replace('_', '-'):
         return 'qwen3'
     return 'whisper'
