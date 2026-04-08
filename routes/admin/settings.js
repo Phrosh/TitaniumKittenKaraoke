@@ -426,6 +426,10 @@ router.put(
     body('donationNotificationTemplate').exists().isString().isLength({ max: 600 }),
     body('donationMarqueeSeparator').exists().isString().isLength({ max: 64 }),
     body('donationNewPageThankYou').exists().isString().isLength({ max: 800 }),
+    body('donationShowButtonOnNewPage')
+      .exists()
+      .custom((v) => typeof v === 'boolean')
+      .withMessage('Spenden-Button Sichtbarkeit boolean'),
   ],
   async (req, res) => {
     try {
@@ -448,6 +452,7 @@ router.put(
         donationNotificationTemplate,
         donationMarqueeSeparator,
         donationNewPageThankYou,
+        donationShowButtonOnNewPage,
       } = req.body;
 
       const { KEYS, normalizeQuickAmounts } = require('../../utils/paypalSettings');
@@ -481,6 +486,10 @@ router.put(
       await upsertSetting(
         dd.KEYS.newPageThankYou,
         String(donationNewPageThankYou ?? '').slice(0, 800)
+      );
+      await upsertSetting(
+        dd.KEYS.showButtonOnNewPage,
+        donationShowButtonOnNewPage ? 'true' : 'false'
       );
 
       try {

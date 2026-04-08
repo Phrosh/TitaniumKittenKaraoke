@@ -150,6 +150,7 @@ module.exports = function createDonationsRouter(getIo) {
         quickAmounts: Array.isArray(rt.quickAmounts) ? rt.quickAmounts : [],
         mode: rt.isSandbox ? 'sandbox' : 'live',
         newPageThankYou: ddisp.donationNewPageThankYou,
+        showButtonOnNewPage: ddisp.donationShowButtonOnNewPage,
       });
     } catch (e) {
       console.error('donations /config:', e);
@@ -160,6 +161,7 @@ module.exports = function createDonationsRouter(getIo) {
         quickAmounts: [1, 5, 10, 20],
         mode: 'sandbox',
         newPageThankYou: '',
+        showButtonOnNewPage: true,
       });
     }
   });

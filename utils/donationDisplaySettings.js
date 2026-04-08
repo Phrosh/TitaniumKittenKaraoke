@@ -9,6 +9,8 @@ const KEYS = {
   marqueeSeparator: 'donation_marquee_separator',
   /** Gastseite /new: Dankeschön nach Spende; leer = Standard aus Übersetzung */
   newPageThankYou: 'donation_new_page_thankyou',
+  /** Gastseite /new: Spenden-Button anzeigen ('true' / 'false') */
+  showButtonOnNewPage: 'donation_new_page_show_button',
 };
 
 const DEFAULTS = {
@@ -28,12 +30,20 @@ function mapRowsToDisplay(rows) {
   const donationNewPageThankYou =
     rawNewThank !== undefined && rawNewThank !== null ? String(rawNewThank) : '';
 
+  const rawShowBtn = map[KEYS.showButtonOnNewPage];
+  const donationShowButtonOnNewPage =
+    rawShowBtn === undefined ||
+    rawShowBtn === null ||
+    rawShowBtn === '' ||
+    String(rawShowBtn).toLowerCase() === 'true';
+
   return {
     donationMarqueeTemplate: map[KEYS.marqueeTemplate] || DEFAULTS.donationMarqueeTemplate,
     donationNotificationTemplate:
       map[KEYS.notificationTemplate] || DEFAULTS.donationNotificationTemplate,
     donationMarqueeSeparator: map[KEYS.marqueeSeparator] || DEFAULTS.donationMarqueeSeparator,
     donationNewPageThankYou,
+    donationShowButtonOnNewPage,
   };
 }
 

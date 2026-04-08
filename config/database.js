@@ -105,8 +105,16 @@ function initializeDatabase() {
     ('donation_marquee_template', 'Vielen Dank an die Spender: {names}'),
     ('donation_notification_template', 'Danke an {name} für diese Spende!'),
     ('donation_marquee_separator', '+++'),
-    ('donation_new_page_thankyou', '')
+    ('donation_new_page_thankyou', ''),
+    ('donation_new_page_show_button', 'true')
   `);
+
+  db.run(
+    `INSERT OR IGNORE INTO settings (key, value) VALUES ('donation_new_page_show_button', 'true')`,
+    (mErr) => {
+      if (mErr) console.error('Migration donation_new_page_show_button:', mErr);
+    }
+  );
 
   // Migration: Add mode column to existing songs table
   db.run(`

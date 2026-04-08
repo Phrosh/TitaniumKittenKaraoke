@@ -351,6 +351,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   );
   const [donationMarqueeSeparator, setDonationMarqueeSeparator] = useState('+++');
   const [donationNewPageThankYou, setDonationNewPageThankYou] = useState('');
+  const [donationShowButtonOnNewPage, setDonationShowButtonOnNewPage] = useState(true);
 
   const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
 
@@ -475,6 +476,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       setDonationNewPageThankYou(
         typeof s.donation_new_page_thankyou === 'string' ? s.donation_new_page_thankyou : ''
       );
+      setDonationShowButtonOnNewPage(s.donation_new_page_show_button !== 'false');
       
       // Load file songs folder setting
       try {
@@ -800,6 +802,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         donationNotificationTemplate: donationNotificationTemplate.trim(),
         donationMarqueeSeparator: donationMarqueeSeparator.trim(),
         donationNewPageThankYou,
+        donationShowButtonOnNewPage,
       });
       setPaypalClientSecret('');
       toast.success(t('settings.paypalSaved'));
@@ -1189,6 +1192,30 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             aria-label={t('settings.donationNewPageThankYouLabel')}
           />
           <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNewPageThankYouHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }} id="label-donation-show-btn">
+            {t('settings.donationShowButtonOnNewPageLabel')}
+          </SettingsLabel>
+          <CheckboxContainer style={{ marginTop: '8px' }}>
+            <CheckboxLabel>
+              <CheckboxInput
+                type="checkbox"
+                checked={donationShowButtonOnNewPage}
+                onChange={(e) => setDonationShowButtonOnNewPage(e.target.checked)}
+                aria-labelledby="label-donation-show-btn"
+              />
+              <CheckboxText style={{ color: '#333' }}>
+                {donationShowButtonOnNewPage
+                  ? t('settings.donationShowButtonOnNewPageVisible')
+                  : t('settings.donationShowButtonOnNewPageHidden')}
+              </CheckboxText>
+            </CheckboxLabel>
+          </CheckboxContainer>
+          <SettingsDescription style={{ color: '#5c4a78' }}>
+            {t('settings.donationShowButtonOnNewPageHint')}
+          </SettingsDescription>
         </div>
 
         <Button

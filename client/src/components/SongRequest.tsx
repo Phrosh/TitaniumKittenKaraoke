@@ -374,6 +374,7 @@ const SongRequest: React.FC = () => {
   const [donationCurrency, setDonationCurrency] = useState('EUR');
   const [donateAmountStepOpen, setDonateAmountStepOpen] = useState(false);
   const [donationNewPageThankYou, setDonationNewPageThankYou] = useState('');
+  const [donationShowButtonOnNewPage, setDonationShowButtonOnNewPage] = useState(true);
   const [donorThanksBanner, setDonorThanksBanner] = useState(
     () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
   );
@@ -393,6 +394,7 @@ const SongRequest: React.FC = () => {
       .getConfig()
       .then((r) => {
         setDonationsEnabled(!!r.data?.enabled);
+        setDonationShowButtonOnNewPage(r.data?.showButtonOnNewPage !== false);
         if (r.data?.defaultAmount) setDonateAmount(String(r.data.defaultAmount));
         if (Array.isArray(r.data?.quickAmounts)) setDonationQuickAmounts(r.data.quickAmounts);
         if (r.data?.currency) setDonationCurrency(String(r.data.currency));
@@ -400,9 +402,11 @@ const SongRequest: React.FC = () => {
       .catch(() => setDonationsEnabled(false));
   }, []);
 
+  const showDonationButtonOnNew = donationsEnabled && donationShowButtonOnNewPage;
+
   useEffect(() => {
-    if (!donationsEnabled) setDonateAmountStepOpen(false);
-  }, [donationsEnabled]);
+    if (!donationsEnabled || !donationShowButtonOnNewPage) setDonateAmountStepOpen(false);
+  }, [donationsEnabled, donationShowButtonOnNewPage]);
 
   useEffect(() => {
     const d = searchParams.get('donation');
@@ -462,11 +466,15 @@ const SongRequest: React.FC = () => {
         if (typeof r.data?.newPageThankYou === 'string') {
           setDonationNewPageThankYou(r.data.newPageThankYou);
         }
+        if (r.data && 'showButtonOnNewPage' in r.data) {
+          setDonationShowButtonOnNewPage(r.data.showButtonOnNewPage !== false);
+        }
       })
       .catch(() => {});
   };
 
   const handleOpenDonateStep = () => {
+    if (!showDonationButtonOnNew) return;
     if (!formData.name.trim()) {
       setMessage({ type: 'error', text: t('songRequest.donateNeedName') });
       return;
@@ -979,9 +987,9 @@ const SongRequest: React.FC = () => {
 
   return (
     <>
-    <Container style={{ paddingBottom: donateAmountStepOpen ? 96 : 20 }}>
+    <Container style={{ paddingBottom: donateAmountStepOpen && showDonationButtonOnNew ? 96 : 20 }}>
       <Card>
-        {donateAmountStepOpen && donationsEnabled ? (
+        {donateAmountStepOpen && showDonationButtonOnNew ? (
           <>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div
@@ -1174,7 +1182,7 @@ const SongRequest: React.FC = () => {
       </Card>
     </Container>
 
-    <DonateStickyBar $visible={donateAmountStepOpen}>
+    <DonateStickyBar $visible={donateAmountStepOpen && showDonationButtonOnNew}>
       <Button
         type="button"
         variant="secondary"
