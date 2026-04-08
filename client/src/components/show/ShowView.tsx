@@ -1638,21 +1638,9 @@ const ShowView: React.FC = () => {
     websocketService.on('background-video-toggle', handleBackgroundVideoToggle);
     websocketService.on('background-video-sync', handleBackgroundVideoSync);
 
-    return () => {
-      websocketService.offShowUpdate(handleWebSocketUpdate);
-      websocketService.off('toggle-play-pause', handleTogglePlayPause);
-      websocketService.off('restart-song', handleRestartSong);
-      websocketService.off('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
-      websocketService.off('qr-code-update', handleQRCodeUpdate);
-      websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
-      websocketService.off('background-video-sync', handleBackgroundVideoSync);
-      websocketService.disconnect();
-      stopUltrastarTiming(); // Cleanup ultrastar timing
-    };
-  }, [handleWebSocketUpdate, currentSong, ultrastarData, startUltrastarTiming, youtubeIsPaused]);
-
-  useEffect(() => {
-    const onThanks = (payload: { name?: string; osdText?: string }) => {
+    /** Muss im gleichen Effect wie connect/disconnect: bei Songwechsel o. Ä. wird disconnect ausgeführt –
+     * ein separater Effect würde den Listener sonst auf der alten Socket-Instanz lassen. */
+    const onDonationThanks = (payload: { name?: string; osdText?: string }) => {
       if (donationOsdHideRef.current) {
         window.clearTimeout(donationOsdHideRef.current);
       }
@@ -1671,11 +1659,10 @@ const ShowView: React.FC = () => {
         DONATION_OSD_VISIBLE_MS
       );
     };
+    websocketService.on('donation-thanks', onDonationThanks);
 
-    websocketService.on('donation-thanks', onThanks);
-
-    const w = window as Window & { showTestDonation?: (name?: string) => void };
-    w.showTestDonation = (name?: string) => {
+    const showWindow = window as Window & { showTestDonation?: (name?: string) => void };
+    showWindow.showTestDonation = (name?: string) => {
       if (donationOsdHideRef.current) {
         window.clearTimeout(donationOsdHideRef.current);
       }
@@ -1694,10 +1681,27 @@ const ShowView: React.FC = () => {
 
     return () => {
       if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
-      websocketService.off('donation-thanks', onThanks);
-      delete w.showTestDonation;
+      websocketService.off('donation-thanks', onDonationThanks);
+      delete showWindow.showTestDonation;
+      websocketService.offShowUpdate(handleWebSocketUpdate);
+      websocketService.off('toggle-play-pause', handleTogglePlayPause);
+      websocketService.off('restart-song', handleRestartSong);
+      websocketService.off('background-music-settings-updated', handleBackgroundMusicSettingsUpdate);
+      websocketService.off('qr-code-update', handleQRCodeUpdate);
+      websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
+      websocketService.off('background-video-sync', handleBackgroundVideoSync);
+      websocketService.disconnect();
+      stopUltrastarTiming(); // Cleanup ultrastar timing
     };
-  }, [t, donationNotificationTemplate]);
+  }, [
+    handleWebSocketUpdate,
+    currentSong,
+    ultrastarData,
+    startUltrastarTiming,
+    youtubeIsPaused,
+    t,
+    donationNotificationTemplate,
+  ]);
 
   // Timer effect
   useEffect(() => {
