@@ -401,7 +401,6 @@
     "donorMarqueePrefix": "Danke an",
     "donorMarqueeSep": "♥",
     "donorMarqueeSuffix": "– ihr seid großartig!",
-    "donationNudge": "Schöner Abend? Ein kleiner Obolus hilft bei Technik und Kosten. Gäste können auf der Wunschseite (/new) per Handy spenden.",
     "donationThanksName": "Danke, {{name}} – deine Unterstützung hilft uns sehr!",
     "donationThanksGeneric": "Danke für deine Unterstützung!"
   },

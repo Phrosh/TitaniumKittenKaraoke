@@ -395,7 +395,6 @@
     "donorMarqueePrefix": "Thanks to",
     "donorMarqueeSep": "♥",
     "donorMarqueeSuffix": "— thank you!",
-    "donationNudge": "Enjoying the night? A small tip helps cover equipment and licensing. Guests can donate from their phone on the request page.",
     "donationThanksName": "Thank you, {{name}} — your support makes a difference!",
     "donationThanksGeneric": "Thanks for supporting the event!"
   },

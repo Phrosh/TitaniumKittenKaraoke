@@ -158,7 +158,6 @@ const ShowView: React.FC = () => {
   const [donationOsdVisible, setDonationOsdVisible] = useState(false);
   const [donationOsdText, setDonationOsdText] = useState('');
   const [donationOsdHighlightName, setDonationOsdHighlightName] = useState<string | null>(null);
-  const donationNudgeTimerRef = useRef<number | null>(null);
   const donationOsdHideRef = useRef<number | null>(null);
 
   const currentLyricStyle = {
@@ -1650,20 +1649,7 @@ const ShowView: React.FC = () => {
   }, [handleWebSocketUpdate, currentSong, ultrastarData, startUltrastarTiming, youtubeIsPaused]);
 
   useEffect(() => {
-    donationNudgeTimerRef.current = window.setTimeout(() => {
-      setDonationOsdHighlightName(null);
-      setDonationOsdText(t('showView.donationNudge'));
-      setDonationOsdVisible(true);
-      donationOsdHideRef.current = window.setTimeout(() => {
-        setDonationOsdVisible(false);
-      }, 6500);
-    }, 14000);
-
     const onThanks = (payload: { name?: string; osdText?: string }) => {
-      if (donationNudgeTimerRef.current) {
-        window.clearTimeout(donationNudgeTimerRef.current);
-        donationNudgeTimerRef.current = null;
-      }
       if (donationOsdHideRef.current) {
         window.clearTimeout(donationOsdHideRef.current);
       }
@@ -1684,10 +1670,6 @@ const ShowView: React.FC = () => {
 
     const w = window as Window & { showTestDonation?: (name?: string) => void };
     w.showTestDonation = (name?: string) => {
-      if (donationNudgeTimerRef.current) {
-        window.clearTimeout(donationNudgeTimerRef.current);
-        donationNudgeTimerRef.current = null;
-      }
       if (donationOsdHideRef.current) {
         window.clearTimeout(donationOsdHideRef.current);
       }
@@ -1702,7 +1684,6 @@ const ShowView: React.FC = () => {
     };
 
     return () => {
-      if (donationNudgeTimerRef.current) window.clearTimeout(donationNudgeTimerRef.current);
       if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
       websocketService.off('donation-thanks', onThanks);
       delete w.showTestDonation;
