@@ -425,6 +425,7 @@ router.put(
     body('donationMarqueeTemplate').exists().isString().isLength({ max: 600 }),
     body('donationNotificationTemplate').exists().isString().isLength({ max: 600 }),
     body('donationMarqueeSeparator').exists().isString().isLength({ max: 64 }),
+    body('donationNewPageThankYou').exists().isString().isLength({ max: 800 }),
   ],
   async (req, res) => {
     try {
@@ -446,6 +447,7 @@ router.put(
         donationMarqueeTemplate,
         donationNotificationTemplate,
         donationMarqueeSeparator,
+        donationNewPageThankYou,
       } = req.body;
 
       const { KEYS, normalizeQuickAmounts } = require('../../utils/paypalSettings');
@@ -476,6 +478,10 @@ router.put(
       await upsertSetting(dd.KEYS.marqueeTemplate, dmT.slice(0, 600));
       await upsertSetting(dd.KEYS.notificationTemplate, dnT.slice(0, 600));
       await upsertSetting(dd.KEYS.marqueeSeparator, dmSep.slice(0, 64));
+      await upsertSetting(
+        dd.KEYS.newPageThankYou,
+        String(donationNewPageThankYou ?? '').slice(0, 800)
+      );
 
       try {
         const io = req.app.get('io');

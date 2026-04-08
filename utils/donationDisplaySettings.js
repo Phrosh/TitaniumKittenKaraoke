@@ -7,6 +7,8 @@ const KEYS = {
   marqueeTemplate: 'donation_marquee_template',
   notificationTemplate: 'donation_notification_template',
   marqueeSeparator: 'donation_marquee_separator',
+  /** Gastseite /new: Dankeschön nach Spende; leer = Standard aus Übersetzung */
+  newPageThankYou: 'donation_new_page_thankyou',
 };
 
 const DEFAULTS = {
@@ -22,11 +24,16 @@ function mapRowsToDisplay(rows) {
   (rows || []).forEach((row) => {
     map[row.key] = row.value;
   });
+  const rawNewThank = map[KEYS.newPageThankYou];
+  const donationNewPageThankYou =
+    rawNewThank !== undefined && rawNewThank !== null ? String(rawNewThank) : '';
+
   return {
     donationMarqueeTemplate: map[KEYS.marqueeTemplate] || DEFAULTS.donationMarqueeTemplate,
     donationNotificationTemplate:
       map[KEYS.notificationTemplate] || DEFAULTS.donationNotificationTemplate,
     donationMarqueeSeparator: map[KEYS.marqueeSeparator] || DEFAULTS.donationMarqueeSeparator,
+    donationNewPageThankYou,
   };
 }
 

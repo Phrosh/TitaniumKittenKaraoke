@@ -350,6 +350,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     'Danke an {name} für diese Spende!'
   );
   const [donationMarqueeSeparator, setDonationMarqueeSeparator] = useState('+++');
+  const [donationNewPageThankYou, setDonationNewPageThankYou] = useState('');
 
   const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
 
@@ -471,6 +472,9 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         s.donation_notification_template || 'Danke an {name} für diese Spende!'
       );
       setDonationMarqueeSeparator(s.donation_marquee_separator || '+++');
+      setDonationNewPageThankYou(
+        typeof s.donation_new_page_thankyou === 'string' ? s.donation_new_page_thankyou : ''
+      );
       
       // Load file songs folder setting
       try {
@@ -795,6 +799,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         donationMarqueeTemplate: donationMarqueeTemplate.trim(),
         donationNotificationTemplate: donationNotificationTemplate.trim(),
         donationMarqueeSeparator: donationMarqueeSeparator.trim(),
+        donationNewPageThankYou,
       });
       setPaypalClientSecret('');
       toast.success(t('settings.paypalSaved'));
@@ -1172,6 +1177,18 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             aria-label={t('settings.donationNotificationTemplateLabel')}
           />
           <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNotificationTemplateHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNewPageThankYouLabel')}</SettingsLabel>
+          <SettingsTextArea
+            value={donationNewPageThankYou}
+            onChange={(e) => setDonationNewPageThankYou(e.target.value)}
+            maxLength={800}
+            placeholder={t('settings.donationNewPageThankYouPlaceholder')}
+            aria-label={t('settings.donationNewPageThankYouLabel')}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNewPageThankYouHint')}</SettingsDescription>
         </div>
 
         <Button

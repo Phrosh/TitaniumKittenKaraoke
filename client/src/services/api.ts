@@ -201,6 +201,7 @@ export const adminAPI = {
     donationMarqueeTemplate: string;
     donationNotificationTemplate: string;
     donationMarqueeSeparator: string;
+    donationNewPageThankYou: string;
   }) => api.put('/admin/settings/paypal-donations', data),
   
   // Song Approval Management

@@ -104,7 +104,8 @@ function initializeDatabase() {
     ('paypal_quick_amounts', '[1,5,10,20]'),
     ('donation_marquee_template', 'Vielen Dank an die Spender: {names}'),
     ('donation_notification_template', 'Danke an {name} für diese Spende!'),
-    ('donation_marquee_separator', '+++')
+    ('donation_marquee_separator', '+++'),
+    ('donation_new_page_thankyou', '')
   `);
 
   // Migration: Add mode column to existing songs table

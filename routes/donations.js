@@ -132,12 +132,14 @@ module.exports = function createDonationsRouter(getIo) {
   router.get('/config', async (req, res) => {
     try {
       const rt = await getRuntime();
+      const ddisp = await require('../utils/donationDisplaySettings').loadDonationDisplaySettings();
       res.json({
         enabled: rt.configured,
         currency: rt.currency || 'EUR',
         defaultAmount: formatAmount(rt.defaultAmount) || '5.00',
         quickAmounts: Array.isArray(rt.quickAmounts) ? rt.quickAmounts : [],
         mode: rt.isSandbox ? 'sandbox' : 'live',
+        newPageThankYou: ddisp.donationNewPageThankYou,
       });
     } catch (e) {
       console.error('donations /config:', e);
@@ -147,6 +149,7 @@ module.exports = function createDonationsRouter(getIo) {
         defaultAmount: '5.00',
         quickAmounts: [1, 5, 10, 20],
         mode: 'sandbox',
+        newPageThankYou: '',
       });
     }
   });

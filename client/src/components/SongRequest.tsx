@@ -373,6 +373,7 @@ const SongRequest: React.FC = () => {
   const [donationQuickAmounts, setDonationQuickAmounts] = useState<number[]>([]);
   const [donationCurrency, setDonationCurrency] = useState('EUR');
   const [donateAmountStepOpen, setDonateAmountStepOpen] = useState(false);
+  const [donationNewPageThankYou, setDonationNewPageThankYou] = useState('');
   const [donorThanksBanner, setDonorThanksBanner] = useState(
     () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
   );
@@ -458,6 +459,9 @@ const SongRequest: React.FC = () => {
         if (r.data?.defaultAmount) setDonateAmount(String(r.data.defaultAmount));
         if (Array.isArray(r.data?.quickAmounts)) setDonationQuickAmounts(r.data.quickAmounts);
         if (r.data?.currency) setDonationCurrency(String(r.data.currency));
+        if (typeof r.data?.newPageThankYou === 'string') {
+          setDonationNewPageThankYou(r.data.newPageThankYou);
+        }
       })
       .catch(() => {});
   };
@@ -1135,7 +1139,9 @@ const SongRequest: React.FC = () => {
 
             {donorThanksBanner && (
               <Alert type="success">
-                {t('songRequest.donateThankYouSession')}
+                {donationNewPageThankYou.trim()
+                  ? donationNewPageThankYou.trim()
+                  : t('songRequest.donateThankYouSession')}
               </Alert>
             )}
 
