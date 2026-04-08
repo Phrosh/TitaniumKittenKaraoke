@@ -409,6 +409,19 @@ router.put(
       .exists()
       .custom((v) => typeof v === 'boolean')
       .withMessage('Sandbox-Flag boolean'),
+    body('paypalQuickAmounts')
+      .exists()
+      .isArray({ max: 20 })
+      .withMessage('Schnellbeträge: höchstens 20 Einträge'),
+    body('paypalQuickAmounts').custom((arr) => {
+      for (const x of arr) {
+        const n = Number(x);
+        if (!Number.isFinite(n) || n < 1 || n > 500) {
+          throw new Error('Jeder Schnellbetrag muss zwischen 1 und 500 liegen');
+        }
+      }
+      return true;
+    }),
   ],
   async (req, res) => {
     try {
@@ -426,11 +439,13 @@ router.put(
         paypalDefaultAmount,
         paypalBrandName,
         paypalSandboxEnabled,
+        paypalQuickAmounts,
       } = req.body;
 
-      const { KEYS } = require('../../utils/paypalSettings');
+      const { KEYS, normalizeQuickAmounts } = require('../../utils/paypalSettings');
 
       const amountStr = Number(paypalDefaultAmount).toFixed(2);
+      const quickJson = JSON.stringify(normalizeQuickAmounts(paypalQuickAmounts));
 
       await upsertSetting(KEYS.publicUrl, stripPublicUrl(paypalPublicUrl));
       await upsertSetting(KEYS.clientId, String(paypalClientId).trim());
@@ -442,6 +457,7 @@ router.put(
       await upsertSetting(KEYS.defaultAmount, amountStr);
       await upsertSetting(KEYS.brandName, String(paypalBrandName || '').trim() || 'Karaoke');
       await upsertSetting(KEYS.sandboxEnabled, paypalSandboxEnabled ? 'true' : 'false');
+      await upsertSetting(KEYS.quickAmounts, quickJson);
 
       res.json({ message: 'PayPal-Spenden-Einstellungen gespeichert.' });
     } catch (error) {

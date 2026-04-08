@@ -11,6 +11,16 @@ function formatAmount(val) {
   return n.toFixed(2);
 }
 
+function sanitizePayPalLocale(raw) {
+  const s = String(raw || '')
+    .trim()
+    .replace(/_/g, '-')
+    .slice(0, 127);
+  if (!s) return null;
+  if (/^[a-zA-Z]{2,3}(-[a-zA-Z0-9-]+)?$/.test(s)) return s;
+  return null;
+}
+
 async function getRuntime() {
   const s = await paypalSettings.loadPayPalSettings();
   const configured = !!(s.publicUrl && s.clientId && s.clientSecret);
@@ -117,11 +127,18 @@ module.exports = function createDonationsRouter(getIo) {
         enabled: rt.configured,
         currency: rt.currency || 'EUR',
         defaultAmount: formatAmount(rt.defaultAmount) || '5.00',
+        quickAmounts: Array.isArray(rt.quickAmounts) ? rt.quickAmounts : [],
         mode: rt.isSandbox ? 'sandbox' : 'live',
       });
     } catch (e) {
       console.error('donations /config:', e);
-      res.status(500).json({ enabled: false, currency: 'EUR', defaultAmount: '5.00', mode: 'sandbox' });
+      res.status(500).json({
+        enabled: false,
+        currency: 'EUR',
+        defaultAmount: '5.00',
+        quickAmounts: [1, 5, 10, 20],
+        mode: 'sandbox',
+      });
     }
   });
 
@@ -149,8 +166,9 @@ module.exports = function createDonationsRouter(getIo) {
     if (!rt.configured) {
       return res.status(503).json({ message: 'Spenden sind nicht konfiguriert.' });
     }
-    const { donorName, amount, currency } = req.body || {};
+    const { donorName, amount, currency, locale } = req.body || {};
     const name = String(donorName || '').trim();
+    const paypalLocale = sanitizePayPalLocale(locale);
     if (!name) {
       return res.status(400).json({ message: 'Name fehlt.' });
     }
@@ -187,6 +205,7 @@ module.exports = function createDonationsRouter(getIo) {
             cancel_url: cancelUrl,
             brand_name: rt.brandName || 'Karaoke',
             user_action: 'PAY_NOW',
+            ...(paypalLocale ? { locale: paypalLocale } : {}),
             /* Keine Lieferadresse: reine Spende / digital — reduziert PayPal-Formularfelder.
                Rechnungsadresse & Telefon kann PayPal dennoch z. B. bei Gastzahlung oder aus regulatorischen Gründen abfragen. */
             shipping_preference: 'NO_SHIPPING',

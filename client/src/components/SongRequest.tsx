@@ -97,6 +97,74 @@ const Alert = styled.div<{ type: 'success' | 'error' | 'info' }>`
   };
 `;
 
+const DonateAmountPanel = styled.div`
+  margin-top: 8px;
+  padding: 18px;
+  background: #f8f7ff;
+  border-radius: 12px;
+  border: 1px solid #e0d8ec;
+`;
+
+const DonateAmountField = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  color: #222;
+
+  &:focus {
+    outline: none;
+    border-color: #4c5fd5;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+  }
+`;
+
+const DonateQuickRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 4px;
+`;
+
+const DonateQuickChip = styled.button<{ $active?: boolean }>`
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 2px solid ${(p) => (p.$active ? '#667eea' : '#e1e5e9')};
+  background: ${(p) => (p.$active ? '#eef0ff' : '#fff')};
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #333;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const DonateStickyBar = styled.div<{ $visible: boolean }>`
+  display: ${(p) => (p.$visible ? 'flex' : 'none')};
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2500;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1px solid #e1e5e9;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.08);
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+`;
+
 const QRCodeContainer = styled.div`
   text-align: center;
   margin: 30px 0;
@@ -266,7 +334,7 @@ const FormatModalButtons = styled.div`
 
 
 const SongRequest: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [formData, setFormData] = useState<SongRequestData>({
     name: '',
@@ -302,9 +370,22 @@ const SongRequest: React.FC = () => {
   const [donationsEnabled, setDonationsEnabled] = useState(false);
   const [donateAmount, setDonateAmount] = useState('5.00');
   const [donateLoading, setDonateLoading] = useState(false);
+  const [donationQuickAmounts, setDonationQuickAmounts] = useState<number[]>([]);
+  const [donationCurrency, setDonationCurrency] = useState('EUR');
+  const [donateAmountStepOpen, setDonateAmountStepOpen] = useState(false);
   const [donorThanksBanner, setDonorThanksBanner] = useState(
     () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
   );
+
+  const donationMoneyFmt = useMemo(() => {
+    try {
+      return new Intl.NumberFormat(i18n.language, { style: 'currency', currency: donationCurrency });
+    } catch {
+      return {
+        format: (v: number) => `${v} ${donationCurrency}`,
+      };
+    }
+  }, [i18n.language, donationCurrency]);
 
   useEffect(() => {
     donationAPI
@@ -312,9 +393,15 @@ const SongRequest: React.FC = () => {
       .then((r) => {
         setDonationsEnabled(!!r.data?.enabled);
         if (r.data?.defaultAmount) setDonateAmount(String(r.data.defaultAmount));
+        if (Array.isArray(r.data?.quickAmounts)) setDonationQuickAmounts(r.data.quickAmounts);
+        if (r.data?.currency) setDonationCurrency(String(r.data.currency));
       })
       .catch(() => setDonationsEnabled(false));
   }, []);
+
+  useEffect(() => {
+    if (!donationsEnabled) setDonateAmountStepOpen(false);
+  }, [donationsEnabled]);
 
   useEffect(() => {
     const d = searchParams.get('donation');
@@ -359,16 +446,48 @@ const SongRequest: React.FC = () => {
     };
   }, [searchParams, setSearchParams]);
 
-  const handleDonateClick = async () => {
+  const payPalClientLocale = () => {
+    if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+    return i18n.language || 'en-US';
+  };
+
+  const refreshDonationConfig = () => {
+    donationAPI
+      .getConfig()
+      .then((r) => {
+        if (r.data?.defaultAmount) setDonateAmount(String(r.data.defaultAmount));
+        if (Array.isArray(r.data?.quickAmounts)) setDonationQuickAmounts(r.data.quickAmounts);
+        if (r.data?.currency) setDonationCurrency(String(r.data.currency));
+      })
+      .catch(() => {});
+  };
+
+  const handleOpenDonateStep = () => {
     if (!formData.name.trim()) {
       setMessage({ type: 'error', text: t('songRequest.donateNeedName') });
+      return;
+    }
+    refreshDonationConfig();
+    setDonateAmountStepOpen(true);
+  };
+
+  const handleProceedToPayPal = async () => {
+    if (!formData.name.trim()) {
+      setMessage({ type: 'error', text: t('songRequest.donateNeedName') });
+      return;
+    }
+    const normalized = String(donateAmount).trim().replace(',', '.');
+    const amt = parseFloat(normalized);
+    if (!Number.isFinite(amt) || amt < 1 || amt > 500) {
+      setMessage({ type: 'error', text: t('songRequest.donateAmountInvalid') });
       return;
     }
     setDonateLoading(true);
     try {
       const { data } = await donationAPI.createOrder({
         donorName: formData.name.trim(),
-        amount: donateAmount,
+        amount: amt.toFixed(2),
+        locale: payPalClientLocale(),
       });
       if (data?.approvalUrl) {
         window.location.assign(data.approvalUrl);
@@ -851,138 +970,224 @@ const SongRequest: React.FC = () => {
 
   const sortedGroups = useMemo(() => Object.keys(groupedSongs).sort(), [groupedSongs]);
 
+  const donateAmtNum = parseFloat(String(donateAmount).replace(',', '.'));
+  const donateAmtValid = Number.isFinite(donateAmtNum) && donateAmtNum >= 1 && donateAmtNum <= 500;
+
   return (
-    <Container>
+    <>
+    <Container style={{ paddingBottom: donateAmountStepOpen ? 96 : 20 }}>
       <Card>
-      
-        <Form onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label htmlFor="name">{t('songRequest.yourName')}:</Label>
-            <Input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-              placeholder={t('songRequest.namePlaceholder')}
-            />
-          </FormGroup>
-
-          <FormGroup style={{ marginBottom: '-10px' }}>
-            <Label htmlFor="songInput">{t('songRequest.songRequest')}:</Label>
-            {youtubeEnabled ? (
-              <Input
-                type="text"
-                id="songInput"
-                name="songInput"
-                value={formData.songInput}
-                onChange={handleInputChange}
-                required
-                placeholder={t('songRequest.songInputPlaceholder')}
-              />
-            ) : (
-              <div style={{
-                padding: '12px',
-                border: '2px solid #e1e5e9',
-                borderRadius: '8px',
-                background: '#f8f9fa',
-                fontSize: '16px',
-                color: formData.songInput ? '#333' : '#666',
-                fontWeight: formData.songInput ? '500' : 'normal',
-                fontStyle: formData.songInput ? 'normal' : 'italic',
-                minHeight: '48px',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                {formData.songInput || t('songRequest.selectFromSongList')}
-              </div>
-            )}
-          </FormGroup>
-
-
-          <LocalSongsSection>
-            {youtubeEnabled && (
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
-                {t('songRequest.orSelectFromList')}
-              </div>
-            )}
-            <Button 
-              onClick={handleOpenSongList}
-              variant="success"
-              size="small"
-              style={{ marginBottom: '15px' }}
-            >
-              🎵 {t('songRequest.openSongList')}
-            </Button>
-          </LocalSongsSection>
-
-          {/* Background Vocals Checkbox - only show for Ultrastar songs with "choice" setting */}
-          {isUltrastarSong() && (() => {
-            const songKey = `${formData.songInput.split(' - ')[0]}-${formData.songInput.split(' - ').slice(1).join(' - ')}`;
-            const audioPreference = ultrastarAudioSettings[songKey];
-            return !audioPreference || audioPreference === 'choice';
-          })() && (
-            <FormGroup>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  id="withBackgroundVocals"
-                  checked={withBackgroundVocals}
-                  onChange={(e) => setWithBackgroundVocals(e.target.checked)}
-                  style={{ width: '18px', height: '18px' }}
-                />
-                <Label htmlFor="withBackgroundVocals" style={{ marginBottom: 0, cursor: 'pointer' }}>
-                  {t('songRequest.withBackgroundVocals')}
-                </Label>
-              </div>
-            </FormGroup>
-          )}
-
-          {message && (
-            <Alert type={message.type}>
-              {message.text}
-            </Alert>
-          )}
-
-          <Button 
-            disabled={loading || !formData.name.trim() || !formData.songInput.trim()}
-          >
-            {loading ? t('songRequest.adding') : t('songRequest.addSong')}
-          </Button>
-        </Form>
-
-        {donorThanksBanner && (
-          <Alert type="success">
-            {t('songRequest.donateThankYouSession')}
-          </Alert>
-        )}
-
-        {donationsEnabled && (
+        {donateAmountStepOpen && donationsEnabled ? (
           <>
-            <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #e1e5e9' }} />
-            <div style={{ textAlign: 'center' }}>
-              <Button
-                variant="secondary"
-                onClick={handleDonateClick}
-                disabled={donateLoading || !formData.name.trim()}
-                style={{ width: '100%' }}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div
+                style={{
+                  fontSize: '1.45rem',
+                  fontWeight: 700,
+                  color: '#3d2a5c',
+                  marginBottom: '10px',
+                  lineHeight: 1.3,
+                }}
               >
-                {donateLoading ? t('songRequest.donateRedirecting') : `💜 ${t('songRequest.donateButton')}`}
-              </Button>
-              <p style={{ fontSize: '13px', color: '#666', marginTop: '10px', lineHeight: 1.4 }}>
-                {t('songRequest.donateHint', { amount: donateAmount })}
+                {t('songRequest.donateAmountTitle')}
+              </div>
+              <p style={{ margin: 0, fontSize: '15px', color: '#555', lineHeight: 1.4 }}>
+                {t('songRequest.donateAsName', { name: formData.name.trim() })}
               </p>
             </div>
+            {message && (
+              <Alert type={message.type}>
+                {message.text}
+              </Alert>
+            )}
+            <DonateAmountPanel style={{ marginTop: message ? 12 : 0 }}>
+              <Label htmlFor="donateAmountField" style={{ textAlign: 'center', display: 'block' }}>
+                {t('songRequest.donateAmountLabel')}
+              </Label>
+              <DonateAmountField
+                id="donateAmountField"
+                inputMode="decimal"
+                autoComplete="off"
+                value={donateAmount}
+                onChange={(e) => setDonateAmount(e.target.value)}
+              />
+              {donationQuickAmounts.length > 0 && (
+                <>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px', textAlign: 'center' }}>
+                    {t('songRequest.donateQuickPick')}
+                  </div>
+                  <DonateQuickRow>
+                    {donationQuickAmounts.map((q, qi) => (
+                      <DonateQuickChip
+                        key={`${qi}-${q}`}
+                        type="button"
+                        $active={
+                          Number.isFinite(donateAmtNum) && Math.abs(donateAmtNum - q) < 0.0001
+                        }
+                        onClick={() => setDonateAmount(Number.isInteger(q) ? String(q) : q.toFixed(2))}
+                      >
+                        {donationMoneyFmt.format(q)}
+                      </DonateQuickChip>
+                    ))}
+                  </DonateQuickRow>
+                </>
+              )}
+            </DonateAmountPanel>
+          </>
+        ) : (
+          <>
+            <Form onSubmit={handleSubmit}>
+              <FormGroup>
+                <Label htmlFor="name">{t('songRequest.yourName')}:</Label>
+                <Input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder={t('songRequest.namePlaceholder')}
+                />
+              </FormGroup>
+
+              <FormGroup style={{ marginBottom: '-10px' }}>
+                <Label htmlFor="songInput">{t('songRequest.songRequest')}:</Label>
+                {youtubeEnabled ? (
+                  <Input
+                    type="text"
+                    id="songInput"
+                    name="songInput"
+                    value={formData.songInput}
+                    onChange={handleInputChange}
+                    required
+                    placeholder={t('songRequest.songInputPlaceholder')}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      padding: '12px',
+                      border: '2px solid #e1e5e9',
+                      borderRadius: '8px',
+                      background: '#f8f9fa',
+                      fontSize: '16px',
+                      color: formData.songInput ? '#333' : '#666',
+                      fontWeight: formData.songInput ? '500' : 'normal',
+                      fontStyle: formData.songInput ? 'normal' : 'italic',
+                      minHeight: '48px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {formData.songInput || t('songRequest.selectFromSongList')}
+                  </div>
+                )}
+              </FormGroup>
+
+              <LocalSongsSection>
+                {youtubeEnabled && (
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
+                    {t('songRequest.orSelectFromList')}
+                  </div>
+                )}
+                <Button
+                  onClick={handleOpenSongList}
+                  variant="success"
+                  size="small"
+                  style={{ marginBottom: '15px' }}
+                >
+                  🎵 {t('songRequest.openSongList')}
+                </Button>
+              </LocalSongsSection>
+
+              {/* Background Vocals Checkbox - only show for Ultrastar songs with "choice" setting */}
+              {isUltrastarSong() &&
+                (() => {
+                  const songKey = `${formData.songInput.split(' - ')[0]}-${formData.songInput.split(' - ').slice(1).join(' - ')}`;
+                  const audioPreference = ultrastarAudioSettings[songKey];
+                  return !audioPreference || audioPreference === 'choice';
+                })() && (
+                  <FormGroup>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id="withBackgroundVocals"
+                        checked={withBackgroundVocals}
+                        onChange={(e) => setWithBackgroundVocals(e.target.checked)}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <Label htmlFor="withBackgroundVocals" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                        {t('songRequest.withBackgroundVocals')}
+                      </Label>
+                    </div>
+                  </FormGroup>
+                )}
+
+              {message && (
+                <Alert type={message.type}>
+                  {message.text}
+                </Alert>
+              )}
+
+              <Button disabled={loading || !formData.name.trim() || !formData.songInput.trim()}>
+                {loading ? t('songRequest.adding') : t('songRequest.addSong')}
+              </Button>
+            </Form>
+
+            {donorThanksBanner && (
+              <Alert type="success">
+                {t('songRequest.donateThankYouSession')}
+              </Alert>
+            )}
+
+            {donationsEnabled && (
+              <>
+                <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #e1e5e9' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={handleOpenDonateStep}
+                    disabled={!formData.name.trim()}
+                    style={{ width: '100%' }}
+                  >
+                    {`💜 ${t('songRequest.donateButton')}`}
+                  </Button>
+                  <p style={{ fontSize: '13px', color: '#666', marginTop: '10px', lineHeight: 1.4 }}>
+                    {t('songRequest.donateHint')}
+                  </p>
+                </div>
+              </>
+            )}
+
+            <QRCodeContainer>
+              <h3>{t('songRequest.qrCodeForOtherDevices')}</h3>
+              {qrCodeDataUrl && <QRCodeImage src={qrCodeDataUrl} alt="QR Code" />}
+            </QRCodeContainer>
           </>
         )}
-        
-        <QRCodeContainer>
-          <h3>{t('songRequest.qrCodeForOtherDevices')}</h3>
-          {qrCodeDataUrl && <QRCodeImage src={qrCodeDataUrl} alt="QR Code" />}
-        </QRCodeContainer>
-
       </Card>
+    </Container>
+
+    <DonateStickyBar $visible={donateAmountStepOpen}>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => {
+          setDonateAmountStepOpen(false);
+          refreshDonationConfig();
+        }}
+        disabled={donateLoading}
+      >
+        {t('songRequest.donateBack')}
+      </Button>
+      <Button
+        type="button"
+        onClick={handleProceedToPayPal}
+        disabled={donateLoading || !donateAmtValid || !formData.name.trim()}
+      >
+        {donateLoading ? t('songRequest.donateRedirecting') : t('songRequest.donateContinuePayPal')}
+      </Button>
+    </DonateStickyBar>
 
       {/* Song List Modal */}
       <SongListModal $isOpen={showSongList}>
@@ -1152,7 +1357,7 @@ const SongRequest: React.FC = () => {
           </FormatModalButtons>
         </FormatModalContent>
       </FormatModal>
-    </Container>
+    </>
   );
 };
 

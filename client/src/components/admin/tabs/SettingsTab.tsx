@@ -342,6 +342,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [paypalSecretConfigured, setPaypalSecretConfigured] = useState(false);
   const [paypalSaveLoading, setPaypalSaveLoading] = useState(false);
   const [paypalGuideOpen, setPaypalGuideOpen] = useState(false);
+  const [paypalQuickAmounts, setPaypalQuickAmounts] = useState<number[]>([1, 5, 10, 20]);
 
   const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
 
@@ -440,6 +441,22 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       setPaypalBrandName(s.paypal_brand_name || '');
       setPaypalSandboxEnabled(s.paypal_sandbox_enabled !== 'false');
       setPaypalSecretConfigured(s.paypal_client_secret_configured === 'true');
+      try {
+        const rawQ = s.paypal_quick_amounts;
+        if (rawQ != null && String(rawQ).trim() !== '') {
+          const parsed = JSON.parse(String(rawQ));
+          if (Array.isArray(parsed)) {
+            setPaypalQuickAmounts(
+              parsed
+                .map((x: unknown) => Number(x))
+                .filter((n: number) => Number.isFinite(n) && n >= 1 && n <= 500)
+                .slice(0, 20)
+            );
+          } else setPaypalQuickAmounts([1, 5, 10, 20]);
+        } else setPaypalQuickAmounts([1, 5, 10, 20]);
+      } catch {
+        setPaypalQuickAmounts([1, 5, 10, 20]);
+      }
       
       // Load file songs folder setting
       try {
@@ -760,6 +777,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         paypalDefaultAmount: amt,
         paypalBrandName: paypalBrandName.trim(),
         paypalSandboxEnabled,
+        paypalQuickAmounts,
       });
       setPaypalClientSecret('');
       toast.success(t('settings.paypalSaved'));
@@ -1021,6 +1039,52 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
               style={{ width: '120px' }}
             />
           </div>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalQuickAmountsLabel')}</SettingsLabel>
+          <SettingsDescription style={{ color: '#5c4a78', marginBottom: '10px' }}>
+            {t('settings.paypalQuickAmountsHint')}
+          </SettingsDescription>
+          {paypalQuickAmounts.map((val, idx) => (
+            <div
+              key={`qa-row-${idx}`}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
+            >
+              <SettingsInput
+                type="number"
+                min={1}
+                max={500}
+                step="0.01"
+                value={Number.isFinite(val) ? val : 1}
+                onChange={(e) => {
+                  const n = parseFloat(e.target.value);
+                  setPaypalQuickAmounts((prev) => {
+                    const next = [...prev];
+                    next[idx] = Number.isFinite(n) ? Math.min(500, Math.max(1, n)) : 1;
+                    return next;
+                  });
+                }}
+                style={{ width: '110px' }}
+              />
+              <Button
+                type="button"
+                size="small"
+                style={{ backgroundColor: '#dc3545', color: 'white' }}
+                onClick={() => setPaypalQuickAmounts((prev) => prev.filter((_, i) => i !== idx))}
+              >
+                {t('settings.paypalQuickAmountRemove')}
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            size="small"
+            disabled={paypalQuickAmounts.length >= 20}
+            onClick={() => setPaypalQuickAmounts((prev) => [...prev, 5])}
+          >
+            {t('settings.paypalQuickAmountAdd')}
+          </Button>
         </div>
 
         <div style={{ marginBottom: '16px' }}>

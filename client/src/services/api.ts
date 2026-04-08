@@ -197,6 +197,7 @@ export const adminAPI = {
     paypalDefaultAmount: number;
     paypalBrandName?: string;
     paypalSandboxEnabled: boolean;
+    paypalQuickAmounts: number[];
   }) => api.put('/admin/settings/paypal-donations', data),
   
   // Song Approval Management
@@ -294,8 +295,12 @@ export const adminAPI = {
 
 export const donationAPI = {
   getConfig: () => api.get('/donations/config'),
-  createOrder: (data: { donorName: string; amount?: string; currency?: string }) =>
-    api.post('/donations/create-order', data),
+  createOrder: (data: {
+    donorName: string;
+    amount?: string;
+    currency?: string;
+    locale?: string;
+  }) => api.post('/donations/create-order', data),
   getStatus: (ref: string) => api.get(`/donations/status/${encodeURIComponent(ref)}`),
   getSessionDonors: () => api.get('/donations/session-donors'),
 };

@@ -13,9 +13,22 @@ const KEYS = {
   defaultAmount: 'paypal_default_amount',
   brandName: 'paypal_brand_name',
   sandboxEnabled: 'paypal_sandbox_enabled',
+  quickAmounts: 'paypal_quick_amounts',
 };
 
 const ALL_KEYS = Object.values(KEYS);
+
+const DEFAULT_QUICK_AMOUNTS = [1, 5, 10, 20];
+
+function normalizeQuickAmounts(arr) {
+  if (!Array.isArray(arr)) return [];
+  const nums = arr
+    .map((x) => Number(x))
+    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 500);
+  const unique = [...new Set(nums)];
+  unique.sort((a, b) => a - b);
+  return unique.slice(0, 20);
+}
 
 function stripTrailingSlash(url) {
   return String(url || '').replace(/\/$/, '');
@@ -31,7 +44,8 @@ function stripTrailingSlash(url) {
  *   currency: string,
  *   defaultAmount: string,
  *   brandName: string,
- *   isSandbox: boolean
+ *   isSandbox: boolean,
+ *   quickAmounts: number[]
  * }>}
  */
 async function loadPayPalSettings() {
@@ -70,6 +84,19 @@ async function loadPayPalSettings() {
     isSandbox = map[KEYS.sandboxEnabled] === 'true';
   }
 
+  const rawQuick = map[KEYS.quickAmounts];
+  let quickAmounts;
+  if (rawQuick === undefined || rawQuick === null || rawQuick === '') {
+    quickAmounts = [...DEFAULT_QUICK_AMOUNTS];
+  } else {
+    try {
+      const parsed = JSON.parse(rawQuick);
+      quickAmounts = normalizeQuickAmounts(parsed);
+    } catch {
+      quickAmounts = [...DEFAULT_QUICK_AMOUNTS];
+    }
+  }
+
   return {
     publicUrl: dbPublic || stripTrailingSlash(process.env.PUBLIC_URL || ''),
     clientId: dbClientId || String(process.env.PAYPAL_CLIENT_ID || '').trim(),
@@ -79,10 +106,13 @@ async function loadPayPalSettings() {
     defaultAmount: dbAmount || String(process.env.PAYPAL_DEFAULT_AMOUNT || '5.00'),
     brandName: dbBrand || String(process.env.PAYPAL_BRAND_NAME || 'Karaoke').trim() || 'Karaoke',
     isSandbox,
+    quickAmounts,
   };
 }
 
 module.exports = {
   KEYS,
+  DEFAULT_QUICK_AMOUNTS,
+  normalizeQuickAmounts,
   loadPayPalSettings,
 };
