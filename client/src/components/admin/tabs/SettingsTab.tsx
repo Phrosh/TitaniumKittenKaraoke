@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { adminAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 import Button from '../../shared/Button';
-import { SettingsSection, SettingsTitle, SettingsCard, SettingsLabel, SettingsInput, SettingsDescription } from '../style';
+import { SettingsSection, SettingsTitle, SettingsCard, SettingsLabel, SettingsInput, SettingsTextArea, SettingsDescription } from '../style';
 
 // Custom hook für Debouncing
 const useDebounce = (value: any, delay: number) => {
@@ -343,6 +343,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [paypalSaveLoading, setPaypalSaveLoading] = useState(false);
   const [paypalGuideOpen, setPaypalGuideOpen] = useState(false);
   const [paypalQuickAmounts, setPaypalQuickAmounts] = useState<number[]>([1, 5, 10, 20]);
+  const [donationMarqueeTemplate, setDonationMarqueeTemplate] = useState(
+    'Vielen Dank an die Spender: {names}'
+  );
+  const [donationNotificationTemplate, setDonationNotificationTemplate] = useState(
+    'Danke an {name} für diese Spende!'
+  );
+  const [donationMarqueeSeparator, setDonationMarqueeSeparator] = useState('+++');
 
   const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
 
@@ -457,6 +464,13 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       } catch {
         setPaypalQuickAmounts([1, 5, 10, 20]);
       }
+      setDonationMarqueeTemplate(
+        s.donation_marquee_template || 'Vielen Dank an die Spender: {names}'
+      );
+      setDonationNotificationTemplate(
+        s.donation_notification_template || 'Danke an {name} für diese Spende!'
+      );
+      setDonationMarqueeSeparator(s.donation_marquee_separator || '+++');
       
       // Load file songs folder setting
       try {
@@ -778,6 +792,9 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         paypalBrandName: paypalBrandName.trim(),
         paypalSandboxEnabled,
         paypalQuickAmounts,
+        donationMarqueeTemplate: donationMarqueeTemplate.trim(),
+        donationNotificationTemplate: donationNotificationTemplate.trim(),
+        donationMarqueeSeparator: donationMarqueeSeparator.trim(),
       });
       setPaypalClientSecret('');
       toast.success(t('settings.paypalSaved'));
@@ -1114,6 +1131,47 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           <SettingsDescription style={{ color: '#5c4a78' }}>
             {paypalSandboxEnabled ? t('settings.paypalSandboxHint') : t('settings.paypalLiveHint')}
           </SettingsDescription>
+        </div>
+
+        <HorizontalDivider style={{ margin: '20px 0', background: '#d4c4f0' }} />
+
+        <SpecialTitle style={{ color: '#3d2a5c', fontSize: '1rem' }}>{t('settings.donationDisplayTitle')}</SpecialTitle>
+        <SettingsDescription style={{ color: '#5c4a78', marginBottom: '14px' }}>
+          {t('settings.donationDisplayIntro')}
+        </SettingsDescription>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeTemplateLabel')}</SettingsLabel>
+          <SettingsTextArea
+            value={donationMarqueeTemplate}
+            onChange={(e) => setDonationMarqueeTemplate(e.target.value)}
+            maxLength={600}
+            aria-label={t('settings.donationMarqueeTemplateLabel')}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeTemplateHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeSeparatorLabel')}</SettingsLabel>
+          <SettingsInput
+            type="text"
+            value={donationMarqueeSeparator}
+            onChange={(e) => setDonationMarqueeSeparator(e.target.value)}
+            maxLength={64}
+            style={{ maxWidth: '200px' }}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeSeparatorHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNotificationTemplateLabel')}</SettingsLabel>
+          <SettingsTextArea
+            value={donationNotificationTemplate}
+            onChange={(e) => setDonationNotificationTemplate(e.target.value)}
+            maxLength={600}
+            aria-label={t('settings.donationNotificationTemplateLabel')}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNotificationTemplateHint')}</SettingsDescription>
         </div>
 
         <Button

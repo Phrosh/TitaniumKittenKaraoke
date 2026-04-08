@@ -107,12 +107,21 @@ function extractWebhookPayment(resource) {
   };
 }
 
-function emitAfterDonation(getIo, name) {
+async function emitAfterDonation(getIo, name) {
   const io = getIo();
   if (!io) return;
+  const dd = require('../utils/donationDisplaySettings');
+  let osdText;
+  try {
+    const d = await dd.loadDonationDisplaySettings();
+    osdText = dd.applyNotificationTemplate(d.donationNotificationTemplate, name);
+  } catch (e) {
+    osdText = dd.applyNotificationTemplate(dd.DEFAULTS.donationNotificationTemplate, name);
+  }
   io.to('show').emit('donation-thanks', {
     name,
     timestamp: new Date().toISOString(),
+    osdText,
   });
   io.to('admin').emit('donations-session-update', donationsStore.getSessionDonationsReport());
 }
@@ -283,7 +292,7 @@ module.exports = function createDonationsRouter(getIo) {
           const io = getIo();
           if (io) {
             await broadcastShowUpdate(io);
-            emitAfterDonation(getIo, name);
+            await emitAfterDonation(getIo, name);
           }
         }
       }
@@ -314,7 +323,7 @@ module.exports = function createDonationsRouter(getIo) {
               const io = getIo();
               if (io) {
                 await broadcastShowUpdate(io);
-                emitAfterDonation(getIo, name);
+                await emitAfterDonation(getIo, name);
               }
             }
           }
@@ -378,7 +387,7 @@ module.exports = function createDonationsRouter(getIo) {
         const io = getIo();
         if (io) {
           await broadcastShowUpdate(io);
-          emitAfterDonation(getIo, name);
+          await emitAfterDonation(getIo, name);
         }
       } catch (e) {
         console.error('Donation broadcast error:', e);

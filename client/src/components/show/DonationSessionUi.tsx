@@ -1,6 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
-import { useTranslation } from 'react-i18next';
+import { buildMarqueeSegment } from '../../utils/donationDisplay';
 
 const marqueeScroll = keyframes`
   0% {
@@ -43,6 +43,14 @@ const MarqueeChunk = styled.span`
   white-space: nowrap;
 `;
 
+/** Abstand zwischen den Schleifen-Inhalten, damit nicht derselbe Text doppelt nebeneinander wirkt */
+const MarqueeGap = styled.span`
+  flex-shrink: 0;
+  display: inline-block;
+  width: min(50vw, 900px);
+  height: 1px;
+`;
+
 const OsdWrap = styled.div<{ $visible: boolean }>`
   position: absolute;
   left: 50%;
@@ -71,26 +79,30 @@ export interface SessionDonor {
 
 interface DonationMarqueeProps {
   donors: SessionDonor[];
+  marqueeTemplate: string;
+  marqueeSeparator: string;
 }
 
-export const DonationMarquee: React.FC<DonationMarqueeProps> = ({ donors }) => {
-  const { t } = useTranslation();
+export const DonationMarquee: React.FC<DonationMarqueeProps> = ({
+  donors,
+  marqueeTemplate,
+  marqueeSeparator,
+}) => {
   if (!donors.length) return null;
 
   const core = donors.map((d) => d.name.trim()).filter(Boolean);
   if (!core.length) return null;
 
-  const segment = `${t('showView.donorMarqueePrefix')} ${core.join(` ${t('showView.donorMarqueeSep')} `)} ${t('showView.donorMarqueeSuffix')}`;
-  const doubled = (
-    <>
-      <MarqueeChunk>{segment}</MarqueeChunk>
-      <MarqueeChunk>{segment}</MarqueeChunk>
-    </>
-  );
+  const segment = buildMarqueeSegment(marqueeTemplate, marqueeSeparator, core);
 
   return (
     <MarqueeBar aria-live="polite">
-      <MarqueeTrack>{doubled}</MarqueeTrack>
+      <MarqueeTrack>
+        <MarqueeChunk>{segment}</MarqueeChunk>
+        <MarqueeGap aria-hidden />
+        <MarqueeChunk>{segment}</MarqueeChunk>
+        <MarqueeGap aria-hidden />
+      </MarqueeTrack>
     </MarqueeBar>
   );
 };

@@ -198,6 +198,9 @@ export const adminAPI = {
     paypalBrandName?: string;
     paypalSandboxEnabled: boolean;
     paypalQuickAmounts: number[];
+    donationMarqueeTemplate: string;
+    donationNotificationTemplate: string;
+    donationMarqueeSeparator: string;
   }) => api.put('/admin/settings/paypal-donations', data),
   
   // Song Approval Management

@@ -123,6 +123,8 @@ async function broadcastShowUpdate(io) {
     }
 
     const donationsStore = require('./donationsStore');
+    const { loadDonationDisplaySettings } = require('./donationDisplaySettings');
+    const donationDisplay = await loadDonationDisplaySettings();
     const showData = {
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -140,7 +142,8 @@ async function broadcastShowUpdate(io) {
       qrCodeDataUrl,
       overlayTitle,
       backgroundVideoEnabled,
-      sessionDonors: donationsStore.getSessionDonors()
+      sessionDonors: donationsStore.getSessionDonors(),
+      ...donationDisplay,
     };
 
     // Send update to all clients in show room

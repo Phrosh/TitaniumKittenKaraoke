@@ -24,6 +24,9 @@ export interface ShowUpdateData {
   overlayTitle: string;
   backgroundVideoEnabled?: boolean;
   sessionDonors?: Array<{ name: string; at: string; amount?: string; currency?: string }>;
+  donationMarqueeTemplate?: string;
+  donationNotificationTemplate?: string;
+  donationMarqueeSeparator?: string;
 }
 
 export interface AdminUpdateData {

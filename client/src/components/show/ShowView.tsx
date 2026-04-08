@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { showAPI, songAPI, adminAPI, donationAPI, default as api } from '../../services/api';
+import { showAPI, songAPI, adminAPI, default as api } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -49,6 +49,10 @@ import QRCodeCorner from './QRCodeCorner';
 import ControlButtons from './ControlButtons';
 import AdCorner from './AdCorner';
 import { DonationMarquee, DonationTopOsd } from './DonationSessionUi';
+import {
+  DONATION_DISPLAY_DEFAULTS,
+  applyNotificationTemplate,
+} from '../../utils/donationDisplay';
 
 let globalUltrastarData: UltrastarSongData | null = null;
 
@@ -142,6 +146,15 @@ const ShowView: React.FC = () => {
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
 
   const [sessionDonors, setSessionDonors] = useState<Array<{ name: string; at: string }>>([]);
+  const [donationMarqueeTemplate, setDonationMarqueeTemplate] = useState(
+    DONATION_DISPLAY_DEFAULTS.donationMarqueeTemplate
+  );
+  const [donationNotificationTemplate, setDonationNotificationTemplate] = useState(
+    DONATION_DISPLAY_DEFAULTS.donationNotificationTemplate
+  );
+  const [donationMarqueeSeparator, setDonationMarqueeSeparator] = useState(
+    DONATION_DISPLAY_DEFAULTS.donationMarqueeSeparator
+  );
   const [donationOsdVisible, setDonationOsdVisible] = useState(false);
   const [donationOsdText, setDonationOsdText] = useState('');
   const donationNudgeTimerRef = useRef<number | null>(null);
@@ -1094,6 +1107,25 @@ const ShowView: React.FC = () => {
       }
 
       setNextSongs(nextSongs);
+
+      const sd = response.data as typeof response.data & {
+        sessionDonors?: Array<{ name: string; at: string }>;
+        donationMarqueeTemplate?: string;
+        donationNotificationTemplate?: string;
+        donationMarqueeSeparator?: string;
+      };
+      if (Array.isArray(sd.sessionDonors)) {
+        setSessionDonors(sd.sessionDonors);
+      }
+      if (typeof sd.donationMarqueeTemplate === 'string') {
+        setDonationMarqueeTemplate(sd.donationMarqueeTemplate);
+      }
+      if (typeof sd.donationNotificationTemplate === 'string') {
+        setDonationNotificationTemplate(sd.donationNotificationTemplate);
+      }
+      if (typeof sd.donationMarqueeSeparator === 'string') {
+        setDonationMarqueeSeparator(sd.donationMarqueeSeparator);
+      }
       // setLoading(false);
     } catch (error: any) {
       console.error('❌ Error fetching current song:', error);
@@ -1103,10 +1135,30 @@ const ShowView: React.FC = () => {
   };
 
   const handleWebSocketUpdate = useCallback(async (data: ShowUpdateData) => {
-    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle, backgroundVideoEnabled: wsBackgroundVideoEnabled, sessionDonors: wsDonors } = data;
+    const {
+      currentSong: newSong,
+      nextSongs,
+      showQRCodeOverlay,
+      qrCodeDataUrl,
+      overlayTitle,
+      backgroundVideoEnabled: wsBackgroundVideoEnabled,
+      sessionDonors: wsDonors,
+      donationMarqueeTemplate: wsMarqueeTpl,
+      donationNotificationTemplate: wsNotifTpl,
+      donationMarqueeSeparator: wsMarqueeSep,
+    } = data;
 
     if (wsDonors && Array.isArray(wsDonors)) {
       setSessionDonors(wsDonors);
+    }
+    if (typeof wsMarqueeTpl === 'string') {
+      setDonationMarqueeTemplate(wsMarqueeTpl);
+    }
+    if (typeof wsNotifTpl === 'string') {
+      setDonationNotificationTemplate(wsNotifTpl);
+    }
+    if (typeof wsMarqueeSep === 'string') {
+      setDonationMarqueeSeparator(wsMarqueeSep);
     }
 
     // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
@@ -1211,13 +1263,6 @@ const ShowView: React.FC = () => {
   }, [showAPI, stopUltrastarTiming, stopProgress]);
 
   useEffect(() => {
-    donationAPI
-      .getSessionDonors()
-      .then((r) => setSessionDonors(r.data.donors || []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     donationNudgeTimerRef.current = window.setTimeout(() => {
       setDonationOsdText(t('showView.donationNudge'));
       setDonationOsdVisible(true);
@@ -1226,7 +1271,7 @@ const ShowView: React.FC = () => {
       }, 6500);
     }, 14000);
 
-    const onThanks = (payload: { name?: string }) => {
+    const onThanks = (payload: { name?: string; osdText?: string }) => {
       if (donationNudgeTimerRef.current) {
         window.clearTimeout(donationNudgeTimerRef.current);
         donationNudgeTimerRef.current = null;
@@ -1235,9 +1280,13 @@ const ShowView: React.FC = () => {
         window.clearTimeout(donationOsdHideRef.current);
       }
       const name = payload?.name?.trim() || '';
-      setDonationOsdText(
-        name ? t('showView.donationThanksName', { name }) : t('showView.donationThanksGeneric')
-      );
+      const pre = payload?.osdText?.trim();
+      const line = pre
+        ? pre
+        : name
+          ? applyNotificationTemplate(donationNotificationTemplate, name)
+          : t('showView.donationThanksGeneric');
+      setDonationOsdText(line);
       setDonationOsdVisible(true);
       donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
     };
@@ -1249,7 +1298,7 @@ const ShowView: React.FC = () => {
       if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
       websocketService.off('donation-thanks', onThanks);
     };
-  }, [t]);
+  }, [t, donationNotificationTemplate]);
 
   useEffect(() => {
     // Initial fetch
@@ -2329,7 +2378,11 @@ const ShowView: React.FC = () => {
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
-      <DonationMarquee donors={sessionDonors} />
+      <DonationMarquee
+        donors={sessionDonors}
+        marqueeTemplate={donationMarqueeTemplate}
+        marqueeSeparator={donationMarqueeSeparator}
+      />
       <DonationTopOsd
         visible={donationOsdVisible}
         text={donationOsdText}

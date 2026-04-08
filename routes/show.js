@@ -132,6 +132,10 @@ router.get('/', async (req, res) => {
       }
     }
 
+    const donationsStore = require('../utils/donationsStore');
+    const { loadDonationDisplaySettings } = require('../utils/donationDisplaySettings');
+    const donationDisplay = await loadDonationDisplaySettings();
+
     res.json({
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -148,7 +152,9 @@ router.get('/', async (req, res) => {
       showQRCodeOverlay,
       qrCodeDataUrl,
       overlayTitle,
-      backgroundVideoEnabled
+      backgroundVideoEnabled,
+      sessionDonors: donationsStore.getSessionDonors(),
+      ...donationDisplay,
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

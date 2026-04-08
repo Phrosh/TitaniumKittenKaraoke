@@ -49,6 +49,26 @@ export const SettingsInput = styled.input`
   }
 `;
 
+export const SettingsTextArea = styled.textarea`
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+`;
+
 export const SettingsDescription = styled.div`
   font-size: 0.9rem;
   color: #666;

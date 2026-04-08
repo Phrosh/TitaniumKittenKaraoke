@@ -101,7 +101,10 @@ function initializeDatabase() {
     ('paypal_default_amount', '5.00'),
     ('paypal_sandbox_enabled', 'true'),
     ('paypal_brand_name', 'Karaoke'),
-    ('paypal_quick_amounts', '[1,5,10,20]')
+    ('paypal_quick_amounts', '[1,5,10,20]'),
+    ('donation_marquee_template', 'Vielen Dank an die Spender: {names}'),
+    ('donation_notification_template', 'Danke an {name} für diese Spende!'),
+    ('donation_marquee_separator', '+++')
   `);
 
   // Migration: Add mode column to existing songs table

@@ -422,6 +422,9 @@ router.put(
       }
       return true;
     }),
+    body('donationMarqueeTemplate').exists().isString().isLength({ max: 600 }),
+    body('donationNotificationTemplate').exists().isString().isLength({ max: 600 }),
+    body('donationMarqueeSeparator').exists().isString().isLength({ max: 64 }),
   ],
   async (req, res) => {
     try {
@@ -440,12 +443,24 @@ router.put(
         paypalBrandName,
         paypalSandboxEnabled,
         paypalQuickAmounts,
+        donationMarqueeTemplate,
+        donationNotificationTemplate,
+        donationMarqueeSeparator,
       } = req.body;
 
       const { KEYS, normalizeQuickAmounts } = require('../../utils/paypalSettings');
+      const dd = require('../../utils/donationDisplaySettings');
 
       const amountStr = Number(paypalDefaultAmount).toFixed(2);
       const quickJson = JSON.stringify(normalizeQuickAmounts(paypalQuickAmounts));
+
+      const dmT =
+        String(donationMarqueeTemplate || '').trim() || dd.DEFAULTS.donationMarqueeTemplate;
+      const dnT =
+        String(donationNotificationTemplate || '').trim() ||
+        dd.DEFAULTS.donationNotificationTemplate;
+      const dmSep =
+        String(donationMarqueeSeparator || '').trim() || dd.DEFAULTS.donationMarqueeSeparator;
 
       await upsertSetting(KEYS.publicUrl, stripPublicUrl(paypalPublicUrl));
       await upsertSetting(KEYS.clientId, String(paypalClientId).trim());
@@ -458,6 +473,19 @@ router.put(
       await upsertSetting(KEYS.brandName, String(paypalBrandName || '').trim() || 'Karaoke');
       await upsertSetting(KEYS.sandboxEnabled, paypalSandboxEnabled ? 'true' : 'false');
       await upsertSetting(KEYS.quickAmounts, quickJson);
+      await upsertSetting(dd.KEYS.marqueeTemplate, dmT.slice(0, 600));
+      await upsertSetting(dd.KEYS.notificationTemplate, dnT.slice(0, 600));
+      await upsertSetting(dd.KEYS.marqueeSeparator, dmSep.slice(0, 64));
+
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          const { broadcastShowUpdate } = require('../../utils/websocketService');
+          await broadcastShowUpdate(io);
+        }
+      } catch (e) {
+        console.warn('broadcastShowUpdate nach PayPal-/Spenden-Settings:', e.message);
+      }
 
       res.json({ message: 'PayPal-Spenden-Einstellungen gespeichert.' });
     } catch (error) {
