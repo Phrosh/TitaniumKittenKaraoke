@@ -3,6 +3,7 @@ const router = express.Router();
 const Song = require('../../models/Song');
 const User = require('../../models/User');
 const songCache = require('../../utils/songCache');
+const { sanitizeSettingsForClient } = require('../../utils/settingsSanitize');
 
 // Get admin dashboard data
 router.get('/dashboard', async (req, res) => {
@@ -31,7 +32,7 @@ router.get('/dashboard', async (req, res) => {
           rows.forEach(row => {
             settingsObj[row.key] = row.value;
           });
-          resolve(settingsObj);
+          resolve(sanitizeSettingsForClient(settingsObj));
         }
       });
     });

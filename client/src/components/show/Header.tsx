@@ -12,6 +12,7 @@ import {
 interface HeaderProps {
   currentSong: any;
   timeRemaining: number | null;
+  withDonorMarquee?: boolean;
 }
 
 const formatTime = (seconds: number) => {
@@ -23,11 +24,12 @@ const formatTime = (seconds: number) => {
 const Header: React.FC<HeaderProps> = ({
   currentSong,  
   timeRemaining,
+  withDonorMarquee = false,
 }) => {
   const { t } = useTranslation();
 
   return (
-    <StyledHeader>
+    <StyledHeader $withDonorMarquee={withDonorMarquee}>
       <HeaderContent>
         <CurrentSongInfo>
           <SingerName>

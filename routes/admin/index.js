@@ -21,6 +21,7 @@ const testRoutes = require('./test');
 const backgroundMusicRoutes = require('./backgroundMusic');
 const backgroundVideoRoutes = require('./backgroundVideo');
 const customPipelineRoutes = require('./customPipeline');
+const donationsSessionRoutes = require('./donationsSession');
 
 // Mount modular admin routes
 router.use('/', dashboardRoutes);
@@ -39,6 +40,7 @@ router.use('/', testRoutes);
 router.use('/', backgroundMusicRoutes);
 router.use('/', backgroundVideoRoutes);
 router.use('/', customPipelineRoutes);
+router.use('/', donationsSessionRoutes);
 
 module.exports = {
   router

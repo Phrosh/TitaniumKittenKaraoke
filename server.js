@@ -15,6 +15,7 @@ const songRoutes = require('./routes/songs').router;
 const playlistRoutes = require('./routes/playlist');
 const adminRoutes = require('./routes/admin').router;
 const showRoutes = require('./routes/show');
+const createDonationsRouter = require('./routes/donations');
 const i18nRoutes = require('./routes/i18n');
 const videoModesRoutes = require('./routes/videoModes');
 
@@ -63,8 +64,17 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+// Body parsing middleware (raw body for PayPal-Webhook-Signatur)
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req, res, buf) => {
+      if (req.originalUrl === '/api/donations/paypal-webhook') {
+        req.rawBody = buf;
+      }
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Add ngrok-skip-browser-warning header to all responses
@@ -558,6 +568,7 @@ app.use('/api/playlist', playlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin', videoModesRoutes);
 app.use('/api/show', showRoutes);
+app.use('/api/donations', createDonationsRouter(() => app.get('io')));
 app.use('/api/i18n', i18nRoutes);
 
 // Serve static files from React app (both production and development)

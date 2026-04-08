@@ -10,6 +10,7 @@ import BanlistTab from './admin/tabs/BanlistTab';
 import UsersTab from './admin/tabs/UsersTab';
 import SettingsTab from './admin/tabs/SettingsTab';
 import BackgroundMusicTab from './admin/tabs/BackgroundMusicTab';
+import DonationsTab from './admin/tabs/DonationsTab';
 import ApprovalModal from './admin/modals/ApprovalModal';
 import SongsTab from './admin/tabs/songs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
@@ -46,7 +47,9 @@ const AdminDashboard: React.FC = () => {
     deviceId: '',
     withBackgroundVocals: false
   });
-  const [activeTab, setActiveTab] = useState<'playlist' | 'settings' | 'users' | 'banlist' | 'songs' | 'background-music'>('playlist');
+  const [activeTab, setActiveTab] = useState<
+    'playlist' | 'settings' | 'users' | 'banlist' | 'songs' | 'background-music' | 'donations'
+  >('playlist');
   const [addSongUsdbResults, setAddSongUsdbResults] = useState<any[]>([]);
   const [addSongUsdbLoading, setAddSongUsdbLoading] = useState(false);
   const [manualSongList, setManualSongList] = useState<any[]>([]);
@@ -761,14 +764,20 @@ const AdminDashboard: React.FC = () => {
           >
             👥 {t('adminDashboard.tabs.users')}
           </TabButton>
-          <TabButton 
-            $active={activeTab === 'background-music'} 
+          <TabButton
+            $active={activeTab === 'background-music'}
             onClick={() => setActiveTab('background-music')}
           >
             🎵 {t('adminDashboard.tabs.backgroundMusic')}
           </TabButton>
-          <TabButton 
-            $active={activeTab === 'settings'} 
+          <TabButton
+            $active={activeTab === 'donations'}
+            onClick={() => setActiveTab('donations')}
+          >
+            💜 {t('adminDashboard.tabs.donations')}
+          </TabButton>
+          <TabButton
+            $active={activeTab === 'settings'}
             onClick={() => setActiveTab('settings')}
           >
             ⚙️ {t('adminDashboard.tabs.settings')}
@@ -815,6 +824,8 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'background-music' && (
             <BackgroundMusicTab />
           )}
+
+          {activeTab === 'donations' && <DonationsTab />}
           
         </TabContent>
       </TabContainer>

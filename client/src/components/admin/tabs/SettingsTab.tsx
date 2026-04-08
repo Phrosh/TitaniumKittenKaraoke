@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -134,6 +134,155 @@ const PortInput = styled.input`
   font-size: 14px;
 `;
 
+const SettingsSelect = styled.select`
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  min-width: 120px;
+  background: #fff;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+`;
+
+const PayPalGuideBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(20, 12, 40, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+`;
+
+const PayPalGuidePanel = styled.div`
+  background: #fff;
+  border-radius: 12px;
+  max-width: 720px;
+  width: 100%;
+  max-height: min(90vh, 880px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  border: 1px solid #d4c4f0;
+`;
+
+const PayPalGuideHeader = styled.div`
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8e0f4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+`;
+
+const PayPalGuideTitle = styled.h2`
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #2d1f4a;
+`;
+
+const PayPalGuideBody = styled.div`
+  padding: 16px 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #333;
+`;
+
+const PayPalGuideSectionTitle = styled.h3`
+  margin: 20px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #3d2a5c;
+  &:first-of-type {
+    margin-top: 0;
+  }
+`;
+
+const PayPalGuideP = styled.p`
+  margin: 0 0 12px;
+`;
+
+const PayPalGuideTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  th,
+  td {
+    border: 1px solid #e0d8ec;
+    padding: 10px 12px;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background: #f5f0ff;
+    font-weight: 600;
+    color: #3d2a5c;
+    width: 32%;
+  }
+`;
+
+const PayPalGuideFooter = styled.div`
+  padding: 12px 20px 16px;
+  border-top: 1px solid #e8e0f4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+`;
+
+const PayPalGuideOpenButton = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 12px;
+  color: #5b3d9e;
+  font-size: 14px;
+  font-weight:600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  &:hover {
+    color: #3d2a5c;
+  }
+`;
+
+const PAYPAL_WEBHOOK_PATH = '/api/donations/paypal-webhook';
+
+function buildPayPalWebhookUrl(publicBase: string): string | null {
+  const base = publicBase.trim().replace(/\/+$/, '');
+  if (!base) return null;
+  return `${base}${PAYPAL_WEBHOOK_PATH}`;
+}
+
+const PAYPAL_GUIDE_ROWS: [string, string][] = [
+  ['paypalPublicUrl', 'paypalGuideRowPublic'],
+  ['paypalClientId', 'paypalGuideRowClientId'],
+  ['paypalClientSecret', 'paypalGuideRowSecret'],
+  ['paypalWebhookId', 'paypalGuideRowWebhook'],
+  ['paypalCurrency', 'paypalGuideRowCurrency'],
+  ['paypalDefaultAmount', 'paypalGuideRowAmount'],
+  ['paypalBrandName', 'paypalGuideRowBrand'],
+  ['paypalSandboxLabel', 'paypalGuideRowSandbox'],
+];
+
+const PAYPAL_CURRENCIES = [
+  'EUR', 'USD', 'GBP', 'CHF', 'PLN', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF',
+  'RON', 'BGN', 'JPY', 'AUD', 'CAD', 'NZD', 'HKD', 'SGD', 'MXN', 'BRL', 'INR',
+];
+
 interface SettingsTabProps {
   // Keine Props mehr benötigt, da useTranslation intern verwendet wird
 }
@@ -182,6 +331,20 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [localServerPort, setLocalServerPort] = useState(4000);
   const [localServerTab, setLocalServerTab] = useState<'node' | 'npx' | 'python'>('python');
 
+  const [paypalPublicUrl, setPaypalPublicUrl] = useState('');
+  const [paypalClientId, setPaypalClientId] = useState('');
+  const [paypalClientSecret, setPaypalClientSecret] = useState('');
+  const [paypalWebhookId, setPaypalWebhookId] = useState('');
+  const [paypalCurrency, setPaypalCurrency] = useState('EUR');
+  const [paypalDefaultAmount, setPaypalDefaultAmount] = useState<number>(5);
+  const [paypalBrandName, setPaypalBrandName] = useState('');
+  const [paypalSandboxEnabled, setPaypalSandboxEnabled] = useState(true);
+  const [paypalSecretConfigured, setPaypalSecretConfigured] = useState(false);
+  const [paypalSaveLoading, setPaypalSaveLoading] = useState(false);
+  const [paypalGuideOpen, setPaypalGuideOpen] = useState(false);
+
+  const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
+
   // Load settings when component mounts
   useEffect(() => {
     loadSettings().then(() => {
@@ -208,6 +371,15 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       handleUpdateOverlayTitle(debouncedOverlayTitle, true);
     }
   }, [debouncedOverlayTitle, isInitialLoad, initialValues.overlayTitle]);
+
+  useEffect(() => {
+    if (!paypalGuideOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPaypalGuideOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paypalGuideOpen]);
 
   // Auto-save für Checkboxen (sofort)
   const handleYouTubeEnabledChange = (checked: boolean) => {
@@ -256,6 +428,18 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       if (settingsResponse.data.settings.usdb_search_enabled !== undefined) {
         setUsdbSearchEnabled(settingsResponse.data.settings.usdb_search_enabled === 'true');
       }
+
+      const s = settingsResponse.data.settings;
+      setPaypalPublicUrl(s.paypal_public_url || '');
+      setPaypalClientId(s.paypal_client_id || '');
+      setPaypalClientSecret('');
+      setPaypalWebhookId(s.paypal_webhook_id || '');
+      setPaypalCurrency((s.paypal_currency || 'EUR').toUpperCase());
+      const pa = parseFloat(String(s.paypal_default_amount || '5'));
+      setPaypalDefaultAmount(Number.isFinite(pa) ? pa : 5);
+      setPaypalBrandName(s.paypal_brand_name || '');
+      setPaypalSandboxEnabled(s.paypal_sandbox_enabled !== 'false');
+      setPaypalSecretConfigured(s.paypal_client_secret_configured === 'true');
       
       // Load file songs folder setting
       try {
@@ -559,6 +743,49 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     }
   };
 
+  const handleSavePayPalDonations = async () => {
+    if (!paypalPublicUrl.trim() || !paypalClientId.trim()) {
+      toast.error(t('settings.fillAllFields'));
+      return;
+    }
+    setPaypalSaveLoading(true);
+    try {
+      const amt = Math.min(500, Math.max(1, Number(paypalDefaultAmount) || 5));
+      await adminAPI.updatePayPalDonationSettings({
+        paypalPublicUrl: paypalPublicUrl.trim(),
+        paypalClientId: paypalClientId.trim(),
+        paypalClientSecret: paypalClientSecret.trim() || undefined,
+        paypalWebhookId: paypalWebhookId.trim(),
+        paypalCurrency,
+        paypalDefaultAmount: amt,
+        paypalBrandName: paypalBrandName.trim(),
+        paypalSandboxEnabled,
+      });
+      setPaypalClientSecret('');
+      toast.success(t('settings.paypalSaved'));
+      await loadSettings();
+    } catch (error: any) {
+      console.error('PayPal settings save:', error);
+      toast.error(error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || t('settings.paypalSaveError'));
+    } finally {
+      setPaypalSaveLoading(false);
+    }
+  };
+
+  const handleCopyPayPalWebhookUrl = async () => {
+    if (!paypalWebhookFullUrl) {
+      toast.error(t('settings.paypalWebhookUrlEmpty'));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(paypalWebhookFullUrl);
+      toast.success(t('settings.paypalWebhookUrlCopied'));
+    } catch (error) {
+      console.error('Copy PayPal webhook URL:', error);
+      toast.error(t('settings.commandCopyError'));
+    }
+  };
+
   const handleCopyServerCommand = async () => {
     const command = generateLocalServerCommand();
     if (!command) {
@@ -672,6 +899,257 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           </SettingsDescription>
         </div>
       </SpecialSection>
+
+      <SpecialSection style={{ background: '#f5f0ff', borderColor: '#d4c4f0' }}>
+        <SpecialTitle style={{ color: '#3d2a5c' }}>💜 {t('settings.paypalDonationsTitle')}</SpecialTitle>
+        <SpecialDescription style={{ color: '#3d2a5c' }}>
+          {t('settings.paypalDonationsIntro')}
+        </SpecialDescription>
+        <PayPalGuideOpenButton type="button" onClick={() => setPaypalGuideOpen(true)}>
+          {t('settings.paypalGuideOpenLink')}
+        </PayPalGuideOpenButton>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalPublicUrl')}</SettingsLabel>
+          <SettingsInput
+            type="url"
+            autoComplete="url"
+            value={paypalPublicUrl}
+            onChange={(e) => setPaypalPublicUrl(e.target.value)}
+            placeholder="https://ihre-domain.de"
+            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalPublicUrlHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookUrlLabel')}</SettingsLabel>
+          <InputGroup>
+            <SettingsInput
+              type="text"
+              readOnly
+              aria-readonly="true"
+              value={paypalWebhookFullUrl ?? ''}
+              placeholder={t('settings.paypalWebhookUrlPlaceholder')}
+              onFocus={(e) => e.target.select()}
+              style={{
+                flex: '1 1 280px',
+                minWidth: '200px',
+                maxWidth: '560px',
+                background: '#faf8ff',
+              }}
+            />
+            <Button
+              type="button"
+              onClick={handleCopyPayPalWebhookUrl}
+              disabled={!paypalWebhookFullUrl}
+              size="small"
+              style={{
+                backgroundColor: '#6c757d',
+                color: 'white',
+                opacity: !paypalWebhookFullUrl ? 0.6 : 1,
+              }}
+            >
+              📋 {t('settings.copyUrl')}
+            </Button>
+          </InputGroup>
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookUrlHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientId')}</SettingsLabel>
+          <SettingsInput
+            type="text"
+            autoComplete="off"
+            value={paypalClientId}
+            onChange={(e) => setPaypalClientId(e.target.value)}
+            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientSecret')}</SettingsLabel>
+          <SettingsInput
+            type="password"
+            autoComplete="new-password"
+            value={paypalClientSecret}
+            onChange={(e) => setPaypalClientSecret(e.target.value)}
+            placeholder={paypalSecretConfigured ? '••••••••' : ''}
+            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>
+            {t('settings.paypalClientSecretHint')}
+            {paypalSecretConfigured ? ` ${t('settings.paypalClientSecretConfigured')}` : ''}
+          </SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookId')}</SettingsLabel>
+          <SettingsInput
+            type="text"
+            value={paypalWebhookId}
+            onChange={(e) => setPaypalWebhookId(e.target.value)}
+            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+          />
+          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookHint')}</SettingsDescription>
+        </div>
+
+        <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
+          <div>
+            <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalCurrency')}</SettingsLabel>
+            <SettingsSelect
+              value={paypalCurrency}
+              onChange={(e) => setPaypalCurrency(e.target.value)}
+            >
+              {!PAYPAL_CURRENCIES.includes(paypalCurrency) && paypalCurrency && (
+                <option value={paypalCurrency}>{paypalCurrency}</option>
+              )}
+              {PAYPAL_CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </SettingsSelect>
+          </div>
+          <div>
+            <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalDefaultAmount')}</SettingsLabel>
+            <SettingsInput
+              type="number"
+              min={1}
+              max={500}
+              step="0.01"
+              value={paypalDefaultAmount}
+              onChange={(e) => setPaypalDefaultAmount(parseFloat(e.target.value) || 0)}
+              style={{ width: '120px' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalBrandName')}</SettingsLabel>
+          <SettingsInput
+            type="text"
+            value={paypalBrandName}
+            onChange={(e) => setPaypalBrandName(e.target.value)}
+            style={{ minWidth: 'min(100%, 400px)', width: '100%', maxWidth: '480px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalSandboxLabel')}</SettingsLabel>
+          <CheckboxContainer>
+            <CheckboxLabel>
+              <CheckboxInput
+                type="checkbox"
+                checked={paypalSandboxEnabled}
+                onChange={(e) => setPaypalSandboxEnabled(e.target.checked)}
+              />
+              <CheckboxText style={{ color: '#333' }}>
+                {paypalSandboxEnabled ? t('settings.enabled') : t('settings.disabled')}
+              </CheckboxText>
+            </CheckboxLabel>
+          </CheckboxContainer>
+          <SettingsDescription style={{ color: '#5c4a78' }}>
+            {paypalSandboxEnabled ? t('settings.paypalSandboxHint') : t('settings.paypalLiveHint')}
+          </SettingsDescription>
+        </div>
+
+        <Button
+          onClick={handleSavePayPalDonations}
+          disabled={paypalSaveLoading}
+          variant="success"
+          size="small"
+        >
+          {paypalSaveLoading ? t('settings.saving') : t('settings.paypalSave')}
+        </Button>
+      </SpecialSection>
+
+      {paypalGuideOpen && (
+        <PayPalGuideBackdrop
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="paypal-guide-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPaypalGuideOpen(false);
+          }}
+        >
+          <PayPalGuidePanel onClick={(e) => e.stopPropagation()}>
+            <PayPalGuideHeader>
+              <PayPalGuideTitle id="paypal-guide-title">{t('settings.paypalGuideModalTitle')}</PayPalGuideTitle>
+              <Button type="button" size="small" onClick={() => setPaypalGuideOpen(false)}>
+                {t('settings.paypalGuideClose')}
+              </Button>
+            </PayPalGuideHeader>
+            <PayPalGuideBody>
+              <PayPalGuideSectionTitle>{t('settings.paypalGuideAccountTitle')}</PayPalGuideSectionTitle>
+              <PayPalGuideP>{t('settings.paypalGuideAccountP1')}</PayPalGuideP>
+              <PayPalGuideP>{t('settings.paypalGuideAccountP2')}</PayPalGuideP>
+              <PayPalGuideP>{t('settings.paypalGuideAccountP3')}</PayPalGuideP>
+              <PayPalGuideSectionTitle>{t('settings.paypalGuideMappingTitle')}</PayPalGuideSectionTitle>
+              <PayPalGuideP>{t('settings.paypalGuideMappingIntro')}</PayPalGuideP>
+              <PayPalGuideSectionTitle style={{ fontSize: '0.95rem', marginTop: '8px' }}>
+                {t('settings.paypalWebhookUrlLabel')}
+              </PayPalGuideSectionTitle>
+              <InputGroup style={{ marginBottom: '12px' }}>
+                <SettingsInput
+                  type="text"
+                  readOnly
+                  aria-readonly="true"
+                  value={paypalWebhookFullUrl ?? ''}
+                  placeholder={t('settings.paypalWebhookUrlPlaceholder')}
+                  onFocus={(e) => e.target.select()}
+                  style={{
+                    flex: '1 1 240px',
+                    minWidth: '160px',
+                    background: '#faf8ff',
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={handleCopyPayPalWebhookUrl}
+                  disabled={!paypalWebhookFullUrl}
+                  size="small"
+                  style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    opacity: !paypalWebhookFullUrl ? 0.6 : 1,
+                  }}
+                >
+                  📋 {t('settings.copyUrl')}
+                </Button>
+              </InputGroup>
+              <PayPalGuideP style={{ marginBottom: '16px', fontSize: '13px' }}>{t('settings.paypalWebhookUrlHint')}</PayPalGuideP>
+              <PayPalGuideTable>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('settings.paypalGuideMappingColTkk')}</th>
+                    <th scope="col">{t('settings.paypalGuideMappingColExplain')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PAYPAL_GUIDE_ROWS.map(([labelKey, descKey]) => (
+                    <tr key={labelKey}>
+                      <td>{t(`settings.${labelKey}` as const)}</td>
+                      <td>{t(`settings.${descKey}` as const)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </PayPalGuideTable>
+            </PayPalGuideBody>
+            <PayPalGuideFooter>
+              <a
+                href="https://developer.paypal.com/dashboard/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginRight: 'auto', color: '#5b3d9e', fontWeight: 600 }}
+              >
+                {t('settings.paypalGuideDeveloperLink')} ↗
+              </a>
+              <Button type="button" variant="success" size="small" onClick={() => setPaypalGuideOpen(false)}>
+                {t('settings.paypalGuideClose')}
+              </Button>
+            </PayPalGuideFooter>
+          </PayPalGuidePanel>
+        </PayPalGuideBackdrop>
+      )}
       
       <HorizontalDivider />
       

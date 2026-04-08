@@ -122,6 +122,7 @@ async function broadcastShowUpdate(io) {
       }
     }
 
+    const donationsStore = require('./donationsStore');
     const showData = {
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -138,7 +139,8 @@ async function broadcastShowUpdate(io) {
       showQRCodeOverlay,
       qrCodeDataUrl,
       overlayTitle,
-      backgroundVideoEnabled
+      backgroundVideoEnabled,
+      sessionDonors: donationsStore.getSessionDonors()
     };
 
     // Send update to all clients in show room
@@ -221,7 +223,8 @@ async function broadcastAdminUpdate(io) {
           rows.forEach(row => {
             settingsObj[row.key] = row.value;
           });
-          resolve(settingsObj);
+          const { sanitizeSettingsForClient } = require('./settingsSanitize');
+          resolve(sanitizeSettingsForClient(settingsObj));
         }
       });
     });

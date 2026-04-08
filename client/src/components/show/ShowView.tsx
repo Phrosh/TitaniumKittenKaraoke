@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { showAPI, songAPI, adminAPI, default as api } from '../../services/api';
+import { showAPI, songAPI, adminAPI, donationAPI, default as api } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -48,6 +48,7 @@ import StartOverlay from './StartOverlay';
 import QRCodeCorner from './QRCodeCorner';
 import ControlButtons from './ControlButtons';
 import AdCorner from './AdCorner';
+import { DonationMarquee, DonationTopOsd } from './DonationSessionUi';
 
 let globalUltrastarData: UltrastarSongData | null = null;
 
@@ -140,6 +141,11 @@ const ShowView: React.FC = () => {
   const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
 
+  const [sessionDonors, setSessionDonors] = useState<Array<{ name: string; at: string }>>([]);
+  const [donationOsdVisible, setDonationOsdVisible] = useState(false);
+  const [donationOsdText, setDonationOsdText] = useState('');
+  const donationNudgeTimerRef = useRef<number | null>(null);
+  const donationOsdHideRef = useRef<number | null>(null);
 
   const currentLyricStyle = {
     fontSize: '7vh',
@@ -1097,7 +1103,11 @@ const ShowView: React.FC = () => {
   };
 
   const handleWebSocketUpdate = useCallback(async (data: ShowUpdateData) => {
-    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle, backgroundVideoEnabled: wsBackgroundVideoEnabled } = data;
+    const { currentSong: newSong, nextSongs, showQRCodeOverlay, qrCodeDataUrl, overlayTitle, backgroundVideoEnabled: wsBackgroundVideoEnabled, sessionDonors: wsDonors } = data;
+
+    if (wsDonors && Array.isArray(wsDonors)) {
+      setSessionDonors(wsDonors);
+    }
 
     // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
     // Use the same normalization logic as in fetchCurrentSong
@@ -1199,6 +1209,47 @@ const ShowView: React.FC = () => {
 
     setNextSongs(nextSongs);
   }, [showAPI, stopUltrastarTiming, stopProgress]);
+
+  useEffect(() => {
+    donationAPI
+      .getSessionDonors()
+      .then((r) => setSessionDonors(r.data.donors || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    donationNudgeTimerRef.current = window.setTimeout(() => {
+      setDonationOsdText(t('showView.donationNudge'));
+      setDonationOsdVisible(true);
+      donationOsdHideRef.current = window.setTimeout(() => {
+        setDonationOsdVisible(false);
+      }, 6500);
+    }, 14000);
+
+    const onThanks = (payload: { name?: string }) => {
+      if (donationNudgeTimerRef.current) {
+        window.clearTimeout(donationNudgeTimerRef.current);
+        donationNudgeTimerRef.current = null;
+      }
+      if (donationOsdHideRef.current) {
+        window.clearTimeout(donationOsdHideRef.current);
+      }
+      const name = payload?.name?.trim() || '';
+      setDonationOsdText(
+        name ? t('showView.donationThanksName', { name }) : t('showView.donationThanksGeneric')
+      );
+      setDonationOsdVisible(true);
+      donationOsdHideRef.current = window.setTimeout(() => setDonationOsdVisible(false), 8000);
+    };
+
+    websocketService.on('donation-thanks', onThanks);
+
+    return () => {
+      if (donationNudgeTimerRef.current) window.clearTimeout(donationNudgeTimerRef.current);
+      if (donationOsdHideRef.current) window.clearTimeout(donationOsdHideRef.current);
+      websocketService.off('donation-thanks', onThanks);
+    };
+  }, [t]);
 
   useEffect(() => {
     // Initial fetch
@@ -2278,6 +2329,12 @@ const ShowView: React.FC = () => {
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
+      <DonationMarquee donors={sessionDonors} />
+      <DonationTopOsd
+        visible={donationOsdVisible}
+        text={donationOsdText}
+        topPx={sessionDonors.length > 0 ? 52 : 16}
+      />
       {/* Control Buttons - only show when not in fullscreen */}
       <ControlButtons 
         currentSong={currentSong}
@@ -2594,6 +2651,7 @@ const ShowView: React.FC = () => {
       <Header
         currentSong={currentSong}
         timeRemaining={timeRemaining}
+        withDonorMarquee={sessionDonors.length > 0}
       />
 
       {/* Footer Overlay */}

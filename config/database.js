@@ -96,7 +96,11 @@ function initializeDatabase() {
     ('current_song_id', '0'),
     ('regression_value', '0.1'),
     ('overlay_title', 'Willkommen beim Karaoke'),
-    ('auto_approve_songs', 'true')
+    ('auto_approve_songs', 'true'),
+    ('paypal_currency', 'EUR'),
+    ('paypal_default_amount', '5.00'),
+    ('paypal_sandbox_enabled', 'true'),
+    ('paypal_brand_name', 'Karaoke')
   `);
 
   // Migration: Add mode column to existing songs table

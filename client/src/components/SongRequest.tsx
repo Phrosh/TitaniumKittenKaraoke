@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { songAPI } from '../services/api';
+import { useSearchParams } from 'react-router-dom';
+import { songAPI, donationAPI } from '../services/api';
 import { SongRequestData } from '../types';
 import { useTranslation } from 'react-i18next';
 import Button from './shared/Button';
@@ -266,6 +267,7 @@ const FormatModalButtons = styled.div`
 
 const SongRequest: React.FC = () => {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [formData, setFormData] = useState<SongRequestData>({
     name: '',
     songInput: '',
@@ -297,6 +299,87 @@ const SongRequest: React.FC = () => {
   const [pendingSongInput, setPendingSongInput] = useState('');
   const [randomExampleSong, setRandomExampleSong] = useState({ artist: 'Queen', title: 'Bohemian Rhapsody' });
 
+  const [donationsEnabled, setDonationsEnabled] = useState(false);
+  const [donateAmount, setDonateAmount] = useState('5.00');
+  const [donateLoading, setDonateLoading] = useState(false);
+  const [donorThanksBanner, setDonorThanksBanner] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
+  );
+
+  useEffect(() => {
+    donationAPI
+      .getConfig()
+      .then((r) => {
+        setDonationsEnabled(!!r.data?.enabled);
+        if (r.data?.defaultAmount) setDonateAmount(String(r.data.defaultAmount));
+      })
+      .catch(() => setDonationsEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    const d = searchParams.get('donation');
+    if (d === 'cancel') {
+      setMessage({ type: 'info', text: t('songRequest.donateCancelled') });
+      searchParams.delete('donation');
+      setSearchParams(searchParams, { replace: true });
+    } else if (d === 'error') {
+      setMessage({ type: 'error', text: t('songRequest.donateError') });
+      searchParams.delete('donation');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, t]);
+
+  useEffect(() => {
+    if (searchParams.get('donation') !== 'ok') return undefined;
+    const ref = searchParams.get('ref');
+    if (!ref) return undefined;
+
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const { data } = await donationAPI.getStatus(ref);
+        if (cancelled) return;
+        if (data.status === 'completed') {
+          sessionStorage.setItem('karaokeDonationThanks', '1');
+          setDonorThanksBanner(true);
+          searchParams.delete('donation');
+          searchParams.delete('ref');
+          setSearchParams(searchParams, { replace: true });
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [searchParams, setSearchParams]);
+
+  const handleDonateClick = async () => {
+    if (!formData.name.trim()) {
+      setMessage({ type: 'error', text: t('songRequest.donateNeedName') });
+      return;
+    }
+    setDonateLoading(true);
+    try {
+      const { data } = await donationAPI.createOrder({
+        donorName: formData.name.trim(),
+        amount: donateAmount,
+      });
+      if (data?.approvalUrl) {
+        window.location.assign(data.approvalUrl);
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || t('songRequest.donateError');
+      setMessage({ type: 'error', text: msg });
+    } finally {
+      setDonateLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Generate or retrieve device ID
@@ -868,6 +951,31 @@ const SongRequest: React.FC = () => {
             {loading ? t('songRequest.adding') : t('songRequest.addSong')}
           </Button>
         </Form>
+
+        {donorThanksBanner && (
+          <Alert type="success">
+            {t('songRequest.donateThankYouSession')}
+          </Alert>
+        )}
+
+        {donationsEnabled && (
+          <>
+            <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #e1e5e9' }} />
+            <div style={{ textAlign: 'center' }}>
+              <Button
+                variant="secondary"
+                onClick={handleDonateClick}
+                disabled={donateLoading || !formData.name.trim()}
+                style={{ width: '100%' }}
+              >
+                {donateLoading ? t('songRequest.donateRedirecting') : `💜 ${t('songRequest.donateButton')}`}
+              </Button>
+              <p style={{ fontSize: '13px', color: '#666', marginTop: '10px', lineHeight: 1.4 }}>
+                {t('songRequest.donateHint', { amount: donateAmount })}
+              </p>
+            </div>
+          </>
+        )}
         
         <QRCodeContainer>
           <h3>{t('songRequest.qrCodeForOtherDevices')}</h3>

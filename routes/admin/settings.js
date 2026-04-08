@@ -5,6 +5,7 @@ const db = require('../../config/database');
 // const { generateQRCodeDataUrl } = require('../../utils/qrCodeGenerator');
 const { scanFileSongs } = require('../../utils/fileSongs');
 const fs = require('fs');
+const { sanitizeSettingsForClient } = require('../../utils/settingsSanitize');
 
 // Get system settings
 router.get('/settings', async (req, res) => {
@@ -17,7 +18,7 @@ router.get('/settings', async (req, res) => {
           rows.forEach(row => {
             settingsObj[row.key] = row.value;
           });
-          resolve(settingsObj);
+          resolve(sanitizeSettingsForClient(settingsObj));
         }
       });
     });
@@ -360,5 +361,94 @@ router.post('/settings/remove-file-songs', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+function upsertSetting(key, value) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [key, value],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+}
+
+function stripPublicUrl(url) {
+  return String(url || '')
+    .trim()
+    .replace(/\/$/, '');
+}
+
+// PayPal / Spenden (öffentliche Konfiguration in DB, Secret optional nur bei Änderung)
+router.put(
+  '/settings/paypal-donations',
+  [
+    body('paypalPublicUrl')
+      .trim()
+      .notEmpty()
+      .withMessage('Public URL erforderlich')
+      .isURL({ require_tld: false, require_protocol: true })
+      .withMessage('Ungültige Public URL'),
+    body('paypalClientId').trim().notEmpty().withMessage('Client ID erforderlich'),
+    body('paypalClientSecret').optional().isString(),
+    body('paypalWebhookId').optional().isString(),
+    body('paypalCurrency')
+      .trim()
+      .notEmpty()
+      .matches(/^[A-Za-z]{3}$/)
+      .withMessage('Währung als ISO 4217 (3 Buchstaben)'),
+    body('paypalDefaultAmount')
+      .notEmpty()
+      .withMessage('Standardbetrag erforderlich')
+      .isFloat({ min: 1, max: 500 })
+      .withMessage('Betrag zwischen 1 und 500'),
+    body('paypalBrandName').optional().isString().isLength({ max: 127 }),
+    body('paypalSandboxEnabled')
+      .exists()
+      .custom((v) => typeof v === 'boolean')
+      .withMessage('Sandbox-Flag boolean'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
+      }
+
+      const {
+        paypalPublicUrl,
+        paypalClientId,
+        paypalClientSecret,
+        paypalWebhookId,
+        paypalCurrency,
+        paypalDefaultAmount,
+        paypalBrandName,
+        paypalSandboxEnabled,
+      } = req.body;
+
+      const { KEYS } = require('../../utils/paypalSettings');
+
+      const amountStr = Number(paypalDefaultAmount).toFixed(2);
+
+      await upsertSetting(KEYS.publicUrl, stripPublicUrl(paypalPublicUrl));
+      await upsertSetting(KEYS.clientId, String(paypalClientId).trim());
+      if (paypalClientSecret && String(paypalClientSecret).trim()) {
+        await upsertSetting(KEYS.clientSecret, String(paypalClientSecret).trim());
+      }
+      await upsertSetting(KEYS.webhookId, String(paypalWebhookId || '').trim());
+      await upsertSetting(KEYS.currency, String(paypalCurrency).toUpperCase());
+      await upsertSetting(KEYS.defaultAmount, amountStr);
+      await upsertSetting(KEYS.brandName, String(paypalBrandName || '').trim() || 'Karaoke');
+      await upsertSetting(KEYS.sandboxEnabled, paypalSandboxEnabled ? 'true' : 'false');
+
+      res.json({ message: 'PayPal-Spenden-Einstellungen gespeichert.' });
+    } catch (error) {
+      console.error('paypal-donations settings error:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  }
+);
 
 module.exports = router;

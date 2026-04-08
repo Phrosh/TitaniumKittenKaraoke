@@ -133,9 +133,9 @@ export const CurrentSyllable = styled.span`
 `;
 
 
-export const Header = styled.div`
+export const Header = styled.div<{ $withDonorMarquee?: boolean }>`
   position: absolute;
-  top: 0;
+  top: ${(p) => (p.$withDonorMarquee ? '40px' : '0')};
   left: 0;
   right: 0;
   background: ${BLACK_BACKGROUND};

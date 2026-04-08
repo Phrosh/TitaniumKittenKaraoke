@@ -168,6 +168,9 @@ export const adminAPI = {
   
   getSettings: () =>
     api.get('/admin/settings'),
+
+  getDonationsSession: () =>
+    api.get('/admin/donations-session'),
   
   updateRegressionValue: (value: number) =>
     api.put('/admin/settings/regression', { value }),
@@ -184,6 +187,17 @@ export const adminAPI = {
   
   updateUSDBSearchEnabled: (usdbSearchEnabled: boolean) =>
     api.put('/admin/settings/usdb-search-enabled', { usdbSearchEnabled }),
+
+  updatePayPalDonationSettings: (data: {
+    paypalPublicUrl: string;
+    paypalClientId: string;
+    paypalClientSecret?: string;
+    paypalWebhookId?: string;
+    paypalCurrency: string;
+    paypalDefaultAmount: number;
+    paypalBrandName?: string;
+    paypalSandboxEnabled: boolean;
+  }) => api.put('/admin/settings/paypal-donations', data),
   
   // Song Approval Management
   getSongApprovals: () =>
@@ -276,6 +290,14 @@ export const adminAPI = {
   // Custom Pipeline
   processCustomPipeline: (youtubeUrl: string, selectedSteps: string[]) =>
     api.post('/admin/custom-pipeline', { youtubeUrl, selectedSteps }),
+};
+
+export const donationAPI = {
+  getConfig: () => api.get('/donations/config'),
+  createOrder: (data: { donorName: string; amount?: string; currency?: string }) =>
+    api.post('/donations/create-order', data),
+  getStatus: (ref: string) => api.get(`/donations/status/${encodeURIComponent(ref)}`),
+  getSessionDonors: () => api.get('/donations/session-donors'),
 };
 
 export const showAPI = {
