@@ -20,6 +20,7 @@ const cloudflaredRoutes = require('./cloudflared');
 const testRoutes = require('./test');
 const backgroundMusicRoutes = require('./backgroundMusic');
 const backgroundVideoRoutes = require('./backgroundVideo');
+const showMuteRoutes = require('./showMute');
 const customPipelineRoutes = require('./customPipeline');
 const donationsSessionRoutes = require('./donationsSession');
 
@@ -39,6 +40,7 @@ router.use('/', cloudflaredRoutes);
 router.use('/', testRoutes);
 router.use('/', backgroundMusicRoutes);
 router.use('/', backgroundVideoRoutes);
+router.use('/', showMuteRoutes);
 router.use('/', customPipelineRoutes);
 router.use('/', donationsSessionRoutes);
 

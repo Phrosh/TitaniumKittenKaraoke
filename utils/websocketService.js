@@ -75,6 +75,19 @@ async function broadcastShowUpdate(io) {
 
     const backgroundVideoEnabled = backgroundVideoSetting ? backgroundVideoSetting.value === 'true' : true; // Default: enabled
 
+    const showMutedSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['show_muted'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const showMuted = showMutedSetting ? showMutedSetting.value === 'true' : false;
+
     // Generate QR code for /new endpoint
     let qrCodeDataUrl = null;
     try {
@@ -142,6 +155,7 @@ async function broadcastShowUpdate(io) {
       qrCodeDataUrl,
       overlayTitle,
       backgroundVideoEnabled,
+      showMuted,
       sessionDonors: donationsStore.getSessionDonors(),
       ...donationDisplay,
     };
@@ -200,6 +214,19 @@ async function broadcastBackgroundVideoToggle(io, enabled) {
     console.log(`🎬 Broadcasted background video toggle: ${enabled}`);
   } catch (error) {
     console.error('Error broadcasting background video toggle:', error);
+  }
+}
+
+/**
+ * @param {Object} io
+ * @param {boolean} muted
+ */
+async function broadcastShowMuteToggle(io, muted) {
+  try {
+    io.emit('show-mute-toggle', { muted });
+    console.log(`🔇 Broadcasted show mute toggle: ${muted}`);
+  } catch (error) {
+    console.error('Error broadcasting show mute toggle:', error);
   }
 }
 
@@ -460,6 +487,7 @@ module.exports = {
   broadcastSongChange,
   broadcastQRCodeToggle,
   broadcastBackgroundVideoToggle,
+  broadcastShowMuteToggle,
   broadcastAdminUpdate,
   broadcastPlaylistUpdate,
   broadcastTogglePlayPause,

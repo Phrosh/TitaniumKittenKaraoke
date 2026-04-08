@@ -60,6 +60,7 @@ export interface AdminDashboardData {
   currentSong: Song | null;
   youtubeSongs: YouTubeSong[];
   magicYouTubeSongs?: YouTubeSong[];
+  settings?: Record<string, string>;
   stats: {
     totalSongs: number;
     pendingSongs: number;
@@ -101,6 +102,7 @@ export interface ShowData {
   qrCodeDataUrl: string | null;
   overlayTitle: string;
   backgroundVideoEnabled?: boolean;
+  showMuted?: boolean;
 }
 
 export interface AdminUser {

@@ -147,6 +147,7 @@ const ShowView: React.FC = () => {
   const [backgroundVideoFadeOut, setBackgroundVideoFadeOut] = useState(false);
   const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
+  const [showMuted, setShowMuted] = useState(false);
 
   const [sessionDonors, setSessionDonors] = useState<Array<{ name: string; at: string }>>([]);
   const [donationMarqueeTemplate, setDonationMarqueeTemplate] = useState(
@@ -1005,6 +1006,7 @@ const ShowView: React.FC = () => {
       const qrCodeDataUrl = response.data.qrCodeDataUrl;
       const title = response.data.overlayTitle;
       const backgroundVideoEnabled = response.data.backgroundVideoEnabled !== undefined ? response.data.backgroundVideoEnabled : true; // Default: enabled
+      const showMutedFromApi = response.data.showMuted === true;
 
       // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
       // Use the same normalization logic as in fetchCurrentSong
@@ -1026,6 +1028,7 @@ const ShowView: React.FC = () => {
       
       // Update background video status from API
       setBackgroundVideoEnabled(backgroundVideoEnabled);
+      setShowMuted(showMutedFromApi);
 
       // Send QR overlay change to admin dashboard
       websocketService.emit('show-action', {
@@ -1145,6 +1148,7 @@ const ShowView: React.FC = () => {
       qrCodeDataUrl,
       overlayTitle,
       backgroundVideoEnabled: wsBackgroundVideoEnabled,
+      showMuted: wsShowMuted,
       sessionDonors: wsDonors,
       donationMarqueeTemplate: wsMarqueeTpl,
       donationNotificationTemplate: wsNotifTpl,
@@ -1193,6 +1197,9 @@ const ShowView: React.FC = () => {
     // Update background video status from WebSocket
     if (wsBackgroundVideoEnabled !== undefined) {
       setBackgroundVideoEnabled(wsBackgroundVideoEnabled);
+    }
+    if (wsShowMuted !== undefined) {
+      setShowMuted(wsShowMuted);
     }
 
     // Nur State aktualisieren wenn sich der Song geändert hat
@@ -1587,6 +1594,10 @@ const ShowView: React.FC = () => {
       console.log('🎬 ShowView: Received background video toggle:', data.enabled);
       setBackgroundVideoEnabled(data.enabled);
     };
+
+    const handleShowMuteToggle = (data: { muted: boolean }) => {
+      setShowMuted(data.muted);
+    };
     
     // Listen for background video sync events (sent when video is enabled)
     const handleBackgroundVideoSync = (data: { enabled: boolean }) => {
@@ -1637,6 +1648,7 @@ const ShowView: React.FC = () => {
     
     websocketService.on('background-video-toggle', handleBackgroundVideoToggle);
     websocketService.on('background-video-sync', handleBackgroundVideoSync);
+    websocketService.on('show-mute-toggle', handleShowMuteToggle);
 
     /** Muss im gleichen Effect wie connect/disconnect: bei Songwechsel o. Ä. wird disconnect ausgeführt –
      * ein separater Effect würde den Listener sonst auf der alten Socket-Instanz lassen. */
@@ -1690,6 +1702,7 @@ const ShowView: React.FC = () => {
       websocketService.off('qr-code-update', handleQRCodeUpdate);
       websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
       websocketService.off('background-video-sync', handleBackgroundVideoSync);
+      websocketService.off('show-mute-toggle', handleShowMuteToggle);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
@@ -1750,13 +1763,30 @@ const ShowView: React.FC = () => {
     const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     if (videoIdMatch) {
       const videoId = videoIdMatch[1];
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&start=${youtubeCurrentTime}`;
+      const muteParam = showMuted ? '&mute=1' : '&mute=0';
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&start=${youtubeCurrentTime}${muteParam}`;
     }
     return url;
   };
 
 
   const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = showMuted;
+    }
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.muted = showMuted;
+    }
+    if (nextBackgroundMusicRef.current) {
+      nextBackgroundMusicRef.current.muted = showMuted;
+    }
+    const v = videoRef.current;
+    if (v && !isUltrastar) {
+      v.muted = showMuted;
+    }
+  }, [showMuted, isUltrastar, currentSong?.id]);
 
   // Background Music Functions
   const loadBackgroundMusicSettings = useCallback(async () => {
@@ -2425,7 +2455,7 @@ const ShowView: React.FC = () => {
           {!isUltrastar ? (
             currentSong?.mode === 'youtube' ? (
               <VideoIframe
-                key={iframeKey}
+                key={`${iframeKey}-${showMuted}`}
                 src={getYouTubeEmbedUrl(currentSong.youtube_url)}
                 title={`${currentSong.artist} - ${currentSong.title}`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -2436,6 +2466,7 @@ const ShowView: React.FC = () => {
                 key={currentSong?.id} // Force re-render only when song changes
                 ref={videoRef}
                 src={currentSong.youtube_url}
+                muted={showMuted}
                 controls
                 autoPlay={hasUserInteracted}
                 onLoadStart={() => {

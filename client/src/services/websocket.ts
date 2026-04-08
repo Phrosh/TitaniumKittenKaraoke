@@ -23,6 +23,7 @@ export interface ShowUpdateData {
   qrCodeDataUrl: string | null;
   overlayTitle: string;
   backgroundVideoEnabled?: boolean;
+  showMuted?: boolean;
   sessionDonors?: Array<{ name: string; at: string; amount?: string; currency?: string }>;
   donationMarqueeTemplate?: string;
   donationNotificationTemplate?: string;

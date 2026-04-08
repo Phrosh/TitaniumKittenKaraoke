@@ -147,6 +147,9 @@ export const adminAPI = {
   
   setBackgroundVideo: (enabled: boolean) =>
     api.put('/admin/background-video', { enabled }),
+
+  setShowMute: (muted: boolean) =>
+    api.put('/admin/show-mute', { muted }),
   
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),
