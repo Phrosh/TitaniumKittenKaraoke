@@ -115,6 +115,19 @@ const TabDescription = styled.div`
   opacity: 0.8;
 `;
 
+const SubTabBar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 18px;
+`;
+
+const SubTabPanel = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+`;
+
 const CommandContainer = styled.div`
   background: #f8f9fa;
   border: 1px solid #e9ecef;
@@ -287,6 +300,15 @@ interface SettingsTabProps {
   // Keine Props mehr benötigt, da useTranslation intern verwendet wird
 }
 
+type SettingsSubTabKey =
+  | 'general'
+  | 'publicUrl'
+  | 'donations'
+  | 'playback'
+  | 'songRequests'
+  | 'usdb'
+  | 'localSongs';
+
 const SettingsTab: React.FC<SettingsTabProps> = () => {
   const { t } = useTranslation();
   // Settings State
@@ -297,6 +319,8 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [autoApproveSongs, setAutoApproveSongs] = useState(true);
   const [usdbSearchEnabled, setUsdbSearchEnabled] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTabKey>('general');
   
   // Debounced values für Auto-Save
   const debouncedRegressionValue = useDebounce(regressionValue, 2000);
@@ -354,6 +378,20 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [donationShowButtonOnNewPage, setDonationShowButtonOnNewPage] = useState(true);
 
   const paypalWebhookFullUrl = useMemo(() => buildPayPalWebhookUrl(paypalPublicUrl), [paypalPublicUrl]);
+
+  const subTabs = useMemo(
+    () =>
+      [
+        { key: 'general' as const, label: t('settings.language') },
+        { key: 'publicUrl' as const, label: t('settings.customUrlAndCloudflared') },
+        { key: 'donations' as const, label: t('settings.paypalDonationsTitle') },
+        { key: 'playback' as const, label: t('settings.overlayTitle') },
+        { key: 'songRequests' as const, label: 'Songwünsche' },
+        { key: 'usdb' as const, label: t('settings.usdbCredentials') },
+        { key: 'localSongs' as const, label: t('settings.localSongFolder') },
+      ] as const,
+    [t]
+  );
 
   // Load settings when component mounts
   useEffect(() => {
@@ -848,385 +886,418 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   return (
     <SettingsSection>
       <SettingsTitle>⚙️ {t('settings.title')}</SettingsTitle>
-      
-      {/* Language Selection */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.language')}:</SettingsLabel>
-        <LanguageSelector />
-        <SettingsDescription>
-          {t('settings.selectLanguage')}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-      
-      {/* URL & Cloudflared Section */}
-      <SpecialSection>
-        <SpecialTitle>🌐 {t('settings.customUrlAndCloudflared')}</SpecialTitle>
-        
-        {/* Custom URL */}
-        <div style={{ marginBottom: '20px' }}>
-          <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>{t('settings.customUrl')}</SettingsLabel>
-          <InputGroup>
-            <SettingsInput
-              type="url"
-              placeholder="https://meine-domain.com"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-              style={{ minWidth: '300px' }}
-            />
-            <Button 
-              onClick={handleCopyUrlToClipboard}
-              disabled={!customUrl}
-              size="small"
-              style={{ 
-                backgroundColor: '#6c757d',
-                color: 'white',
-                opacity: !customUrl ? 0.6 : 1
-              }}
-            >
-              📋 {t('settings.copyUrl')}
-            </Button>
-          </InputGroup>
-          <SettingsDescription style={{ color: '#0c5460' }}>
-            {t('settings.customUrlDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
-          </SettingsDescription>
-        </div>
-        
-        {/* Cloudflared Integration */}
-        <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
-          <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>{t('settings.cloudflaredTunnel')}:</SettingsLabel>
-          <ButtonGroup>
-            <Button 
-              onClick={handleInstallCloudflared}
-              disabled={cloudflaredInstalled || cloudflaredInstallLoading}
-              variant="success"
-              size="small"
-              style={{ 
-                backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
-                color: 'white',
-                opacity: cloudflaredInstalled ? 0.6 : 1,
-                marginRight: '10px'
-              }}
-            >
-              {cloudflaredInstallLoading ? t('settings.installing') : t('settings.setupCloudflared')}
-            </Button>
-            
-            <Button 
-              onClick={handleStartCloudflaredTunnel}
-              disabled={!cloudflaredInstalled || cloudflaredStartLoading}
-              size="small"
-              style={{ 
-                backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
-                color: 'white',
-                opacity: !cloudflaredInstalled ? 0.6 : 1,
-                marginRight: '10px'
-              }}
-            >
-              {cloudflaredStartLoading ? t('settings.starting') : t('settings.startCloudflared')}
-            </Button>
-            
-            <Button 
-              onClick={handleStopCloudflaredTunnel}
-              disabled={cloudflaredStopLoading}
-              style={{ 
-                backgroundColor: '#dc3545',
-                color: 'white'
-              }}
-            >
-              {cloudflaredStopLoading ? t('settings.stopping') : t('settings.stopTunnel')}
-            </Button>
-          </ButtonGroup>
-          <SettingsDescription style={{ color: '#0c5460' }}>
-            {t('settings.cloudflaredDescription')}
-          </SettingsDescription>
-        </div>
-      </SpecialSection>
-
-      <SpecialSection style={{ background: '#f5f0ff', borderColor: '#d4c4f0' }}>
-        <SpecialTitle style={{ color: '#3d2a5c' }}>💜 {t('settings.paypalDonationsTitle')}</SpecialTitle>
-        <SpecialDescription style={{ color: '#3d2a5c' }}>
-          {t('settings.paypalDonationsIntro')}
-        </SpecialDescription>
-        <PayPalGuideOpenButton type="button" onClick={() => setPaypalGuideOpen(true)}>
-          {t('settings.paypalGuideOpenLink')}
-        </PayPalGuideOpenButton>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalPublicUrl')}</SettingsLabel>
-          <SettingsInput
-            type="url"
-            autoComplete="url"
-            value={paypalPublicUrl}
-            onChange={(e) => setPaypalPublicUrl(e.target.value)}
-            placeholder="https://ihre-domain.de"
-            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalPublicUrlHint')}</SettingsDescription>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookUrlLabel')}</SettingsLabel>
-          <InputGroup>
-            <SettingsInput
-              type="text"
-              readOnly
-              aria-readonly="true"
-              value={paypalWebhookFullUrl ?? ''}
-              placeholder={t('settings.paypalWebhookUrlPlaceholder')}
-              onFocus={(e) => e.target.select()}
-              style={{
-                flex: '1 1 280px',
-                minWidth: '200px',
-                maxWidth: '560px',
-                background: '#faf8ff',
-              }}
-            />
-            <Button
-              type="button"
-              onClick={handleCopyPayPalWebhookUrl}
-              disabled={!paypalWebhookFullUrl}
-              size="small"
-              style={{
-                backgroundColor: '#6c757d',
-                color: 'white',
-                opacity: !paypalWebhookFullUrl ? 0.6 : 1,
-              }}
-            >
-              📋 {t('settings.copyUrl')}
-            </Button>
-          </InputGroup>
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookUrlHint')}</SettingsDescription>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientId')}</SettingsLabel>
-          <SettingsInput
-            type="text"
-            autoComplete="off"
-            value={paypalClientId}
-            onChange={(e) => setPaypalClientId(e.target.value)}
-            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientSecret')}</SettingsLabel>
-          <SettingsInput
-            type="password"
-            autoComplete="new-password"
-            value={paypalClientSecret}
-            onChange={(e) => setPaypalClientSecret(e.target.value)}
-            placeholder={paypalSecretConfigured ? '••••••••' : ''}
-            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>
-            {t('settings.paypalClientSecretHint')}
-            {paypalSecretConfigured ? ` ${t('settings.paypalClientSecretConfigured')}` : ''}
-          </SettingsDescription>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookId')}</SettingsLabel>
-          <SettingsInput
-            type="text"
-            value={paypalWebhookId}
-            onChange={(e) => setPaypalWebhookId(e.target.value)}
-            style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookHint')}</SettingsDescription>
-        </div>
-
-        <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
-          <div>
-            <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalCurrency')}</SettingsLabel>
-            <SettingsSelect
-              value={paypalCurrency}
-              onChange={(e) => setPaypalCurrency(e.target.value)}
-            >
-              {!PAYPAL_CURRENCIES.includes(paypalCurrency) && paypalCurrency && (
-                <option value={paypalCurrency}>{paypalCurrency}</option>
-              )}
-              {PAYPAL_CURRENCIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </SettingsSelect>
-          </div>
-          <div>
-            <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalDefaultAmount')}</SettingsLabel>
-            <SettingsInput
-              type="number"
-              min={1}
-              max={500}
-              step="0.01"
-              value={paypalDefaultAmount}
-              onChange={(e) => setPaypalDefaultAmount(parseFloat(e.target.value) || 0)}
-              style={{ width: '120px' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalQuickAmountsLabel')}</SettingsLabel>
-          <SettingsDescription style={{ color: '#5c4a78', marginBottom: '10px' }}>
-            {t('settings.paypalQuickAmountsHint')}
-          </SettingsDescription>
-          {paypalQuickAmounts.map((val, idx) => (
-            <div
-              key={`qa-row-${idx}`}
-              style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
-            >
-              <SettingsInput
-                type="number"
-                min={1}
-                max={500}
-                step="0.01"
-                value={Number.isFinite(val) ? val : 1}
-                onChange={(e) => {
-                  const n = parseFloat(e.target.value);
-                  setPaypalQuickAmounts((prev) => {
-                    const next = [...prev];
-                    next[idx] = Number.isFinite(n) ? Math.min(500, Math.max(1, n)) : 1;
-                    return next;
-                  });
-                }}
-                style={{ width: '110px' }}
-              />
-              <Button
-                type="button"
-                size="small"
-                style={{ backgroundColor: '#dc3545', color: 'white' }}
-                onClick={() => setPaypalQuickAmounts((prev) => prev.filter((_, i) => i !== idx))}
-              >
-                {t('settings.paypalQuickAmountRemove')}
-              </Button>
-            </div>
-          ))}
+      <SubTabBar role="tablist" aria-label={t('settings.title')}>
+        {subTabs.map((tab) => (
           <Button
+            key={tab.key}
             type="button"
+            onClick={() => setSettingsSubTab(tab.key)}
+            variant={settingsSubTab === tab.key ? 'primary' : 'default'}
             size="small"
-            disabled={paypalQuickAmounts.length >= 20}
-            onClick={() => setPaypalQuickAmounts((prev) => [...prev, 5])}
+            style={{
+              backgroundColor: settingsSubTab === tab.key ? '#007bff' : 'white',
+              color: settingsSubTab === tab.key ? 'white' : '#333',
+              border: '1px solid #ccc',
+            }}
           >
-            {t('settings.paypalQuickAmountAdd')}
+            {tab.label}
           </Button>
-        </div>
+        ))}
+      </SubTabBar>
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalBrandName')}</SettingsLabel>
-          <SettingsInput
-            type="text"
-            value={paypalBrandName}
-            onChange={(e) => setPaypalBrandName(e.target.value)}
-            style={{ minWidth: 'min(100%, 400px)', width: '100%', maxWidth: '480px' }}
-          />
-        </div>
+      <SubTabPanel role="tabpanel">
+        {settingsSubTab === 'general' && (
+          <>
+            {/* Language Selection */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.language')}:</SettingsLabel>
+              <LanguageSelector />
+              <SettingsDescription>{t('settings.selectLanguage')}</SettingsDescription>
+            </SettingsCard>
+          </>
+        )}
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalSandboxLabel')}</SettingsLabel>
-          <CheckboxContainer>
-            <CheckboxLabel>
-              <CheckboxInput
-                type="checkbox"
-                checked={paypalSandboxEnabled}
-                onChange={(e) => setPaypalSandboxEnabled(e.target.checked)}
-              />
-              <CheckboxText style={{ color: '#333' }}>
-                {paypalSandboxEnabled ? t('settings.enabled') : t('settings.disabled')}
-              </CheckboxText>
-            </CheckboxLabel>
-          </CheckboxContainer>
-          <SettingsDescription style={{ color: '#5c4a78' }}>
-            {paypalSandboxEnabled ? t('settings.paypalSandboxHint') : t('settings.paypalLiveHint')}
-          </SettingsDescription>
-        </div>
+        {settingsSubTab === 'publicUrl' && (
+          <>
+            {/* URL & Cloudflared Section */}
+            <SpecialSection>
+              <SpecialTitle>🌐 {t('settings.customUrlAndCloudflared')}</SpecialTitle>
 
-        <HorizontalDivider style={{ margin: '20px 0', background: '#d4c4f0' }} />
+              {/* Custom URL */}
+              <div style={{ marginBottom: '20px' }}>
+                <SettingsLabel style={{ marginBottom: '10px', color: '#0c5460' }}>
+                  {t('settings.customUrl')}
+                </SettingsLabel>
+                <InputGroup>
+                  <SettingsInput
+                    type="url"
+                    placeholder="https://meine-domain.com"
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    style={{ minWidth: '300px' }}
+                  />
+                  <Button
+                    onClick={handleCopyUrlToClipboard}
+                    disabled={!customUrl}
+                    size="small"
+                    style={{
+                      backgroundColor: '#6c757d',
+                      color: 'white',
+                      opacity: !customUrl ? 0.6 : 1,
+                    }}
+                  >
+                    📋 {t('settings.copyUrl')}
+                  </Button>
+                </InputGroup>
+                <SettingsDescription style={{ color: '#0c5460' }}>
+                  {t('settings.customUrlDescription')}{' '}
+                  {settingsLoading && <span style={{ color: '#007bff' }}>💾 Speichern...</span>}
+                </SettingsDescription>
+              </div>
 
-        <SpecialTitle style={{ color: '#3d2a5c', fontSize: '1rem' }}>{t('settings.donationDisplayTitle')}</SpecialTitle>
-        <SettingsDescription style={{ color: '#5c4a78', marginBottom: '14px' }}>
-          {t('settings.donationDisplayIntro')}
-        </SettingsDescription>
+              {/* Cloudflared Integration */}
+              <div style={{ paddingTop: '15px', borderTop: '1px solid #bee5eb' }}>
+                <SettingsLabel style={{ marginBottom: '15px', color: '#0c5460' }}>
+                  {t('settings.cloudflaredTunnel')}:
+                </SettingsLabel>
+                <ButtonGroup>
+                  <Button
+                    onClick={handleInstallCloudflared}
+                    disabled={cloudflaredInstalled || cloudflaredInstallLoading}
+                    variant="success"
+                    size="small"
+                    style={{
+                      backgroundColor: cloudflaredInstalled ? '#6c757d' : '#28a745',
+                      color: 'white',
+                      opacity: cloudflaredInstalled ? 0.6 : 1,
+                      marginRight: '10px',
+                    }}
+                  >
+                    {cloudflaredInstallLoading ? t('settings.installing') : t('settings.setupCloudflared')}
+                  </Button>
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeTemplateLabel')}</SettingsLabel>
-          <SettingsTextArea
-            value={donationMarqueeTemplate}
-            onChange={(e) => setDonationMarqueeTemplate(e.target.value)}
-            maxLength={600}
-            aria-label={t('settings.donationMarqueeTemplateLabel')}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeTemplateHint')}</SettingsDescription>
-        </div>
+                  <Button
+                    onClick={handleStartCloudflaredTunnel}
+                    disabled={!cloudflaredInstalled || cloudflaredStartLoading}
+                    size="small"
+                    style={{
+                      backgroundColor: !cloudflaredInstalled ? '#6c757d' : '#007bff',
+                      color: 'white',
+                      opacity: !cloudflaredInstalled ? 0.6 : 1,
+                      marginRight: '10px',
+                    }}
+                  >
+                    {cloudflaredStartLoading ? t('settings.starting') : t('settings.startCloudflared')}
+                  </Button>
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeSeparatorLabel')}</SettingsLabel>
-          <SettingsInput
-            type="text"
-            value={donationMarqueeSeparator}
-            onChange={(e) => setDonationMarqueeSeparator(e.target.value)}
-            maxLength={64}
-            style={{ maxWidth: '200px' }}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeSeparatorHint')}</SettingsDescription>
-        </div>
+                  <Button
+                    onClick={handleStopCloudflaredTunnel}
+                    disabled={cloudflaredStopLoading}
+                    style={{
+                      backgroundColor: '#dc3545',
+                      color: 'white',
+                    }}
+                  >
+                    {cloudflaredStopLoading ? t('settings.stopping') : t('settings.stopTunnel')}
+                  </Button>
+                </ButtonGroup>
+                <SettingsDescription style={{ color: '#0c5460' }}>
+                  {t('settings.cloudflaredDescription')}
+                </SettingsDescription>
+              </div>
+            </SpecialSection>
+          </>
+        )}
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNotificationTemplateLabel')}</SettingsLabel>
-          <SettingsTextArea
-            value={donationNotificationTemplate}
-            onChange={(e) => setDonationNotificationTemplate(e.target.value)}
-            maxLength={600}
-            aria-label={t('settings.donationNotificationTemplateLabel')}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNotificationTemplateHint')}</SettingsDescription>
-        </div>
+        {settingsSubTab === 'donations' && (
+          <>
+            <SpecialSection style={{ background: '#f5f0ff', borderColor: '#d4c4f0' }}>
+              <SpecialTitle style={{ color: '#3d2a5c' }}>💜 {t('settings.paypalDonationsTitle')}</SpecialTitle>
+              <SpecialDescription style={{ color: '#3d2a5c' }}>
+                {t('settings.paypalDonationsIntro')}
+              </SpecialDescription>
+              <PayPalGuideOpenButton type="button" onClick={() => setPaypalGuideOpen(true)}>
+                {t('settings.paypalGuideOpenLink')}
+              </PayPalGuideOpenButton>
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNewPageThankYouLabel')}</SettingsLabel>
-          <SettingsTextArea
-            value={donationNewPageThankYou}
-            onChange={(e) => setDonationNewPageThankYou(e.target.value)}
-            maxLength={800}
-            placeholder={t('settings.donationNewPageThankYouPlaceholder')}
-            aria-label={t('settings.donationNewPageThankYouLabel')}
-          />
-          <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNewPageThankYouHint')}</SettingsDescription>
-        </div>
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalPublicUrl')}</SettingsLabel>
+                <SettingsInput
+                  type="url"
+                  autoComplete="url"
+                  value={paypalPublicUrl}
+                  onChange={(e) => setPaypalPublicUrl(e.target.value)}
+                  placeholder="https://ihre-domain.de"
+                  style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalPublicUrlHint')}</SettingsDescription>
+              </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <SettingsLabel style={{ color: '#3d2a5c' }} id="label-donation-show-btn">
-            {t('settings.donationShowButtonOnNewPageLabel')}
-          </SettingsLabel>
-          <CheckboxContainer style={{ marginTop: '8px' }}>
-            <CheckboxLabel>
-              <CheckboxInput
-                type="checkbox"
-                checked={donationShowButtonOnNewPage}
-                onChange={(e) => setDonationShowButtonOnNewPage(e.target.checked)}
-                aria-labelledby="label-donation-show-btn"
-              />
-              <CheckboxText style={{ color: '#333' }}>
-                {donationShowButtonOnNewPage
-                  ? t('settings.donationShowButtonOnNewPageVisible')
-                  : t('settings.donationShowButtonOnNewPageHidden')}
-              </CheckboxText>
-            </CheckboxLabel>
-          </CheckboxContainer>
-          <SettingsDescription style={{ color: '#5c4a78' }}>
-            {t('settings.donationShowButtonOnNewPageHint')}
-          </SettingsDescription>
-        </div>
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookUrlLabel')}</SettingsLabel>
+                <InputGroup>
+                  <SettingsInput
+                    type="text"
+                    readOnly
+                    aria-readonly="true"
+                    value={paypalWebhookFullUrl ?? ''}
+                    placeholder={t('settings.paypalWebhookUrlPlaceholder')}
+                    onFocus={(e) => e.target.select()}
+                    style={{
+                      flex: '1 1 280px',
+                      minWidth: '200px',
+                      maxWidth: '560px',
+                      background: '#faf8ff',
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCopyPayPalWebhookUrl}
+                    disabled={!paypalWebhookFullUrl}
+                    size="small"
+                    style={{
+                      backgroundColor: '#6c757d',
+                      color: 'white',
+                      opacity: !paypalWebhookFullUrl ? 0.6 : 1,
+                    }}
+                  >
+                    📋 {t('settings.copyUrl')}
+                  </Button>
+                </InputGroup>
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookUrlHint')}</SettingsDescription>
+              </div>
 
-        <Button
-          onClick={handleSavePayPalDonations}
-          disabled={paypalSaveLoading}
-          variant="success"
-          size="small"
-        >
-          {paypalSaveLoading ? t('settings.saving') : t('settings.paypalSave')}
-        </Button>
-      </SpecialSection>
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientId')}</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  autoComplete="off"
+                  value={paypalClientId}
+                  onChange={(e) => setPaypalClientId(e.target.value)}
+                  style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalClientSecret')}</SettingsLabel>
+                <SettingsInput
+                  type="password"
+                  autoComplete="new-password"
+                  value={paypalClientSecret}
+                  onChange={(e) => setPaypalClientSecret(e.target.value)}
+                  placeholder={paypalSecretConfigured ? '••••••••' : ''}
+                  style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>
+                  {t('settings.paypalClientSecretHint')}
+                  {paypalSecretConfigured ? ` ${t('settings.paypalClientSecretConfigured')}` : ''}
+                </SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalWebhookId')}</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  value={paypalWebhookId}
+                  onChange={(e) => setPaypalWebhookId(e.target.value)}
+                  style={{ minWidth: 'min(100%, 480px)', width: '100%', maxWidth: '560px' }}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.paypalWebhookHint')}</SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
+                <div>
+                  <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalCurrency')}</SettingsLabel>
+                  <SettingsSelect value={paypalCurrency} onChange={(e) => setPaypalCurrency(e.target.value)}>
+                    {!PAYPAL_CURRENCIES.includes(paypalCurrency) && paypalCurrency && (
+                      <option value={paypalCurrency}>{paypalCurrency}</option>
+                    )}
+                    {PAYPAL_CURRENCIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </SettingsSelect>
+                </div>
+                <div>
+                  <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalDefaultAmount')}</SettingsLabel>
+                  <SettingsInput
+                    type="number"
+                    min={1}
+                    max={500}
+                    step="0.01"
+                    value={paypalDefaultAmount}
+                    onChange={(e) => setPaypalDefaultAmount(parseFloat(e.target.value) || 0)}
+                    style={{ width: '120px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalQuickAmountsLabel')}</SettingsLabel>
+                <SettingsDescription style={{ color: '#5c4a78', marginBottom: '10px' }}>
+                  {t('settings.paypalQuickAmountsHint')}
+                </SettingsDescription>
+                {paypalQuickAmounts.map((val, idx) => (
+                  <div
+                    key={`qa-row-${idx}`}
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
+                  >
+                    <SettingsInput
+                      type="number"
+                      min={1}
+                      max={500}
+                      step="0.01"
+                      value={Number.isFinite(val) ? val : 1}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value);
+                        setPaypalQuickAmounts((prev) => {
+                          const next = [...prev];
+                          next[idx] = Number.isFinite(n) ? Math.min(500, Math.max(1, n)) : 1;
+                          return next;
+                        });
+                      }}
+                      style={{ width: '110px' }}
+                    />
+                    <Button
+                      type="button"
+                      size="small"
+                      style={{ backgroundColor: '#dc3545', color: 'white' }}
+                      onClick={() => setPaypalQuickAmounts((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      {t('settings.paypalQuickAmountRemove')}
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  size="small"
+                  disabled={paypalQuickAmounts.length >= 20}
+                  onClick={() => setPaypalQuickAmounts((prev) => [...prev, 5])}
+                >
+                  {t('settings.paypalQuickAmountAdd')}
+                </Button>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalBrandName')}</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  value={paypalBrandName}
+                  onChange={(e) => setPaypalBrandName(e.target.value)}
+                  style={{ minWidth: 'min(100%, 400px)', width: '100%', maxWidth: '480px' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.paypalSandboxLabel')}</SettingsLabel>
+                <CheckboxContainer>
+                  <CheckboxLabel>
+                    <CheckboxInput
+                      type="checkbox"
+                      checked={paypalSandboxEnabled}
+                      onChange={(e) => setPaypalSandboxEnabled(e.target.checked)}
+                    />
+                    <CheckboxText style={{ color: '#333' }}>
+                      {paypalSandboxEnabled ? t('settings.enabled') : t('settings.disabled')}
+                    </CheckboxText>
+                  </CheckboxLabel>
+                </CheckboxContainer>
+                <SettingsDescription style={{ color: '#5c4a78' }}>
+                  {paypalSandboxEnabled ? t('settings.paypalSandboxHint') : t('settings.paypalLiveHint')}
+                </SettingsDescription>
+              </div>
+
+              <HorizontalDivider style={{ margin: '20px 0', background: '#d4c4f0' }} />
+
+              <SpecialTitle style={{ color: '#3d2a5c', fontSize: '1rem' }}>
+                {t('settings.donationDisplayTitle')}
+              </SpecialTitle>
+              <SettingsDescription style={{ color: '#5c4a78', marginBottom: '14px' }}>
+                {t('settings.donationDisplayIntro')}
+              </SettingsDescription>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeTemplateLabel')}</SettingsLabel>
+                <SettingsTextArea
+                  value={donationMarqueeTemplate}
+                  onChange={(e) => setDonationMarqueeTemplate(e.target.value)}
+                  maxLength={600}
+                  aria-label={t('settings.donationMarqueeTemplateLabel')}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeTemplateHint')}</SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationMarqueeSeparatorLabel')}</SettingsLabel>
+                <SettingsInput
+                  type="text"
+                  value={donationMarqueeSeparator}
+                  onChange={(e) => setDonationMarqueeSeparator(e.target.value)}
+                  maxLength={64}
+                  style={{ maxWidth: '200px' }}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationMarqueeSeparatorHint')}</SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNotificationTemplateLabel')}</SettingsLabel>
+                <SettingsTextArea
+                  value={donationNotificationTemplate}
+                  onChange={(e) => setDonationNotificationTemplate(e.target.value)}
+                  maxLength={600}
+                  aria-label={t('settings.donationNotificationTemplateLabel')}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNotificationTemplateHint')}</SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }}>{t('settings.donationNewPageThankYouLabel')}</SettingsLabel>
+                <SettingsTextArea
+                  value={donationNewPageThankYou}
+                  onChange={(e) => setDonationNewPageThankYou(e.target.value)}
+                  maxLength={800}
+                  placeholder={t('settings.donationNewPageThankYouPlaceholder')}
+                  aria-label={t('settings.donationNewPageThankYouLabel')}
+                />
+                <SettingsDescription style={{ color: '#5c4a78' }}>{t('settings.donationNewPageThankYouHint')}</SettingsDescription>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SettingsLabel style={{ color: '#3d2a5c' }} id="label-donation-show-btn">
+                  {t('settings.donationShowButtonOnNewPageLabel')}
+                </SettingsLabel>
+                <CheckboxContainer style={{ marginTop: '8px' }}>
+                  <CheckboxLabel>
+                    <CheckboxInput
+                      type="checkbox"
+                      checked={donationShowButtonOnNewPage}
+                      onChange={(e) => setDonationShowButtonOnNewPage(e.target.checked)}
+                      aria-labelledby="label-donation-show-btn"
+                    />
+                    <CheckboxText style={{ color: '#333' }}>
+                      {donationShowButtonOnNewPage
+                        ? t('settings.donationShowButtonOnNewPageVisible')
+                        : t('settings.donationShowButtonOnNewPageHidden')}
+                    </CheckboxText>
+                  </CheckboxLabel>
+                </CheckboxContainer>
+                <SettingsDescription style={{ color: '#5c4a78' }}>
+                  {t('settings.donationShowButtonOnNewPageHint')}
+                </SettingsDescription>
+              </div>
+
+              <Button
+                onClick={handleSavePayPalDonations}
+                disabled={paypalSaveLoading}
+                variant="success"
+                size="small"
+              >
+                {paypalSaveLoading ? t('settings.saving') : t('settings.paypalSave')}
+              </Button>
+            </SpecialSection>
+          </>
+        )}
 
       {paypalGuideOpen && (
         <PayPalGuideBackdrop
@@ -1316,284 +1387,277 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
           </PayPalGuidePanel>
         </PayPalGuideBackdrop>
       )}
-      
-      <HorizontalDivider />
-      
-      {/* Overlay Title */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.overlayTitle')}</SettingsLabel>
-        <SettingsInput
-          type="text"
-          placeholder="Willkommen beim Karaoke"
-          value={overlayTitle}
-          onChange={(e) => setOverlayTitle(e.target.value)}
-          style={{ minWidth: '300px' }}
-        />
-        <SettingsDescription>
-          {t('settings.overlayTitleDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-
-      {/* YouTube Enabled */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.youtubeEnabled')}</SettingsLabel>
-        <CheckboxContainer>
-          <CheckboxLabel>
-            <CheckboxInput
-              type="checkbox"
-              checked={youtubeEnabled}
-              onChange={(e) => handleYouTubeEnabledChange(e.target.checked)}
-            />
-            <CheckboxText>
-              {youtubeEnabled ? t('settings.enabled') : t('settings.disabled')}
-            </CheckboxText>
-          </CheckboxLabel>
-          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
-        </CheckboxContainer>
-        <SettingsDescription>
-          {t('settings.youtubeEnabledDescription')}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-      
-      {/* Auto-Approve Songs Setting */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.autoApproveSongs')}</SettingsLabel>
-        <CheckboxContainer>
-          <CheckboxLabel>
-            <CheckboxInput
-              type="checkbox"
-              checked={autoApproveSongs}
-              onChange={(e) => handleAutoApproveSongsChange(e.target.checked)}
-            />
-            <CheckboxText>
-              {autoApproveSongs ? t('settings.enabled') : t('settings.disabled')}
-            </CheckboxText>
-          </CheckboxLabel>
-          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
-        </CheckboxContainer>
-        <SettingsDescription>
-          {t('settings.autoApproveSongsDescription')}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-
-      {/* Regression Value */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.regressionValue')}</SettingsLabel>
-        <SettingsInput
-          type="number"
-          step="0.01"
-          min="0"
-          max="1"
-            value={regressionValue}
-            onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
-        />
-        <SettingsDescription>
-          {t('settings.regressionValueDescription')} {settingsLoading && <span style={{color: '#007bff'}}>💾 Speichern...</span>}
-        </SettingsDescription>
-      </SettingsCard>
-
-      {/* <HorizontalDivider /> */}
-      
-      {/* USDB Search Enabled Setting */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.usdbSearchEnabled')}</SettingsLabel>
-        <CheckboxContainer>
-          <CheckboxLabel>
-            <CheckboxInput
-              type="checkbox"
-              checked={usdbSearchEnabled}
-              onChange={(e) => handleUsdbSearchEnabledChange(e.target.checked)}
-            />
-            <CheckboxText>
-              {usdbSearchEnabled ? t('settings.enabled') : t('settings.disabled')}
-            </CheckboxText>
-          </CheckboxLabel>
-          {settingsLoading && <span style={{color: '#007bff', marginLeft: '10px'}}>💾 Speichern...</span>}
-        </CheckboxContainer>
-        <SettingsDescription>
-          {t('settings.usdbSearchEnabledDescription')}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.usdbCredentials')}:</SettingsLabel>
-        {usdbCredentials ? (
-          <div style={{ marginBottom: '15px' }}>
-            <StatusContainer>
-              <StatusTitle>✅ {t('settings.usdbCredentialsSaved')}</StatusTitle>
-              <StatusText>{t('settings.username')}: {usdbCredentials.username}</StatusText>
-            </StatusContainer>
-            <Button 
-              onClick={handleDeleteUSDBCredentials}
-              disabled={usdbLoading}
-              type="danger"
-              size="small"
-              style={{ marginRight: '10px' }}
-            >
-              {usdbLoading ? t('settings.deleting') : t('settings.deleteCredentials')}
-            </Button>
-          </div>
-        ) : (
-          <div style={{ marginBottom: '15px' }}>
-            <InputGroup>
+        {settingsSubTab === 'playback' && (
+          <>
+            {/* Overlay Title */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.overlayTitle')}</SettingsLabel>
               <SettingsInput
                 type="text"
-                placeholder={t('settings.usdbUsernamePlaceholder')}
-                value={usdbUsername}
-                onChange={(e) => setUsdbUsername(e.target.value)}
-                style={{ minWidth: '200px' }}
+                placeholder="Willkommen beim Karaoke"
+                value={overlayTitle}
+                onChange={(e) => setOverlayTitle(e.target.value)}
+                style={{ minWidth: '300px' }}
               />
-              <SettingsInput
-                type="password"
-                placeholder={t('settings.usdbPasswordPlaceholder')}
-                value={usdbPassword}
-                onChange={(e) => setUsdbPassword(e.target.value)}
-                style={{ minWidth: '200px' }}
-              />
-              <Button 
-                onClick={handleSaveUSDBCredentials}
-                disabled={usdbLoading}
-                size="small"
-                style={{ marginRight: '10px' }}
-              >
-                {usdbLoading ? t('settings.saving') : t('settings.save')}
-              </Button>
-            </InputGroup>
-          </div>
+              <SettingsDescription>
+                {t('settings.overlayTitleDescription')}{' '}
+                {settingsLoading && <span style={{ color: '#007bff' }}>💾 Speichern...</span>}
+              </SettingsDescription>
+            </SettingsCard>
+          </>
         )}
-        <SettingsDescription>
-          {t('settings.usdbCredentialsDescription')}
-        </SettingsDescription>
-      </SettingsCard>
-      
-      {/* <HorizontalDivider /> */}
-      
-      {/* File Songs */}
-      <SettingsCard>
-        <SettingsLabel>{t('settings.localSongFolder')}:</SettingsLabel>
-        <SettingsInput
-          type="text"
-          placeholder="C:/songs"
-          value={fileSongsFolder}
-          onChange={(e) => setFileSongsFolder(e.target.value)}
-          style={{ minWidth: '300px' }}
-        />
-        <ButtonGroup>
-          <Button 
-            onClick={handleUpdateFileSongsFolder}
-            disabled={settingsLoading}
-            size="small"
-            style={{ marginRight: '10px' }}
-          >
-            {settingsLoading ? t('settings.saving') : t('settings.save')}
-          </Button>
-          <Button 
-            onClick={handleRescanFileSongs}
-            disabled={settingsLoading}
-            size="small"
-            style={{ backgroundColor: '#17a2b8', marginRight: '10px' }}
-          >
-            {settingsLoading ? t('settings.scanning') : t('settings.rescan')}
-          </Button>
-          <Button 
-            onClick={handleRemoveFileSongs}
-            disabled={settingsLoading}
-            type="danger"
-            size="small"
-            style={{ marginRight: '10px' }}
-          >
-            {settingsLoading ? t('settings.removing') : t('settings.removeSongsFromList')}
-          </Button>
-        </ButtonGroup>
-        <SettingsDescription>
-          {t('settings.localSongFolderDescription')}
-        </SettingsDescription>
-        
-        {/* Local Server Section */}
-        {fileSongsFolder && (
-          <SpecialSection>
-            <SpecialTitle>🌐 {t('settings.localWebServerForVideos')}</SpecialTitle>
-            <SpecialDescription>
-              {t('settings.localWebServerDescription')}:
-            </SpecialDescription>
-            
-            {/* Port Selection */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                {t('settings.port')}:
-              </label>
-              <PortInput
+
+        {settingsSubTab === 'songRequests' && (
+          <>
+            {/* YouTube Enabled */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.youtubeEnabled')}</SettingsLabel>
+              <CheckboxContainer>
+                <CheckboxLabel>
+                  <CheckboxInput
+                    type="checkbox"
+                    checked={youtubeEnabled}
+                    onChange={(e) => handleYouTubeEnabledChange(e.target.checked)}
+                  />
+                  <CheckboxText>{youtubeEnabled ? t('settings.enabled') : t('settings.disabled')}</CheckboxText>
+                </CheckboxLabel>
+                {settingsLoading && (
+                  <span style={{ color: '#007bff', marginLeft: '10px' }}>💾 Speichern...</span>
+                )}
+              </CheckboxContainer>
+              <SettingsDescription>{t('settings.youtubeEnabledDescription')}</SettingsDescription>
+            </SettingsCard>
+
+            {/* Auto-Approve Songs Setting */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.autoApproveSongs')}</SettingsLabel>
+              <CheckboxContainer>
+                <CheckboxLabel>
+                  <CheckboxInput
+                    type="checkbox"
+                    checked={autoApproveSongs}
+                    onChange={(e) => handleAutoApproveSongsChange(e.target.checked)}
+                  />
+                  <CheckboxText>{autoApproveSongs ? t('settings.enabled') : t('settings.disabled')}</CheckboxText>
+                </CheckboxLabel>
+                {settingsLoading && (
+                  <span style={{ color: '#007bff', marginLeft: '10px' }}>💾 Speichern...</span>
+                )}
+              </CheckboxContainer>
+              <SettingsDescription>{t('settings.autoApproveSongsDescription')}</SettingsDescription>
+            </SettingsCard>
+
+            {/* Regression Value */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.regressionValue')}</SettingsLabel>
+              <SettingsInput
                 type="number"
-                value={localServerPort}
-                onChange={(e) => setLocalServerPort(parseInt(e.target.value) || 4000)}
-                min="1000"
-                max="65535"
+                step="0.01"
+                min="0"
+                max="1"
+                value={regressionValue}
+                onChange={(e) => setRegressionValue(parseFloat(e.target.value))}
               />
-            </div>
-            
-            {/* Server Type Tabs */}
-            <div style={{ marginBottom: '15px' }}>
-              <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-                {[
-                  { key: 'python', label: 'Python', desc: 'Built-in' },
-                  { key: 'npx', label: 'NPX', desc: 'serve' },
-                  { key: 'node', label: 'Node.js', desc: 'Native' }
-                ].map(({ key, label, desc }) => (
+              <SettingsDescription>
+                {t('settings.regressionValueDescription')}{' '}
+                {settingsLoading && <span style={{ color: '#007bff' }}>💾 Speichern...</span>}
+              </SettingsDescription>
+            </SettingsCard>
+          </>
+        )}
+
+        {settingsSubTab === 'usdb' && (
+          <>
+            {/* USDB Search Enabled Setting */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.usdbSearchEnabled')}</SettingsLabel>
+              <CheckboxContainer>
+                <CheckboxLabel>
+                  <CheckboxInput
+                    type="checkbox"
+                    checked={usdbSearchEnabled}
+                    onChange={(e) => handleUsdbSearchEnabledChange(e.target.checked)}
+                  />
+                  <CheckboxText>{usdbSearchEnabled ? t('settings.enabled') : t('settings.disabled')}</CheckboxText>
+                </CheckboxLabel>
+                {settingsLoading && (
+                  <span style={{ color: '#007bff', marginLeft: '10px' }}>💾 Speichern...</span>
+                )}
+              </CheckboxContainer>
+              <SettingsDescription>{t('settings.usdbSearchEnabledDescription')}</SettingsDescription>
+            </SettingsCard>
+
+            <SettingsCard>
+              <SettingsLabel>{t('settings.usdbCredentials')}:</SettingsLabel>
+              {usdbCredentials ? (
+                <div style={{ marginBottom: '15px' }}>
+                  <StatusContainer>
+                    <StatusTitle>✅ {t('settings.usdbCredentialsSaved')}</StatusTitle>
+                    <StatusText>
+                      {t('settings.username')}: {usdbCredentials.username}
+                    </StatusText>
+                  </StatusContainer>
                   <Button
-                    key={key}
-                    onClick={() => setLocalServerTab(key as any)}
-                    variant={localServerTab === key ? 'primary' : 'default'}
+                    onClick={handleDeleteUSDBCredentials}
+                    disabled={usdbLoading}
+                    type="danger"
                     size="small"
-                    style={{ 
-                      marginRight: '8px',
-                      marginBottom: '8px',
-                      backgroundColor: localServerTab === key ? '#007bff' : 'white',
-                      color: localServerTab === key ? 'white' : '#333',
-                      border: '1px solid #ccc'
+                    style={{ marginRight: '10px' }}
+                  >
+                    {usdbLoading ? t('settings.deleting') : t('settings.deleteCredentials')}
+                  </Button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: '15px' }}>
+                  <InputGroup>
+                    <SettingsInput
+                      type="text"
+                      placeholder={t('settings.usdbUsernamePlaceholder')}
+                      value={usdbUsername}
+                      onChange={(e) => setUsdbUsername(e.target.value)}
+                      style={{ minWidth: '200px' }}
+                    />
+                    <SettingsInput
+                      type="password"
+                      placeholder={t('settings.usdbPasswordPlaceholder')}
+                      value={usdbPassword}
+                      onChange={(e) => setUsdbPassword(e.target.value)}
+                      style={{ minWidth: '200px' }}
+                    />
+                    <Button
+                      onClick={handleSaveUSDBCredentials}
+                      disabled={usdbLoading}
+                      size="small"
+                      style={{ marginRight: '10px' }}
+                    >
+                      {usdbLoading ? t('settings.saving') : t('settings.save')}
+                    </Button>
+                  </InputGroup>
+                </div>
+              )}
+              <SettingsDescription>{t('settings.usdbCredentialsDescription')}</SettingsDescription>
+            </SettingsCard>
+          </>
+        )}
+
+        {settingsSubTab === 'localSongs' && (
+          <>
+            {/* File Songs */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.localSongFolder')}:</SettingsLabel>
+              <SettingsInput
+                type="text"
+                placeholder="C:/songs"
+                value={fileSongsFolder}
+                onChange={(e) => setFileSongsFolder(e.target.value)}
+                style={{ minWidth: '300px' }}
+              />
+              <ButtonGroup>
+                <Button
+                  onClick={handleUpdateFileSongsFolder}
+                  disabled={settingsLoading}
+                  size="small"
+                  style={{ marginRight: '10px' }}
+                >
+                  {settingsLoading ? t('settings.saving') : t('settings.save')}
+                </Button>
+                <Button
+                  onClick={handleRescanFileSongs}
+                  disabled={settingsLoading}
+                  size="small"
+                  style={{ backgroundColor: '#17a2b8', marginRight: '10px' }}
+                >
+                  {settingsLoading ? t('settings.scanning') : t('settings.rescan')}
+                </Button>
+                <Button
+                  onClick={handleRemoveFileSongs}
+                  disabled={settingsLoading}
+                  type="danger"
+                  size="small"
+                  style={{ marginRight: '10px' }}
+                >
+                  {settingsLoading ? t('settings.removing') : t('settings.removeSongsFromList')}
+                </Button>
+              </ButtonGroup>
+              <SettingsDescription>{t('settings.localSongFolderDescription')}</SettingsDescription>
+
+              {/* Local Server Section */}
+              {fileSongsFolder && (
+                <SpecialSection>
+                  <SpecialTitle>🌐 {t('settings.localWebServerForVideos')}</SpecialTitle>
+                  <SpecialDescription>{t('settings.localWebServerDescription')}:</SpecialDescription>
+
+                  {/* Port Selection */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
+                      {t('settings.port')}:
+                    </label>
+                    <PortInput
+                      type="number"
+                      value={localServerPort}
+                      onChange={(e) => setLocalServerPort(parseInt(e.target.value) || 4000)}
+                      min="1000"
+                      max="65535"
+                    />
+                  </div>
+
+                  {/* Server Type Tabs */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+                      {[
+                        { key: 'python', label: 'Python', desc: 'Built-in' },
+                        { key: 'npx', label: 'NPX', desc: 'serve' },
+                        { key: 'node', label: 'Node.js', desc: 'Native' },
+                      ].map(({ key, label, desc }) => (
+                        <Button
+                          key={key}
+                          onClick={() => setLocalServerTab(key as any)}
+                          variant={localServerTab === key ? 'primary' : 'default'}
+                          size="small"
+                          style={{
+                            marginRight: '8px',
+                            marginBottom: '8px',
+                            backgroundColor: localServerTab === key ? '#007bff' : 'white',
+                            color: localServerTab === key ? 'white' : '#333',
+                            border: '1px solid #ccc',
+                          }}
+                        >
+                          {label}
+                          <TabDescription>{desc}</TabDescription>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Command Display */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
+                      {t('settings.commandToCopy')}:
+                    </label>
+                    <CommandContainer>{generateLocalServerCommand()}</CommandContainer>
+                  </div>
+
+                  {/* Copy Button */}
+                  <button
+                    onClick={handleCopyServerCommand}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#6c757d',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
                     }}
                   >
-                    {label}
-                    <TabDescription>{desc}</TabDescription>
-                  </Button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Command Display */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', color: '#333' }}>
-                {t('settings.commandToCopy')}:
-              </label>
-              <CommandContainer>
-                {generateLocalServerCommand()}
-              </CommandContainer>
-            </div>
-            
-            {/* Copy Button */}
-            <button
-              onClick={handleCopyServerCommand}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              📋 {t('settings.copyCommand')}
-            </button>
-          </SpecialSection>
+                    📋 {t('settings.copyCommand')}
+                  </button>
+                </SpecialSection>
+              )}
+            </SettingsCard>
+          </>
         )}
-      </SettingsCard>
+      </SubTabPanel>
     </SettingsSection>
   );
 };
