@@ -321,6 +321,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
 
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTabKey>('general');
+  const prevSettingsSubTabRef = useRef<SettingsSubTabKey>('general');
   
   // Debounced values für Auto-Save
   const debouncedRegressionValue = useDebounce(regressionValue, 2000);
@@ -428,6 +429,17 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [paypalGuideOpen]);
+
+  // Wenn man den "Overlay"-Untertab verlässt, sofort speichern (wichtig wegen unmount + Debounce)
+  useEffect(() => {
+    const prev = prevSettingsSubTabRef.current;
+    if (prev === 'playback' && settingsSubTab !== 'playback') {
+      if (!isInitialLoad && overlayTitle !== initialValues.overlayTitle) {
+        handleUpdateOverlayTitle(overlayTitle, false);
+      }
+    }
+    prevSettingsSubTabRef.current = settingsSubTab;
+  }, [settingsSubTab, isInitialLoad, overlayTitle, initialValues.overlayTitle]);
 
   // Auto-save für Checkboxen (sofort)
   const handleYouTubeEnabledChange = (checked: boolean) => {
@@ -673,6 +685,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateOverlayTitle(valueToSave);
+      setInitialValues((prev) => ({ ...prev, overlayTitle: valueToSave }));
       if (showToast) {
         toast.success(t('settings.overlayTitleUpdated'));
       }
@@ -1397,6 +1410,11 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
                 placeholder="Willkommen beim Karaoke"
                 value={overlayTitle}
                 onChange={(e) => setOverlayTitle(e.target.value)}
+                onBlur={() => {
+                  if (!isInitialLoad && overlayTitle !== initialValues.overlayTitle) {
+                    handleUpdateOverlayTitle(overlayTitle, false);
+                  }
+                }}
                 style={{ minWidth: '300px' }}
               />
               <SettingsDescription>
