@@ -5,6 +5,7 @@ import { songAPI, donationAPI } from '../services/api';
 import { SongRequestData } from '../types';
 import { useTranslation } from 'react-i18next';
 import Button from './shared/Button';
+import { TextWithDuetBadge } from './shared/SmallModeBadge';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -1283,10 +1284,12 @@ const SongRequest: React.FC = () => {
                         }}
                       >
                         <SongArtist>
-                          {video.artist}
+                          <TextWithDuetBadge text={video.artist} />
                           {isUSDBSong && <span style={{ fontSize: '10px', color: '#2196f3', marginLeft: '5px' }}>🌐</span>}
                         </SongArtist>
-                        <SongTitle>{video.title}</SongTitle>
+                        <SongTitle>
+                          <TextWithDuetBadge text={video.title} />
+                        </SongTitle>
                       </SongItem>
                     );
                   })}

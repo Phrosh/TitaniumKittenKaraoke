@@ -83,4 +83,24 @@ const SmallModeBadge: React.FC<SmallModeBadgeProps> = ({
   );
 };
 
+const DUET_TITLE_MARKER = '[DUET]';
+
+/** Ersetzt das Literal "[DUET]" in Anzeigetexten durch das Duett-Badge. */
+export const TextWithDuetBadge: React.FC<{ text: string }> = ({ text }) => {
+  if (!text.includes(DUET_TITLE_MARKER)) {
+    return <>{text}</>;
+  }
+  const parts = text.split(DUET_TITLE_MARKER);
+  return (
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {part}
+          {i < parts.length - 1 && <SmallModeBadge mode="duett" />}
+        </React.Fragment>
+      ))}
+    </span>
+  );
+};
+
 export default SmallModeBadge;

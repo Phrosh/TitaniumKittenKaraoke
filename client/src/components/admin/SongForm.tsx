@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import getFirstLetter from '../../utils/getFirstLetter';
 import {adminAPI} from '../../services/api';
-import SmallModeBadge from '../shared/SmallModeBadge';
+import SmallModeBadge, { TextWithDuetBadge } from '../shared/SmallModeBadge';
 import YouTubeSearchModal from './modals/YouTubeSearchModal';
 
 // Reusable Song Form Component
@@ -496,10 +496,10 @@ const SongForm: React.FC<SongFormProps> = ({
                             }}
                           >
                             <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                              {song.artist}
+                              <TextWithDuetBadge text={song.artist} />
                             </div>
                             <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                              {song.title}
+                              <TextWithDuetBadge text={song.title} />
                             </div>
                           </div>
                         ))}
@@ -557,10 +557,10 @@ const SongForm: React.FC<SongFormProps> = ({
                       }}
                     >
                       <div style={{ fontWeight: '600', color: '#333', flex: 1, paddingRight: '10px' }}>
-                        {song.artist}
+                        <TextWithDuetBadge text={song.artist} />
                       </div>
                       <div style={{ color: '#666', fontSize: '14px', flex: 1, paddingLeft: '10px', borderLeft: '1px solid #eee' }}>
-                        {song.title}
+                        <TextWithDuetBadge text={song.title} />
                       </div>
                     </div>
                   ))}
