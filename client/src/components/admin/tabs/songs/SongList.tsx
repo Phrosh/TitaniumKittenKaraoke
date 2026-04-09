@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminAPI, songAPI } from '../../../../services/api';
 import toast from 'react-hot-toast';
@@ -30,6 +30,8 @@ interface SongListProps {
     fetchSongs: () => void;
     ultrastarAudioSettings: any;
     setUltrastarAudioSettings: (ultrastarAudioSettings: any) => void;
+    ultrastarGapSettings: Record<string, { pre: number; post: number }>;
+    setUltrastarGapSettings: React.Dispatch<React.SetStateAction<Record<string, { pre: number; post: number }>>>;
 }
 
 const SongList: React.FC<SongListProps> = ({
@@ -42,9 +44,12 @@ const SongList: React.FC<SongListProps> = ({
     fetchSongs,
     ultrastarAudioSettings,
     setUltrastarAudioSettings,
+    ultrastarGapSettings,
+    setUltrastarGapSettings,
 }) => {
     const { t } = useTranslation();
-    
+    const gapSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const [actionLoading, setActionLoading] = useState(false);
     const [showRenameModal, setShowRenameModal] = useState(false);
     const [renameSong, setRenameSong] = useState<any>(null);
@@ -169,23 +174,75 @@ const SongList: React.FC<SongListProps> = ({
         };
     }, [songs, fetchSongs]); // Add fetchSongs dependency
 
+    const clampGapSeconds = (n: number) => Math.min(3600, Math.max(0, Number.isFinite(n) ? n : 0));
+
+    const schedulePersistUltrastarGaps = (song: any, pre: number, post: number) => {
+        const songKey = `${song.artist}-${song.title}`;
+        if (gapSaveTimerRef.current) clearTimeout(gapSaveTimerRef.current);
+        gapSaveTimerRef.current = setTimeout(async () => {
+            setActionLoading(true);
+            try {
+                const pref = ultrastarAudioSettings[songKey] || 'choice';
+                await adminAPI.setUltrastarAudioSetting(song.artist, song.title, pref, pre, post);
+                toast.success(t('songList.gapSettingsSaved', { artist: song.artist, title: song.title }));
+            } catch (error: any) {
+                console.error('Error saving ultrastar gaps:', error);
+                toast.error(error.response?.data?.message || t('songList.gapSettingsError'));
+            } finally {
+                setActionLoading(false);
+            }
+        }, 450);
+    };
+
+    const handleUltrastarGapChange = (song: any, field: 'pre' | 'post', raw: string) => {
+        const songKey = `${song.artist}-${song.title}`;
+        const cur = ultrastarGapSettings[songKey] ?? { pre: 0, post: 0 };
+        const v = raw === '' ? 0 : parseFloat(raw.replace(',', '.'));
+        const n = clampGapSeconds(Number.isFinite(v) ? v : 0);
+        const next = field === 'pre' ? { pre: n, post: cur.post } : { pre: cur.pre, post: n };
+        setUltrastarGapSettings(prev => ({ ...prev, [songKey]: next }));
+        schedulePersistUltrastarGaps(song, next.pre, next.post);
+    };
+
     const handleUltrastarAudioChange = async (song: any, audioPreference: string) => {
         setActionLoading(true);
         try {
             const songKey = `${song.artist}-${song.title}`;
+            const gaps = ultrastarGapSettings[songKey] ?? { pre: 0, post: 0 };
 
             if (audioPreference === 'choice') {
-                // Remove setting (default to choice)
-                await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
-                setUltrastarAudioSettings(prev => {
-                    const newSettings = { ...prev };
-                    delete newSettings[songKey];
-                    return newSettings;
-                });
+                if (gaps.pre > 0 || gaps.post > 0) {
+                    await adminAPI.setUltrastarAudioSetting(
+                        song.artist,
+                        song.title,
+                        'choice',
+                        gaps.pre,
+                        gaps.post
+                    );
+                    setUltrastarAudioSettings(prev => ({ ...prev, [songKey]: 'choice' }));
+                } else {
+                    await adminAPI.removeUltrastarAudioSetting(song.artist, song.title);
+                    setUltrastarAudioSettings(prev => {
+                        const newSettings = { ...prev };
+                        delete newSettings[songKey];
+                        return newSettings;
+                    });
+                    setUltrastarGapSettings(prev => {
+                        const next = { ...prev };
+                        delete next[songKey];
+                        return next;
+                    });
+                }
                 toast.success(t('songList.audioSettingChoice', { artist: song.artist, title: song.title }));
             } else {
                 // Set specific preference
-                await adminAPI.setUltrastarAudioSetting(song.artist, song.title, audioPreference);
+                await adminAPI.setUltrastarAudioSetting(
+                    song.artist,
+                    song.title,
+                    audioPreference,
+                    gaps.pre,
+                    gaps.post
+                );
                 setUltrastarAudioSettings(prev => ({
                     ...prev,
                     [songKey]: audioPreference
@@ -926,6 +983,35 @@ const SongList: React.FC<SongListProps> = ({
                                                                 />
                                                                 {t('songList.choice')}
                                                             </label>
+                                                        </div>
+                                                        <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #dee2e6', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                                                <span>{t('songList.preGapLabel')}</span>
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={3600}
+                                                                    step={0.1}
+                                                                    value={ultrastarGapSettings[`${song.artist}-${song.title}`]?.pre ?? 0}
+                                                                    onChange={(e) => handleUltrastarGapChange(song, 'pre', e.target.value)}
+                                                                    disabled={actionLoading}
+                                                                    style={{ width: '72px', padding: '4px 6px', fontSize: '12px' }}
+                                                                />
+                                                            </label>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                                                <span>{t('songList.postGapLabel')}</span>
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={3600}
+                                                                    step={0.1}
+                                                                    value={ultrastarGapSettings[`${song.artist}-${song.title}`]?.post ?? 0}
+                                                                    onChange={(e) => handleUltrastarGapChange(song, 'post', e.target.value)}
+                                                                    disabled={actionLoading}
+                                                                    style={{ width: '72px', padding: '4px 6px', fontSize: '12px' }}
+                                                                />
+                                                            </label>
+                                                            <span style={{ fontSize: '11px', color: '#6c757d' }}>{t('songList.gapSecondsHint')}</span>
                                                         </div>
                                                     </div>
                                                 )}

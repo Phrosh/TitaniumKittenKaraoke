@@ -62,6 +62,10 @@ export interface CurrentSong {
     audioUrl?: string;
     videoUrl?: string;
     backgroundImageUrl?: string;
+    /** Sekunden am Dateianfang überspringen (Show / Audio / Video / Lyrics) */
+    preGapSeconds?: number;
+    /** Sekunden vor Dateiende beenden */
+    postGapSeconds?: number;
   }
 
   export interface Singer {

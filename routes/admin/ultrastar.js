@@ -20,7 +20,7 @@ router.get('/ultrastar-audio-settings', async (req, res) => {
   }
 });
 
-// Admin endpoint to set ultrastar audio settings
+// Admin endpoint to set ultrastar audio settings (optional pre/post gap in seconds)
 router.post('/ultrastar-audio-settings', [
   body('artist').notEmpty().trim(),
   body('title').notEmpty().trim(),
@@ -34,10 +34,36 @@ router.post('/ultrastar-audio-settings', [
 
     const { artist, title, audioPreference } = req.body;
 
+    const existing = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT pre_gap_seconds, post_gap_seconds FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
+        [artist, title],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        }
+      );
+    });
+
+    let preGap = existing && existing.pre_gap_seconds != null ? Number(existing.pre_gap_seconds) : 0;
+    let postGap = existing && existing.post_gap_seconds != null ? Number(existing.post_gap_seconds) : 0;
+    if (!Number.isFinite(preGap) || preGap < 0) preGap = 0;
+    if (!Number.isFinite(postGap) || postGap < 0) postGap = 0;
+
+    const maxGap = 3600;
+    if (req.body.preGapSeconds !== undefined && req.body.preGapSeconds !== null && req.body.preGapSeconds !== '') {
+      const v = Number(req.body.preGapSeconds);
+      if (Number.isFinite(v) && v >= 0 && v <= maxGap) preGap = v;
+    }
+    if (req.body.postGapSeconds !== undefined && req.body.postGapSeconds !== null && req.body.postGapSeconds !== '') {
+      const v = Number(req.body.postGapSeconds);
+      if (Number.isFinite(v) && v >= 0 && v <= maxGap) postGap = v;
+    }
+
     await new Promise((resolve, reject) => {
       db.run(
-        'INSERT OR REPLACE INTO ultrastar_audio_settings (artist, title, audio_preference, created_by) VALUES (?, ?, ?, ?)',
-        [artist, title, audioPreference, req.user.id],
+        'INSERT OR REPLACE INTO ultrastar_audio_settings (artist, title, audio_preference, pre_gap_seconds, post_gap_seconds, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+        [artist, title, audioPreference, preGap, postGap, req.user.id],
         function(err) {
           if (err) reject(err);
           else resolve(this.lastID);

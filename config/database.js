@@ -263,6 +263,17 @@ function initializeDatabase() {
     )
   `);
 
+  db.run(`ALTER TABLE ultrastar_audio_settings ADD COLUMN pre_gap_seconds REAL DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration ultrastar_audio_settings.pre_gap_seconds:', err);
+    }
+  });
+  db.run(`ALTER TABLE ultrastar_audio_settings ADD COLUMN post_gap_seconds REAL DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration ultrastar_audio_settings.post_gap_seconds:', err);
+    }
+  });
+
   // USDB credentials table
   db.run(`
     CREATE TABLE IF NOT EXISTS usdb_credentials (

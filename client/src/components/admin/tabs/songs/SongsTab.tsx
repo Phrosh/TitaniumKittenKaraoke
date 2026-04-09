@@ -33,6 +33,7 @@ const SongsTab: React.FC<SongsTabProps> = ({
     const [invisibleSongs, setInvisibleSongs] = useState<any[]>([]);
 
     const [ultrastarAudioSettings, setUltrastarAudioSettings] = useState<Record<string, string>>({});
+    const [ultrastarGapSettings, setUltrastarGapSettings] = useState<Record<string, { pre: number; post: number }>>({});
 
     // Bulk processing state
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
@@ -73,11 +74,19 @@ const SongsTab: React.FC<SongsTabProps> = ({
 
             // Convert audio settings to a lookup object
             const audioSettingsMap: Record<string, string> = {};
+            const gapSettingsMap: Record<string, { pre: number; post: number }> = {};
             audioSettings.forEach((setting: any) => {
                 const key = `${setting.artist}-${setting.title}`;
                 audioSettingsMap[key] = setting.audio_preference;
+                const pre = setting.pre_gap_seconds != null ? Number(setting.pre_gap_seconds) : 0;
+                const post = setting.post_gap_seconds != null ? Number(setting.post_gap_seconds) : 0;
+                gapSettingsMap[key] = {
+                    pre: Number.isFinite(pre) && pre > 0 ? pre : 0,
+                    post: Number.isFinite(post) && post > 0 ? post : 0,
+                };
             });
             setUltrastarAudioSettings(audioSettingsMap);
+            setUltrastarGapSettings(gapSettingsMap);
 
             // Combine and deduplicate songs, preserving all modes
             const allSongs = [...fileSongs];
@@ -756,6 +765,8 @@ const SongsTab: React.FC<SongsTabProps> = ({
             <SongList
                 ultrastarAudioSettings={ultrastarAudioSettings}
                 setUltrastarAudioSettings={setUltrastarAudioSettings}
+                ultrastarGapSettings={ultrastarGapSettings}
+                setUltrastarGapSettings={setUltrastarGapSettings}
                 songTab={songTab}
                 songSearchTerm={songSearchTerm}
                 fetchDashboardData={fetchDashboardData}

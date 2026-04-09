@@ -30,6 +30,22 @@ const buttonStyle = {
   fontVariantEmoji: 'text' as const
 };
 
+function getUltrastarPlaybackStartSeconds(data: { preGapSeconds?: number; postGapSeconds?: number }, mediaDurationSec: number): number {
+  const pre =
+    typeof data.preGapSeconds === 'number' && Number.isFinite(data.preGapSeconds)
+      ? Math.max(0, data.preGapSeconds)
+      : 0;
+  const post =
+    typeof data.postGapSeconds === 'number' && Number.isFinite(data.postGapSeconds)
+      ? Math.max(0, data.postGapSeconds)
+      : 0;
+  if (pre <= 0) return 0;
+  if (Number.isFinite(mediaDurationSec) && mediaDurationSec > 0) {
+    return Math.min(pre, Math.max(0, mediaDurationSec - post - 0.05));
+  }
+  return pre;
+}
+
 const ControlButtons: React.FC<ControlButtonsProps> = ({
   currentSong,  
   isPlaying,
@@ -167,12 +183,13 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
     console.log('🔄 Ultrastar data:', ultrastarData);
     
     // Handle local restart logic first
-    if (currentSong?.mode === 'ultrastar' && audioRef.current && ultrastarData) {
+    if ((currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube') && audioRef.current && ultrastarData) {
       console.log('🎤 Ultrastar restart via ShowView button');
       
-      // Restart audio
+      const audioDur = audioRef.current.duration;
+      const audioStart = getUltrastarPlaybackStartSeconds(ultrastarData, audioDur);
       console.log('🎵 Audio currentTime before:', audioRef.current.currentTime);
-      audioRef.current.currentTime = 0;
+      audioRef.current.currentTime = audioStart;
       console.log('🎵 Audio currentTime after:', audioRef.current.currentTime);
       audioRef.current.play().then(() => {
         console.log('🎵 Audio play() successful');
@@ -180,11 +197,18 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
         console.error('🎵 Error restarting playback:', error);
       });
       
-      // Also restart video if present
       if (videoRef.current) {
         console.log('🎬 Ultrastar video restart via ShowView button');
-        console.log('🎬 Video currentTime before:', videoRef.current.currentTime);
-        videoRef.current.currentTime = 0;
+        const vg = ultrastarData.videogap;
+        if (vg !== undefined && vg !== null) {
+          videoRef.current.currentTime = vg;
+        } else {
+          const vDur = videoRef.current.duration;
+          videoRef.current.currentTime =
+            Number.isFinite(vDur) && vDur > 0
+              ? getUltrastarPlaybackStartSeconds(ultrastarData, vDur)
+              : audioStart;
+        }
         console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
         videoRef.current.play().then(() => {
           console.log('🎬 Video play() successful');

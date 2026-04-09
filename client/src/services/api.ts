@@ -255,8 +255,20 @@ export const adminAPI = {
 
   // Ultrastar Audio Settings Management
   getUltrastarAudioSettings: () => api.get('/admin/ultrastar-audio-settings'),
-  setUltrastarAudioSetting: (artist: string, title: string, audioPreference: string) =>
-    api.post('/admin/ultrastar-audio-settings', { artist, title, audioPreference }),
+  setUltrastarAudioSetting: (
+    artist: string,
+    title: string,
+    audioPreference: string,
+    preGapSeconds?: number,
+    postGapSeconds?: number
+  ) =>
+    api.post('/admin/ultrastar-audio-settings', {
+      artist,
+      title,
+      audioPreference,
+      ...(preGapSeconds !== undefined ? { preGapSeconds } : {}),
+      ...(postGapSeconds !== undefined ? { postGapSeconds } : {}),
+    }),
   removeUltrastarAudioSetting: (artist: string, title: string) =>
     api.delete('/admin/ultrastar-audio-settings', { data: { artist, title } }),
 

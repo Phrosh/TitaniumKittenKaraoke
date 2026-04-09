@@ -232,11 +232,12 @@ router.get('/song-data', async (req, res) => {
 
     // Get audio preference from database - always check database first as it's the source of truth
     let resolvedWithBackgroundVocals = withBackgroundVocals;
+    let ultrastarDbRow = null;
     try {
       const db = require('../../config/database');
-      const setting = await new Promise((resolve, reject) => {
+      ultrastarDbRow = await new Promise((resolve, reject) => {
         db.get(
-          'SELECT audio_preference FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
+          'SELECT audio_preference, pre_gap_seconds, post_gap_seconds FROM ultrastar_audio_settings WHERE artist = ? AND title = ?',
           [artist, title],
           (err, row) => {
             if (err) reject(err);
@@ -245,17 +246,17 @@ router.get('/song-data', async (req, res) => {
         );
       });
 
-      if (setting && setting.audio_preference) {
-        console.log(`📋 Found audio preference in database for ${artist} - ${title}: ${setting.audio_preference}`);
-        if (setting.audio_preference === 'hp5') {
+      if (ultrastarDbRow && ultrastarDbRow.audio_preference) {
+        console.log(`📋 Found audio preference in database for ${artist} - ${title}: ${ultrastarDbRow.audio_preference}`);
+        if (ultrastarDbRow.audio_preference === 'hp5') {
           // Background vocals preferred - override any passed parameter
           resolvedWithBackgroundVocals = 'true';
           console.log(`📋 Using saved audio preference (database) for ${artist} - ${title}: hp5 (overriding passed value: ${withBackgroundVocals})`);
-        } else if (setting.audio_preference === 'hp2') {
+        } else if (ultrastarDbRow.audio_preference === 'hp2') {
           // Instrumental preferred - override any passed parameter
           resolvedWithBackgroundVocals = 'false';
           console.log(`📋 Using saved audio preference (database) for ${artist} - ${title}: hp2 (overriding passed value: ${withBackgroundVocals})`);
-        } else if (setting.audio_preference === 'choice') {
+        } else if (ultrastarDbRow.audio_preference === 'choice') {
           console.log(`📋 Setting is 'choice' for ${artist} - ${title}, using passed value: ${withBackgroundVocals}`);
         }
         // If 'choice', use the passed parameter (fallback to song's saved preference)
@@ -432,6 +433,11 @@ router.get('/song-data', async (req, res) => {
     // Add metadata
     songData.songType = songType;
     songData.folderName = foundSong.folderName;
+
+    const preG = ultrastarDbRow && ultrastarDbRow.pre_gap_seconds != null ? Number(ultrastarDbRow.pre_gap_seconds) : 0;
+    const postG = ultrastarDbRow && ultrastarDbRow.post_gap_seconds != null ? Number(ultrastarDbRow.post_gap_seconds) : 0;
+    songData.preGapSeconds = Number.isFinite(preG) && preG > 0 ? preG : 0;
+    songData.postGapSeconds = Number.isFinite(postG) && postG > 0 ? postG : 0;
 
     res.json({ songData });
     
