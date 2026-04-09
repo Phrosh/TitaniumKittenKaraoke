@@ -430,6 +430,23 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [paypalGuideOpen]);
 
+  // Fallback: beim Unmount letzte Änderungen persistieren (z.B. Navigation/Reload)
+  useEffect(() => {
+    return () => {
+      try {
+        if (!isInitialLoad && overlayTitle !== initialValues.overlayTitle) {
+          adminAPI.updateOverlayTitle(overlayTitle).catch(() => {});
+        }
+        if (!isInitialLoad && customUrl !== initialValues.customUrl) {
+          adminAPI.updateCustomUrl(customUrl).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Wenn man den "Overlay"-Untertab verlässt, sofort speichern (wichtig wegen unmount + Debounce)
   useEffect(() => {
     const prev = prevSettingsSubTabRef.current;
@@ -438,8 +455,20 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         handleUpdateOverlayTitle(overlayTitle, false);
       }
     }
+    if (prev === 'publicUrl' && settingsSubTab !== 'publicUrl') {
+      if (!isInitialLoad && customUrl !== initialValues.customUrl) {
+        handleUpdateCustomUrl(customUrl, false);
+      }
+    }
     prevSettingsSubTabRef.current = settingsSubTab;
-  }, [settingsSubTab, isInitialLoad, overlayTitle, initialValues.overlayTitle]);
+  }, [
+    settingsSubTab,
+    isInitialLoad,
+    overlayTitle,
+    initialValues.overlayTitle,
+    customUrl,
+    initialValues.customUrl,
+  ]);
 
   // Auto-save für Checkboxen (sofort)
   const handleYouTubeEnabledChange = (checked: boolean) => {
@@ -466,7 +495,12 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       // Setze die geladenen Werte
       const loadedRegressionValue = settingsResponse.data.settings.regression_value ? 
         parseFloat(settingsResponse.data.settings.regression_value) : 0.1;
-      const loadedCustomUrl = settingsResponse.data.settings.custom_url || '';
+      const s0 = settingsResponse.data.settings || {};
+      // Rückwärtskompatibel: manche Installationen könnten den Key camelCase gespeichert/ausgegeben haben.
+      const loadedCustomUrl =
+        (typeof s0.custom_url === 'string' && s0.custom_url) ||
+        (typeof (s0 as any).customUrl === 'string' && (s0 as any).customUrl) ||
+        '';
       const loadedOverlayTitle = settingsResponse.data.settings.overlay_title || 'Willkommen beim Karaoke';
       
       setRegressionValue(loadedRegressionValue);
@@ -587,6 +621,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     setSettingsLoading(true);
     try {
       await adminAPI.updateCustomUrl(valueToSave);
+      setInitialValues((prev) => ({ ...prev, customUrl: valueToSave }));
       if (showToast) {
         toast.success(t('settings.customUrlUpdated'));
       }
@@ -1405,18 +1440,28 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             {/* Overlay Title */}
             <SettingsCard>
               <SettingsLabel>{t('settings.overlayTitle')}</SettingsLabel>
-              <SettingsInput
-                type="text"
-                placeholder="Willkommen beim Karaoke"
-                value={overlayTitle}
-                onChange={(e) => setOverlayTitle(e.target.value)}
-                onBlur={() => {
-                  if (!isInitialLoad && overlayTitle !== initialValues.overlayTitle) {
-                    handleUpdateOverlayTitle(overlayTitle, false);
-                  }
-                }}
-                style={{ minWidth: '300px' }}
-              />
+              <InputGroup>
+                <SettingsInput
+                  type="text"
+                  placeholder="Willkommen beim Karaoke"
+                  value={overlayTitle}
+                  onChange={(e) => setOverlayTitle(e.target.value)}
+                  onBlur={() => {
+                    if (!isInitialLoad && overlayTitle !== initialValues.overlayTitle) {
+                      handleUpdateOverlayTitle(overlayTitle, false);
+                    }
+                  }}
+                  style={{ minWidth: '300px', flex: '1 1 320px' }}
+                />
+                <Button
+                  type="button"
+                  size="small"
+                  onClick={() => handleUpdateOverlayTitle(overlayTitle, true)}
+                  disabled={settingsLoading || isInitialLoad || overlayTitle === initialValues.overlayTitle}
+                >
+                  {settingsLoading ? t('settings.saving') : t('settings.save')}
+                </Button>
+              </InputGroup>
               <SettingsDescription>
                 {t('settings.overlayTitleDescription')}{' '}
                 {settingsLoading && <span style={{ color: '#007bff' }}>💾 Speichern...</span>}
