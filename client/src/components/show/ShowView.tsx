@@ -74,6 +74,37 @@ function getUltrastarPlaybackStartSeconds(data: UltrastarSongData, mediaDuration
   return pre;
 }
 
+/** Video-Zeit (Sekunden) zur passenden Audio-Dateizeit; ohne VIDEOGAP 1:1 mit Audio */
+function getUltrastarVideoTimeForAudioTime(data: UltrastarSongData, audioTimeSec: number): number {
+  const pre =
+    typeof data.preGapSeconds === 'number' && Number.isFinite(data.preGapSeconds)
+      ? Math.max(0, data.preGapSeconds)
+      : 0;
+  // Pre-Gap schneidet Anfang von Audio- und Videodatei gleich weg → gleiche Dateizeit
+  // (sonst hält der GAP/VIDEOGAP-Zweig das Video z.B. auf videogap, obwohl Audio schon ab pre läuft)
+  if (pre > 0) {
+    return audioTimeSec;
+  }
+  const gapSec = (data.gap || 0) / 1000;
+  const vg = data.videogap;
+  if (vg === undefined || vg === null) {
+    return audioTimeSec;
+  }
+  if (audioTimeSec < gapSec) {
+    return vg;
+  }
+  return audioTimeSec - gapSec + vg;
+}
+
+function clampVideoTimeToDuration(videoEl: HTMLVideoElement, t: number): number {
+  if (!Number.isFinite(t)) return 0;
+  const d = videoEl.duration;
+  if (Number.isFinite(d) && d > 0) {
+    return Math.min(Math.max(0, t), Math.max(0, d - 0.04));
+  }
+  return Math.max(0, t);
+}
+
 let globalUltrastarData: UltrastarSongData | null = null;
 
 let p1Timeouts: NodeJS.Timeout[] = [];
@@ -1430,24 +1461,18 @@ const ShowView: React.FC = () => {
           console.error('🎵 Error restarting playback:', error);
         });
 
-        // Also restart video if present
+        // Also restart video if present (immer aus Audio-Zeit ableiten inkl. VIDEOGAP)
         if (videoRef.current) {
           videoRef.current.muted = true;
-          // Reset video initialization flag for restart
           videoInitializedRef.current = false;
-          // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap)
-          if (ultrastarData.videogap !== undefined && ultrastarData.videogap !== null) {
-            videoRef.current.currentTime = ultrastarData.videogap;
-            console.log('🎬 Restart: Video set to videogap:', ultrastarData.videogap);
-          } else {
-            const vDur = videoRef.current.duration;
-            const vStart = Number.isFinite(vDur) && vDur > 0
-              ? getUltrastarPlaybackStartSeconds(ultrastarData, vDur)
-              : getUltrastarPlaybackStartSeconds(ultrastarData, audioDur);
-            videoRef.current.currentTime = vStart;
-            videoInitializedRef.current = true; // Mark as initialized after setting
-            console.log('🎬 Restart: Video parallel zum Audio (Pre-Gap):', vStart);
-          }
+          const audioT = audioRef.current.currentTime;
+          const vT = clampVideoTimeToDuration(
+            videoRef.current,
+            getUltrastarVideoTimeForAudioTime(ultrastarData, audioT)
+          );
+          videoRef.current.currentTime = vT;
+          videoInitializedRef.current = true;
+          console.log('🎬 Restart: Video an Audio synchron:', { audioT, videoTime: vT });
           videoRef.current.play().then(() => {
             console.log('🎬 Video play() successful on restart');
           }).catch(error => {
@@ -1634,31 +1659,22 @@ const ShowView: React.FC = () => {
           if (videoRef.current && ultrastarData?.videoUrl && audioRef.current) {
             const video = videoRef.current;
             const audioCurrentTime = audioRef.current.currentTime;
-            const gap = ultrastarData.gap || 0;
             const videogap = ultrastarData.videogap;
             
             // Calculate correct video position
             // Wenn kein videogap angegeben ist, starte das Video normal bei 0
-            let videoTime = 0;
-            if (videogap !== undefined && videogap !== null) {
-              // videogap ist angegeben - synchronisiere entsprechend
-              videoTime = videogap;
-              if (audioCurrentTime >= gap / 1000) {
-                const songTime = audioCurrentTime - (gap / 1000);
-                videoTime = songTime + videogap;
-              }
-            } else {
-              // Kein videogap - Video startet normal parallel zum Audio (inkl. Pre-Gap)
-              videoTime = audioCurrentTime;
-            }
-            
+            const videoTime = clampVideoTimeToDuration(
+              video,
+              getUltrastarVideoTimeForAudioTime(ultrastarData, audioCurrentTime)
+            );
+
             video.muted = true;
-            video.currentTime = Math.max(0, videoTime);
+            video.currentTime = videoTime;
             
             console.log('🎬 Syncing video to audio position (sync event):', {
               audioTime: audioCurrentTime,
               videoTime: videoTime,
-              gap: gap,
+              gap: ultrastarData.gap,
               videogap: videogap,
               readyState: video.readyState
             });
@@ -1940,17 +1956,56 @@ const ShowView: React.FC = () => {
     setBackgroundVideoFadeOut(false);
   }, []);
 
+  const syncUltrastarVideoToAudio = useCallback(
+    (minDeltaSec = 0.05, force = false) => {
+      if (!ultrastarData?.videoUrl || !videoRef.current || !audioRef.current) return;
+      const vEl = videoRef.current;
+      const audioT = audioRef.current.currentTime;
+      const raw = getUltrastarVideoTimeForAudioTime(ultrastarData, audioT);
+      const vt = clampVideoTimeToDuration(vEl, raw);
+      const threshold = force ? 0.001 : minDeltaSec;
+      if (Number.isFinite(vt) && Math.abs(vEl.currentTime - vt) > threshold) {
+        vEl.currentTime = vt;
+      }
+    },
+    [ultrastarData]
+  );
+
   const applyUltrastarPreGapSeek = useCallback(() => {
     if (!ultrastarData || !audioRef.current) return;
     if (currentSong?.mode !== 'ultrastar' && currentSong?.mode !== 'magic-youtube') return;
     const pre = ultrastarData.preGapSeconds ?? 0;
-    if (pre <= 0) return;
     const el = audioRef.current;
-    const t = getUltrastarPlaybackStartSeconds(ultrastarData, el.duration);
-    if (el.currentTime < t - 0.02) {
-      el.currentTime = t;
+    if (pre > 0) {
+      const t = getUltrastarPlaybackStartSeconds(ultrastarData, el.duration);
+      if (el.currentTime < t - 0.02) {
+        el.currentTime = t;
+      }
     }
-  }, [ultrastarData, currentSong?.mode]);
+    // force: Video war evtl. noch nicht da oder onCanPlay lief mit Audio-Zeit 0
+    syncUltrastarVideoToAudio(0.02, true);
+    queueMicrotask(() => syncUltrastarVideoToAudio(0.02, true));
+  }, [ultrastarData, currentSong?.mode, syncUltrastarVideoToAudio]);
+
+  // Wenn Video und Audio beide bereit sind: Video nochmal an Audio/Pre-Gap/VIDEOGAP hängen
+  useEffect(() => {
+    if (!videoLoaded || !audioLoaded || !ultrastarData?.videoUrl) return;
+    if (currentSong?.mode !== 'ultrastar' && currentSong?.mode !== 'magic-youtube') return;
+    syncUltrastarVideoToAudio(0.02, true);
+    const t = window.setTimeout(() => syncUltrastarVideoToAudio(0.02, true), 100);
+    return () => window.clearTimeout(t);
+  }, [
+    videoLoaded,
+    audioLoaded,
+    currentSong?.id,
+    currentSong?.mode,
+    ultrastarData?.videoUrl,
+    ultrastarData?.preGapSeconds,
+    ultrastarData?.postGapSeconds,
+    ultrastarData?.gap,
+    ultrastarData?.videogap,
+    syncUltrastarVideoToAudio,
+  ]);
 
   const finalizeUltrastarPlayback = useCallback(async () => {
     if (videoRef.current) {
@@ -1976,17 +2031,26 @@ const ShowView: React.FC = () => {
   const handleUltrastarAudioTimeUpdate = useCallback(() => {
     const el = audioRef.current;
     if (!el || !ultrastarData || el.paused) return;
+
     const post = ultrastarData.postGapSeconds ?? 0;
-    if (!(post > 0)) return;
-    const d = el.duration;
-    if (!Number.isFinite(d) || d <= post + 0.05) return;
-    const endAt = d - post;
-    if (el.currentTime < endAt - 0.05) return;
-    if (ultrastarImmediateEndHandledRef.current) return;
-    ultrastarImmediateEndHandledRef.current = true;
-    el.pause();
-    el.currentTime = endAt;
-    void finalizeUltrastarPlayback();
+    if (post > 0) {
+      const d = el.duration;
+      if (Number.isFinite(d) && d > post + 0.05) {
+        const endAt = d - post;
+        if (el.currentTime >= endAt - 0.05) {
+          if (!ultrastarImmediateEndHandledRef.current) {
+            ultrastarImmediateEndHandledRef.current = true;
+            el.pause();
+            el.currentTime = endAt;
+            void finalizeUltrastarPlayback();
+          }
+          return;
+        }
+      }
+    }
+
+    // Kein Video-Sync hier: bei jedem timeupdate würde currentTime setzen ständig
+    // canplay/waiting auslösen → Video wirkt wie endloser Neustart.
   }, [ultrastarData, finalizeUltrastarPlayback]);
 
   useEffect(() => {
@@ -2159,53 +2223,42 @@ const ShowView: React.FC = () => {
       startUltrastarTiming(ultrastarData, fadeOutIndices);
     }
 
-    // Sync video with audio
+    // Sync video with audio (einheitlich: VIDEOGAP + Pre-Gap über Audiospur)
     if (videoRef.current && ultrastarData?.videoUrl) {
       videoRef.current.muted = true;
-      // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap komplett)
-      if (ultrastarData.videogap !== undefined && ultrastarData.videogap !== null) {
-        // videogap ist angegeben - synchronisiere entsprechend
-        // Nur synchronisieren, wenn Video noch nicht initialisiert wurde oder pausiert ist
-        const wasInitialized = videoInitializedRef.current;
-        const wasPaused = videoRef.current.paused;
-        if (!wasInitialized || wasPaused) {
-          const audioCurrentTime = audioRef.current?.currentTime ?? 0;
-          const gap = ultrastarData.gap || 0;
-          let videoTime = ultrastarData.videogap;
-          if (audioCurrentTime >= gap / 1000) {
-            const songTime = audioCurrentTime - (gap / 1000);
-            videoTime = songTime + ultrastarData.videogap;
-          }
-          videoRef.current.currentTime = Math.max(0, videoTime);
-          videoInitializedRef.current = true;
-          console.log('🎬 handleAudioPlay: Video syncing with videogap:', {
-            audioTime: audioCurrentTime,
-            videoTime: videoTime,
-            gap: gap,
-            videogap: ultrastarData.videogap,
-            wasInitialized: wasInitialized,
-            wasPaused: wasPaused
-          });
-          // Video abspielen
-          videoRef.current.play().catch(console.error);
-        } else {
-          console.log('🎬 handleAudioPlay: Video already initialized and playing (with videogap), currentTime:', videoRef.current.currentTime, '- not resyncing');
-        }
+      const wasInitialized = videoInitializedRef.current;
+      const wasPaused = videoRef.current.paused;
+      if (!wasInitialized || wasPaused) {
+        syncUltrastarVideoToAudio(0.02, true);
+        videoInitializedRef.current = true;
+        videoRef.current.play().catch(console.error);
       } else {
-        // Kein videogap – Video folgt der Audiospur (inkl. Pre-Gap)
-        // Wenn Video bereits läuft, nicht mehr zurücksetzen - es läuft bereits parallel
-        if (videoRef.current.paused) {
-          const at = audioRef.current?.currentTime ?? 0;
-          videoRef.current.currentTime = at;
-          console.log('🎬 handleAudioPlay: Video parallel zum Audio (no videogap, was paused), time:', at);
-          videoRef.current.play().catch(console.error);
-        } else {
-          // Video läuft bereits - nicht mehr zurücksetzen, es läuft bereits parallel zum Audio
-          console.log('🎬 handleAudioPlay: Video already playing (no videogap), currentTime:', videoRef.current.currentTime, '- not resetting');
-        }
+        syncUltrastarVideoToAudio(0.22, false);
+        console.log(
+          '🎬 handleAudioPlay: Video läuft – Drift-Korrektur, currentTime:',
+          videoRef.current.currentTime
+        );
       }
     }
-  }, [ultrastarData, ultrastarData?.gap, currentSong?.id, currentSong?.title, setShowLyrics1, setShowLyrics2, startUltrastarTiming, analyzeFadeOutLines, stopBackgroundMusic, hideBackgroundVideo]);
+  }, [
+    ultrastarData,
+    ultrastarData?.gap,
+    currentSong?.id,
+    currentSong?.title,
+    setShowLyrics1,
+    setShowLyrics2,
+    startUltrastarTiming,
+    analyzeFadeOutLines,
+    stopBackgroundMusic,
+    hideBackgroundVideo,
+    syncUltrastarVideoToAudio,
+  ]);
+
+  const handleUltrastarAudioSeeked = useCallback(() => {
+    if (!ultrastarData?.videoUrl || !videoRef.current || !audioRef.current) return;
+    if (currentSong?.mode !== 'ultrastar' && currentSong?.mode !== 'magic-youtube') return;
+    syncUltrastarVideoToAudio(0.02, true);
+  }, [ultrastarData, currentSong?.mode, syncUltrastarVideoToAudio]);
 
   const handleAudioPause = useCallback(() => {
     setPlaying(false);
@@ -2589,78 +2642,35 @@ const ShowView: React.FC = () => {
             <>
               {backgroundVideoEnabled && ultrastarData.videoUrl ? (
                 <BackgroundVideo
+                  key={`us-bg-${currentSong?.id}-${ultrastarData.videoUrl}`}
                   ref={videoRef}
                   src={ultrastarData.videoUrl}
                   muted
-                  loop
-                  autoPlay
+                  loop={
+                    !(
+                      (ultrastarData.preGapSeconds ?? 0) > 0 ||
+                      (ultrastarData.postGapSeconds ?? 0) > 0
+                    )
+                  }
                   playsInline
                   onLoadedData={() => {
                     setVideoLoaded(true);
                   }}
                   onCanPlay={() => {
                     setVideoLoaded(true);
-                    // Sync video to audio position when it becomes ready
-                    if (videoRef.current && ultrastarData) {
-                      const videogap = ultrastarData.videogap;
-                      
-                      // Wenn kein videogap angegeben ist, starte das Video sofort bei 0 (ignoriere gap komplett)
-                      if (videogap === undefined || videogap === null) {
-                        // Kein videogap – parallel zur Audiospur (inkl. Pre-Gap)
-                        // Nur einmal initialisieren, um mehrfache Synchronisationen zu vermeiden
-                        if (!videoInitializedRef.current) {
-                          const vEl = videoRef.current;
-                          const aT = audioRef.current?.currentTime ?? 0;
-                          const vDur = vEl.duration;
-                          const fromAudio = aT > 0.05 ? aT : null;
-                          const fallbackStart = getUltrastarPlaybackStartSeconds(
-                            ultrastarData,
-                            Number.isFinite(vDur) && vDur > 0 ? vDur : (audioRef.current?.duration ?? NaN)
-                          );
-                          vEl.currentTime = fromAudio ?? fallbackStart;
-                          videoInitializedRef.current = true;
-                          console.log('🎬 onCanPlay: Video parallel zum Audio (no videogap, first init):', {
-                            videoTime: vEl.currentTime,
-                            videogap: videogap,
-                            audioTime: audioRef.current?.currentTime ?? 'not available'
-                          });
-                          // Video sofort abspielen, auch wenn Audio noch nicht läuft
-                          videoRef.current.play().catch(error => {
-                            console.error('🎬 Error playing video on canPlay (no videogap):', error);
-                          });
-                        } else {
-                          // Video bereits initialisiert - nicht mehr zurücksetzen
-                          console.log('🎬 onCanPlay: Video already initialized (no videogap), currentTime:', videoRef.current.currentTime, '- not resetting');
-                        }
-                      } else if (audioRef.current) {
-                        // videogap ist angegeben - synchronisiere entsprechend
-                        // Nur einmal synchronisieren, um mehrfache Aufrufe zu vermeiden
-                        if (!videoInitializedRef.current) {
-                          const audioCurrentTime = audioRef.current.currentTime;
-                          const gap = ultrastarData.gap || 0;
-                          let videoTime = videogap;
-                          if (audioCurrentTime >= gap / 1000) {
-                            const songTime = audioCurrentTime - (gap / 1000);
-                            videoTime = songTime + videogap;
-                          }
-                          videoRef.current.currentTime = Math.max(0, videoTime);
-                          videoInitializedRef.current = true;
-                          console.log('🎬 onCanPlay: Video syncing with videogap (first init):', {
-                            audioTime: audioCurrentTime,
-                            videoTime: videoTime,
-                            gap: gap,
-                            videogap: videogap
-                          });
-                          // Video abspielen
-                          if (videoRef.current.paused) {
-                            videoRef.current.play().catch(error => {
-                              console.error('🎬 Error playing video on canPlay (with videogap):', error);
-                            });
-                          }
-                        } else {
-                          console.log('🎬 onCanPlay: Video already initialized (with videogap), currentTime:', videoRef.current.currentTime, '- not resyncing');
-                        }
-                      }
+                    if (!videoRef.current || !ultrastarData) return;
+                    const vEl = videoRef.current;
+                    vEl.muted = true;
+                    // Immer an aktuelle Audio-Zeit anbinden (Pre-Gap kann vorher schon gesetzt sein).
+                    // force: Schwellenwert ~0 ms, damit Nachziehen nach applyUltrastarPreGapSeek greift.
+                    syncUltrastarVideoToAudio(0.02, true);
+                    if (!videoInitializedRef.current) {
+                      videoInitializedRef.current = true;
+                    }
+                    if (vEl.paused) {
+                      vEl.play().catch(error => {
+                        console.error('🎬 Error playing video on canPlay:', error);
+                      });
                     }
                   }}
                   onPlay={() => {
@@ -2721,6 +2731,7 @@ const ShowView: React.FC = () => {
                 style={{ display: 'none' }}
                 onLoadedData={handleAudioLoadedData}
                 onCanPlay={handleAudioCanPlay}
+                onSeeked={handleUltrastarAudioSeeked}
                 onTimeUpdate={handleUltrastarAudioTimeUpdate}
                 onPlay={handleAudioPlay}
                 onPause={handleAudioPause}

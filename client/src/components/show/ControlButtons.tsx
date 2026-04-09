@@ -46,6 +46,37 @@ function getUltrastarPlaybackStartSeconds(data: { preGapSeconds?: number; postGa
   return pre;
 }
 
+function getUltrastarVideoTimeForAudioTime(
+  data: { gap?: number; videogap?: number; preGapSeconds?: number },
+  audioTimeSec: number
+): number {
+  const pre =
+    typeof data.preGapSeconds === 'number' && Number.isFinite(data.preGapSeconds)
+      ? Math.max(0, data.preGapSeconds)
+      : 0;
+  if (pre > 0) {
+    return audioTimeSec;
+  }
+  const gapSec = (data.gap || 0) / 1000;
+  const vg = data.videogap;
+  if (vg === undefined || vg === null) {
+    return audioTimeSec;
+  }
+  if (audioTimeSec < gapSec) {
+    return vg;
+  }
+  return audioTimeSec - gapSec + vg;
+}
+
+function clampVideoTimeToDuration(videoEl: HTMLVideoElement, t: number): number {
+  if (!Number.isFinite(t)) return 0;
+  const d = videoEl.duration;
+  if (Number.isFinite(d) && d > 0) {
+    return Math.min(Math.max(0, t), Math.max(0, d - 0.04));
+  }
+  return Math.max(0, t);
+}
+
 const ControlButtons: React.FC<ControlButtonsProps> = ({
   currentSong,  
   isPlaying,
@@ -199,16 +230,11 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
       
       if (videoRef.current) {
         console.log('🎬 Ultrastar video restart via ShowView button');
-        const vg = ultrastarData.videogap;
-        if (vg !== undefined && vg !== null) {
-          videoRef.current.currentTime = vg;
-        } else {
-          const vDur = videoRef.current.duration;
-          videoRef.current.currentTime =
-            Number.isFinite(vDur) && vDur > 0
-              ? getUltrastarPlaybackStartSeconds(ultrastarData, vDur)
-              : audioStart;
-        }
+        const vT = clampVideoTimeToDuration(
+          videoRef.current,
+          getUltrastarVideoTimeForAudioTime(ultrastarData, audioRef.current.currentTime)
+        );
+        videoRef.current.currentTime = vT;
         console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
         videoRef.current.play().then(() => {
           console.log('🎬 Video play() successful');
