@@ -9,6 +9,7 @@ require('dotenv').config();
 
 // Import song cache for initialization
 const songCache = require('./utils/songCache');
+const { syncAdminSongStartToSocket } = require('./utils/websocketService');
 
 const { router: authRoutes } = require('./routes/auth');
 const songRoutes = require('./routes/songs').router;
@@ -617,9 +618,14 @@ io.on('connection', (socket) => {
   });
 
   // Join admin room for real-time updates
-  socket.on('join-admin', () => {
+  socket.on('join-admin', async () => {
     socket.join('admin');
     console.log(`📊 Client ${socket.id} joined admin room`);
+    try {
+      await syncAdminSongStartToSocket(socket);
+    } catch (err) {
+      console.error('📊 syncAdminSongStartToSocket failed:', err);
+    }
   });
   
   // Leave admin room

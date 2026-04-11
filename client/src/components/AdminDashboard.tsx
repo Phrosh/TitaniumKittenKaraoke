@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -44,6 +44,10 @@ const AdminDashboard: React.FC = () => {
   const [songDuration, setSongDuration] = useState<number | null>(null);
   const [currentSongId, setCurrentSongId] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+
+  /** Sofort aktuell für WS-Races (song-start vs. admin-update im selben Tick). */
+  const currentSongIdRef = useRef<number | null>(null);
+  const songDurationRef = useRef<number | null>(null);
 
   
   // Song Approval System State
@@ -104,6 +108,24 @@ const AdminDashboard: React.FC = () => {
       };
       
       setDashboardData(combinedData);
+
+      const cs = combinedData.currentSong as { id?: number; duration_seconds?: number | null } | null;
+      if (cs?.id) {
+        currentSongIdRef.current = cs.id;
+        setCurrentSongId(cs.id);
+        const d = cs.duration_seconds;
+        if (typeof d === 'number' && d > 0) {
+          songDurationRef.current = d;
+          setSongDuration(d);
+        }
+      } else {
+        currentSongIdRef.current = null;
+        setCurrentSongId(null);
+        songDurationRef.current = null;
+        setSongDuration(null);
+        setSongStartTimestamp(null);
+        setElapsedTime(0);
+      }
       
       // Load pending approvals count
       await loadPendingApprovalsCount();
@@ -130,24 +152,30 @@ const AdminDashboard: React.FC = () => {
   }, [navigate]);
 
   const handleAdminWebSocketUpdate = useCallback((data: AdminUpdateData) => {
-    // Check if current song changed
-    if (data.currentSong && data.currentSong.id !== currentSongId) {
-      // Song changed, reset timer (will be set by song-start event)
+    const prevId = currentSongIdRef.current;
+
+    if (data.currentSong && data.currentSong.id !== prevId) {
       setSongStartTimestamp(null);
-      setSongDuration(data.currentSong.duration_seconds ?? null);
+      const nextDur = data.currentSong.duration_seconds;
+      const dur = typeof nextDur === 'number' && nextDur > 0 ? nextDur : null;
+      songDurationRef.current = dur;
+      setSongDuration(dur);
+      currentSongIdRef.current = data.currentSong.id;
       setCurrentSongId(data.currentSong.id);
       setElapsedTime(0);
-    } else if (!data.currentSong && currentSongId !== null) {
-      // Song was removed
+    } else if (!data.currentSong && prevId !== null) {
       setSongStartTimestamp(null);
+      songDurationRef.current = null;
       setSongDuration(null);
+      currentSongIdRef.current = null;
       setCurrentSongId(null);
       setElapsedTime(0);
-    } else if (data.currentSong && data.currentSong.id === currentSongId) {
-      // Same song, but maybe duration is now available
-      if (!songDuration && data.currentSong.duration_seconds) {
-        setSongDuration(data.currentSong.duration_seconds);
-        console.log('⏱️ Updated duration from admin-update:', data.currentSong.duration_seconds);
+    } else if (data.currentSong && data.currentSong.id === prevId) {
+      const ds = data.currentSong.duration_seconds;
+      if (typeof ds === 'number' && ds > 0 && !songDurationRef.current) {
+        songDurationRef.current = ds;
+        setSongDuration(ds);
+        console.log('⏱️ Updated duration from admin-update:', ds);
       }
     }
     
@@ -167,7 +195,7 @@ const AdminDashboard: React.FC = () => {
     }
     
     setLoading(false);
-  }, [currentSongId, songDuration]);
+  }, []);
 
   useEffect(() => {
     // Initial fetch
@@ -268,16 +296,26 @@ const AdminDashboard: React.FC = () => {
     // Define handleSongStart before the .then() block so it's available in cleanup
     const handleSongStart = (data: { songId: number; startTimestamp: string; durationSeconds: number | null; isRestart: boolean }) => {
       console.log('⏱️ Song start event received:', data);
-      setSongStartTimestamp(data.startTimestamp);
+      const prevId = currentSongIdRef.current;
+      currentSongIdRef.current = data.songId;
       setCurrentSongId(data.songId);
+      setSongStartTimestamp(data.startTimestamp);
       setElapsedTime(0);
-      
-      // Use duration from event if available
-      if (data.durationSeconds && data.durationSeconds !== null) {
-        setSongDuration(data.durationSeconds);
-        console.log('⏱️ Using duration from song-start event:', data.durationSeconds);
+
+      const fromEvent =
+        typeof data.durationSeconds === 'number' && Number.isFinite(data.durationSeconds) && data.durationSeconds > 0
+          ? data.durationSeconds
+          : null;
+
+      if (fromEvent != null) {
+        songDurationRef.current = fromEvent;
+        setSongDuration(fromEvent);
+        console.log('⏱️ Using duration from song-start event:', fromEvent);
+      } else if (prevId === data.songId) {
+        // Restart / Sync: Dauer aus Playlist behalten
+        console.log('⏱️ No duration in song-start event, keeping existing for same song');
       } else {
-        // Duration not in event, will be set from admin-update event if available
+        songDurationRef.current = null;
         setSongDuration(null);
         console.log('⏱️ No duration in song-start event, waiting for admin-update');
       }
@@ -293,9 +331,7 @@ const AdminDashboard: React.FC = () => {
     console.log('🔌 Frontend: Attempting to connect to WebSocket...');
     websocketService.connect().then(() => {
       console.log('🔌 Frontend: Connected to WebSocket for admin updates');
-      websocketService.joinAdminRoom();
-      console.log('🔌 Frontend: Joined admin room');
-      
+
       // Test WebSocket connection
       console.log('🔌 Frontend: WebSocket connection status:', {
         connected: websocketService.getConnectionStatus(),
@@ -303,7 +339,7 @@ const AdminDashboard: React.FC = () => {
         timestamp: new Date().toISOString()
       });
       
-      // Set up WebSocket event listeners AFTER connection is established
+      // Listener VOR join-admin registrieren, sonst geht serverseitiger song-start-Sync verloren
       console.log('🔌 Frontend: Registering event listeners...');
       websocketService.onAdminUpdate(handleAdminWebSocketUpdate);
       console.log('🔌 Frontend: Registered admin-update listener');
@@ -315,6 +351,9 @@ const AdminDashboard: React.FC = () => {
       // Listen for play/pause toggle events to update isPlaying state
       websocketService.on('toggle-play-pause', handleTogglePlayPause);
       console.log('🔌 Frontend: Registered toggle-play-pause listener');
+
+      websocketService.joinAdminRoom();
+      console.log('🔌 Frontend: Joined admin room');
       
       // Listen for show actions from ShowView
       const handleShowAction = (data: { action: string; timestamp: string; [key: string]: any }) => {

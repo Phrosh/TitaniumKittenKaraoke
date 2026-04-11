@@ -7,6 +7,9 @@ const Song = require('../models/Song');
 const { findYouTubeSong } = require('./youtubeSongs');
 const PlaylistAlgorithm = require('./playlistAlgorithm');
 
+/** Letzter Song-Start fürs Admin-Dashboard (für Sync nach Reconnect / Seitenreload). */
+let lastAdminSongStart = null;
+
 /**
  * Sendet Show-Updates an alle verbundenen Clients
  * @param {Object} io - Socket.IO Server Instance
@@ -303,17 +306,46 @@ async function broadcastSongStart(io, song, isRestart = false) {
       hasDuration: durationSeconds !== null && durationSeconds !== undefined
     });
     
-    io.to('admin').emit('song-start', {
+    const payload = {
       songId: song.id,
       startTimestamp,
-      durationSeconds: durationSeconds,
+      durationSeconds: durationSeconds ?? null,
       isRestart,
       timestamp: startTimestamp
-    });
+    };
+    lastAdminSongStart = payload;
+
+    io.to('admin').emit('song-start', payload);
     
     console.log(`⏱️ Broadcasted song start to admin: ${song?.artist} - ${song?.title} (${startTimestamp}, duration: ${durationSeconds || 'null'})`);
   } catch (error) {
     console.error('Error broadcasting song start:', error);
+  }
+}
+
+/**
+ * Sendet den letzten Song-Start nur an einen Socket (z. B. nach join-admin),
+ * damit die Fortschrittsleiste auch nach Reload funktioniert.
+ */
+async function syncAdminSongStartToSocket(socket) {
+  try {
+    if (!socket || !lastAdminSongStart) return;
+    const current = await Song.getCurrentSong();
+    if (!current || current.id !== lastAdminSongStart.songId) return;
+
+    let durationSeconds = lastAdminSongStart.durationSeconds;
+    if (!durationSeconds && current.duration_seconds > 0) {
+      durationSeconds = current.duration_seconds;
+    }
+
+    socket.emit('song-start', {
+      ...lastAdminSongStart,
+      durationSeconds: durationSeconds ?? null,
+      timestamp: lastAdminSongStart.startTimestamp
+    });
+    console.log(`⏱️ Sent song-start sync to admin socket ${socket.id} (song ${current.id})`);
+  } catch (error) {
+    console.error('Error syncing admin song start:', error);
   }
 }
 
@@ -482,6 +514,7 @@ async function broadcastQueueStatus(io, data) {
 
 module.exports = {
   broadcastSongStart,
+  syncAdminSongStartToSocket,
   broadcastPlayPauseStatus,
   broadcastShowUpdate,
   broadcastSongChange,
