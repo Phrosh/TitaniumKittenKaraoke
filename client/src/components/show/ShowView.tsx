@@ -3043,7 +3043,6 @@ const ShowView: React.FC = () => {
       <Overlay
         show={showQRCodeOverlay}
         overlayTitle={overlayTitle}
-        currentSong={currentSong}
         nextSongs={nextSongs}
         qrCodeUrl={qrCodeUrl}
       />

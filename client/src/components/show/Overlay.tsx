@@ -5,7 +5,6 @@ import { QRCodeLeftSide, QRCodeTitle, QRCodeContent, QRCodeHeader, QRCodeOverlay
 interface OverlayProps {
   show: boolean;
   overlayTitle: string;
-  currentSong: any;
   nextSongs: any[];
   qrCodeUrl: string;
 }
@@ -13,7 +12,6 @@ interface OverlayProps {
 const Overlay: React.FC<OverlayProps> = ({
   show,
   overlayTitle,
-  currentSong,
   nextSongs,
   qrCodeUrl,
 }) => {
@@ -27,9 +25,7 @@ const Overlay: React.FC<OverlayProps> = ({
             <QRCodeTitle>🎤 {t('showView.nextSong')}</QRCodeTitle>
             
             {(() => {
-              const nextSong = currentSong ? 
-                nextSongs.find(song => song.position > currentSong.position) :
-                nextSongs.find(song => song.position === 1);
+              const nextSong = nextSongs[0] ?? null;
               
               return nextSong ? (
                 <QRCodeNextSongInfo>
