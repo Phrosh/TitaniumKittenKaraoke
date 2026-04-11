@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { decodeFromPath } = require('./filenameSanitizer');
 
 // Magic YouTube Directory
 const MAGIC_YOUTUBE_DIR = path.join(__dirname, '..', 'songs', 'magic-youtube');
@@ -23,8 +24,8 @@ function scanMagicYouTube() {
       if (fs.statSync(folderPath).isDirectory()) {
         // Parse folder name: "Artist - Title"
         const parts = folder.split(' - ');
-        const artist = parts[0] || 'Unknown Artist';
-        const title = parts.slice(1).join(' - ') || 'Unknown Title';
+        const artist = decodeFromPath((parts[0] || 'Unknown Artist').trim());
+        const title = decodeFromPath((parts.slice(1).join(' - ') || 'Unknown Title').trim());
 
         // Check for video files
         const files = fs.readdirSync(folderPath);

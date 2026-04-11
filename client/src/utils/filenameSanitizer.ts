@@ -1,20 +1,23 @@
 /**
  * Utility functions for sanitizing filenames and folder names.
- * Reversible encoding for ' and & (same mapping as backend) for path/URL safety and display/search.
+ * Reversible encoding for ', &, / (same mapping as backend) for path/URL safety and display/search.
  */
 
 /** Reversible path encoding: character -> encoded form (for folder/file names and URLs) */
-const PATH_ENCODE_MAP: Record<string, string> = { "'": '%27', '&': '%26' };
+const PATH_ENCODE_MAP: Record<string, string> = { "'": '%27', '&': '%26', '/': '%2F' };
 /** Reversible path decoding: encoded form -> character */
-const PATH_DECODE_MAP: Record<string, string> = { '%27': "'", '%26': '&' };
+const PATH_DECODE_MAP: Record<string, string> = { '%27': "'", '%26': '&', '%2F': '/' };
 
 /**
  * Encodes artist/title for use in folder names and URLs. Use before sanitize.
- * Mapping: ' -> %27, & -> %26 (reversible via decodeFromPath).
+ * Mapping: ' -> %27, & -> %26, / -> %2F (reversible via decodeFromPath).
  */
 export function encodeForPath(str: string): string {
   if (!str || typeof str !== 'string') return '';
-  return str.replace(/'/g, PATH_ENCODE_MAP["'"]).replace(/&/g, PATH_ENCODE_MAP['&']);
+  return str
+    .replace(/'/g, PATH_ENCODE_MAP["'"])
+    .replace(/&/g, PATH_ENCODE_MAP['&'])
+    .replace(/\//g, PATH_ENCODE_MAP['/']);
 }
 
 /**
@@ -22,11 +25,14 @@ export function encodeForPath(str: string): string {
  */
 export function decodeFromPath(str: string): string {
   if (!str || typeof str !== 'string') return '';
-  return str.replace(/%27/g, PATH_DECODE_MAP['%27']).replace(/%26/g, PATH_DECODE_MAP['%26']);
+  return str
+    .replace(/%2F/g, PATH_DECODE_MAP['%2F'])
+    .replace(/%27/g, PATH_DECODE_MAP['%27'])
+    .replace(/%26/g, PATH_DECODE_MAP['%26']);
 }
 
 /**
- * Sanitizes a filename (invalid chars only; ', & should be encoded with encodeForPath first).
+ * Sanitizes a filename (invalid chars only; ', &, / should be encoded with encodeForPath first).
  */
 export function sanitizeFilename(filename: string): string {
   if (!filename || typeof filename !== 'string') return '';
@@ -47,6 +53,12 @@ export function createSanitizedFolderName(artist: string, title: string): string
   const artistEnc = encodeForPath(artist || 'Unknown Artist');
   const titleEnc = encodeForPath(title || 'Unknown Title');
   return `${sanitizeFilename(artistEnc)} - ${sanitizeFilename(titleEnc)}`;
+}
+
+/** Decoded URL path segment → same rules as on-disk folder (slashes → _). */
+export function collapseSlashesInPathSegment(segment: string): string {
+  if (!segment || typeof segment !== 'string') return '';
+  return segment.replace(/[/\\]/g, '_');
 }
 
 /**

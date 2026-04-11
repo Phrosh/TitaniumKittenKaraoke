@@ -175,8 +175,8 @@ function findYouTubeSongByVideoIdRecursive(videoId) {
           // Parse folder name to get artist and title
           const parts = folder.split(' - ');
           if (parts.length >= 2) {
-            const artist = parts[0].trim();
-            const title = parts.slice(1).join(' - ').trim();
+            const artist = decodeFromPath(parts[0].trim());
+            const title = decodeFromPath(parts.slice(1).join(' - ').trim());
             
             return {
               artist,

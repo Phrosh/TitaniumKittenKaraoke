@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
+const { decodeFromPath } = require('./filenameSanitizer');
 
 const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
 
@@ -117,8 +118,8 @@ function scanUltrastarSongs() {
       // Parse "Artist - Title" Format
       const parts = folder.split(' - ');
       if (parts.length >= 2) {
-        const artist = parts[0].trim();
-        const title = parts.slice(1).join(' - ').trim(); // Falls der Titel selbst " - " enthält
+        const artist = decodeFromPath(parts[0].trim());
+        const title = decodeFromPath(parts.slice(1).join(' - ').trim()); // Falls der Titel selbst " - " enthält
         
         // Check for video files
         const hasVideo = checkForVideoFiles(fullPath);

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { boilDown, boilDownMatch } = require('./boilDown');
+const { decodeFromPath } = require('./filenameSanitizer');
 
 const VIDEOS_DIR = path.join(__dirname, '..', 'songs', 'videos');
 
@@ -34,8 +35,8 @@ function scanLocalVideos() {
       // Parse "Artist - Title" Format
       const parts = filenameWithoutExt.split(' - ');
       if (parts.length >= 2) {
-        const artist = parts[0].trim();
-        const title = parts.slice(1).join(' - ').trim(); // Falls der Titel selbst " - " enthält
+        const artist = decodeFromPath(parts[0].trim());
+        const title = decodeFromPath(parts.slice(1).join(' - ').trim()); // Falls der Titel selbst " - " enthält
         
         videos.push({
           filename: file,

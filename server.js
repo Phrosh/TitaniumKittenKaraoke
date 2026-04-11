@@ -10,6 +10,7 @@ require('dotenv').config();
 // Import song cache for initialization
 const songCache = require('./utils/songCache');
 const { syncAdminSongStartToSocket } = require('./utils/websocketService');
+const { collapseSlashesInPathSegment } = require('./utils/filenameSanitizer');
 
 const { router: authRoutes } = require('./routes/auth');
 const songRoutes = require('./routes/songs').router;
@@ -95,7 +96,7 @@ app.get('/api/magic-songs/:folderName/:filename', (req, res) => {
   const { MAGIC_SONGS_DIR } = require('./utils/magicSongs');
   
   try {
-    const folderName = decodeURIComponent(req.params.folderName);
+    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
     const filename = decodeURIComponent(req.params.filename);
     const filePath = path.join(MAGIC_SONGS_DIR, folderName, filename);
     
@@ -166,7 +167,7 @@ app.get('/api/magic-videos/:folderName/:filename', (req, res) => {
   const { MAGIC_VIDEOS_DIR } = require('./utils/magicVideos');
   
   try {
-    const folderName = decodeURIComponent(req.params.folderName);
+    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
     const filename = decodeURIComponent(req.params.filename);
     const videoPath = path.join(MAGIC_VIDEOS_DIR, folderName, filename);
     
@@ -240,7 +241,7 @@ app.get('/api/video/:songType/:folderName/:filename', (req, res) => {
   
   try {
     const songType = req.params.songType;
-    const folderName = decodeURIComponent(req.params.folderName);
+    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
     const filename = decodeURIComponent(req.params.filename);
     
     console.log(`🎬 Video request: ${songType}/${folderName}/${filename}`);
@@ -343,7 +344,7 @@ app.get('/api/audio/:songType/:folderName/:filename', (req, res) => {
   
   try {
     const songType = req.params.songType;
-    const folderName = decodeURIComponent(req.params.folderName);
+    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
     const filename = decodeURIComponent(req.params.filename);
     
     console.log(`🎵 Audio request: ${songType}/${folderName}/${filename}`);
@@ -502,7 +503,7 @@ app.get('/api/youtube-videos/:folderName/:filename', (req, res) => {
   const { YOUTUBE_DIR } = require('./utils/youtubeSongs');
   
   try {
-    const folderName = decodeURIComponent(req.params.folderName);
+    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
     const filename = decodeURIComponent(req.params.filename);
     const videoPath = path.join(YOUTUBE_DIR, folderName, filename);
     

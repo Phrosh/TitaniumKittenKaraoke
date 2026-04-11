@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def _encode_for_path(s):
     if not s or not isinstance(s, str):
         return ''
-    return s.replace("'", '%27').replace('&', '%26')
+    return s.replace("'", '%27').replace('&', '%26').replace('/', '%2F')
 
 
 def sanitize_filename(filename):

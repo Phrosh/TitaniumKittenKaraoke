@@ -1,28 +1,36 @@
 import re
 
 # Reversible path encoding (same mapping as Node/Client): for folder/file names and URLs
-PATH_ENCODE_MAP = {"'": '%27', '&': '%26'}
-PATH_DECODE_MAP = {'%27': "'", '%26': '&'}
+PATH_ENCODE_MAP = {"'": '%27', '&': '%26', '/': '%2F'}
+PATH_DECODE_MAP = {'%27': "'", '%26': '&', '%2F': '/'}
 
 
 def encode_for_path(s):
-    """Encode artist/title for paths/URLs. Mapping: ' -> %27, & -> %26. Use before sanitize."""
+    """Encode artist/title for paths/URLs. Mapping: ' -> %27, & -> %26, / -> %2F. Use before sanitize."""
     if not s or not isinstance(s, str):
         return ''
-    return s.replace("'", PATH_ENCODE_MAP["'"]).replace('&', PATH_ENCODE_MAP['&'])
+    return (
+        s.replace("'", PATH_ENCODE_MAP["'"])
+        .replace('&', PATH_ENCODE_MAP['&'])
+        .replace('/', PATH_ENCODE_MAP['/'])
+    )
 
 
 def decode_from_path(s):
     """Decode folder/file name for display or search. Only use on strings from our encoded paths."""
     if not s or not isinstance(s, str):
         return ''
-    return s.replace('%27', PATH_DECODE_MAP['%27']).replace('%26', PATH_DECODE_MAP['%26'])
+    return (
+        s.replace('%2F', PATH_DECODE_MAP['%2F'])
+        .replace('%27', PATH_DECODE_MAP['%27'])
+        .replace('%26', PATH_DECODE_MAP['%26'])
+    )
 
 
 def sanitize_filename(filename):
     """
     Sanitizes a filename by replacing invalid filesystem characters.
-    ', & are not replaced here – use encode_for_path() first.
+    "', &, / are not replaced here – use encode_for_path() first.
     """
     if not filename or not isinstance(filename, str):
         return ''

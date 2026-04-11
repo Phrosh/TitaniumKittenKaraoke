@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const axios = require('axios');
 const db = require('../../config/database');
+const { decodeFromPath } = require('../../utils/filenameSanitizer');
 
 // Helper function to get USDB credentials
 const getUSDBCredentials = async () => {
@@ -181,8 +182,8 @@ router.post('/usdb-download', [
         if (actualFolderName) {
           // Extract artist and title from folder name
           const parts = actualFolderName.split(' - ');
-          const artist = parts[0] || 'Unknown';
-          const title = parts.slice(1).join(' - ') || 'Unknown';
+          const artist = decodeFromPath(parts[0] || 'Unknown');
+          const title = decodeFromPath(parts.slice(1).join(' - ') || 'Unknown');
           
           // Insert song into database using the Song model
           const Song = require('../../models/Song');

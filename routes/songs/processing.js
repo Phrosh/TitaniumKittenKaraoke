@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const songCache = require('../../utils/songCache');
+const { collapseSlashesInPathSegment, decodeFromPath } = require('../../utils/filenameSanitizer');
 
 // Removed: POST /songs/download-youtube (unused)
 
@@ -311,8 +312,9 @@ router.post('/modular-process/:folderName', async (req, res) => {
     const { folderName } = req.params;
     const { songType } = req.body; // 'ultrastar', 'magic-songs', 'magic-videos'
     
+    const decodedFolderName = collapseSlashesInPathSegment(decodeURIComponent(folderName));
     console.log('🔧 Modular processing request:', {
-      folderName: decodeURIComponent(folderName),
+      folderName: decodedFolderName,
       songType,
       timestamp: new Date().toISOString()
     });
@@ -333,7 +335,7 @@ router.post('/modular-process/:folderName', async (req, res) => {
         return res.status(400).json({ error: 'Invalid song type' });
     }
     
-    const folderPath = require('path').join(baseDir, decodeURIComponent(folderName));
+    const folderPath = require('path').join(baseDir, decodedFolderName);
     const fs = require('fs');
     
     if (!fs.existsSync(folderPath)) {
@@ -341,10 +343,9 @@ router.post('/modular-process/:folderName', async (req, res) => {
     }
     
     // Extrahiere Artist und Title aus dem folderName
-    const decodedFolderName = decodeURIComponent(folderName);
     const parts = decodedFolderName.split(' - ');
-    const artist = parts[0] || 'Unknown';
-    const title = parts.slice(1).join(' - ') || 'Unknown';
+    const artist = decodeFromPath(parts[0] || 'Unknown');
+    const title = decodeFromPath(parts.slice(1).join(' - ') || 'Unknown');
     
     // Setze DownloadStatus auf "pending" bevor Job zur Queue hinzugefügt wird
     try {
@@ -426,8 +427,9 @@ router.post('/recreate/:folderName', async (req, res) => {
     const { folderName } = req.params;
     const { songType } = req.body; // 'magic-songs', 'magic-videos', 'magic-youtube'
     
+    const safeRecreateFolder = collapseSlashesInPathSegment(decodeURIComponent(folderName));
     console.log('🔄 Recreate request:', {
-      folderName: decodeURIComponent(folderName),
+      folderName: safeRecreateFolder,
       songType,
       timestamp: new Date().toISOString()
     });
@@ -448,7 +450,7 @@ router.post('/recreate/:folderName', async (req, res) => {
         return res.status(400).json({ error: 'Invalid song type for recreate' });
     }
     
-    const folderPath = require('path').join(baseDir, decodeURIComponent(folderName));
+    const folderPath = require('path').join(baseDir, safeRecreateFolder);
     const fs = require('fs');
     
     if (!fs.existsSync(folderPath)) {
@@ -461,12 +463,12 @@ router.post('/recreate/:folderName', async (req, res) => {
     
     try {
       console.log('🔄 Starting recreate via AI service:', {
-        url: `${aiServiceUrl}/recreate/${encodeURIComponent(folderName)}`,
+        url: `${aiServiceUrl}/recreate/${encodeURIComponent(safeRecreateFolder)}`,
         songType,
         timestamp: new Date().toISOString()
       });
       
-      const response = await axios.post(`${aiServiceUrl}/recreate/${encodeURIComponent(folderName)}`, {
+      const response = await axios.post(`${aiServiceUrl}/recreate/${encodeURIComponent(safeRecreateFolder)}`, {
         songType: songType,
         baseDir: baseDir
       }, {

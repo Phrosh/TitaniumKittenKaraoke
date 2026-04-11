@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { decodeFromPath } = require('./filenameSanitizer');
 
 /**
  * Scannt einen lokalen Ordner und gibt alle verfügbaren Video-Dateien zurück
@@ -32,8 +33,8 @@ function scanFileSongs(folderPath) {
       // Parse "Artist - Title" Format
       const parts = filenameWithoutExt.split(' - ');
       if (parts.length >= 2) {
-        const artist = parts[0].trim();
-        const title = parts.slice(1).join(' - ').trim(); // Falls der Titel selbst " - " enthält
+        const artist = decodeFromPath(parts[0].trim());
+        const title = decodeFromPath(parts.slice(1).join(' - ').trim()); // Falls der Titel selbst " - " enthält
         
         videos.push({
           filename: file,

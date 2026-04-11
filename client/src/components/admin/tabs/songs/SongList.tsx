@@ -312,7 +312,7 @@ const SongList: React.FC<SongListProps> = ({
         const songKey = `${song.artist}-${song.title}`;
 
         try {
-            const folderName = song.folderName || `${song.artist} - ${song.title}`;
+            const folderName = song.folderName || createSanitizedFolderName(song.artist, song.title);
 
             // Use modular processing for all song types
             await startModularProcessing(song, songKey, folderName);

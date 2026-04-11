@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
+const { decodeFromPath } = require('./filenameSanitizer');
 
 // Magic Videos Directory
 const MAGIC_VIDEOS_DIR = path.join(__dirname, '..', 'songs', 'magic-videos');
@@ -24,8 +25,8 @@ function scanMagicVideos() {
       if (fs.statSync(folderPath).isDirectory()) {
         // Parse folder name: "Artist - Title"
         const parts = folder.split(' - ');
-        const artist = parts[0] || 'Unknown Artist';
-        const title = parts.slice(1).join(' - ') || 'Unknown Title';
+        const artist = decodeFromPath((parts[0] || 'Unknown Artist').trim());
+        const title = decodeFromPath((parts.slice(1).join(' - ') || 'Unknown Title').trim());
 
         // Check for video files
         const files = fs.readdirSync(folderPath);

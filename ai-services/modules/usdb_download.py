@@ -26,7 +26,7 @@ except ImportError:
         import re
         def encode_for_path(s):
             if not s or not isinstance(s, str): return ''
-            return s.replace("'", '%27').replace('&', '%26')
+            return s.replace("'", '%27').replace('&', '%26').replace('/', '%2F')
         def sanitize_filename(filename):
             if not filename or not isinstance(filename, str): return ''
             sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', filename)

@@ -10,6 +10,17 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
+try:
+    from ..routes.utils.general_utils import decode_from_path
+except ImportError:
+    try:
+        from routes.utils.general_utils import decode_from_path
+    except ImportError:
+        def decode_from_path(s):
+            if not s or not isinstance(s, str):
+                return ''
+            return s.replace('%2F', '/').replace('%27', "'").replace('%26', '&')
+
 class ProcessingMode(Enum):
     """Verfügbare Verarbeitungsmodi"""
     YOUTUBE_CACHE = "youtube_cache"
@@ -211,8 +222,8 @@ def create_meta_from_youtube_url(
     title = "Unknown Title"
     if ' - ' in folder_name:
         parts = folder_name.split(' - ', 1)
-        artist = parts[0].strip() or artist
-        title = parts[1].strip() or title
+        artist = decode_from_path(parts[0].strip()) or artist
+        title = decode_from_path(parts[1].strip()) or title
     
     # Versuche aus der URL zu extrahieren (falls möglich)
     try:
@@ -252,11 +263,11 @@ def create_meta_from_file_path(file_path: str, base_dir: str, mode: ProcessingMo
     # Parse "Artist - Title" Format
     if ' - ' in folder_name:
         parts = folder_name.split(' - ', 1)
-        artist = parts[0].strip()
-        title = parts[1].strip()
+        artist = decode_from_path(parts[0].strip())
+        title = decode_from_path(parts[1].strip())
     else:
         artist = "Unknown Artist"
-        title = folder_name
+        title = decode_from_path(folder_name)
     
     return ProcessingMeta(
         artist=artist,
