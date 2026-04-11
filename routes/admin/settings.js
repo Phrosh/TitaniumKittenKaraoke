@@ -455,7 +455,8 @@ router.put(
         donationShowButtonOnNewPage,
       } = req.body;
 
-      const { KEYS, normalizeQuickAmounts } = require('../../utils/paypalSettings');
+      const paypalSettings = require('../../utils/paypalSettings');
+      const { KEYS, normalizeQuickAmounts } = paypalSettings;
       const dd = require('../../utils/donationDisplaySettings');
 
       const amountStr = Number(paypalDefaultAmount).toFixed(2);
@@ -468,6 +469,28 @@ router.put(
         dd.DEFAULTS.donationNotificationTemplate;
       const dmSep =
         String(donationMarqueeSeparator || '').trim() || dd.DEFAULTS.donationMarqueeSeparator;
+
+      const current = await paypalSettings.loadPayPalSettings();
+      const newId = String(paypalClientId || '').trim();
+      const oldId = String(current.clientId || '').trim();
+      const secretTrim = String(paypalClientSecret || '').trim();
+      const wasSandbox = current.isSandbox;
+      const nowSandbox = !!paypalSandboxEnabled;
+      const idChanged = newId !== oldId;
+      const modeChanged = wasSandbox !== nowSandbox;
+
+      if (idChanged && !secretTrim) {
+        return res.status(400).json({
+          message:
+            'Die Client-ID wurde geändert. Bitte das passende Client Secret neu eintragen und speichern — ein altes Secret gehört nicht zur neuen Client-ID (häufig: Live-ID eingetragen, Sandbox-Secret noch in der Datenbank).',
+        });
+      }
+      if (modeChanged && !secretTrim) {
+        return res.status(400).json({
+          message:
+            'Sandbox/Live wurde gewechselt. Bitte Client-ID und Secret aus dem passenden Tab im PayPal Developer Dashboard einfügen (Secret nicht leer lassen). Beim Wechsel auf Live bleibt sonst oft das alte Sandbox-Secret gespeichert → Fehler invalid_client.',
+        });
+      }
 
       await upsertSetting(KEYS.publicUrl, stripPublicUrl(paypalPublicUrl));
       await upsertSetting(KEYS.clientId, String(paypalClientId).trim());

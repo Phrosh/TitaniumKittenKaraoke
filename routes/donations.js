@@ -31,19 +31,42 @@ async function getRuntime() {
 }
 
 async function getAccessToken(runtime) {
-  const auth = Buffer.from(`${runtime.clientId}:${runtime.clientSecret}`).toString('base64');
-  const { data } = await axios.post(
-    `${runtime.apiBase}/v1/oauth2/token`,
-    'grant_type=client_credentials',
-    {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      timeout: 20000,
-    }
-  );
-  return data.access_token;
+  try {
+    const auth = Buffer.from(`${runtime.clientId}:${runtime.clientSecret}`).toString('base64');
+    const { data } = await axios.post(
+      `${runtime.apiBase}/v1/oauth2/token`,
+      'grant_type=client_credentials',
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 20000,
+      }
+    );
+    return data.access_token;
+  } catch (err) {
+    const pe = err.response?.data;
+    const e = new Error(pe?.error_description || err.message);
+    e.paypalError = pe?.error;
+    e.paypalErrorDescription = pe?.error_description;
+    e.isSandbox = runtime.isSandbox;
+    e.apiBase = runtime.apiBase;
+    e.clientIdPrefix = String(runtime.clientId || '').slice(0, 10);
+    throw e;
+  }
+}
+
+/** Klartext für API-Antwort / Logs bei OAuth-Fehlern (ohne Secrets). */
+function messageForPayPalOAuthFailure(err) {
+  const code = err.paypalError || err.response?.data?.error;
+  const live = !err.isSandbox;
+  if (code === 'invalid_client') {
+    return live
+      ? 'PayPal Live: Client-ID oder Secret wird abgelehnt. Im PayPal Developer Dashboard unter „Live“ (nicht Sandbox) die Credentials kopieren, in den Karaoke-Einstellungen eintragen und speichern. Sandbox- und Live-Apps sind unterschiedlich.'
+      : 'PayPal Sandbox: Client-ID oder Secret wird abgelehnt. Developer Dashboard → Sandbox-Credentials prüfen (App „Secret“ neu erzeugen falls nötig).';
+  }
+  return null;
 }
 
 async function verifyWebhookSignature(runtime, accessToken, headers, webhookEvent) {
@@ -256,10 +279,26 @@ module.exports = function createDonationsRouter(getIo) {
         orderId: data.id,
       });
     } catch (err) {
-      console.error('PayPal create-order:', err.response?.data || err.message);
+      const oauthHint = messageForPayPalOAuthFailure(err);
+      if (oauthHint || err.paypalError) {
+        console.error('PayPal create-order (OAuth/Konfiguration):', {
+          paypalError: err.paypalError || err.response?.data?.error,
+          description: err.paypalErrorDescription || err.response?.data?.error_description,
+          mode: rt.isSandbox ? 'sandbox' : 'live',
+          apiBase: rt.apiBase,
+          clientIdPrefix: err.clientIdPrefix,
+        });
+      } else {
+        console.error('PayPal create-order:', err.response?.data || err.message);
+      }
+      const msg =
+        oauthHint ||
+        (err.response?.data?.message ? String(err.response.data.message) : null) ||
+        'PayPal-Auftrag konnte nicht erstellt werden.';
       return res.status(502).json({
-        message: 'PayPal-Auftrag konnte nicht erstellt werden.',
-        detail: err.response?.data?.message || err.message,
+        message: msg,
+        detail: err.paypalErrorDescription || err.response?.data?.error_description || err.message,
+        paypalError: err.paypalError || err.response?.data?.error,
       });
     }
   });
