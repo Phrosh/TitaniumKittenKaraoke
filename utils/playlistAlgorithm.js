@@ -82,11 +82,15 @@ class PlaylistAlgorithm {
     }
   }
 
-  /** Anzahl der Songs in future, die eine höhere (schlechtere) Priorität haben als die gegebene. */
+  /**
+   * Einfüge-Index in die nach Position sortierte Warteschlange „future“.
+   * Niedrigere Prioritätszahl = fairer = weiter vorne.
+   * Alle Songs mit besserer oder gleicher Priorität (FIFO: bestehende zuerst) liegen vor dem neuen Song.
+   */
   static computeNaturalIndex(future, newPriority) {
     let count = 0;
     for (const s of future) {
-      if (s.priority > newPriority) count++;
+      if (s.priority <= newPriority) count++;
     }
     return count;
   }
@@ -106,40 +110,30 @@ class PlaylistAlgorithm {
   }
 
   /**
-   * Priorität pro Teilnehmer (Name + Device-ID).
+   * Priorität pro Teilnehmer (Name + Device-ID): Anzahl seiner Songs in der DB (inkl. neuem Eintrag).
    * user_id entspricht genau einem Eintrag (Name + device_id); über ein Gerät können sich mehrere Leute eintragen (verschiedene Namen → verschiedene user_id).
    */
-  static async calculatePriority(userId, deviceId) {
+  static async calculatePriority(userId, _deviceId) {
     return new Promise((resolve, reject) => {
-      // Song-Anzahl dieses Teilnehmers (Name + Device-ID = user_id)
-      db.get(`
+      // Song-Anzahl dieses Teilnehmers (Name + Device-ID = user_id), inkl. des gerade angelegten Songs
+      db.get(
+        `
         SELECT COUNT(*) as count FROM songs WHERE user_id = ?
-      `, [userId], (err, row) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        const userSongCount = row ? row.count : 0;
-
-        // Aktueller Song-Priorität als Untergrenze
-        db.get(`
-          SELECT s.priority 
-          FROM songs s 
-          WHERE s.id = (
-            SELECT CAST(value AS INTEGER) 
-            FROM settings 
-            WHERE key = 'current_song_id'
-            )
-        `, (err, currentSong) => {
+      `,
+        [userId],
+        (err, row) => {
           if (err) {
             reject(err);
             return;
           }
-          const minPriority = currentSong ? currentSong.priority : 1;
-          const finalPriority = Math.max(userSongCount + 1, minPriority);
+          const userSongCount = row ? row.count : 0;
+          // Nur nach Teilnahmehäufigkeit skalieren — keine Anhebung an die Priorität des aktuellen Songs,
+          // sonst bekämen alle neuen Wünsche oft dieselbe Zahl und „schlechte“ Sänger landeten durch den
+          // invertierten Zählfehler in computeNaturalIndex zu weit vorne.
+          const finalPriority = Math.max(1, userSongCount);
           resolve(finalPriority);
-        });
-      });
+        }
+      );
     });
   }
 
