@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { showAPI, songAPI, adminAPI, default as api } from '../../services/api';
 import websocketService, { ShowUpdateData } from '../../services/websocket';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,10 @@ import {
   BackgroundLoopVideo,
   BackgroundImage,
   NoVideoMessage,
-  LyricsContainer
+  LyricsContainer,
+  UltrastarMediaLoadingOverlay,
+  UltrastarMediaLoadingSpinner,
+  UltrastarMediaLoadingCaption,
 } from './style';
 import { UltrastarSongData } from './types';
 import Footer from './Footer';
@@ -136,7 +139,6 @@ const ShowView: React.FC = () => {
 
   // Ultrastar-specific state
   const [ultrastarData, setUltrastarData] = useState<UltrastarSongData | null>(null);
-  const [isApiLoadedSong, setIsApiLoadedSong] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastLoggedText = useRef<string>('');
   const lastUpdateTimeP1 = useRef<number>(0);
@@ -144,10 +146,16 @@ const ShowView: React.FC = () => {
   const UPDATE_THROTTLE_MS = 50; // Throttle updates to max 20fps to prevent race conditions
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  /** Ultrastar: gemeinsamer Start (Video „playing“ → dann Audio); von WebSocket/Autoplay genutzt */
+  const beginUltrastarPlaybackRef = useRef<(opts?: { allowWhilePlaying?: boolean }) => void>(() => {});
   const videoInitializedRef = useRef<boolean>(false);
   const ultrastarImmediateEndHandledRef = useRef(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  /** z. B. .mp4 fehlt: kein endloses Warten auf videoLoaded, Playback nur Audio */
+  const [ultrastarVideoLoadFailed, setUltrastarVideoLoadFailed] = useState(false);
+  /** gesetzt wenn /song-data für diese Queue-ID fertig ist (verhindert Warten auf videoLoaded vom Vorsong) */
+  const [ultrastarReadyForSongId, setUltrastarReadyForSongId] = useState<number | null>(null);
   const [canAutoPlay, setCanAutoPlay] = useState(false);
 
   const [lyricsScaleP1, setLyricsScaleP1] = useState<number>(1);
@@ -991,6 +999,11 @@ const ShowView: React.FC = () => {
       const songData = response.data.songData;
 
       setUltrastarData(songData);
+      setUltrastarReadyForSongId(song.id);
+      // Kein <video> → kein onLoadedData; sonst könnte videoLoaded vom vorherigen Song hängen bleiben
+      if (!songData.videoUrl && songData.backgroundImageUrl) {
+        setVideoLoaded(true);
+      }
 
       // Reset all states atomically to prevent race conditions
       setShowLyrics1(false);
@@ -1006,8 +1019,7 @@ const ShowView: React.FC = () => {
       // Analyze and log all fade-out lines
       // const fadeOutIndices = analyzeFadeOutLines(songData);
 
-      // Don't start timing immediately - wait for audio to be ready
-      // Timing will be started in handleAudioCanPlay when audio is fully loaded
+      // Timing startet erst bei echtem Audio-Play (handleAudioPlay), damit Video/Lyrics synchron bleiben.
 
     } catch (error) {
       console.error('Error loading Ultrastar data:', error);
@@ -1139,7 +1151,6 @@ const ShowView: React.FC = () => {
         // Load Ultrastar-style data for ultrastar and magic-youtube songs
         if (newSong && (newSong.mode === 'ultrastar' || newSong.mode === 'magic-youtube')) {
           console.log('🌐 API: Loading Ultrastar data for new song');
-          setIsApiLoadedSong(true); // Mark as API-loaded song
           await loadUltrastarData(newSong);
         } else {
           // Clear ultrastar data for non-ultrastar songs - do this atomically
@@ -1149,6 +1160,7 @@ const ShowView: React.FC = () => {
 
           // Reset all states atomically to prevent race conditions
           setUltrastarData(null);
+          setUltrastarReadyForSongId(null);
           setShowLyrics1(false);
           setShowLyrics2(false);
           setLyricsScaleP1(0);
@@ -1294,7 +1306,6 @@ const ShowView: React.FC = () => {
 
       // Load Ultrastar-style data for ultrastar and magic-youtube songs
       if (newSong && (newSong.mode === 'ultrastar' || (newSong as any).mode === 'magic-youtube')) {
-        setIsApiLoadedSong(false); // Mark as WebSocket-loaded song
         await loadUltrastarData(newSong);
       } else {
         // Clear ultrastar data for non-ultrastar songs - do this atomically
@@ -1306,6 +1317,7 @@ const ShowView: React.FC = () => {
 
         // Reset all states atomically to prevent race conditions
         setUltrastarData(null);
+        setUltrastarReadyForSongId(null);
         setShowLyrics1(false);
         setShowLyrics2(false);
         setLyricsScaleP1(0);
@@ -1351,9 +1363,7 @@ const ShowView: React.FC = () => {
     const handleTogglePlayPause = () => {
       if (isUltrastar && audioRef.current) {
         if (audioRef.current.paused) {
-          audioRef.current.play().catch(error => {
-            console.error('🎵 Error resuming playback:', error);
-          });
+          beginUltrastarPlaybackRef.current();
           setIsPlaying(true);
           // Hide QR overlay when playback starts via control event
           showAPI.toggleQRCodeOverlay(false).catch(error => {
@@ -1452,16 +1462,16 @@ const ShowView: React.FC = () => {
         lastUpdateTimeP2.current = 0;
         lastLoggedText.current = '';
 
+        audioRef.current.pause();
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
+
         // Restart audio (Pre-Gap: ab konfigurierter Sekunde in der Datei)
         const audioDur = audioRef.current.duration;
         audioRef.current.currentTime = getUltrastarPlaybackStartSeconds(ultrastarData, audioDur);
-        audioRef.current.play().then(() => {
-          console.log('🎵 Audio play() successful');
-        }).catch(error => {
-          console.error('🎵 Error restarting playback:', error);
-        });
 
-        // Also restart video if present (immer aus Audio-Zeit ableiten inkl. VIDEOGAP)
+        // Video an Audio-Zeit (inkl. VIDEOGAP)
         if (videoRef.current) {
           videoRef.current.muted = true;
           videoInitializedRef.current = false;
@@ -1473,14 +1483,11 @@ const ShowView: React.FC = () => {
           videoRef.current.currentTime = vT;
           videoInitializedRef.current = true;
           console.log('🎬 Restart: Video an Audio synchron:', { audioT, videoTime: vT });
-          videoRef.current.play().then(() => {
-            console.log('🎬 Video play() successful on restart');
-          }).catch(error => {
-            console.error('🎬 Error restarting video playback:', error);
-          });
         } else {
           console.log('🎬 No video ref found for Ultrastar song');
         }
+
+        beginUltrastarPlaybackRef.current({ allowWhilePlaying: true });
         
         for (const timeouts of [p1Timeouts, p2Timeouts]) {
           for (const timeout of timeouts) {
@@ -1534,12 +1541,6 @@ const ShowView: React.FC = () => {
             }
           }
         }, 50); // Small delay to ensure DOM is ready
-        
-        // Restart Ultrastar timing with fresh fade-out analysis
-        setTimeout(() => {
-          const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
-          startUltrastarTiming(ultrastarData, fadeOutIndices);
-        }, 100); // Small delay to ensure audio is playing
       } else if (currentSong?.mode === 'youtube') {
         // YouTube embed - restart by reloading iframe
         setYoutubeCurrentTime(0);
@@ -1813,6 +1814,8 @@ const ShowView: React.FC = () => {
 
 
   const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
+  const ultrastarDataMatchesCurrentSong =
+    currentSong?.id != null && ultrastarReadyForSongId === currentSong.id;
 
   useEffect(() => {
     if (audioRef.current) {
@@ -1960,6 +1963,7 @@ const ShowView: React.FC = () => {
     (minDeltaSec = 0.05, force = false) => {
       if (!ultrastarData?.videoUrl || !videoRef.current || !audioRef.current) return;
       const vEl = videoRef.current;
+      if (vEl.error != null) return;
       const audioT = audioRef.current.currentTime;
       const raw = getUltrastarVideoTimeForAudioTime(ultrastarData, audioT);
       const vt = clampVideoTimeToDuration(vEl, raw);
@@ -1989,7 +1993,8 @@ const ShowView: React.FC = () => {
 
   // Wenn Video und Audio beide bereit sind: Video nochmal an Audio/Pre-Gap/VIDEOGAP hängen
   useEffect(() => {
-    if (!videoLoaded || !audioLoaded || !ultrastarData?.videoUrl) return;
+    if (ultrastarVideoLoadFailed) return;
+    if (!audioLoaded || !videoLoaded || !ultrastarData?.videoUrl || !backgroundVideoEnabled) return;
     if (currentSong?.mode !== 'ultrastar' && currentSong?.mode !== 'magic-youtube') return;
     syncUltrastarVideoToAudio(0.02, true);
     const t = window.setTimeout(() => syncUltrastarVideoToAudio(0.02, true), 100);
@@ -2004,6 +2009,8 @@ const ShowView: React.FC = () => {
     ultrastarData?.postGapSeconds,
     ultrastarData?.gap,
     ultrastarData?.videogap,
+    backgroundVideoEnabled,
+    ultrastarVideoLoadFailed,
     syncUltrastarVideoToAudio,
   ]);
 
@@ -2109,24 +2116,166 @@ const ShowView: React.FC = () => {
   const handleAudioCanPlay = useCallback(() => {
     setAudioLoaded(true);
     applyUltrastarPreGapSeek();
-
-    // Start timing only when audio is ready to prevent race conditions
-    // But don't start timing immediately - wait for audio to actually start playing
-    if (ultrastarData && ultrastarData.audioUrl && ultrastarData.bpm > 0) {
-      if (isApiLoadedSong) {
-        const fadeOutIndices = analyzeFadeOutLines(ultrastarData);
-        startUltrastarTiming(ultrastarData, fadeOutIndices);
-      }
-    }
-  }, [currentSong?.id, currentSong?.title, ultrastarData, startUltrastarTiming, isApiLoadedSong, analyzeFadeOutLines, applyUltrastarPreGapSeek]);
+    // Kein startUltrastarTiming hier: würde bei canplay laufen, oft bevor Video bereit ist bzw. vor echtem Play.
+  }, [currentSong?.id, currentSong?.title, ultrastarData, applyUltrastarPreGapSeek]);
 
   const [songChanged, setSongChanged] = useState(true);
+
+  /** Nach Songwechsel false; true sobald Audio wirklich spielt (gemeinsamer Start mit Video/Lyrics). */
+  const [ultrastarSyncedPlaybackStarted, setUltrastarSyncedPlaybackStarted] = useState(false);
 
   useEffect(() => {
     setSongChanged(true);
   }, [ultrastarData?.gap, ultrastarData?.preGapSeconds, ultrastarData?.postGapSeconds]);
 
   const [playing, setPlaying] = useState(false);
+
+  useLayoutEffect(() => {
+    setUltrastarSyncedPlaybackStarted(false);
+    setAudioLoaded(false);
+    setVideoLoaded(false);
+    setUltrastarVideoLoadFailed(false);
+    setUltrastarReadyForSongId(null);
+    setCanAutoPlay(false);
+  }, [currentSong?.id]);
+
+  /** Lade-Overlay erst weg, wenn wirklich etwas Sichtbares da ist (nicht schon bei Audio-Play). */
+  const revealUltrastarPlayback = useCallback(
+    (videoEl: HTMLVideoElement | null, waitForVideoPaint: boolean) => {
+      const done = () => setUltrastarSyncedPlaybackStarted(true);
+      if (!waitForVideoPaint || !videoEl) {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(done));
+        return;
+      }
+      const cap = videoEl as HTMLVideoElement & {
+        requestVideoFrameCallback?: (cb: () => void) => number;
+      };
+      if (typeof cap.requestVideoFrameCallback === 'function') {
+        cap.requestVideoFrameCallback.call(videoEl, () => {
+          cap.requestVideoFrameCallback!.call(videoEl, done);
+        });
+      } else {
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => window.requestAnimationFrame(done))
+        );
+      }
+    },
+    []
+  );
+
+  /**
+   * Video zuerst bis Frame/„playing“, dann Audio. Lade-Overlay-Reveal über revealUltrastarPlayback.
+   * @param allowWhilePlaying z. B. nach Restart, wenn die Spur technisch noch als „playing“ gelten kann.
+   */
+  const beginUltrastarPlaybackTogether = useCallback(
+    (opts?: { allowWhilePlaying?: boolean }) => {
+      const a = audioRef.current;
+      if (!a || !ultrastarData) return;
+      if (!opts?.allowWhilePlaying && !a.paused) return;
+
+      applyUltrastarPreGapSeek();
+
+      const needVideo = !!(
+        ultrastarDataMatchesCurrentSong &&
+        ultrastarData.videoUrl &&
+        backgroundVideoEnabled &&
+        !ultrastarVideoLoadFailed
+      );
+      const v = videoRef.current;
+
+      if (needVideo && v) {
+        v.muted = true;
+        try {
+          v.pause();
+        } catch {
+          /* ignore */
+        }
+        syncUltrastarVideoToAudio(0.02, true);
+
+        let kicked = false;
+        let frameWaitId: number | null = null;
+        const vCap = v as HTMLVideoElement & {
+          requestVideoFrameCallback?: (cb: () => void) => number;
+          cancelVideoFrameCallback?: (id: number) => void;
+        };
+
+        const kickAudio = () => {
+          if (kicked) return;
+          kicked = true;
+          window.clearTimeout(fallback);
+          window.clearTimeout(shortFallback);
+          v.removeEventListener('playing', onPlaying);
+          if (frameWaitId != null && typeof vCap.cancelVideoFrameCallback === 'function') {
+            try {
+              vCap.cancelVideoFrameCallback.call(v, frameWaitId);
+            } catch {
+              /* ignore */
+            }
+            frameWaitId = null;
+          }
+          void a
+            .play()
+            .then(() => revealUltrastarPlayback(v, true))
+            .catch((err) => {
+              console.error('🎵 Ultrastar audio play:', err);
+              revealUltrastarPlayback(v, true);
+            });
+        };
+
+        const onPlaying = () => kickAudio();
+
+        if (typeof vCap.requestVideoFrameCallback === 'function') {
+          frameWaitId = vCap.requestVideoFrameCallback.call(v, kickAudio);
+        } else {
+          v.addEventListener('playing', onPlaying, { once: true });
+        }
+
+        const fallback = window.setTimeout(kickAudio, 4000);
+        const shortFallback = window.setTimeout(() => {
+          if (!kicked && v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            kickAudio();
+          }
+        }, 450);
+
+        void v.play().catch((err) => {
+          console.error('🎬 Ultrastar video play (vor Audio):', err);
+          setUltrastarVideoLoadFailed(true);
+          setVideoLoaded(true);
+          v.removeEventListener('playing', onPlaying);
+          window.clearTimeout(fallback);
+          window.clearTimeout(shortFallback);
+          if (frameWaitId != null && typeof vCap.cancelVideoFrameCallback === 'function') {
+            try {
+              vCap.cancelVideoFrameCallback.call(v, frameWaitId);
+            } catch {
+              /* ignore */
+            }
+            frameWaitId = null;
+          }
+          kickAudio();
+        });
+      } else {
+        void a
+          .play()
+          .then(() => revealUltrastarPlayback(null, false))
+          .catch((err) => {
+            console.error('🎵 Ultrastar audio play:', err);
+            revealUltrastarPlayback(null, false);
+          });
+      }
+    },
+    [
+      ultrastarData,
+      ultrastarDataMatchesCurrentSong,
+      backgroundVideoEnabled,
+      ultrastarVideoLoadFailed,
+      applyUltrastarPreGapSeek,
+      syncUltrastarVideoToAudio,
+      revealUltrastarPlayback,
+    ]
+  );
+
+  beginUltrastarPlaybackRef.current = beginUltrastarPlaybackTogether;
 
   useEffect(() => {
     if (!songChanged || !playing || typeof ultrastarData?.gap === 'undefined') return;
@@ -2224,7 +2373,7 @@ const ShowView: React.FC = () => {
     }
 
     // Sync video with audio (einheitlich: VIDEOGAP + Pre-Gap über Audiospur)
-    if (videoRef.current && ultrastarData?.videoUrl) {
+    if (videoRef.current && ultrastarData?.videoUrl && !ultrastarVideoLoadFailed) {
       videoRef.current.muted = true;
       const wasInitialized = videoInitializedRef.current;
       const wasPaused = videoRef.current.paused;
@@ -2252,13 +2401,15 @@ const ShowView: React.FC = () => {
     stopBackgroundMusic,
     hideBackgroundVideo,
     syncUltrastarVideoToAudio,
+    ultrastarVideoLoadFailed,
   ]);
 
   const handleUltrastarAudioSeeked = useCallback(() => {
+    if (ultrastarVideoLoadFailed) return;
     if (!ultrastarData?.videoUrl || !videoRef.current || !audioRef.current) return;
     if (currentSong?.mode !== 'ultrastar' && currentSong?.mode !== 'magic-youtube') return;
     syncUltrastarVideoToAudio(0.02, true);
-  }, [ultrastarData, currentSong?.mode, syncUltrastarVideoToAudio]);
+  }, [ultrastarData, currentSong?.mode, ultrastarVideoLoadFailed, syncUltrastarVideoToAudio]);
 
   const handleAudioPause = useCallback(() => {
     setPlaying(false);
@@ -2399,14 +2550,27 @@ const ShowView: React.FC = () => {
   const checkMediaReady = useCallback(() => {
     if (isUltrastar && ultrastarData) {
       const audioReady = audioLoaded;
-      const videoReady = ultrastarData.videoUrl ? videoLoaded : true; // No video = ready
-      const backgroundReady = ultrastarData.backgroundImageUrl ? true : true; // Images load instantly
+      const videoWanted =
+        ultrastarDataMatchesCurrentSong &&
+        !!(ultrastarData.videoUrl && backgroundVideoEnabled);
+      const videoReady = !videoWanted || videoLoaded || ultrastarVideoLoadFailed;
+      const backgroundReady = true;
 
       if (audioReady && videoReady && backgroundReady && !canAutoPlay) {
         setCanAutoPlay(true);
       }
     }
-  }, [isUltrastar, ultrastarData, audioLoaded, videoLoaded, canAutoPlay, currentSong?.title]);
+  }, [
+    isUltrastar,
+    ultrastarData,
+    ultrastarDataMatchesCurrentSong,
+    audioLoaded,
+    videoLoaded,
+    canAutoPlay,
+    backgroundVideoEnabled,
+    ultrastarVideoLoadFailed,
+    currentSong?.title,
+  ]);
 
   // Check media readiness whenever loading states change
   useEffect(() => {
@@ -2419,15 +2583,24 @@ const ShowView: React.FC = () => {
       // Add a small delay to ensure all DOM updates are complete
       const playTimeout = setTimeout(() => {
         if (audioRef.current && audioRef.current.paused) {
-          audioRef.current.play().catch(error => {
-            console.error('🎵 Autoplay failed:', error);
-          });
+          beginUltrastarPlaybackRef.current();
         }
       }, 100); // 100ms delay to prevent race conditions
 
       return () => clearTimeout(playTimeout);
     }
-  }, [canAutoPlay, hasUserInteracted, currentSong?.id, currentSong?.title, audioLoaded, videoLoaded, ultrastarData?.videoUrl]);
+  }, [
+    canAutoPlay,
+    hasUserInteracted,
+    currentSong?.id,
+    currentSong?.title,
+    audioLoaded,
+    videoLoaded,
+    ultrastarVideoLoadFailed,
+    ultrastarData?.videoUrl,
+    ultrastarDataMatchesCurrentSong,
+    ultrastarReadyForSongId,
+  ]);
 
   // Reset loading states when song changes
   useEffect(() => {
@@ -2462,6 +2635,7 @@ const ShowView: React.FC = () => {
       setProgressValue2(0);
       setAudioLoaded(false);
       setVideoLoaded(false);
+      setUltrastarVideoLoadFailed(false);
       setCanAutoPlay(false);
       setShowLyrics1(false);
       setShowLyrics2(false);
@@ -2470,7 +2644,6 @@ const ShowView: React.FC = () => {
       setLyricsTransitionEnabledP1(false);
       setLyricsTransitionEnabledP2(false);
       setIsPlaying(false);
-      setIsApiLoadedSong(false); // Reset API-loaded flag
       videoInitializedRef.current = false; // Reset video initialization flag
       
       // Clear lyrics content
@@ -2528,6 +2701,21 @@ const ShowView: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [ultrastarData, isPlaying, stopUltrastarTiming, startUltrastarTiming, analyzeFadeOutLines]);
 
+  const ultrastarMainVideoActive =
+    ultrastarDataMatchesCurrentSong &&
+    !!ultrastarData?.videoUrl &&
+    backgroundVideoEnabled &&
+    !ultrastarVideoLoadFailed;
+  const ultrastarAssetsReady =
+    !!ultrastarData?.audioUrl &&
+    audioLoaded &&
+    (!ultrastarMainVideoActive || videoLoaded);
+  /** Auch während loadUltrastarData (noch kein audioUrl): sonst Fallback-Video ohne Ladehinweis */
+  const showUltrastarMediaLoadingOverlay =
+    isUltrastar &&
+    !!currentSong &&
+    (!ultrastarData?.audioUrl || !ultrastarAssetsReady || !ultrastarSyncedPlaybackStarted);
+
   return (
     <ShowContainer
       // onClick={handleScreenClick}
@@ -2552,7 +2740,7 @@ const ShowView: React.FC = () => {
         audioRef={audioRef}
         videoRef={videoRef}
         ultrastarData={ultrastarData}
-        startUltrastarTiming={startUltrastarTiming}
+        beginUltrastarPlaybackTogether={beginUltrastarPlaybackTogether}
         setYoutubeCurrentTime={setYoutubeCurrentTime}
         setIframeKey={setIframeKey}
         setYoutubeIsPaused={setYoutubeIsPaused}
@@ -2560,7 +2748,7 @@ const ShowView: React.FC = () => {
       />
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
-        <VideoWrapper>
+        <VideoWrapper $blackBacking={isUltrastar}>
           {!isUltrastar ? (
             currentSong?.mode === 'youtube' ? (
               <VideoIframe
@@ -2661,17 +2849,17 @@ const ShowView: React.FC = () => {
                     if (!videoRef.current || !ultrastarData) return;
                     const vEl = videoRef.current;
                     vEl.muted = true;
-                    // Immer an aktuelle Audio-Zeit anbinden (Pre-Gap kann vorher schon gesetzt sein).
-                    // force: Schwellenwert ~0 ms, damit Nachziehen nach applyUltrastarPreGapSeek greift.
+                    // Nur synchron halten, nicht abspielen: sonst läuft das Video vor dem Audio-Start los.
                     syncUltrastarVideoToAudio(0.02, true);
                     if (!videoInitializedRef.current) {
                       videoInitializedRef.current = true;
                     }
-                    if (vEl.paused) {
-                      vEl.play().catch(error => {
-                        console.error('🎬 Error playing video on canPlay:', error);
-                      });
-                    }
+                  }}
+                  preload="auto"
+                  onError={() => {
+                    console.warn('🎬 Ultrastar-Video nicht ladbar (Datei fehlt o.ä.) – nur Audio');
+                    setUltrastarVideoLoadFailed(true);
+                    setVideoLoaded(true);
                   }}
                   onPlay={() => {
                     console.log('🎬 Background video started playing');
@@ -2726,7 +2914,8 @@ const ShowView: React.FC = () => {
                 key={currentSong?.id}
                 ref={audioRef}
                 src={ultrastarData.audioUrl}
-                autoPlay={canAutoPlay && hasUserInteracted}
+                preload="auto"
+                autoPlay={false}
                 onClick={(e) => e.stopPropagation()}
                 style={{ display: 'none' }}
                 onLoadedData={handleAudioLoadedData}
@@ -2858,6 +3047,19 @@ const ShowView: React.FC = () => {
         nextSongs={nextSongs}
         qrCodeUrl={qrCodeUrl}
       />
+
+      {showUltrastarMediaLoadingOverlay && (
+        <UltrastarMediaLoadingOverlay aria-busy="true" aria-live="polite">
+          <UltrastarMediaLoadingSpinner aria-hidden />
+          <UltrastarMediaLoadingCaption>
+            {!ultrastarData?.audioUrl
+              ? t('showView.loadingSongData')
+              : ultrastarAssetsReady
+                ? t('showView.preparingPlayback')
+                : t('showView.loadingMedia')}
+          </UltrastarMediaLoadingCaption>
+        </UltrastarMediaLoadingOverlay>
+      )}
 
       {/* Start Overlay */}
       <StartOverlay

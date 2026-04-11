@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { 
     HIGHLIGHT_COLOR, 
     BLACK_BACKGROUND, 
@@ -26,12 +26,51 @@ export const ShowContainer = styled.div<{ $cursorVisible: boolean }>`
   -ms-user-select: none;
 `;
 
-export const VideoWrapper = styled.div`
+const ultrastarLoadingSpin = keyframes`
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+/** Über QR-Overlay (200), unter Start-Overlay (300); solange Ultrastar-Medien / synchroner Start */
+export const UltrastarMediaLoadingOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 250;
+  background: rgba(0, 0, 0, 0.94);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  pointer-events: none;
+`;
+
+export const UltrastarMediaLoadingSpinner = styled.div`
+  width: 52px;
+  height: 52px;
+  border: 4px solid rgba(255, 255, 255, 0.12);
+  border-top-color: ${WHITE};
+  border-radius: 50%;
+  animation: ${ultrastarLoadingSpin} 0.8s linear infinite;
+`;
+
+export const UltrastarMediaLoadingCaption = styled.p`
+  margin: 0;
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.02em;
+`;
+
+export const VideoWrapper = styled.div<{ $blackBacking?: boolean }>`
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  background: ${(p) => (p.$blackBacking ? '#000000' : 'transparent')};
 `;
 
 
@@ -69,6 +108,7 @@ export const BackgroundVideo = styled.video`
   width: 100%;
   height: 100%;
   object-fit: cover;
+  background: #000000;
   z-index: 1;
 `;
 

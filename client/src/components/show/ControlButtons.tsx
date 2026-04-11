@@ -13,7 +13,7 @@ interface ControlButtonsProps {
   audioRef: React.RefObject<HTMLAudioElement>;
   videoRef: React.RefObject<HTMLVideoElement>;
   ultrastarData: any;
-  startUltrastarTiming: (ultrastarData: any, fadeOutLineIndices: Set<number>[]) => void;
+  beginUltrastarPlaybackTogether: (opts?: { allowWhilePlaying?: boolean }) => void;
   setYoutubeCurrentTime: (youtubeCurrentTime: number) => void;
   setIframeKey: React.Dispatch<React.SetStateAction<number>>;
   setYoutubeIsPaused: (youtubeIsPaused: boolean) => void;
@@ -84,7 +84,7 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
   audioRef,
   videoRef,
   ultrastarData,
-  startUltrastarTiming,
+  beginUltrastarPlaybackTogether,
   setYoutubeCurrentTime,
   setIframeKey,
   setYoutubeIsPaused,
@@ -216,41 +216,33 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
     // Handle local restart logic first
     if ((currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube') && audioRef.current && ultrastarData) {
       console.log('🎤 Ultrastar restart via ShowView button');
-      
+
+      audioRef.current.pause();
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+
       const audioDur = audioRef.current.duration;
       const audioStart = getUltrastarPlaybackStartSeconds(ultrastarData, audioDur);
       console.log('🎵 Audio currentTime before:', audioRef.current.currentTime);
       audioRef.current.currentTime = audioStart;
       console.log('🎵 Audio currentTime after:', audioRef.current.currentTime);
-      audioRef.current.play().then(() => {
-        console.log('🎵 Audio play() successful');
-      }).catch(error => {
-        console.error('🎵 Error restarting playback:', error);
-      });
-      
+
       if (videoRef.current) {
         console.log('🎬 Ultrastar video restart via ShowView button');
+        videoRef.current.muted = true;
         const vT = clampVideoTimeToDuration(
           videoRef.current,
           getUltrastarVideoTimeForAudioTime(ultrastarData, audioRef.current.currentTime)
         );
         videoRef.current.currentTime = vT;
         console.log('🎬 Video currentTime after:', videoRef.current.currentTime);
-        videoRef.current.play().then(() => {
-          console.log('🎬 Video play() successful');
-        }).catch(error => {
-          console.error('🎬 Error restarting video playback:', error);
-        });
       } else {
         console.log('🎬 No video ref found for Ultrastar song');
       }
-      
+
       setIsPlaying(true);
-      // Restart complete Ultrastar timing and lyrics
-      setTimeout(() => {
-        console.log('🎤 Restarting complete Ultrastar timing');
-        startUltrastarTiming(ultrastarData, [new Set<number>()]);
-      }, 100); // Small delay to ensure audio is playing
+      beginUltrastarPlaybackTogether({ allowWhilePlaying: true });
     } else if (currentSong?.mode === 'youtube') {
       console.log('📺 YouTube restart via ShowView button');
       // YouTube embed - restart by reloading iframe
@@ -311,7 +303,7 @@ const ControlButtons: React.FC<ControlButtonsProps> = ({
     } catch (error) {
       console.error('Error restarting song:', error);
     }
-  }, [currentSong, ultrastarData, startUltrastarTiming]);
+  }, [currentSong, ultrastarData, beginUltrastarPlaybackTogether]);
 
   if (isFullscreen) {
     return null;
