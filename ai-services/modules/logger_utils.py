@@ -38,12 +38,17 @@ def send_processing_status(meta, status: str) -> None:
         title = getattr(meta, 'title', None)
         song_id = getattr(meta, 'song_id', None)  # Try to get song ID if available
         youtube_url = getattr(meta, 'youtube_url', None)  # Include youtube_url
+        mode = getattr(meta, 'mode', None)  # Include mode when available
         status_out = 'finished' if status == 'completed' else status
         payload = { 'artist': artist, 'title': title, 'status': status_out }
         if song_id:
             payload['id'] = song_id
         if youtube_url:
             payload['youtube_url'] = youtube_url
+        if mode:
+            # meta.mode is usually an Enum; fall back to string representation
+            mode_value = getattr(mode, 'value', None)
+            payload['mode'] = mode_value if mode_value else str(mode)
         logger.info(f"📡 send_processing_status → {payload}")
         # kleiner Timeout, non-blocking Charakter
         requests.post('http://localhost:5000/api/songs/processing-status', json=payload, timeout=3)

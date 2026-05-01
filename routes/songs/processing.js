@@ -19,18 +19,62 @@ router.post('/processing-status', async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       // Only broadcast the status as-is (no magic-* mapping needed anymore)
-      const { broadcastProcessingStatus, broadcastAdminUpdate } = require('../../utils/websocketService');
+      const { broadcastProcessingStatus } = require('../../utils/websocketService');
       broadcastProcessingStatus(io, { id, artist, title, status });
-      await broadcastAdminUpdate(io).catch(() => {});
     }
 
     // Try to persist status on the song if possible (by id or by artist/title)
     try {
       const db = require('../../config/database');
+
+      const maybeFinalizeYoutubeCache = async (songId) => {
+        try {
+          // If AI-services missed the final "finished" event, we still want UI to flip to ready
+          // once the cached file exists. We do a delayed self-check.
+          const row = await new Promise((resolve, reject) => {
+            db.get('SELECT id, artist, title, youtube_url, mode, download_status FROM songs WHERE id = ?', [songId], (err, r) => err ? reject(err) : resolve(r));
+          });
+          if (!row) return;
+
+          const st = String(row.download_status || 'none').toLowerCase();
+          const active = ['processing', 'downloading', 'transcoding', 'separating', 'dereverbing', 'transcribing'].includes(st);
+          if (!active) return;
+
+          const { findBestVideoMode } = require('../../config/videoModes');
+          const best = await findBestVideoMode(row.artist || '', row.title || '', row.youtube_url || null, req);
+          if (best?.mode !== 'youtube_cache' || !best?.url || !String(best.url).includes('/api/youtube-videos/')) {
+            return;
+          }
+
+          await new Promise((resolve, reject) => {
+            db.run(
+              'UPDATE songs SET mode = ?, youtube_url = ?, download_status = ? WHERE id = ?',
+              ['youtube_cache', best.url, 'ready', songId],
+              (err) => err ? reject(err) : resolve()
+            );
+          });
+
+          console.log('🧯 Auto-finalized youtube_cache song (watchdog)', { songId, url: best.url });
+
+          const io = req.app.get('io');
+          if (io) {
+            const { broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
+            await broadcastAdminUpdate(io).catch(() => {});
+            await broadcastPlaylistUpdate(io).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('⚠️ youtube_cache watchdog failed:', e?.message || e);
+        }
+      };
+
       let songRow = null;
-      if (typeof id === 'number') {
+      const numericId =
+        (typeof id === 'number' && Number.isFinite(id)) ? id :
+        (typeof id === 'string' && /^\d+$/.test(id.trim())) ? Number(id.trim()) :
+        null;
+      if (numericId != null) {
         songRow = await new Promise((resolve, reject) => {
-          db.get('SELECT id FROM songs WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
+          db.get('SELECT id FROM songs WHERE id = ?', [numericId], (err, row) => err ? reject(err) : resolve(row));
         });
       } else if (artist && title) {
         songRow = await new Promise((resolve, reject) => {
@@ -41,8 +85,40 @@ router.post('/processing-status', async (req, res) => {
         const Song = require('../../models/Song');
         // Map 'finished' to 'ready' for storage; others store as-is
         const storeStatus = status === 'finished' ? 'ready' : status;
-        await Song.updateDownloadStatus(songRow.id, storeStatus);
-        console.log('💾 Stored processing status for song', { songId: songRow.id, storeStatus });
+        // Prevent status regressions due to out-of-order events (e.g. "processing" arriving after "ready").
+        const currentRow = await new Promise((resolve, reject) => {
+          db.get('SELECT download_status FROM songs WHERE id = ?', [songRow.id], (err, row) => err ? reject(err) : resolve(row));
+        });
+        const currentStatus = (currentRow && currentRow.download_status) ? String(currentRow.download_status) : 'none';
+
+        const rank = (st) => {
+          const s = String(st || 'none').toLowerCase();
+          if (['none', 'pending'].includes(s)) return 0;
+          if (['processing', 'downloading', 'transcoding', 'separating', 'dereverbing', 'transcribing'].includes(s)) return 1;
+          if (['finished', 'completed', 'ready', 'cached'].includes(s)) return 2;
+          if (['failed'].includes(s)) return 2; // treat failed as terminal
+          return 1;
+        };
+
+        if (rank(storeStatus) < rank(currentStatus)) {
+          console.log('↩️ Ignoring regressive processing status', { songId: songRow.id, currentStatus, incoming: storeStatus });
+        } else {
+          await Song.updateDownloadStatus(songRow.id, storeStatus);
+          console.log('💾 Stored processing status for song', { songId: songRow.id, storeStatus, prev: currentStatus });
+        }
+
+        // IMPORTANT: Broadcast updates only after DB persistence,
+        // otherwise the frontend may receive stale playlist rows and require a reload.
+        try {
+          const io2 = req.app.get('io');
+          if (io2) {
+            const { broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
+            await broadcastAdminUpdate(io2).catch(() => {});
+            await broadcastPlaylistUpdate(io2).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not broadcast admin/playlist update after status persist:', e?.message || e);
+        }
 
         // Optional: update mode and youtube_url if provided (e.g., USDB pipeline fallback)
         if ((mode || youtube_url) && (status === 'failed' || status === 'finished' || status === 'processing')) {
@@ -66,6 +142,14 @@ router.post('/processing-status', async (req, res) => {
             await broadcastAdminUpdate(io).catch(() => {});
             await broadcastPlaylistUpdate(io).catch(() => {});
           }
+        }
+
+        // Watchdog: if we're stuck in "processing", try to flip to youtube_cache once the file exists.
+        // This avoids requiring a reload even when the final AI status event is missing/out-of-order.
+        const statusLower = String(status || '').toLowerCase();
+        if (['processing', 'downloading', 'transcoding', 'separating', 'dereverbing', 'transcribing'].includes(statusLower)) {
+          setTimeout(() => maybeFinalizeYoutubeCache(songRow.id), 4000);
+          setTimeout(() => maybeFinalizeYoutubeCache(songRow.id), 15000);
         }
         
         // Spezielle Behandlung für fehlgeschlagene USDB-Downloads: Modus auf youtube zurücksetzen und YouTube-Link löschen

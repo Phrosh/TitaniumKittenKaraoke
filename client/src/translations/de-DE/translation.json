@@ -632,6 +632,7 @@
   "status": {
     "separating": "Karaoke Song wird erstellt",
     "dereverbing": "Gesang bereinigen",
+    "processing": "Verarbeite",
     "transcribing": "Karaoke Text wird erstellt",
     "downloading": "Herunterladen",
     "transcoding": "Video wird konvertiert",

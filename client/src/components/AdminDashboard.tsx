@@ -48,6 +48,8 @@ const AdminDashboard: React.FC = () => {
   /** Sofort aktuell für WS-Races (song-start vs. admin-update im selben Tick). */
   const currentSongIdRef = useRef<number | null>(null);
   const songDurationRef = useRef<number | null>(null);
+  const processingRefreshTimerRef = useRef<number | null>(null);
+  const lastProcessingRefreshAtRef = useRef<number>(0);
 
   
   // Song Approval System State
@@ -385,6 +387,42 @@ const AdminDashboard: React.FC = () => {
       };
       
       websocketService.onShowAction(handleShowAction);
+
+      // Keep dashboard in sync with async processing (download/normalize/cleanup).
+      // admin-update is broadcast early in the processing-status endpoint (before DB/cache write),
+      // so we explicitly refetch on processing-status events to update download_status + youtube-cache lists.
+      const handleProcessingStatus = (data: { id?: number; artist?: string; title?: string; status?: string }) => {
+        const st = (data?.status || '').toLowerCase();
+        console.log('🛰️ AdminDashboard: processing-status received via WS:', data);
+
+        // Throttle refetches to avoid flooding (processing can be chatty)
+        const now = Date.now();
+        const minGapMs = 1000;
+        const schedule = (delayMs: number) => {
+          if (processingRefreshTimerRef.current) {
+            window.clearTimeout(processingRefreshTimerRef.current);
+          }
+          processingRefreshTimerRef.current = window.setTimeout(() => {
+            processingRefreshTimerRef.current = null;
+            lastProcessingRefreshAtRef.current = Date.now();
+            fetchDashboardData();
+          }, delayMs);
+        };
+
+        // For terminal states, refresh quickly; otherwise refresh with a small delay
+        if (['finished', 'completed', 'failed', 'ready', 'cached'].includes(st)) {
+          schedule(250);
+          return;
+        }
+
+        // For active states, refresh occasionally
+        const sinceLast = now - (lastProcessingRefreshAtRef.current || 0);
+        if (sinceLast > minGapMs) {
+          schedule(500);
+        }
+      };
+
+      websocketService.on('processing-status', handleProcessingStatus);
       
       // Listen for admin toast notifications
       websocketService.on('admin-toast', handleAdminToast);
@@ -485,11 +523,16 @@ const AdminDashboard: React.FC = () => {
       websocketService.offAdminUpdate(handleAdminWebSocketUpdate);
       websocketService.off('toggle-play-pause', handleTogglePlayPause);
       websocketService.off('song-start', handleSongStart);
+      websocketService.off('processing-status');
       websocketService.offShowAction(() => {});
       websocketService.offPlaylistUpgrade(() => {});
       websocketService.offUSDBDownload(() => {});
       websocketService.off('admin-toast', handleAdminToast);
       websocketService.off('admin-donation-received', handleAdminDonationReceived);
+      if (processingRefreshTimerRef.current) {
+        window.clearTimeout(processingRefreshTimerRef.current);
+        processingRefreshTimerRef.current = null;
+      }
       websocketService.leaveAdminRoom();
       websocketService.disconnect();
     };

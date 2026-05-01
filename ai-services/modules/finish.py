@@ -54,23 +54,58 @@ def determine_api_url(meta: ProcessingMeta) -> Optional[str]:
         return None
     
     try:
-        # Einfache API-URL-Generierung basierend auf base_dir und folder_name
         base_dir = meta.base_dir
         folder_name = meta.folder_name
-        
+
         if not base_dir or not folder_name:
             logger.error("Kein base_dir oder folder_name im Meta-Objekt")
             return None
-        
-        # Extrahiere den Song-Typ aus dem base_dir
-        # z.B. "D:\Arbeit\Karaoke\songs\ultrastar" -> "ultrastar"
+
+        # Extract song type from base_dir, e.g. ".../songs/youtube" -> "youtube"
         song_type = os.path.basename(base_dir)
-        
-        # Generiere API-URL: /api/[song_type]/[folder_name]
+
+        # Special handling: YouTube cache videos are served via /api/youtube-videos/<folder>/<filename>
+        # (Node server has no /api/youtube/<folder> endpoint)
+        if song_type == "youtube":
+            folder_path = meta.folder_path
+            if not folder_path or not os.path.isdir(folder_path):
+                logger.error("Kein gültiger folder_path im Meta-Objekt für YouTube")
+                return None
+
+            # Pick a video file (prefer mp4/webm/mkv) from the final folder
+            video_exts = (".mp4", ".webm", ".mkv", ".avi", ".mov")
+            candidates = []
+            for f in os.listdir(folder_path):
+                p = os.path.join(folder_path, f)
+                if os.path.isfile(p) and f.lower().endswith(video_exts):
+                    candidates.append(f)
+
+            if not candidates:
+                logger.error(f"Keine Video-Datei im YouTube-Ordner gefunden: {folder_path}")
+                return None
+
+            # Prefer file that matches base_filename if available
+            base_filename = getattr(meta, "base_filename", None)
+            selected = None
+            if base_filename:
+                for f in candidates:
+                    if os.path.splitext(f)[0] == base_filename:
+                        selected = f
+                        break
+            if not selected:
+                # Stable choice
+                candidates.sort()
+                selected = candidates[0]
+
+            api_url = f"/api/youtube-videos/{quote(folder_name)}/{quote(selected)}"
+            logger.info(f"✅ API-URL ermittelt (youtube cache): {api_url}")
+            return api_url
+
+        # Default: /api/<song_type>/<folder_name>
         api_url = f"/api/{song_type}/{quote(folder_name)}"
         logger.info(f"✅ API-URL ermittelt: {api_url}")
         return api_url
-            
+
     except Exception as e:
         logger.error(f"❌ Fehler bei der API-URL-Ermittlung: {e}")
         return None

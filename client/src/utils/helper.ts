@@ -106,7 +106,20 @@ export const isSongInYouTubeCache = (song: Song, youtubeSongs: any[]) => {
   return found;
 }
 
-export type DownloadStatus = 'pending' | 'downloading' | 'transcoding' | 'failed' | 'finished' | 'completed' | 'separating' | 'dereverbing' | 'transcribing';
+export type DownloadStatus =
+  | 'none'
+  | 'pending'
+  | 'processing'
+  | 'downloading'
+  | 'transcoding'
+  | 'separating'
+  | 'dereverbing'
+  | 'transcribing'
+  | 'finished'
+  | 'completed'
+  | 'ready'
+  | 'cached'
+  | 'failed';
 
 // getDownloadStatusText is no longer used directly by the badge; kept for backward compatibility
 export const getDownloadStatusText = (status: DownloadStatus) => '';

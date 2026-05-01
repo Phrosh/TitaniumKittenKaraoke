@@ -123,12 +123,33 @@ router.get('/', async (req, res) => {
     let songMode = currentSong?.mode || 'youtube';
     
     if (currentSong?.artist && currentSong?.title) {
-      // Nur URL-Building durchführen, wenn die aktuelle URL nicht korrekt ist
-      // (z.B. wenn sie noch eine YouTube-URL ist statt einer API-URL)
-      const needsUrlUpdate = !currentSong.youtube_url || 
-                            currentSong.youtube_url.includes('youtube.com') || 
-                            currentSong.youtube_url.includes('youtu.be') ||
-                            currentSong.youtube_url.includes('localhost:5000');
+      // Nur URL-Building durchführen, wenn die aktuelle URL nicht korrekt ist.
+      // Zusätzlich: wenn fälschlicherweise eine "normale" Website-URL (z.B. Domain-Root) drinsteht,
+      // darf die Show nicht versuchen, diese als YouTube-Embed (iframe) zu laden.
+      const urlStr = (currentSong.youtube_url || '').trim();
+      let needsUrlUpdate = !urlStr ||
+        urlStr.includes('youtube.com') ||
+        urlStr.includes('youtu.be') ||
+        urlStr.includes('localhost:5000');
+
+      // Treat non-API absolute URLs (esp. same-origin) as invalid for playback
+      if (!needsUrlUpdate && urlStr) {
+        const isApiRoute = urlStr.startsWith('/api/');
+        const looksLikeYoutube = urlStr.includes('youtube.com') || urlStr.includes('youtu.be');
+        if (!isApiRoute && !looksLikeYoutube) {
+          try {
+            const parsed = new URL(urlStr);
+            const reqHost = req.get('host');
+            // Same host (or root path) => very likely mis-stored URL (would be framed and blocked by CSP)
+            if ((reqHost && parsed.host === reqHost) || parsed.pathname === '/' || parsed.pathname === '') {
+              needsUrlUpdate = true;
+            }
+          } catch {
+            // Non-URL string that isn't an API route should be rebuilt
+            needsUrlUpdate = true;
+          }
+        }
+      }
       
       if (needsUrlUpdate) {
         // Finde den besten verfügbaren Video-Modus für URL-Building
