@@ -1154,7 +1154,7 @@ const SongRequest: React.FC = () => {
               </Alert>
             )}
 
-            {donationsEnabled && (
+            {showDonationButtonOnNew && (
               <>
                 <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #e1e5e9' }} />
                 <div style={{ textAlign: 'center' }}>
