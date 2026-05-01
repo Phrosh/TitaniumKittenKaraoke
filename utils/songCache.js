@@ -25,11 +25,17 @@ class SongCache {
 
     /**
      * Baut den kompletten Cache auf
+     * @param {boolean} [force=false] Bei true wird auch dann neu gebaut, wenn gerade ein Aufbau läuft (z. B. nach Admin-Löschen/Umbenennen).
      */
-    async buildCache() {
+    async buildCache(force = false) {
         if (this.cache.isBuilding) {
-            console.log('⏳ Cache wird bereits aufgebaut...');
-            return;
+            if (force) {
+                console.log('🔄 Song-Cache: erzwungener Neuaufbau (bisheriger Aufbau wird überschrieben)...');
+                this.cache.isBuilding = false;
+            } else {
+                console.log('⏳ Cache wird bereits aufgebaut...');
+                return;
+            }
         }
 
         console.log('🚀 Baue Song-Cache neu auf...');

@@ -8,6 +8,31 @@ const { broadcastProcessingStatus, broadcastSongChange, broadcastAdminUpdate, br
 const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
 const { triggerAutomaticUSDBSearch } = require('../songs/utils/songHelpers');
 const songCache = require('../../utils/songCache');
+const pathFs = require('path');
+
+function pathsEqualInsensitive(p1, p2) {
+  try {
+    return pathFs.resolve(p1).toLowerCase() === pathFs.resolve(p2).toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+/** Unter Windows (und case-insensitive Volumes): gleicher Pfad bei anderer Groß-/Kleinschreibung → zweistufig umbenennen. */
+function renamePathWithCaseSupport(fs, oldPath, newPath) {
+  if (oldPath === newPath) {
+    return;
+  }
+  if (pathsEqualInsensitive(oldPath, newPath)) {
+    const dir = pathFs.dirname(oldPath);
+    const tmpName = `.___karaoke_rename_tmp_${process.pid}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const tmpPath = pathFs.join(dir, tmpName);
+    fs.renameSync(oldPath, tmpPath);
+    fs.renameSync(tmpPath, newPath);
+    return;
+  }
+  fs.renameSync(oldPath, newPath);
+}
 
 // Get song details for editing
 router.get('/song/:songId', async (req, res) => {
@@ -566,26 +591,50 @@ router.post('/song/rename', [
       });
     }
 
-    // Check if new name already exists
+    // Check if new name already exists (eigenen Eintrag ausschließen — wichtig für nur Groß-/Kleinschreibung)
     let existingSong = null;
     
     if (songType === 'ultrastar') {
-      const ultrastarSongs = scanUltrastarSongs();
-      existingSong = ultrastarSongs.find(song => 
+      const ultrastarSongsAll = scanUltrastarSongs();
+      existingSong = ultrastarSongsAll.find(song =>
         song.artist.toLowerCase() === newArtist.toLowerCase() &&
-        song.title.toLowerCase() === newTitle.toLowerCase()
+        song.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(song.fullPath, songData.fullPath)
       );
     } else if (songType === 'youtube_cache') {
-      const youtubeSongs = scanYouTubeSongs();
-      existingSong = youtubeSongs.find(song => 
+      const youtubeSongsAll = scanYouTubeSongs();
+      existingSong = youtubeSongsAll.find(song =>
         song.artist.toLowerCase() === newArtist.toLowerCase() &&
-        song.title.toLowerCase() === newTitle.toLowerCase()
+        song.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(song.fullPath, songData.fullPath)
       );
     } else if (songType === 'server_video') {
-      const localVideos = scanLocalVideos();
-      existingSong = localVideos.find(video => 
+      const localVideosAll = scanLocalVideos();
+      existingSong = localVideosAll.find(video =>
         video.artist.toLowerCase() === newArtist.toLowerCase() &&
-        video.title.toLowerCase() === newTitle.toLowerCase()
+        video.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(video.fullPath, songData.fullPath)
+      );
+    } else if (songType === 'magic_video') {
+      const magicVideosAll = scanMagicVideos();
+      existingSong = magicVideosAll.find(video =>
+        video.artist.toLowerCase() === newArtist.toLowerCase() &&
+        video.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(video.fullPath, songData.fullPath)
+      );
+    } else if (songType === 'magic_song') {
+      const magicSongsAll = scanMagicSongs();
+      existingSong = magicSongsAll.find(song =>
+        song.artist.toLowerCase() === newArtist.toLowerCase() &&
+        song.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(song.fullPath, songData.fullPath)
+      );
+    } else if (songType === 'magic_youtube') {
+      const magicYtAll = scanMagicYouTube();
+      existingSong = magicYtAll.find(video =>
+        video.artist.toLowerCase() === newArtist.toLowerCase() &&
+        video.title.toLowerCase() === newTitle.toLowerCase() &&
+        !pathsEqualInsensitive(video.fullPath, songData.fullPath)
       );
     }
 
@@ -605,8 +654,8 @@ router.post('/song/rename', [
       });
     }
 
-    // Check if new path already exists
-    if (fs.existsSync(newPath)) {
+    // Check if new path already exists (unter Windows ist „anders geschrieben, gleicher Ordner“ kein Konflikt)
+    if (fs.existsSync(newPath) && !pathsEqualInsensitive(oldPath, newPath)) {
       return res.status(400).json({ 
         message: `${songType === 'server_video' ? 'Eine Datei' : 'Ein Ordner'} mit diesem Namen existiert bereits`,
         success: false
@@ -614,7 +663,7 @@ router.post('/song/rename', [
     }
 
     // Rename the file/folder
-    fs.renameSync(oldPath, newPath);
+    renamePathWithCaseSupport(fs, oldPath, newPath);
     console.log(`📁 Renamed ${songType} ${songType === 'server_video' ? 'file' : 'folder'}: "${path.basename(oldPath)}" → "${path.basename(newPath)}"`);
 
     // Rebuild cache after song rename
