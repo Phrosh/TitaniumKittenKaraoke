@@ -277,6 +277,8 @@
     "selectFromSongList": "楽曲リストから楽曲を選択してください",
     "orSelectFromList": "またはリストから楽曲を選択:",
     "openSongList": "楽曲リストを開く",
+    "manualSongEntryLink": "またはアーティストと曲名を直接入力",
+    "needSongBeforeSubmit": "リストから曲を選ぶか、アーティストと曲名を入力してください。",
     "withBackgroundVocals": "バックコーラス付き",
     "adding": "追加中...",
     "addSong": "楽曲を追加",

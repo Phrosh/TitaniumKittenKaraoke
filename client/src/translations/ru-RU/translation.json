@@ -277,6 +277,8 @@
     "selectFromSongList": "Пожалуйста, выберите песню из списка песен",
     "orSelectFromList": "Или выберите песню из списка:",
     "openSongList": "Открыть Список Песен",
+    "manualSongEntryLink": "Или введите исполнителя и название напрямую",
+    "needSongBeforeSubmit": "Выберите песню из списка или введите исполнителя и название.",
     "withBackgroundVocals": "С бэк-вокалом",
     "adding": "Добавление...",
     "addSong": "Добавить Песню",

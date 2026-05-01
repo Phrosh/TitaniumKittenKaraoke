@@ -277,6 +277,8 @@
     "selectFromSongList": "Proszę wybrać piosenkę z listy piosenek",
     "orSelectFromList": "Lub wybierz piosenkę z listy:",
     "openSongList": "Otwórz Listę Piosenek",
+    "manualSongEntryLink": "Lub wpisz wykonawcę i tytuł bezpośrednio",
+    "needSongBeforeSubmit": "Wybierz utwór z listy lub wpisz wykonawcę i tytuł.",
     "withBackgroundVocals": "Z wokalem wspierającym",
     "adding": "Dodawanie...",
     "addSong": "Dodaj Piosenkę",

@@ -297,6 +297,8 @@
     "selectFromSongList": "Please select a song from the song list",
     "orSelectFromList": "Or pick a song from the list:",
     "openSongList": "Open Song List",
+    "manualSongEntryLink": "Or enter artist and title directly",
+    "needSongBeforeSubmit": "Please pick a song from the list or enter the artist and title.",
     "withBackgroundVocals": "With Background Vocals",
     "adding": "Adding...",
     "addSong": "Add Song",

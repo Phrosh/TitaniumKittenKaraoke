@@ -171,8 +171,23 @@ const QRCodeContainer = styled.div`
   margin: 30px 0;
 `;
 
-const LocalSongsSection = styled.div`
-  margin-top: 15px;
+const ManualEntryLink = styled.button.attrs({ type: 'button' })`
+  align-self: center;
+  margin-top: 6px;
+  padding: 10px 8px;
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-family: inherit;
+
+  &:hover {
+    color: #4c5fd5;
+  }
 `;
 
 
@@ -347,6 +362,8 @@ const SongRequest: React.FC = () => {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string>('');
   const [showSongList, setShowSongList] = useState(false);
+  /** YouTube-Modus: Freitextfeld nur nach Klick auf Link oder nach Songauswahl; nach erfolgreichem Submit wieder zu. */
+  const [songEntryFieldExpanded, setSongEntryFieldExpanded] = useState(false);
   const [serverVideos, setServerVideos] = useState<any[]>([]);
   const [ultrastarSongs, setUltrastarSongs] = useState<any[]>([]);
   const [fileSongs, setFileSongs] = useState<any[]>([]);
@@ -816,7 +833,12 @@ const SongRequest: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!formData.songInput.trim()) {
+      setMessage({ type: 'error', text: t('songRequest.needSongBeforeSubmit') });
+      return;
+    }
+
     // Validierung des Songtitel-Formats
     if (!isValidSongFormat(formData.songInput)) {
       // Öffne Modal für Format-Korrektur
@@ -860,6 +882,7 @@ const SongRequest: React.FC = () => {
       
       // Reset form - keep name, clear only song input and background vocals
       setFormData(prev => ({ ...prev, songInput: '' }));
+      setSongEntryFieldExpanded(false);
       setWithBackgroundVocals(false);
     } catch (error: any) {
       setMessage({
@@ -884,6 +907,7 @@ const SongRequest: React.FC = () => {
   const handleSelectSong = (video: any) => {
     const songInput = `${video.artist} - ${video.title}`;
     setFormData(prev => ({ ...prev, songInput }));
+    setSongEntryFieldExpanded(true);
     setWithBackgroundVocals(false); // Reset checkbox when selecting new song
     handleCloseSongList();
   };
@@ -891,6 +915,7 @@ const SongRequest: React.FC = () => {
   const handleSelectUSDBSong = (song: any) => {
     const songInput = `${song.artist} - ${song.title}`;
     setFormData(prev => ({ ...prev, songInput }));
+    setSongEntryFieldExpanded(true);
     setWithBackgroundVocals(false); // Reset checkbox when selecting new song
     setUsdbResults([]); // Clear USDB results after selection
   };
@@ -900,6 +925,7 @@ const SongRequest: React.FC = () => {
     if (formatModalArtist.trim() && formatModalTitle.trim()) {
       const correctedInput = `${formatModalArtist.trim()} - ${formatModalTitle.trim()}`;
       setFormData(prev => ({ ...prev, songInput: correctedInput }));
+      setSongEntryFieldExpanded(true);
       setShowFormatModal(false);
       setFormatModalArtist('');
       setFormatModalTitle('');
@@ -986,6 +1012,10 @@ const SongRequest: React.FC = () => {
   const donateAmtNum = parseFloat(String(donateAmount).replace(',', '.'));
   const donateAmtValid = Number.isFinite(donateAmtNum) && donateAmtNum >= 1 && donateAmtNum <= 500;
 
+  const showYoutubeSongInput =
+    youtubeEnabled &&
+    (songEntryFieldExpanded || formData.songInput.trim() !== '');
+
   return (
     <>
     <Container style={{ paddingBottom: donateAmountStepOpen && showDonationButtonOnNew ? 96 : 20 }}>
@@ -1063,54 +1093,75 @@ const SongRequest: React.FC = () => {
                 />
               </FormGroup>
 
-              <FormGroup style={{ marginBottom: '-10px' }}>
-                <Label htmlFor="songInput">{t('songRequest.songRequest')}:</Label>
-                {youtubeEnabled ? (
-                  <Input
-                    type="text"
-                    id="songInput"
-                    name="songInput"
-                    value={formData.songInput}
-                    onChange={handleInputChange}
-                    required
-                    placeholder={t('songRequest.songInputPlaceholder')}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      padding: '12px',
-                      border: '2px solid #e1e5e9',
-                      borderRadius: '8px',
-                      background: '#f8f9fa',
-                      fontSize: '16px',
-                      color: formData.songInput ? '#333' : '#666',
-                      fontWeight: formData.songInput ? '500' : 'normal',
-                      fontStyle: formData.songInput ? 'normal' : 'italic',
-                      minHeight: '48px',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    {formData.songInput || t('songRequest.selectFromSongList')}
-                  </div>
-                )}
-              </FormGroup>
-
-              <LocalSongsSection>
-                {youtubeEnabled && (
-                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px', marginTop: '-10px' }}>
-                    {t('songRequest.orSelectFromList')}
-                  </div>
-                )}
+              <FormGroup>
+                <Label htmlFor={showYoutubeSongInput ? 'songInput' : undefined}>
+                  {t('songRequest.songRequest')}:
+                </Label>
                 <Button
+                  type="button"
                   onClick={handleOpenSongList}
                   variant="success"
-                  size="small"
-                  style={{ marginBottom: '15px' }}
+                  size="large"
+                  style={{ width: '100%' }}
                 >
                   🎵 {t('songRequest.openSongList')}
                 </Button>
-              </LocalSongsSection>
+                {youtubeEnabled ? (
+                  <>
+                    {showYoutubeSongInput ? (
+                      <Input
+                        type="text"
+                        id="songInput"
+                        name="songInput"
+                        value={formData.songInput}
+                        onChange={handleInputChange}
+                        required
+                        placeholder={t('songRequest.songInputPlaceholder')}
+                        style={{ marginTop: 14 }}
+                      />
+                    ) : (
+                      <ManualEntryLink onClick={() => setSongEntryFieldExpanded(true)}>
+                        {t('songRequest.manualSongEntryLink')}
+                      </ManualEntryLink>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {formData.songInput.trim() ? (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          padding: '12px',
+                          border: '2px solid #e1e5e9',
+                          borderRadius: '8px',
+                          background: '#f8f9fa',
+                          fontSize: '16px',
+                          color: '#333',
+                          fontWeight: 500,
+                          minHeight: '48px',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {formData.songInput}
+                      </div>
+                    ) : (
+                      <p
+                        style={{
+                          margin: '14px 0 0',
+                          fontSize: '15px',
+                          color: '#666',
+                          fontStyle: 'italic',
+                          textAlign: 'center',
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {t('songRequest.selectFromSongList')}
+                      </p>
+                    )}
+                  </>
+                )}
+              </FormGroup>
 
               {/* Background Vocals Checkbox - only show for Ultrastar songs with "choice" setting */}
               {isUltrastarSong() &&

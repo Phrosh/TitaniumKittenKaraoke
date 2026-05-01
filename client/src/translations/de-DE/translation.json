@@ -303,6 +303,8 @@
     "selectFromSongList": "Bitte wähle einen Song aus der Songliste",
     "orSelectFromList": "Oder nimm einen Song aus der Liste:",
     "openSongList": "Songliste öffnen",
+    "manualSongEntryLink": "Oder Interpret und Titel direkt eingeben",
+    "needSongBeforeSubmit": "Bitte wähle einen Song aus der Liste oder gib Interpret und Titel ein.",
     "withBackgroundVocals": "Mit Background-Gesang",
     "adding": "Wird hinzugefügt...",
     "addSong": "Song hinzufügen",

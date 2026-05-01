@@ -277,6 +277,8 @@
     "selectFromSongList": "Selecteer een lied uit de liedlijst",
     "orSelectFromList": "Of kies een lied uit de lijst:",
     "openSongList": "Liedlijst Openen",
+    "manualSongEntryLink": "Of voer artiest en titel direct in",
+    "needSongBeforeSubmit": "Kies een nummer uit de lijst of voer artiest en titel in.",
     "withBackgroundVocals": "Met achtergrondzang",
     "adding": "Toevoegen...",
     "addSong": "Lied Toevoegen",

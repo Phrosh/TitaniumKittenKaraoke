@@ -277,6 +277,8 @@
     "selectFromSongList": "Välj en låt från låtlistan",
     "orSelectFromList": "Eller välj en låt från listan:",
     "openSongList": "Öppna Låtlista",
+    "manualSongEntryLink": "Eller ange artist och titel direkt",
+    "needSongBeforeSubmit": "Välj en låt från listan eller ange artist och titel.",
     "withBackgroundVocals": "Med bakgrundssång",
     "adding": "Lägger till...",
     "addSong": "Lägg Till Låt",

@@ -277,6 +277,8 @@
     "selectFromSongList": "Veuillez sélectionner une chanson de la liste des chansons",
     "orSelectFromList": "Ou choisir une chanson de la liste:",
     "openSongList": "Ouvrir la liste des chansons",
+    "manualSongEntryLink": "Ou saisir directement l'artiste et le titre",
+    "needSongBeforeSubmit": "Veuillez choisir une chanson dans la liste ou saisir l'artiste et le titre.",
     "withBackgroundVocals": "Avec chœurs",
     "adding": "Ajout en cours...",
     "addSong": "Ajouter la chanson",

@@ -277,6 +277,8 @@
     "selectFromSongList": "Valitse kappale kappalelistasta",
     "orSelectFromList": "Tai valitse kappale listasta:",
     "openSongList": "Avaa kappalelista",
+    "manualSongEntryLink": "Tai syötä esittäjä ja nimi suoraan",
+    "needSongBeforeSubmit": "Valitse kappale listasta tai kirjoita esittäjä ja nimi.",
     "withBackgroundVocals": "Taustalaulujen kanssa",
     "adding": "Lisätään...",
     "addSong": "Lisää kappale",

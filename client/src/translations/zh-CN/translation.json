@@ -277,6 +277,8 @@
     "selectFromSongList": "请从歌曲列表中选择歌曲",
     "orSelectFromList": "或从列表中选择歌曲:",
     "openSongList": "打开歌曲列表",
+    "manualSongEntryLink": "或直接输入艺人及歌曲标题",
+    "needSongBeforeSubmit": "请从列表中选择歌曲，或直接输入艺人和标题。",
     "withBackgroundVocals": "带背景人声",
     "adding": "添加中...",
     "addSong": "添加歌曲",

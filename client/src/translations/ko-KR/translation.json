@@ -277,6 +277,8 @@
     "selectFromSongList": "곡 목록에서 곡을 선택하세요",
     "orSelectFromList": "또는 목록에서 곡을 선택:",
     "openSongList": "곡 목록 열기",
+    "manualSongEntryLink": "또는 아티스트와 제목을 직접 입력",
+    "needSongBeforeSubmit": "목록에서 곡을 고르거나 아티스트와 제목을 입력하세요.",
     "withBackgroundVocals": "백그라운드 보컬 포함",
     "adding": "추가 중...",
     "addSong": "곡 추가",

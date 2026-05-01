@@ -281,6 +281,8 @@
     "selectFromSongList": "Por favor selecciona una canción de la lista",
     "orSelectFromList": "O elige una canción de la lista:",
     "openSongList": "Abrir Lista de Canciones",
+    "manualSongEntryLink": "O introducir intérprete y título directamente",
+    "needSongBeforeSubmit": "Elige una canción de la lista o introduce el intérprete y el título.",
     "withBackgroundVocals": "Con Voces de Fondo",
     "adding": "Agregando...",
     "addSong": "Agregar Canción",
