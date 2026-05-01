@@ -147,16 +147,29 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           const normalize = (s?: string) => (s || '').toLowerCase();
           const b = (s?: string) => boilDown(s || '');
 
-          // Status precedence: only apply if newStatus has >= priority than current
+          // Status precedence: only apply if newStatus has >= priority than current.
+          // IMPORTANT: treat terminal states (ready/cached/finished/completed/failed) as highest,
+          // otherwise out-of-order "processing" events can regress the UI until reload.
           const priority: Record<string, number> = {
-            failed: 100,
+            none: 0,
+            pending: 10,
+            processing: 20,
+            downloading: 30,
+            separating: 40,
+            dereverbing: 50,
+            transcribing: 60,
+            transcoding: 70,
+            // terminal-ish
             finished: 90,
-            transcribing: 80,
-            dereverbing: 75,
-            separating: 70,
-            downloading: 60,
+            completed: 90,
+            ready: 90,
+            cached: 90,
+            failed: 100,
           } as any;
-          const getPriority = (s?: string) => priority[(s || 'none') as string] ?? 0;
+          const getPriority = (s?: string) => {
+            const key = String(s || 'none').toLowerCase();
+            return priority[key] ?? 0;
+          };
 
           const matches = (s: Song): boolean => {
             // Only match by ID if provided - this prevents updating multiple songs with same artist/title
@@ -171,8 +184,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
             if (!matches(s)) return s;
             foundMatch = true;
                 const currentStatusRaw = ((s as any).download_status || (s as any).status) as string | undefined;
-                const currentStatus = ['ready', 'cached'].includes(currentStatusRaw || '') ? 'finished' : currentStatusRaw;
-                const incomingStatus = (data.status as string);
+                const currentStatusNorm = String(currentStatusRaw || 'none').toLowerCase();
+                const currentStatus =
+                  (['ready', 'cached', 'completed', 'finished'].includes(currentStatusNorm)) ? 'finished' : currentStatusNorm;
+                const incomingStatus = String(data.status as any).toLowerCase();
             
                 const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
                 if (!shouldApply) {
@@ -215,8 +230,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               if (recentSong) {
                 console.log('🛰️ PlaylistTab: Found fallback match:', { songId: recentSong.id, artist: recentSong.artist, title: recentSong.title });
                 const currentStatusRaw = ((recentSong as any).download_status || (recentSong as any).status) as string | undefined;
-                const currentStatus = ['ready', 'cached'].includes(currentStatusRaw || '') ? 'finished' : currentStatusRaw;
-                const incomingStatus = (data.status as string);
+                const currentStatusNorm = String(currentStatusRaw || 'none').toLowerCase();
+                const currentStatus =
+                  (['ready', 'cached', 'completed', 'finished'].includes(currentStatusNorm)) ? 'finished' : currentStatusNorm;
+                const incomingStatus = String(data.status as any).toLowerCase();
                 
                 const shouldApply = getPriority(incomingStatus) >= getPriority(currentStatus);
                 if (shouldApply) {
