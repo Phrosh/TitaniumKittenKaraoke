@@ -1,112 +1,123 @@
 const db = require('../config/database');
 const Song = require('../models/Song');
 
-/** Zusätzlicher Prioritäts-Abstand, den ein Song haben muss, damit wir uns vor ihn setzen dürfen (Progressive-Penalty). */
-const PENALTY_FOR_FORWARD_SLOT = 1.0;
-
-/** Geschützte Zone: neue Songs landen nicht in den nächsten 3 Slots (außer es gibt zu wenig Songs). */
-const PROTECTED_SLOTS = 3;
+/**
+ * Songwünsche direkt nach dem aktuellen Song: ein neuer Wunsch darf nicht über diese Einträge
+ * „tauschen“ (gleiches Verhalten wie beim aktuellen Song). Standard: 3.
+ */
+const SAFE_ZONE_AFTER_CURRENT = 3;
 
 class PlaylistAlgorithm {
   /**
    * Fügt einen neuen Song fair in die Playlist ein.
-   * - Kein Song wird "in die Vergangenheit" gesetzt (Index nie < aktueller Song).
-   * - Neue Sänger (weniger Songs) kommen weiter vorne; gleiche Priorität = Reihenfolge bleibt.
-   * - Der neue Song wird nicht zu einem der nächsten 3 Songs (außer es gibt ≤3 zukünftige Songs).
-   * - Kein Sänger soll direkt zweimal hintereinander vorkommen.
-   * - Songs, die sich nach vorne "kämpfen", haben es pro Position schwerer (Progressive Penalty).
-   * Es wird nur eingefügt und verschoben – keine globale Neu-Sortierung.
+   * - Identifier = Name + Device-ID (entspricht user_id): Song-Count = Anzahl seiner Songs in der DB.
+   * - Der neue Song startet am Ende der Liste und tauscht mit dem direkt darüber (kleinere Position),
+   *   solange sein Song-Count kleiner ist als der des Nachbarn.
+   * - Kein Tausch über den aktuellen Song und nicht über die nächsten SAFE_ZONE_AFTER_CURRENT Wünsche
+   *   nach dem aktuellen Song (gleiche Song-IDs wie beim Einfügen festgehalten).
    */
   static async insertSong(songId) {
     try {
-      const playlist = await Song.getAll();
+      let playlist = await Song.getAll();
       const newSong = await Song.getById(songId);
       if (!newSong) {
         throw new Error('Song not found');
       }
 
-      const currentSongPosition = await this.getCurrentSongPosition();
-      const currentPos = currentSongPosition != null ? currentSongPosition : 0;
-
-      // Nur Songs in der "Zukunft" (Position > aktueller Song), ohne den neuen Song; nach Position sortiert
-      const future = playlist
-        .filter((s) => s.id !== songId && s.position != null && s.position > currentPos)
-        .sort((a, b) => a.position - b.position);
+      const currentSongId = await this.getCurrentSongId();
+      const others = playlist.filter((s) => s.id !== songId && s.position != null);
+      const maxPos = others.length ? Math.max(...others.map((s) => s.position)) : 0;
+      const endPosition = maxPos + 1;
+      await Song.updatePosition(songId, endPosition);
 
       const priority = await this.calculatePriority(newSong.user_id, newSong.device_id);
       await this.updateSongPriority(songId, priority);
 
-      let insertIndex;
-
-      if (future.length === 0) {
-        insertIndex = 0;
-      } else if (future.length <= PROTECTED_SLOTS) {
-        // Wenig Songs: erlaubte Einfügeposition nach Priorität, inkl. „vorne“
-        insertIndex = this.computeNaturalIndex(future, priority);
-        insertIndex = Math.min(insertIndex, future.length);
-        insertIndex = this.resolveSameSingerConflict(future, insertIndex, newSong.user_id, future.length);
-      } else {
-        // Genug Songs: neue Songs nicht in die nächsten 3 (Indizes 0,1,2)
-        const naturalIndex = this.computeNaturalIndex(future, priority);
-        let candidateIndex = Math.max(PROTECTED_SLOTS, naturalIndex);
-        candidateIndex = Math.min(candidateIndex, future.length);
-
-        // Progressive Penalty: direkt nach der geschützten Zone nur, wenn der verdrängte Song „deutlich“ mehr Priorität hat
-        if (candidateIndex === PROTECTED_SLOTS && future[PROTECTED_SLOTS] != null) {
-          const displacedPriority = future[PROTECTED_SLOTS].priority;
-          if (priority + PENALTY_FOR_FORWARD_SLOT > displacedPriority) {
-            candidateIndex++;
-          }
-        }
-
-        candidateIndex = this.resolveSameSingerConflict(future, candidateIndex, newSong.user_id, future.length);
-        insertIndex = candidateIndex;
-      }
-
-      const newPosition = currentPos + 1 + insertIndex;
-
-      await Song.updatePosition(songId, newPosition);
-
-      // Alle Songs mit Position >= newPosition um 1 nach hinten schieben (ohne den neuen)
-      const toShift = playlist.filter(
-        (s) => s.id !== songId && s.position != null && s.position >= newPosition
+      playlist = await Song.getAll();
+      const nonSwappableAboveIds = this.getNonSwappableAboveIds(
+        playlist,
+        currentSongId,
+        SAFE_ZONE_AFTER_CURRENT
       );
-      for (const s of toShift) {
-        await Song.updatePosition(s.id, s.position + 1);
+
+      let moving = await Song.getById(songId);
+      while (moving) {
+        const above = this.findSongDirectlyAbove(playlist, moving);
+        if (!above) break;
+        if (currentSongId && above.id === currentSongId) break;
+        if (nonSwappableAboveIds.has(above.id)) break;
+
+        const countMoving = await this.getIdentifierSongCount(moving.user_id);
+        const countAbove = await this.getIdentifierSongCount(above.user_id);
+        if (countMoving >= countAbove) break;
+
+        await this.swapSongPositions(moving.id, moving.position, above.id, above.position);
+        playlist = await Song.getAll();
+        moving = await Song.getById(songId);
       }
 
-      return newPosition;
+      const finalSong = await Song.getById(songId);
+      return finalSong ? finalSong.position : endPosition;
     } catch (error) {
       console.error('Error inserting song:', error);
       throw error;
     }
   }
 
-  /**
-   * Einfüge-Index in die nach Position sortierte Warteschlange „future“.
-   * Niedrigere Prioritätszahl = fairer = weiter vorne.
-   * Alle Songs mit besserer oder gleicher Priorität (FIFO: bestehende zuerst) liegen vor dem neuen Song.
-   */
-  static computeNaturalIndex(future, newPriority) {
-    let count = 0;
-    for (const s of future) {
-      if (s.priority <= newPriority) count++;
+  /** Sortierte Playlist: aktueller Song und die nächsten safeZoneCount Wünsche (IDs) — nicht per Tausch überholen. */
+  static getNonSwappableAboveIds(playlist, currentSongId, safeZoneCount) {
+    const blocked = new Set();
+    if (!currentSongId) return blocked;
+
+    const sorted = [...playlist]
+      .filter((s) => s.position != null)
+      .sort((a, b) => {
+        if (a.position !== b.position) return a.position - b.position;
+        return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+      });
+
+    const idx = sorted.findIndex((s) => s.id === currentSongId);
+    if (idx < 0) return blocked;
+
+    for (let k = 1; k <= safeZoneCount && idx + k < sorted.length; k++) {
+      blocked.add(sorted[idx + k].id);
     }
-    return count;
+    return blocked;
   }
 
-  /** Findet den nächsten Index ohne „gleicher Teilnehmer direkt davor/danach“ (Identität = user_id = Name + Device-ID). */
-  static resolveSameSingerConflict(future, startIndex, newSongUserId, maxIndex) {
-    let i = startIndex;
-    while (i <= maxIndex) {
-      const prev = i > 0 ? future[i - 1] : null;
-      const next = i < future.length ? future[i] : null;
-      const conflictBefore = prev && prev.user_id === newSongUserId;
-      const conflictAfter = next && next.user_id === newSongUserId;
-      if (!conflictBefore && !conflictAfter) return i;
-      i++;
-    }
-    return maxIndex;
+  /** Direkter Nachbar „nach oben“ = höchste Position kleiner als moving.position. */
+  static findSongDirectlyAbove(playlist, moving) {
+    const candidates = playlist.filter(
+      (s) => s.id !== moving.id && s.position != null && s.position < moving.position
+    );
+    if (!candidates.length) return null;
+    return candidates.reduce((best, s) => (s.position > best.position ? s : best));
+  }
+
+  static async swapSongPositions(songIdA, posA, songIdB, posB) {
+    const temp = await this.getTemporaryPosition();
+    await Song.updatePosition(songIdA, temp);
+    await Song.updatePosition(songIdB, posA);
+    await Song.updatePosition(songIdA, posB);
+  }
+
+  static async getTemporaryPosition() {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT IFNULL(MAX(position), 0) AS m FROM songs', (err, row) => {
+        if (err) reject(err);
+        else resolve((row && row.m ? row.m : 0) + 1_000_000);
+      });
+    });
+  }
+
+  /** Song-Anzahl für Identifier (user_id = Name + Device-ID), wie in der DB gezählt. */
+  static async getIdentifierSongCount(userId) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) AS c FROM songs WHERE user_id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row && row.c != null ? row.c : 0);
+      });
+    });
   }
 
   /**
@@ -114,27 +125,8 @@ class PlaylistAlgorithm {
    * user_id entspricht genau einem Eintrag (Name + device_id); über ein Gerät können sich mehrere Leute eintragen (verschiedene Namen → verschiedene user_id).
    */
   static async calculatePriority(userId, _deviceId) {
-    return new Promise((resolve, reject) => {
-      // Song-Anzahl dieses Teilnehmers (Name + Device-ID = user_id), inkl. des gerade angelegten Songs
-      db.get(
-        `
-        SELECT COUNT(*) as count FROM songs WHERE user_id = ?
-      `,
-        [userId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          const userSongCount = row ? row.count : 0;
-          // Nur nach Teilnahmehäufigkeit skalieren — keine Anhebung an die Priorität des aktuellen Songs,
-          // sonst bekämen alle neuen Wünsche oft dieselbe Zahl und „schlechte“ Sänger landeten durch den
-          // invertierten Zählfehler in computeNaturalIndex zu weit vorne.
-          const finalPriority = Math.max(1, userSongCount);
-          resolve(finalPriority);
-        }
-      );
-    });
+    const c = await this.getIdentifierSongCount(userId);
+    return Math.max(1, c);
   }
 
   static async updateSongPriority(songId, priority) {
@@ -159,7 +151,8 @@ class PlaylistAlgorithm {
         // Get current song position and ID
         const currentSongPosition = await this.getCurrentSongPosition();
         const currentSongId = await this.getCurrentSongId();
-        const minPositionAfterCurrent = currentSongPosition !== null ? currentSongPosition + 4 : 1;
+        const minPositionAfterCurrent =
+          currentSongPosition !== null ? currentSongPosition + 1 + SAFE_ZONE_AFTER_CURRENT : 1;
         
         // Get all songs ordered by current position
         db.all(`
@@ -186,8 +179,12 @@ class PlaylistAlgorithm {
             } else if (currentSongPosition !== null && song.position <= currentSongPosition) {
               // Songs before or at current position
               songsBeforeOrAtCurrent.push(song);
-            } else if (currentSongPosition !== null && song.position > currentSongPosition && song.position <= currentSongPosition + 3) {
-              // Next 3 songs after current position (protected zone)
+            } else if (
+              currentSongPosition !== null &&
+              song.position > currentSongPosition &&
+              song.position <= currentSongPosition + SAFE_ZONE_AFTER_CURRENT
+            ) {
+              // Nächste SAFE_ZONE_AFTER_CURRENT Songs nach aktuellem (geschützte Zone)
               nextThreeSongs.push(song);
             } else {
               // Songs after the protected 3-song zone
