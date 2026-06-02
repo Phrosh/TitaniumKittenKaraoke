@@ -209,6 +209,7 @@ const ShowView: React.FC = () => {
   const [shouldShowBackgroundVideo, setShouldShowBackgroundVideo] = useState(false);
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
   const [showMuted, setShowMuted] = useState(false);
+  const [showProjectionMode, setShowProjectionMode] = useState(false);
 
   const [sessionDonors, setSessionDonors] = useState<Array<{ name: string; at: string }>>([]);
   const [donationMarqueeTemplate, setDonationMarqueeTemplate] = useState(
@@ -1072,6 +1073,7 @@ const ShowView: React.FC = () => {
       const title = response.data.overlayTitle;
       const backgroundVideoEnabled = response.data.backgroundVideoEnabled !== undefined ? response.data.backgroundVideoEnabled : true; // Default: enabled
       const showMutedFromApi = response.data.showMuted === true;
+      const projectionModeFromApi = response.data.showProjectionMode === true;
 
       // Handle all video URLs - convert YouTube URLs to cache URLs or use existing cache URLs
       // Use the same normalization logic as in fetchCurrentSong
@@ -1094,6 +1096,7 @@ const ShowView: React.FC = () => {
       // Update background video status from API
       setBackgroundVideoEnabled(backgroundVideoEnabled);
       setShowMuted(showMutedFromApi);
+      setShowProjectionMode(projectionModeFromApi);
 
       // Send QR overlay change to admin dashboard
       websocketService.emit('show-action', {
@@ -1214,6 +1217,7 @@ const ShowView: React.FC = () => {
       overlayTitle,
       backgroundVideoEnabled: wsBackgroundVideoEnabled,
       showMuted: wsShowMuted,
+      showProjectionMode: wsProjectionMode,
       sessionDonors: wsDonors,
       donationMarqueeTemplate: wsMarqueeTpl,
       donationNotificationTemplate: wsNotifTpl,
@@ -1265,6 +1269,9 @@ const ShowView: React.FC = () => {
     }
     if (wsShowMuted !== undefined) {
       setShowMuted(wsShowMuted);
+    }
+    if (wsProjectionMode !== undefined) {
+      setShowProjectionMode(wsProjectionMode);
     }
 
     // Nur State aktualisieren wenn sich der Song geändert hat
@@ -2722,17 +2729,22 @@ const ShowView: React.FC = () => {
       onMouseMove={handleMouseMove}
       $cursorVisible={cursorVisible}
     >
-      <DonationMarquee
-        donors={sessionDonors}
-        marqueeTemplate={donationMarqueeTemplate}
-        marqueeSeparator={donationMarqueeSeparator}
-      />
-      <DonationTopOsd
-        visible={donationOsdVisible}
-        text={donationOsdText}
-        highlightName={donationOsdHighlightName}
-      />
+      {!showProjectionMode && (
+        <>
+          <DonationMarquee
+            donors={sessionDonors}
+            marqueeTemplate={donationMarqueeTemplate}
+            marqueeSeparator={donationMarqueeSeparator}
+          />
+          <DonationTopOsd
+            visible={donationOsdVisible}
+            text={donationOsdText}
+            highlightName={donationOsdHighlightName}
+          />
+        </>
+      )}
       {/* Control Buttons - only show when not in fullscreen */}
+      {!showProjectionMode && (
       <ControlButtons 
         currentSong={currentSong}
         isPlaying={isPlaying}
@@ -2746,6 +2758,7 @@ const ShowView: React.FC = () => {
         setYoutubeIsPaused={setYoutubeIsPaused}
         setIsPlaying={setIsPlaying}
       />
+      )}
       {/* Fullscreen Video */}
       {(currentSong?.youtube_url && !isUltrastar) || isUltrastar ? (
         <VideoWrapper $blackBacking={isUltrastar}>
@@ -2979,7 +2992,7 @@ const ShowView: React.FC = () => {
                   onPlay={() => console.log('🎬 Background loop video started')}
                   onError={(e) => console.error('🎬 Background loop video error:', e)}
                 />
-                {/* Debug info */}
+                {!showProjectionMode && (
                 <div style={{
                   position: 'absolute',
                   top: '10px',
@@ -2997,6 +3010,7 @@ const ShowView: React.FC = () => {
                   Fade In: {backgroundVideoFadeIn ? 'YES' : 'NO'},
                   Fade Out: {backgroundVideoFadeOut ? 'YES' : 'NO'}
                 </div>
+                )}
               </>
             ) : (
               <NoVideoMessage>
@@ -3014,16 +3028,20 @@ const ShowView: React.FC = () => {
       )}
 
       {/* Header Overlay */}
-      <Header
-        currentSong={currentSong}
-        timeRemaining={timeRemaining}
-        withDonorMarquee={sessionDonors.length > 0}
-      />
+      {!showProjectionMode && (
+        <Header
+          currentSong={currentSong}
+          timeRemaining={timeRemaining}
+          withDonorMarquee={sessionDonors.length > 0}
+        />
+      )}
 
       {/* Footer Overlay */}
-      <Footer
-        nextSongs={nextSongs}
-      />
+      {!showProjectionMode && (
+        <Footer
+          nextSongs={nextSongs}
+        />
+      )}
 
       {/* Progress Bar Overlay */}
       <ProgressOverlay $isVisible={progressVisible1} $isUltrastar={isUltrastar} $isSecond={false} $isDuet={isDuet}>
@@ -3040,12 +3058,14 @@ const ShowView: React.FC = () => {
       )}
 
       {/* Controlled QR Code Overlay */}
-      <Overlay
-        show={showQRCodeOverlay}
-        overlayTitle={overlayTitle}
-        nextSongs={nextSongs}
-        qrCodeUrl={qrCodeUrl}
-      />
+      {!showProjectionMode && (
+        <Overlay
+          show={showQRCodeOverlay}
+          overlayTitle={overlayTitle}
+          nextSongs={nextSongs}
+          qrCodeUrl={qrCodeUrl}
+        />
+      )}
 
       {showUltrastarMediaLoadingOverlay && (
         <UltrastarMediaLoadingOverlay aria-busy="true" aria-live="polite">
@@ -3067,8 +3087,12 @@ const ShowView: React.FC = () => {
       />
 
       {/* Permanent QR Code Corner - Hide when overlay is visible */}
-      <QRCodeCorner qrCodeUrl={qrCodeUrl} isVisible={!showQRCodeOverlay} />
-      <AdCorner />
+      {!showProjectionMode && (
+        <>
+          <QRCodeCorner qrCodeUrl={qrCodeUrl} isVisible={!showQRCodeOverlay} />
+          <AdCorner />
+        </>
+      )}
       
       {/* Background Music Audio Element */}
       <AudioElement

@@ -315,6 +315,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
   const [regressionValue, setRegressionValue] = useState(0.1);
   const [customUrl, setCustomUrl] = useState('');
   const [overlayTitle, setOverlayTitle] = useState('Willkommen beim Karaoke');
+  const [showProjectionMode, setShowProjectionMode] = useState(false);
   const [youtubeEnabled, setYoutubeEnabled] = useState(true);
   const [autoApproveSongs, setAutoApproveSongs] = useState(true);
   const [usdbSearchEnabled, setUsdbSearchEnabled] = useState(false);
@@ -486,6 +487,11 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
     handleUpdateUSDBSearchEnabled(checked);
   };
 
+  const handleShowProjectionModeChange = (checked: boolean) => {
+    setShowProjectionMode(checked);
+    handleUpdateShowProjectionMode(checked);
+  };
+
   // Load all settings
   const loadSettings = useCallback(async () => {
     try {
@@ -502,10 +508,12 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         (typeof (s0 as any).customUrl === 'string' && (s0 as any).customUrl) ||
         '';
       const loadedOverlayTitle = settingsResponse.data.settings.overlay_title || 'Willkommen beim Karaoke';
+      const loadedProjectionMode = settingsResponse.data.settings.show_projection_mode === 'true';
       
       setRegressionValue(loadedRegressionValue);
       setCustomUrl(loadedCustomUrl);
       setOverlayTitle(loadedOverlayTitle);
+      setShowProjectionMode(loadedProjectionMode);
       
       // Setze die initialen Werte für Vergleich
       setInitialValues({
@@ -712,6 +720,22 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       toast.error(t('settings.cloudflaredStopError'));
     } finally {
       setCloudflaredStopLoading(false);
+    }
+  };
+
+  const handleUpdateShowProjectionMode = async (enabled: boolean, showToast: boolean = true) => {
+    setSettingsLoading(true);
+    try {
+      await adminAPI.updateShowProjectionMode(enabled);
+      if (showToast) {
+        toast.success(t('settings.showProjectionModeUpdated'));
+      }
+    } catch (error) {
+      console.error('Error updating show projection mode:', error);
+      toast.error(t('settings.showProjectionModeError'));
+      setShowProjectionMode(!enabled);
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -1437,6 +1461,27 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
       )}
         {settingsSubTab === 'playback' && (
           <>
+            {/* Projektionsmodus */}
+            <SettingsCard>
+              <SettingsLabel>{t('settings.showProjectionMode')}</SettingsLabel>
+              <CheckboxContainer>
+                <CheckboxLabel>
+                  <CheckboxInput
+                    type="checkbox"
+                    checked={showProjectionMode}
+                    onChange={(e) => handleShowProjectionModeChange(e.target.checked)}
+                  />
+                  <CheckboxText>
+                    {showProjectionMode ? t('settings.enabled') : t('settings.disabled')}
+                  </CheckboxText>
+                </CheckboxLabel>
+                {settingsLoading && (
+                  <span style={{ color: '#007bff', marginLeft: '10px' }}>💾 Speichern...</span>
+                )}
+              </CheckboxContainer>
+              <SettingsDescription>{t('settings.showProjectionModeDescription')}</SettingsDescription>
+            </SettingsCard>
+
             {/* Overlay Title */}
             <SettingsCard>
               <SettingsLabel>{t('settings.overlayTitle')}</SettingsLabel>

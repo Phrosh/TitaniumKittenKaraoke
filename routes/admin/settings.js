@@ -111,6 +111,42 @@ router.put('/settings/overlay-title', [
   }
 });
 
+// Update show projection mode (minimal /show UI)
+router.put('/settings/show-projection-mode', [
+  body('enabled').isBoolean().withMessage('Enabled muss ein Boolean sein')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { enabled } = req.body;
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['show_projection_mode', enabled ? 'true' : 'false'],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      const { broadcastShowUpdate } = require('../../utils/websocketService');
+      await broadcastShowUpdate(io);
+    }
+
+    res.json({ message: 'Projektionsmodus aktualisiert', enabled });
+  } catch (error) {
+    console.error('Error updating show projection mode:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update YouTube enabled setting
 router.put('/settings/youtube-enabled', [
   body('youtubeEnabled').isBoolean().withMessage('YouTube Enabled muss ein Boolean sein')

@@ -24,6 +24,7 @@ export interface ShowUpdateData {
   overlayTitle: string;
   backgroundVideoEnabled?: boolean;
   showMuted?: boolean;
+  showProjectionMode?: boolean;
   sessionDonors?: Array<{ name: string; at: string; amount?: string; currency?: string }>;
   donationMarqueeTemplate?: string;
   donationNotificationTemplate?: string;

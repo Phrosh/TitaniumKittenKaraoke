@@ -182,6 +182,9 @@ export const adminAPI = {
   updateOverlayTitle: (overlayTitle: string) =>
     api.put('/admin/settings/overlay-title', { overlayTitle }),
 
+  updateShowProjectionMode: (enabled: boolean) =>
+    api.put('/admin/settings/show-projection-mode', { enabled }),
+
   updateYouTubeEnabled: (youtubeEnabled: boolean) =>
     api.put('/admin/settings/youtube-enabled', { youtubeEnabled }),
   

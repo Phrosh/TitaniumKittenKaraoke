@@ -85,6 +85,19 @@ router.get('/', async (req, res) => {
 
     const showMuted = showMutedSetting ? showMutedSetting.value === 'true' : false;
 
+    const projectionModeSetting = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT value FROM settings WHERE key = ?',
+        ['show_projection_mode'],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const showProjectionMode = projectionModeSetting ? projectionModeSetting.value === 'true' : false;
+
     // Generate QR code for /new endpoint
     let qrCodeDataUrl = null;
     try {
@@ -188,6 +201,7 @@ router.get('/', async (req, res) => {
       overlayTitle,
       backgroundVideoEnabled,
       showMuted,
+      showProjectionMode,
       sessionDonors: donationsStore.getSessionDonors(),
       ...donationDisplay,
     });

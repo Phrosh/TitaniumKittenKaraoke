@@ -103,6 +103,7 @@ export interface ShowData {
   overlayTitle: string;
   backgroundVideoEnabled?: boolean;
   showMuted?: boolean;
+  showProjectionMode?: boolean;
 }
 
 export interface AdminUser {
