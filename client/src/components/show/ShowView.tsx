@@ -119,6 +119,8 @@ const ShowView: React.FC = () => {
   const [nextSongs, setNextSongs] = useState<Song[]>([]);
   const [lastSongId, setLastSongId] = useState<number | null>(null);
   const lastSongIdRef = useRef<number | null>(null);
+  const lastSongPitchRef = useRef<number>(0);
+  const ultrastarLoadGenRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -155,7 +157,7 @@ const ShowView: React.FC = () => {
   /** z. B. .mp4 fehlt: kein endloses Warten auf videoLoaded, Playback nur Audio */
   const [ultrastarVideoLoadFailed, setUltrastarVideoLoadFailed] = useState(false);
   /** gesetzt wenn /song-data für diese Queue-ID fertig ist (verhindert Warten auf videoLoaded vom Vorsong) */
-  const [ultrastarReadyForSongId, setUltrastarReadyForSongId] = useState<number | null>(null);
+  const [ultrastarReadyKey, setUltrastarReadyKey] = useState<string | null>(null);
   const [canAutoPlay, setCanAutoPlay] = useState(false);
 
   const [lyricsScaleP1, setLyricsScaleP1] = useState<number>(1);
@@ -987,20 +989,27 @@ const ShowView: React.FC = () => {
   }, [getLineText]);
 
   const loadUltrastarData = useCallback(async (song: CurrentSong) => {
+    const loadGen = ++ultrastarLoadGenRef.current;
+    const pitchOffset = song.pitch ?? 0;
     try {
-      // Use the new unified song data endpoint - no need to parse URLs anymore!
       const withBackgroundVocals = song.with_background_vocals ? 'true' : 'false';
       const response = await api.get('/songs/song-data', { 
         params: { 
           artist: song.artist, 
           title: song.title, 
-          withBackgroundVocals 
+          withBackgroundVocals,
+          pitch: pitchOffset,
         } 
       });
+      if (loadGen !== ultrastarLoadGenRef.current) {
+        return;
+      }
       const songData = response.data.songData;
 
+      console.log('🎵 Ultrastar audio URL:', songData.audioUrl, `(pitch ${pitchOffset})`);
+
       setUltrastarData(songData);
-      setUltrastarReadyForSongId(song.id);
+      setUltrastarReadyKey(`${song.id}:${pitchOffset}`);
       // Kein <video> → kein onLoadedData; sonst könnte videoLoaded vom vorherigen Song hängen bleiben
       if (!songData.videoUrl && songData.backgroundImageUrl) {
         setVideoLoaded(true);
@@ -1122,7 +1131,8 @@ const ShowView: React.FC = () => {
       setOverlayTitle(title);
 
       // Nur State aktualisieren wenn sich der Song geändert hat
-      if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
+      const pitchChanged = normalizedSong && (normalizedSong.pitch ?? 0) !== lastSongPitchRef.current;
+      if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged) {
         console.log('🌐 Setting new song from API:', normalizedSong);
         
         // Stop background music when new song is loaded
@@ -1135,6 +1145,7 @@ const ShowView: React.FC = () => {
         setCurrentSong(normalizedSong);
         setLastSongId(normalizedSong?.id || null);
         lastSongIdRef.current = normalizedSong?.id || null;
+        lastSongPitchRef.current = normalizedSong?.pitch ?? 0;
         // setError(null);
 
         // Automatically hide overlay when song changes
@@ -1154,7 +1165,7 @@ const ShowView: React.FC = () => {
         // Load Ultrastar-style data for ultrastar and magic-youtube songs
         if (newSong && (newSong.mode === 'ultrastar' || newSong.mode === 'magic-youtube')) {
           console.log('🌐 API: Loading Ultrastar data for new song');
-          await loadUltrastarData(newSong);
+          await loadUltrastarData(normalizedSong);
         } else {
           // Clear ultrastar data for non-ultrastar songs - do this atomically
           stopUltrastarTiming();
@@ -1163,7 +1174,7 @@ const ShowView: React.FC = () => {
 
           // Reset all states atomically to prevent race conditions
           setUltrastarData(null);
-          setUltrastarReadyForSongId(null);
+          setUltrastarReadyKey(null);
           setShowLyrics1(false);
           setShowLyrics2(false);
           setLyricsScaleP1(0);
@@ -1275,7 +1286,8 @@ const ShowView: React.FC = () => {
     }
 
     // Nur State aktualisieren wenn sich der Song geändert hat
-    if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current) {
+    const pitchChanged = normalizedSong && (normalizedSong.pitch ?? 0) !== lastSongPitchRef.current;
+    if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged) {
       console.log('🔌 Setting new song from WebSocket:', normalizedSong);
       
       // Stop background music when new song is loaded
@@ -1288,6 +1300,7 @@ const ShowView: React.FC = () => {
       setCurrentSong(normalizedSong);
       setLastSongId(normalizedSong?.id || null);
       lastSongIdRef.current = normalizedSong?.id || null;
+      lastSongPitchRef.current = normalizedSong?.pitch ?? 0;
       // setError(null);
       
       for (const timeouts of [p1Timeouts, p2Timeouts]) {
@@ -1313,7 +1326,7 @@ const ShowView: React.FC = () => {
 
       // Load Ultrastar-style data for ultrastar and magic-youtube songs
       if (newSong && (newSong.mode === 'ultrastar' || (newSong as any).mode === 'magic-youtube')) {
-        await loadUltrastarData(newSong);
+        await loadUltrastarData(normalizedSong);
       } else {
         // Clear ultrastar data for non-ultrastar songs - do this atomically
         stopUltrastarTiming();
@@ -1324,7 +1337,7 @@ const ShowView: React.FC = () => {
 
         // Reset all states atomically to prevent race conditions
         setUltrastarData(null);
-        setUltrastarReadyForSongId(null);
+        setUltrastarReadyKey(null);
         setShowLyrics1(false);
         setShowLyrics2(false);
         setLyricsScaleP1(0);
@@ -1822,7 +1835,8 @@ const ShowView: React.FC = () => {
 
   const isUltrastar = currentSong?.mode === 'ultrastar' || currentSong?.mode === 'magic-youtube';
   const ultrastarDataMatchesCurrentSong =
-    currentSong?.id != null && ultrastarReadyForSongId === currentSong.id;
+    currentSong?.id != null &&
+    ultrastarReadyKey === `${currentSong.id}:${currentSong.pitch ?? 0}`;
 
   useEffect(() => {
     if (audioRef.current) {
@@ -2142,9 +2156,9 @@ const ShowView: React.FC = () => {
     setAudioLoaded(false);
     setVideoLoaded(false);
     setUltrastarVideoLoadFailed(false);
-    setUltrastarReadyForSongId(null);
+    setUltrastarReadyKey(null);
     setCanAutoPlay(false);
-  }, [currentSong?.id]);
+  }, [currentSong?.id, currentSong?.pitch]);
 
   /** Lade-Overlay erst weg, wenn wirklich etwas Sichtbares da ist (nicht schon bei Audio-Play). */
   const revealUltrastarPlayback = useCallback(
@@ -2606,7 +2620,7 @@ const ShowView: React.FC = () => {
     ultrastarVideoLoadFailed,
     ultrastarData?.videoUrl,
     ultrastarDataMatchesCurrentSong,
-    ultrastarReadyForSongId,
+    ultrastarReadyKey,
   ]);
 
   // Reset loading states when song changes
@@ -2924,7 +2938,7 @@ const ShowView: React.FC = () => {
                 </>
               )}
               <AudioElement
-                key={currentSong?.id}
+                key={`${currentSong?.id}-${currentSong?.pitch ?? 0}`}
                 ref={audioRef}
                 src={ultrastarData.audioUrl}
                 preload="auto"

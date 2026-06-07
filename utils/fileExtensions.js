@@ -37,10 +37,12 @@ const LYRICS_EXTENSIONS = [
 
 // Cover-Extensions
 const COVER_EXTENSIONS = [
+    '.webp',
     '.jpg',
     '.jpeg',
     '.png',
-    '.gif'
+    '.gif',
+    '.bmp'
 ];
 
 // Hilfsfunktionen

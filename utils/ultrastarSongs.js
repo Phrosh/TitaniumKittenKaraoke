@@ -3,6 +3,7 @@ const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
 const { decodeFromPath } = require('./filenameSanitizer');
+const { getSongImageInfo } = require('./imageFiles');
 
 const ULTRASTAR_DIR = path.join(__dirname, '..', 'songs', 'ultrastar');
 
@@ -133,6 +134,9 @@ function scanUltrastarSongs() {
         
         // Check for TXT files
         const hasTxt = checkForTxtFiles(fullPath);
+
+        const folderFiles = fs.readdirSync(fullPath);
+        const imageInfo = getSongImageInfo(folderFiles, 'ultrastar', folder);
         
         songs.push({
           folderName: folder,
@@ -144,6 +148,9 @@ function scanUltrastarSongs() {
           hasHp2Hp5: hasHp2Hp5,
           hasAudio: hasAudio,
           hasTxt: hasTxt,
+          hasCover: imageInfo.hasCover,
+          coverUrl: imageInfo.coverUrl,
+          coverThumbUrl: imageInfo.coverThumbUrl,
           modes: ['ultrastar']
         });
       }

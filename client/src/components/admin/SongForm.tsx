@@ -13,17 +13,19 @@ interface SongFormProps {
     youtubeUrl: string;
     youtubeMode?: 'karaoke' | 'magic';
     withBackgroundVocals: boolean;
+    pitch?: number;
     onSingerNameChange: (value: string) => void;
     onYoutubeUrlChange: (value: string) => void;
     onYoutubeModeChange?: (mode: 'karaoke' | 'magic') => void;
     onWithBackgroundVocalsChange: (checked: boolean) => void;
+    onPitchChange?: (value: number) => void;
     showSongList?: boolean;
     songList?: any[];
     onSongSelect?: (song: any) => void;
     usdbResults?: any[];
     usdbLoading?: boolean;
     songData: {artist: string, title: string};
-    setSongData: (data: {artist: string, title: string, singerName: string, youtubeUrl: string, youtubeMode?: 'karaoke' | 'magic'}) => void;
+    setSongData: (data: {artist: string, title: string, singerName: string, youtubeUrl: string, youtubeMode?: 'karaoke' | 'magic', pitch?: number}) => void;
     setSongSearchTerm: (term: string) => void;
     setUsdbResults: (results: any[]) => void;
     setUsdbLoading: (loading: boolean) => void;
@@ -42,6 +44,8 @@ const SongForm: React.FC<SongFormProps> = ({
     onYoutubeUrlChange,
     onYoutubeModeChange,
     onWithBackgroundVocalsChange,
+    onPitchChange,
+    pitch = 0,
     showSongList = false,
     songList = [],
     onSongSelect,
@@ -362,9 +366,15 @@ const SongForm: React.FC<SongFormProps> = ({
           </div>
         )}
   
-        {/* Background Vocals Checkbox */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+        {/* Background Vocals + Pitch in one row */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '20px',
+          marginBottom: '20px',
+          flexWrap: 'wrap'
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flexShrink: 0 }}>
             <input
               type="checkbox"
               checked={withBackgroundVocals}
@@ -375,6 +385,40 @@ const SongForm: React.FC<SongFormProps> = ({
               {t('songForm.withBackgroundVocals')}
             </span>
           </label>
+
+          {onPitchChange && (() => {
+            const center = 50;
+            const thumbPct = ((pitch + 12) / 24) * 100;
+            const trackBg = pitch === 0
+              ? '#ddd'
+              : pitch > 0
+                ? `linear-gradient(to right, #ddd 0%, #ddd ${center}%, #667eea ${center}%, #667eea ${thumbPct}%, #ddd ${thumbPct}%, #ddd 100%)`
+                : `linear-gradient(to right, #ddd 0%, #ddd ${thumbPct}%, #667eea ${thumbPct}%, #667eea ${center}%, #ddd ${center}%, #ddd 100%)`;
+
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: '#333', whiteSpace: 'nowrap' }}>
+                  {t('songForm.pitch')}: {pitch > 0 ? '+' : ''}{pitch}
+                </span>
+                <input
+                  type="range"
+                  className="pitch-slider"
+                  data-pitch={pitch}
+                  min={-12}
+                  max={12}
+                  step={1}
+                  value={pitch}
+                  onChange={(e) => onPitchChange(parseInt(e.target.value, 10))}
+                  style={{
+                    flex: 1,
+                    height: '6px',
+                    borderRadius: '3px',
+                    background: trackBg,
+                  }}
+                />
+              </div>
+            );
+          })()}
         </div>
   
         {/* Song List */}

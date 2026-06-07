@@ -130,6 +130,11 @@ const SongsTab: React.FC<SongsTabProps> = ({
                     allSongs[existingIndex].hasPreferredVideo = ultrastarSong.hasPreferredVideo;
                     allSongs[existingIndex].hasHp2Hp5 = ultrastarSong.hasHp2Hp5;
                     allSongs[existingIndex].hasAudio = ultrastarSong.hasAudio;
+                    if (ultrastarSong.hasCover) {
+                        allSongs[existingIndex].hasCover = ultrastarSong.hasCover;
+                        allSongs[existingIndex].coverUrl = ultrastarSong.coverUrl;
+                        allSongs[existingIndex].coverThumbUrl = ultrastarSong.coverThumbUrl;
+                    }
                 } else {
                     // Song doesn't exist, add as ultrastar only with file status
                     allSongs.push({
@@ -138,7 +143,10 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         hasVideo: ultrastarSong.hasVideo,
                         hasPreferredVideo: ultrastarSong.hasPreferredVideo,
                         hasHp2Hp5: ultrastarSong.hasHp2Hp5,
-                        hasAudio: ultrastarSong.hasAudio
+                        hasAudio: ultrastarSong.hasAudio,
+                        hasCover: ultrastarSong.hasCover,
+                        coverUrl: ultrastarSong.coverUrl,
+                        coverThumbUrl: ultrastarSong.coverThumbUrl
                     });
                 }
             });
@@ -182,15 +190,19 @@ const SongsTab: React.FC<SongsTabProps> = ({
                         allSongs[existingIndex].modes.push('magic-songs');
                     }
                     // Update file status from magic song
-                    allSongs[existingIndex].hasUltrastar = magicSong.hasUltrastar;
+                    allSongs[existingIndex].hasUltrastar = ultrastarSong.hasUltrastar;
                     allSongs[existingIndex].hasCover = magicSong.hasCover;
+                    allSongs[existingIndex].coverUrl = magicSong.coverUrl;
+                    allSongs[existingIndex].coverThumbUrl = magicSong.coverThumbUrl;
                 } else {
                     // Song doesn't exist, add as magic-songs only
                     allSongs.push({
                         ...magicSong,
                         modes: ['magic-songs'],
                         hasUltrastar: magicSong.hasUltrastar,
-                        hasCover: magicSong.hasCover
+                        hasCover: magicSong.hasCover,
+                        coverUrl: magicSong.coverUrl,
+                        coverThumbUrl: magicSong.coverThumbUrl
                     });
                 }
             });
@@ -212,13 +224,21 @@ const SongsTab: React.FC<SongsTabProps> = ({
                     // Update file status from magic video
                     allSongs[existingIndex].hasUltrastar = magicVideo.hasUltrastar;
                     allSongs[existingIndex].hasRemuxed = magicVideo.hasRemuxed;
+                    if (magicVideo.hasCover) {
+                        allSongs[existingIndex].hasCover = magicVideo.hasCover;
+                        allSongs[existingIndex].coverUrl = magicVideo.coverUrl;
+                        allSongs[existingIndex].coverThumbUrl = magicVideo.coverThumbUrl;
+                    }
                 } else {
                     // Song doesn't exist, add as magic-videos only
                     allSongs.push({
                         ...magicVideo,
                         modes: ['magic-videos'],
                         hasUltrastar: magicVideo.hasUltrastar,
-                        hasRemuxed: magicVideo.hasRemuxed
+                        hasRemuxed: magicVideo.hasRemuxed,
+                        hasCover: magicVideo.hasCover,
+                        coverUrl: magicVideo.coverUrl,
+                        coverThumbUrl: magicVideo.coverThumbUrl
                     });
                 }
             });

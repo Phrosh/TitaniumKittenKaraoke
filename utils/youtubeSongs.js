@@ -3,6 +3,7 @@ const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { boilDown, boilDownMatch } = require('./boilDown');
 const { createSanitizedFolderName, decodeFromPath } = require('./filenameSanitizer');
+const { getSongImageInfo } = require('./imageFiles');
 
 // YouTube songs directory
 const YOUTUBE_DIR = path.join(__dirname, '..', 'songs', 'youtube');
@@ -39,6 +40,7 @@ function scanYouTubeSongs() {
           });
 
           if (videoFiles.length > 0) {
+            const imageInfo = getSongImageInfo(files, 'youtube', folder);
             songs.push({
               artist,
               title,
@@ -47,7 +49,10 @@ function scanYouTubeSongs() {
               videoFiles: videoFiles, // Store all video files for video ID matching
               fullPath: folderPath,
               modes: ['youtube'],
-              hasVideo: true
+              hasVideo: true,
+              hasCover: imageInfo.hasCover,
+              coverUrl: imageInfo.coverUrl,
+              coverThumbUrl: imageInfo.coverThumbUrl,
             });
           }
         }

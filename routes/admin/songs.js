@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { body, validationResult } = require('express-validator');
 const Song = require('../../models/Song');
 const db = require('../../config/database');
@@ -9,6 +10,22 @@ const { cleanYouTubeUrl } = require('../../utils/youtubeUrlCleaner');
 const { triggerAutomaticUSDBSearch } = require('../songs/utils/songHelpers');
 const songCache = require('../../utils/songCache');
 const pathFs = require('path');
+const fs = require('fs');
+const { findFolderSongForImage } = require('../../utils/songImageLookup');
+const { processUploadedImage } = require('../../utils/imageProcessor');
+const { listImageFiles, getSongImageInfo } = require('../../utils/imageFiles');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Nur Bilddateien sind erlaubt'));
+  },
+});
 
 function pathsEqualInsensitive(p1, p2) {
   try {
@@ -75,7 +92,8 @@ router.put('/song/:songId', [
     } catch {
       return false;
     }
-  }).withMessage('youtubeUrl must be a valid URL, an API route, or empty')
+  }).withMessage('youtubeUrl must be a valid URL, an API route, or empty'),
+  body('pitch').optional().isInt({ min: -12, max: 12 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -84,7 +102,7 @@ router.put('/song/:songId', [
     }
 
     const { songId } = req.params;
-    const { title, artist, youtubeUrl, withBackgroundVocals, singerName } = req.body;
+    const { title, artist, youtubeUrl, withBackgroundVocals, singerName, pitch } = req.body;
 
     const song = await Song.getById(songId);
     if (!song) {
@@ -98,12 +116,16 @@ router.put('/song/:songId', [
     const withBackgroundVocalsValue = withBackgroundVocals !== undefined 
       ? (withBackgroundVocals ? 1 : 0) 
       : (song.with_background_vocals ? 1 : 0);
+
+    const pitchValue = pitch !== undefined
+      ? Math.max(-12, Math.min(12, Math.round(Number(pitch) || 0)))
+      : (song.pitch ?? 0);
     
     // Update song details
     await new Promise((resolve, reject) => {
       db.run(
-        'UPDATE songs SET title = ?, artist = ?, youtube_url = ?, with_background_vocals = ? WHERE id = ?',
-        [title, artist || null, cleanedUrl || null, withBackgroundVocalsValue, songId],
+        'UPDATE songs SET title = ?, artist = ?, youtube_url = ?, with_background_vocals = ?, pitch = ? WHERE id = ?',
+        [title, artist || null, cleanedUrl || null, withBackgroundVocalsValue, pitchValue, songId],
         function(err) {
           if (err) reject(err);
           else resolve();
@@ -908,6 +930,67 @@ router.post('/song/delete', [
       message: 'Server error', 
       error: error.message,
       success: false
+    });
+  }
+});
+
+// Upload cover/background image for a folder-based song (converted to WebP + thumbnail)
+router.post('/song-image', upload.single('image'), async (req, res) => {
+  try {
+    const artist = String(req.body.artist || '').trim();
+    const title = String(req.body.title || '').trim();
+
+    if (!artist || !title) {
+      return res.status(400).json({ message: 'Artist und Titel sind erforderlich', success: false });
+    }
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'Keine Bilddatei hochgeladen', success: false });
+    }
+
+    const songLocation = findFolderSongForImage(artist, title);
+    if (!songLocation) {
+      return res.status(404).json({
+        message: 'Song-Ordner nicht gefunden (nur Ordner-basierte Songs unterstützt)',
+        success: false,
+      });
+    }
+
+    const { folderPath, folderName, apiSongType } = songLocation;
+    const existingFiles = fs.readdirSync(folderPath);
+    for (const file of listImageFiles(existingFiles)) {
+      fs.unlinkSync(pathFs.join(folderPath, file));
+    }
+
+    const processed = await processUploadedImage(req.file.buffer);
+    fs.writeFileSync(pathFs.join(folderPath, processed.fullFilename), processed.full);
+    fs.writeFileSync(pathFs.join(folderPath, processed.thumbFilename), processed.thumb);
+
+    const imageInfo = getSongImageInfo(
+      fs.readdirSync(folderPath),
+      apiSongType,
+      folderName
+    );
+
+    try {
+      await songCache.buildCache(true);
+    } catch (cacheError) {
+      console.warn('Cache-Rebuild nach Bild-Upload:', cacheError.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Bild hochgeladen und als WebP gespeichert',
+      coverUrl: imageInfo.coverUrl,
+      coverThumbUrl: imageInfo.coverThumbUrl,
+      hasCover: imageInfo.hasCover,
+      songType: apiSongType,
+    });
+  } catch (error) {
+    console.error('Song image upload error:', error);
+    res.status(500).json({
+      message: error.message || 'Server error',
+      success: false,
     });
   }
 });

@@ -88,7 +88,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     youtubeUrl: '',
     youtubeMode: 'karaoke' as 'karaoke' | 'magic',
     singerName: '',
-    withBackgroundVocals: false
+    withBackgroundVocals: false,
+    pitch: 0
   });
 
   const [showPastSongs, setShowPastSongs] = useState(false);
@@ -102,7 +103,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     title: '',
     youtubeUrl: '',
     youtubeMode: 'karaoke' as 'karaoke' | 'magic',
-    withBackgroundVocals: false
+    withBackgroundVocals: false,
+    pitch: 0
   });
   const [manualSongList, setManualSongList] = useState<any[]>([]);
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true);
@@ -626,7 +628,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       youtubeUrl: song.youtube_url || '',
       youtubeMode: 'karaoke' as 'karaoke' | 'magic',
       singerName: song.user_name || '',
-      withBackgroundVocals: song.with_background_vocals || false
+      withBackgroundVocals: song.with_background_vocals || false,
+      pitch: song.pitch ?? 0
     });
     setShowModal(true);
   };
@@ -657,7 +660,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           artist: formData.artist ?? '',
           youtubeUrl: formData.youtubeUrl != null ? String(formData.youtubeUrl) : '',
           singerName: formData.singerName != null ? String(formData.singerName) : '',
-          withBackgroundVocals: formData.withBackgroundVocals
+          withBackgroundVocals: formData.withBackgroundVocals,
+          pitch: formData.pitch ?? 0
         });
         toast.success(t('playlist.songUpdated'));
       }
@@ -717,6 +721,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         songInput: songInput,
         deviceId: 'ADM', // Admin device ID
         withBackgroundVocals: addSongData.withBackgroundVocals,
+        pitch: addSongData.pitch ?? 0,
         youtubeMode: addSongData.youtubeMode,
         // Send manual artist/title if provided (they will have priority over YouTube metadata)
         artist: addSongData.artist.trim() || undefined,
@@ -740,7 +745,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
         title: '',
         youtubeUrl: '',
         youtubeMode: 'karaoke' as 'karaoke' | 'magic',
-        withBackgroundVocals: false
+        withBackgroundVocals: false,
+        pitch: 0
       });
       handleCloseAddSongModal();
 

@@ -19,7 +19,8 @@ router.post('/request', [
   body('songInput').notEmpty().trim().isLength({ min: 1, max: 500 }),
   body('deviceId').optional().isLength({ min: 3, max: 10 }),
   body('withBackgroundVocals').optional().isBoolean(),
-  body('youtubeMode').optional().isIn(['karaoke', 'magic'])
+  body('youtubeMode').optional().isIn(['karaoke', 'magic']),
+  body('pitch').optional().isInt({ min: -12, max: 12 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -27,7 +28,8 @@ router.post('/request', [
       return res.status(400).json({ errors: errors.array() });
     }
     const { name, songInput, deviceId, youtubeMode, artist: manualArtist, title: manualTitle } = req.body;
-    let { withBackgroundVocals } = req.body;
+    let { withBackgroundVocals, pitch } = req.body;
+    pitch = Math.max(-12, Math.min(12, Math.round(Number(pitch) || 0)));
     // Check if YouTube is enabled
     const db = require('../../config/database');
     const youtubeSetting = await new Promise((resolve, reject) => {
@@ -371,7 +373,7 @@ router.post('/request', [
       console.log(`✨ Magic YouTube mode: Setting youtube_url to ${finalYoutubeUrl}`);
     }
     
-    const song = await Song.create(user.id, title, artist, finalYoutubeUrl, 1, durationSeconds, finalMode, withBackgroundVocals || false);
+    const song = await Song.create(user.id, title, artist, finalYoutubeUrl, 1, durationSeconds, finalMode, withBackgroundVocals || false, pitch);
     
     // Update download status if this was a YouTube download
     if (mode === 'youtube' && youtubeUrl && (songInput.includes('youtube.com') || songInput.includes('youtu.be'))) {

@@ -176,3 +176,55 @@ code {
 .gap-20 {
   gap: 20px;
 }
+
+/* Pitch slider: fill grows from center, neutral at 0 */
+.pitch-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.pitch-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.pitch-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #888;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  margin-top: -4px;
+  cursor: pointer;
+}
+
+.pitch-slider:not([data-pitch="0"])::-webkit-slider-thumb {
+  background: #667eea;
+}
+
+.pitch-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.pitch-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #888;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.pitch-slider:not([data-pitch="0"])::-moz-range-thumb {
+  background: #667eea;
+}
+
+.pitch-slider::-moz-range-progress {
+  background: transparent;
+}

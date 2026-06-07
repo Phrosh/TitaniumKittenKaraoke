@@ -220,6 +220,15 @@ function initializeDatabase() {
     }
   });
 
+  // Migration: Add pitch column (semitone offset -12 to +12)
+  db.run(`
+    ALTER TABLE songs ADD COLUMN pitch INTEGER DEFAULT 0
+  `, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Migration error:', err);
+    }
+  });
+
   // Migration: Add approved_at and rejected_at columns to song_approvals table
   db.run(`
     ALTER TABLE song_approvals ADD COLUMN approved_at DATETIME

@@ -33,7 +33,7 @@ api.interceptors.response.use(
 );
 
 export const songAPI = {
-  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean; youtubeMode?: 'karaoke' | 'magic'; artist?: string; title?: string }) =>
+  requestSong: (data: { name: string; songInput: string; deviceId?: string; withBackgroundVocals?: boolean; youtubeMode?: 'karaoke' | 'magic'; artist?: string; title?: string; pitch?: number }) =>
     api.post('/songs/request', data),
   
   getPlaylist: () =>
@@ -154,7 +154,7 @@ export const adminAPI = {
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),
   
-  updateSong: (songId: number, data: { title: string; artist?: string; youtubeUrl?: string; singerName?: string; withBackgroundVocals?: boolean }) =>
+  updateSong: (songId: number, data: { title: string; artist?: string; youtubeUrl?: string; singerName?: string; withBackgroundVocals?: boolean; pitch?: number }) =>
     api.put(`/admin/song/${songId}`, data),
   
   refreshSongClassification: (songId: number) =>
@@ -304,6 +304,16 @@ export const adminAPI = {
   // General Song Delete (for all song types)
   deleteSong: (artist: string, title: string) =>
     api.post('/admin/song/delete', { artist, title }),
+
+  uploadSongImage: (artist: string, title: string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('artist', artist);
+    formData.append('title', title);
+    return api.post('/admin/song-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 
   // Cloudflared Management
   getCloudflaredStatus: () => api.get('/admin/cloudflared/status'),

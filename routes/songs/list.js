@@ -189,6 +189,8 @@ router.get('/song-data', async (req, res) => {
   try {
     const { artist, title, youtubeId } = req.query;
     const { withBackgroundVocals } = req.query;
+    const { clampPitch } = require('../../utils/pitchShiftAudio');
+    const pitch = clampPitch(req.query.pitch);
     const { boilDownMatch } = require('../../utils/boilDown');
     const { parseUltrastarFile, findAudioFile } = require('../../utils/ultrastarParser');
     
@@ -224,7 +226,7 @@ router.get('/song-data', async (req, res) => {
       }
     }
 
-    console.log(`🎵 [SONG-DATA] Unified song data request: artist=${artist}, title=${title}, youtubeId=${youtubeId}, withBackgroundVocals=${withBackgroundVocals}`);
+    console.log(`🎵 [SONG-DATA] Unified song data request: artist=${artist}, title=${title}, youtubeId=${youtubeId}, withBackgroundVocals=${withBackgroundVocals}, pitch=${pitch}`);
 
     if (!artist || !title) {
       return res.status(400).json({ message: 'Artist and title are required' });
@@ -382,10 +384,13 @@ router.get('/song-data', async (req, res) => {
     
     const audioFile = findAudioFileWithPreference(foundSong.folderPath, preferBackgroundVocals);
     if (audioFile) {
-      // Extract just the filename from the full path
       const audioFilename = path.basename(audioFile);
-      songData.audioUrl = `/api/audio/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(audioFilename)}`;
-      console.log(`🎵 Selected audio file: ${audioFilename} for ${artist} - ${title}`);
+      if (pitch !== 0) {
+        songData.audioUrl = `/api/pitched-audio/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(audioFilename)}/${pitch}`;
+      } else {
+        songData.audioUrl = `/api/audio/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(audioFilename)}`;
+      }
+      console.log(`🎵 Selected audio file: ${audioFilename} for ${artist} - ${title}${pitch !== 0 ? ` (pitch ${pitch})` : ''}`);
     } else {
       console.log(`⚠️ No audio file found for ${artist} - ${title}`);
     }
@@ -419,15 +424,12 @@ router.get('/song-data', async (req, res) => {
       }
     }
 
-    // Find background image
-    const imageFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return ['.jpg', '.jpeg', '.png', '.gif', '.bmp'].includes(ext);
-    });
-
-    if (imageFiles.length > 0) {
-      const imageFile = imageFiles[0];
-      songData.backgroundImageUrl = `/api/video/${songType}/${encodeURIComponent(foundSong.folderName)}/${encodeURIComponent(imageFile)}`;
+    // Find background image (full + optional thumbnail)
+    const { getSongImageInfo } = require('../../utils/imageFiles');
+    const imageInfo = getSongImageInfo(files, songType, foundSong.folderName);
+    if (imageInfo.hasCover) {
+      songData.backgroundImageUrl = imageInfo.coverUrl;
+      songData.backgroundImageThumbUrl = imageInfo.coverThumbUrl;
     }
 
     // Add metadata

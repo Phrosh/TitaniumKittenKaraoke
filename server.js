@@ -337,106 +337,14 @@ app.get('/api/video/:songType/:folderName/:filename', (req, res) => {
 });
 
 // Serve audio files from any song directory
+const { serveSongAudio } = require('./utils/serveSongAudio');
+
+app.get('/api/pitched-audio/:songType/:folderName/:filename/:pitch', (req, res) => {
+  serveSongAudio(req, res, req.params.pitch);
+});
+
 app.get('/api/audio/:songType/:folderName/:filename', (req, res) => {
-  const path = require('path');
-  const fs = require('fs');
-  const { boilDownMatch } = require('./utils/boilDown');
-  
-  try {
-    const songType = req.params.songType;
-    const folderName = collapseSlashesInPathSegment(decodeURIComponent(req.params.folderName));
-    const filename = decodeURIComponent(req.params.filename);
-    
-    console.log(`🎵 Audio request: ${songType}/${folderName}/${filename}`);
-    
-    // Get the appropriate directory based on song type
-    let baseDir;
-    switch (songType) {
-      case 'ultrastar':
-        baseDir = require('./utils/ultrastarSongs').ULTRASTAR_DIR;
-        break;
-      case 'magic-songs':
-        baseDir = require('./utils/magicSongs').MAGIC_SONGS_DIR;
-        break;
-      case 'magic-videos':
-        baseDir = require('./utils/magicVideos').MAGIC_VIDEOS_DIR;
-        break;
-      case 'magic-youtube':
-        baseDir = require('./utils/magicYouTube').MAGIC_YOUTUBE_DIR;
-        break;
-      case 'youtube':
-        baseDir = require('./utils/youtubeSongs').YOUTUBE_DIR;
-        break;
-      default:
-        return res.status(400).json({ message: 'Invalid song type' });
-    }
-    
-    // First try direct path match
-    let audioPath = path.join(baseDir, folderName, filename);
-    
-    // If direct path doesn't exist, try flexible matching
-    if (!fs.existsSync(audioPath)) {
-      console.log(`📁 Direct path not found, trying flexible matching for folder: ${folderName}`);
-      
-      // Get all folders in the directory
-      const folders = fs.readdirSync(baseDir).filter(item => {
-        const itemPath = path.join(baseDir, item);
-        return fs.statSync(itemPath).isDirectory();
-      });
-      
-      // Find matching folder using boilDown comparison
-      const matchingFolder = folders.find(folder => {
-        return boilDownMatch(folder, folderName);
-      });
-      
-      if (matchingFolder) {
-        audioPath = path.join(baseDir, matchingFolder, filename);
-        console.log(`✅ Found matching folder: ${folderName} -> ${matchingFolder}`);
-      }
-    }
-    
-    // Security check: ensure the file is within the base directory
-    if (!audioPath.startsWith(baseDir)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    
-    // Check if file exists
-    if (!fs.existsSync(audioPath)) {
-      return res.status(404).json({ message: 'Audio file not found' });
-    }
-    
-    // Set appropriate headers for audio streaming
-    const stat = fs.statSync(audioPath);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-    
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
-      const file = fs.createReadStream(audioPath, { start, end });
-      const head = {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': 'audio/mpeg',
-      };
-      res.writeHead(206, head);
-      file.pipe(res);
-    } else {
-      const head = {
-        'Content-Length': fileSize,
-        'Content-Type': 'audio/mpeg',
-      };
-      res.writeHead(200, head);
-      fs.createReadStream(audioPath).pipe(res);
-    }
-    
-  } catch (error) {
-    console.error('Error serving audio:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
+  serveSongAudio(req, res);
 });
 
 // Serve local videos directly under /api/videos

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { VIDEO_EXTENSIONS } = require('../utils/fileExtensions');
 const { decodeFromPath } = require('./filenameSanitizer');
+const { getSongImageInfo } = require('./imageFiles');
 
 // Magic Videos Directory
 const MAGIC_VIDEOS_DIR = path.join(__dirname, '..', 'songs', 'magic-videos');
@@ -49,6 +50,8 @@ function scanMagicVideos() {
             const ext = path.extname(file).toLowerCase();
             return ['.mp3', '.wav', '.flac', '.m4a', '.aac'].includes(ext);
           });
+
+          const imageInfo = getSongImageInfo(files, 'magic-videos', folder);
           
           videos.push({
             folderName: folder,
@@ -63,6 +66,9 @@ function scanMagicVideos() {
             hasAudio: audioFiles.length > 0,
             hasHp2Hp5: hasHp2Hp5,
             hasTxt: ultrastarFiles.length > 0,
+            hasCover: imageInfo.hasCover,
+            coverUrl: imageInfo.coverUrl,
+            coverThumbUrl: imageInfo.coverThumbUrl,
             fullPath: folderPath,
             modes: ['magic-videos'],
             magic: true

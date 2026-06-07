@@ -12,8 +12,8 @@ interface AddSongModalProps {
   show: boolean;
   onClose: () => void;
   onSave: () => void;
-  addSongData: { singerName: string; artist: string; title: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic'; withBackgroundVocals: boolean };
-  setAddSongData: (data: { singerName: string; artist: string; title: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic'; withBackgroundVocals: boolean }) => void;
+  addSongData: { singerName: string; artist: string; title: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic'; withBackgroundVocals: boolean; pitch: number };
+  setAddSongData: (data: { singerName: string; artist: string; title: string; youtubeUrl: string; youtubeMode: 'karaoke' | 'magic'; withBackgroundVocals: boolean; pitch: number }) => void;
   manualSongList: any[];
   dashboardData: AdminDashboardData;
 }
@@ -240,6 +240,8 @@ const AddSongModal: React.FC<AddSongModalProps> = ({
                 youtubeUrl={addSongData.youtubeUrl}
                 youtubeMode={addSongData.youtubeMode}
                 withBackgroundVocals={Boolean((addSongData as any).withBackgroundVocals)}
+                pitch={addSongData.pitch ?? 0}
+                onPitchChange={(value) => setAddSongData(prev => ({ ...prev, pitch: value }))}
                 onSingerNameChange={(value) => setAddSongData(prev => ({ ...prev, singerName: value }))}
                 songData={addSongData}
                 setSongData={setAddSongData}

@@ -61,6 +61,9 @@ const SongList: React.FC<SongListProps> = ({
 
     const [showYouTubeDialog, setShowYouTubeDialog] = useState(false);
     const [selectedSongForDownload, setSelectedSongForDownload] = useState<any>(null);
+    const [uploadingImageKey, setUploadingImageKey] = useState<string | null>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const pendingImageUploadRef = useRef<any>(null);
 
      const handleCloseYouTubeDialog = () => {
         setShowYouTubeDialog(false);
@@ -620,7 +623,64 @@ const SongList: React.FC<SongListProps> = ({
         }
       };
 
+    const canUploadSongImage = (song: any) =>
+        song.modes?.some((mode: string) =>
+            ['ultrastar', 'magic-songs', 'magic-videos', 'magic-youtube', 'youtube_cache'].includes(mode)
+        );
+
+    const shouldDisableButtonsForSong = (song: any) => {
+        const songKey = `${song.artist}-${song.title}`;
+        const wsStatus = songStatuses.get(songKey);
+        const processingStatus = wsStatus || song.download_status || song.status;
+        const hasActiveStatus = processingStatus && !['finished', 'completed', 'ready', 'failed'].includes(processingStatus);
+        const isSongCurrentlyProcessing = isSongProcessing(song, processingSongs, songStatuses);
+        return actionLoading || isSongCurrentlyProcessing || hasActiveStatus;
+    };
+
+    const handleImageUploadClick = (song: any) => {
+        if (!canUploadSongImage(song) || shouldDisableButtonsForSong(song)) {
+            return;
+        }
+        pendingImageUploadRef.current = song;
+        imageInputRef.current?.click();
+    };
+
+    const handleImageFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        const song = pendingImageUploadRef.current;
+        event.target.value = '';
+
+        if (!file || !song) {
+            return;
+        }
+
+        const songKey = `${song.artist}-${song.title}`;
+        setUploadingImageKey(songKey);
+        try {
+            const response = await adminAPI.uploadSongImage(song.artist, song.title, file);
+            if (response.data.success) {
+                toast.success(t('songList.imageUploadSuccess', { artist: song.artist, title: song.title }));
+                await fetchSongs();
+            } else {
+                toast.error(response.data.message || t('songList.imageUploadError'));
+            }
+        } catch (error: any) {
+            console.error('Error uploading song image:', error);
+            toast.error(error.response?.data?.message || t('songList.imageUploadError'));
+        } finally {
+            setUploadingImageKey(null);
+            pendingImageUploadRef.current = null;
+        }
+    };
+
     return <>
+        <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleImageFileSelected}
+        />
         <SettingsCard>
             <SettingsLabel>
                 {songTab === 'all' && t('songList.allSongsLabel', { count: songs.length })}
@@ -801,6 +861,21 @@ const SongList: React.FC<SongListProps> = ({
                                                     flexShrink: 0
                                                 }}
                                             />
+                                            {(song.coverThumbUrl || song.hasCover) && (
+                                                <img
+                                                    src={song.coverThumbUrl || song.coverUrl}
+                                                    alt=""
+                                                    style={{
+                                                        width: 48,
+                                                        height: 48,
+                                                        objectFit: 'cover',
+                                                        borderRadius: 6,
+                                                        flexShrink: 0,
+                                                        border: '1px solid #dee2e6',
+                                                        background: '#f8f9fa',
+                                                    }}
+                                                />
+                                            )}
                                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '20px' }}>
                                                 {/* Left side: Song info */}
                                                 <div style={{ flex: 1 }}>
@@ -1023,6 +1098,25 @@ const SongList: React.FC<SongListProps> = ({
                                                         
                                                         return (
                                                             <>
+                                                                {/* Cover upload for folder-based songs */}
+                                                                {canUploadSongImage(song) && (
+                                                                    <Button
+                                                                        onClick={() => handleImageUploadClick(song)}
+                                                                        disabled={shouldDisableButtons || uploadingImageKey === `${song.artist}-${song.title}`}
+                                                                        size="small"
+                                                                        style={{
+                                                                            fontSize: '12px',
+                                                                            padding: '6px 12px',
+                                                                            backgroundColor: '#6f42c1',
+                                                                            opacity: (shouldDisableButtons || uploadingImageKey === `${song.artist}-${song.title}`) ? 0.5 : 1
+                                                                        }}
+                                                                    >
+                                                                        {uploadingImageKey === `${song.artist}-${song.title}`
+                                                                            ? t('songList.imageUploading')
+                                                                            : `🖼️ ${t('songList.uploadImage')}`}
+                                                                    </Button>
+                                                                )}
+
                                                                 {/* Rename button for all song types */}
                                                                 <Button
                                                                     onClick={() => handleRenameSong(song)}

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { decodeFromPath } = require('./filenameSanitizer');
+const { getSongImageInfo, listImageFiles } = require('./imageFiles');
 
 // Magic Songs Directory
 const MAGIC_SONGS_DIR = path.join(__dirname, '..', 'songs', 'magic-songs');
@@ -35,10 +36,8 @@ function scanMagicSongs() {
         });
 
         const ultrastarFiles = files.filter(file => file.endsWith('_ultrastar.txt'));
-        const coverFiles = files.filter(file => {
-          const ext = path.extname(file).toLowerCase();
-          return file.toLowerCase().startsWith('cover') && ['.jpg', '.jpeg', '.png', '.gif'].includes(ext);
-        });
+        const coverFiles = listImageFiles(files);
+        const imageInfo = getSongImageInfo(files, 'magic-songs', folder);
 
         if (audioFiles.length > 0) {
           // Check for HP2/HP5 files
@@ -54,7 +53,9 @@ function scanMagicSongs() {
             ultrastarFiles: ultrastarFiles,
             coverFiles: coverFiles,
             hasUltrastar: ultrastarFiles.length > 0,
-            hasCover: coverFiles.length > 0,
+            hasCover: imageInfo.hasCover,
+            coverUrl: imageInfo.coverUrl,
+            coverThumbUrl: imageInfo.coverThumbUrl,
             hasAudio: audioFiles.length > 0,
             hasVideo: false, // Magic songs don't have videos
             hasHp2Hp5: hasHp2Hp5,

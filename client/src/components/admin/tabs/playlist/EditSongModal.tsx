@@ -22,6 +22,7 @@ interface EditSongModalProps {
     youtubeMode: 'karaoke' | 'magic';
     singerName?: string;
     withBackgroundVocals?: boolean;
+    pitch?: number;
   };
   setFormData: (data: { 
     title: string; 
@@ -30,6 +31,7 @@ interface EditSongModalProps {
     youtubeMode: 'karaoke' | 'magic';
     singerName?: string;
     withBackgroundVocals?: boolean;
+    pitch?: number;
   }) => void;
   currentSong?: any; // To check song mode and API routes
   dashboardData?: AdminDashboardData;
@@ -270,6 +272,8 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
                 youtubeUrl={formData.youtubeUrl}
                 youtubeMode={formData.youtubeMode}
                 withBackgroundVocals={Boolean(formData.withBackgroundVocals)}
+                pitch={formData.pitch ?? 0}
+                onPitchChange={(value) => setFormData(prev => ({ ...prev, pitch: value }))}
                 onSingerNameChange={(value) => setFormData(prev => ({ ...prev, singerName: value }))}
                 songData={formData}
                 setSongData={setFormData}

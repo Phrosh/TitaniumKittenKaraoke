@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { decodeFromPath } = require('./filenameSanitizer');
+const { getSongImageInfo } = require('./imageFiles');
 
 // Magic YouTube Directory
 const MAGIC_YOUTUBE_DIR = path.join(__dirname, '..', 'songs', 'magic-youtube');
@@ -38,6 +39,7 @@ function scanMagicYouTube() {
         const ultrastarFiles = files.filter(file => file.endsWith('_ultrastar.txt'));
 
         if (videoFiles.length > 0) {
+          const imageInfo = getSongImageInfo(files, 'magic-youtube', folder);
           videos.push({
             folderName: folder,
             artist: artist,
@@ -47,6 +49,9 @@ function scanMagicYouTube() {
             ultrastarFiles: ultrastarFiles,
             hasUltrastar: ultrastarFiles.length > 0,
             isRemuxed: remuxedFiles.length > 0,
+            hasCover: imageInfo.hasCover,
+            coverUrl: imageInfo.coverUrl,
+            coverThumbUrl: imageInfo.coverThumbUrl,
             fullPath: folderPath,
             modes: ['magic-youtube'],
             magic: true

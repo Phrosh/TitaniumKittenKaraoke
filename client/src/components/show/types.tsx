@@ -8,6 +8,7 @@ export interface CurrentSong {
     position: number;
     duration_seconds: number | null;
     with_background_vocals: boolean;
+    pitch?: number;
   }
   
   export interface ShowData {
@@ -62,6 +63,7 @@ export interface CurrentSong {
     audioUrl?: string;
     videoUrl?: string;
     backgroundImageUrl?: string;
+    backgroundImageThumbUrl?: string;
     /** Sekunden am Dateianfang überspringen (Show / Audio / Video / Lyrics) */
     preGapSeconds?: number;
     /** Sekunden vor Dateiende beenden */

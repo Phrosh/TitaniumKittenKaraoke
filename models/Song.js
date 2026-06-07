@@ -2,16 +2,17 @@ const db = require('../config/database');
 const songCache = require('../utils/songCache');
 
 class Song {
-  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null, mode = 'youtube', withBackgroundVocals = false) {
+  static create(userId, title, artist = null, youtubeUrl = null, priority = 1.0, durationSeconds = null, mode = 'youtube', withBackgroundVocals = false, pitch = 0) {
+    const clampedPitch = Math.max(-12, Math.min(12, Math.round(Number(pitch) || 0)));
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO songs (user_id, title, artist, youtube_url, priority, duration_seconds, mode, with_background_vocals) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, title, artist, youtubeUrl, priority, durationSeconds, mode, withBackgroundVocals ? 1 : 0],
+        'INSERT INTO songs (user_id, title, artist, youtube_url, priority, duration_seconds, mode, with_background_vocals, pitch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, title, artist, youtubeUrl, priority, durationSeconds, mode, withBackgroundVocals ? 1 : 0, clampedPitch],
         function(err) {
           if (err) {
             reject(err);
           } else {
-            const newSong = { id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds, mode, with_background_vocals: withBackgroundVocals };
+            const newSong = { id: this.lastID, user_id: userId, title, artist, youtube_url: youtubeUrl, priority, duration_seconds: durationSeconds, mode, with_background_vocals: withBackgroundVocals, pitch: clampedPitch };
             // Update cache
             if (songCache && typeof songCache.addSongToCache === 'function') {
               songCache.addSongToCache(newSong);

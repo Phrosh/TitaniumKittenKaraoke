@@ -164,7 +164,8 @@ async function broadcastShowUpdate(io) {
         mode: songMode,
         position: currentSong.position,
         duration_seconds: currentSong.duration_seconds,
-        with_background_vocals: currentSong.with_background_vocals || false
+        with_background_vocals: currentSong.with_background_vocals || false,
+        pitch: currentSong.pitch ?? 0
       } : null,
       nextSongs,
       showQRCodeOverlay,
