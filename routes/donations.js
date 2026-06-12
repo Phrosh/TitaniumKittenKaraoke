@@ -130,6 +130,14 @@ function extractWebhookPayment(resource) {
   };
 }
 
+/** Overlay (/show) und Admin-Toast nur ab diesem Betrag (in Spendenwährung). */
+const MIN_DONATION_NOTIFICATION_AMOUNT = 5;
+
+function meetsDonationNotificationThreshold(amount) {
+  const n = parseFloat(String(amount ?? '0'));
+  return Number.isFinite(n) && n >= MIN_DONATION_NOTIFICATION_AMOUNT;
+}
+
 async function emitAfterDonation(getIo, summary) {
   const io = getIo();
   if (!io) return;
@@ -137,6 +145,13 @@ async function emitAfterDonation(getIo, summary) {
   const amount = summary?.amount ?? '0.00';
   const currency = summary?.currency ?? 'EUR';
   const at = summary?.at ?? new Date().toISOString();
+
+  io.to('admin').emit('donations-session-update', donationsStore.getSessionDonationsReport());
+
+  if (!meetsDonationNotificationThreshold(amount)) {
+    return;
+  }
+
   const dd = require('../utils/donationDisplaySettings');
   let osdText;
   try {
@@ -156,7 +171,6 @@ async function emitAfterDonation(getIo, summary) {
     currency,
     at,
   });
-  io.to('admin').emit('donations-session-update', donationsStore.getSessionDonationsReport());
 }
 
 module.exports = function createDonationsRouter(getIo) {
