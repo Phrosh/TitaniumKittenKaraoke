@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
 const Song = require('../models/Song');
 const QRCode = require('qrcode');
@@ -212,6 +214,24 @@ router.get('/', async (req, res) => {
       message: 'Fehler beim Laden der Show-Daten',
       error: error.message 
     });
+  }
+});
+
+/** Öffentliche Liste der Cat-GIFs für Spenden-Notifications (Ordner client/public/cat-gifs). */
+router.get('/cat-gifs', (req, res) => {
+  try {
+    const catGifsPath = path.join(__dirname, '../client/public/cat-gifs');
+    if (!fs.existsSync(catGifsPath)) {
+      return res.json({ files: [] });
+    }
+    const files = fs
+      .readdirSync(catGifsPath)
+      .filter((name) => /\.gif$/i.test(name))
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return res.json({ files });
+  } catch (error) {
+    console.error('Error loading cat gifs:', error);
+    return res.status(500).json({ message: 'Cat-GIFs konnten nicht geladen werden.' });
   }
 });
 

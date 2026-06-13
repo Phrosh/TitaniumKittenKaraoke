@@ -14,7 +14,9 @@ import DonationsTab from './admin/tabs/DonationsTab';
 import ApprovalModal from './admin/modals/ApprovalModal';
 import SongsTab from './admin/tabs/songs/SongsTab';
 import ApprovalNotificationBarComponent from './admin/ApprovalNotificationBar';
+import NotificationCatGif from './shared/NotificationCatGif';
 import getFirstLetter from '../utils/getFirstLetter';
+import { pickRandomCatGifUrlAsync } from '../utils/catGifs';
 import SongForm from './admin/SongForm';
 import loadAllSongs from '../utils/loadAllSongs';
 import { Container, LoadingMessage, Header, Title, LogoutButton, TabContainer, TabHeader, TabButton, TabContent, CurrentNextSongContainer, SongDisplayBox, SongDisplayLabel, SongDisplaySinger, SongDisplayTitle, SongTimeContainer, SongTimeRow, SongTimeLabel, SongProgressBar, SongProgressFill, SongTimeValueLeft, SongTimeValueRight } from './admin/style';
@@ -270,7 +272,7 @@ const AdminDashboard: React.FC = () => {
       }
     };
 
-    const handleAdminDonationReceived = (payload: {
+    const handleAdminDonationReceived = async (payload: {
       name?: string;
       amount?: string;
       currency?: string;
@@ -281,16 +283,46 @@ const AdminDashboard: React.FC = () => {
         payload.currency ?? 'EUR',
         i18n.language
       );
-      toast.success(
-        t('adminDashboard.donations.incomingNotification', {
-          name: (payload.name || '').trim() || t('adminDashboard.donations.anonymousDonor'),
-          amount: amountLabel,
-        }),
-        {
+      const message = t('adminDashboard.donations.incomingNotification', {
+        name: (payload.name || '').trim() || t('adminDashboard.donations.anonymousDonor'),
+        amount: amountLabel,
+      });
+      const catGifUrl = await pickRandomCatGifUrlAsync();
+      if (!catGifUrl) {
+        toast.success(message, {
           duration: 4500,
           position: 'top-center',
           icon: '💜',
           style: { marginTop: 14 },
+        });
+        return;
+      }
+      toast.custom(
+        (toastItem) => (
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              background: '#333',
+              color: '#fff',
+              padding: '14px 16px',
+              borderRadius: 10,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+              maxWidth: 'min(420px, 92vw)',
+              marginTop: 14,
+              opacity: toastItem.visible ? 1 : 0,
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            <NotificationCatGif src={catGifUrl} size="sm" />
+            <span style={{ flex: 1, fontWeight: 600, lineHeight: 1.4 }}>{message}</span>
+          </div>
+        ),
+        {
+          duration: 4500,
+          position: 'top-center',
         }
       );
     };

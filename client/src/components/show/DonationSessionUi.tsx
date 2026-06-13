@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import NotificationCatGif from '../shared/NotificationCatGif';
 import { buildMarqueeSegment } from '../../utils/donationDisplay';
+import { loadCatGifs, pickRandomCatGifUrl } from '../../utils/catGifs';
 import { HIGHLIGHT_COLOR, PRIMARY_COLOR } from './constants';
 
 const OSDEnterMs = 180;
@@ -486,6 +488,24 @@ export const DonationTopOsd: React.FC<DonationTopOsdProps> = ({ visible, text, h
   const [motion, setMotion] = useState<'in' | 'out' | 'idle'>('idle');
   const [confettiBurstId, setConfettiBurstId] = useState(0);
   const [confettiActive, setConfettiActive] = useState(false);
+  const [catGifUrl, setCatGifUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCatGifs();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    loadCatGifs().then((files) => {
+      if (!cancelled) {
+        setCatGifUrl(pickRandomCatGifUrl(files));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, text]);
 
   useLayoutEffect(() => {
     if (visible) {
@@ -570,9 +590,11 @@ export const DonationTopOsd: React.FC<DonationTopOsdProps> = ({ visible, text, h
         </ConfettiHost>
       ) : null}
       <OsdWrap $motion={boxMotion} role="status" aria-live="polite">
-        <OsdIcon aria-hidden>
-          <HeartSparkleIcon />
-        </OsdIcon>
+        {catGifUrl ? <NotificationCatGif src={catGifUrl} /> : (
+          <OsdIcon aria-hidden>
+            <HeartSparkleIcon />
+          </OsdIcon>
+        )}
         <OsdBody>{renderThanksLine(text, highlightName ?? null)}</OsdBody>
       </OsdWrap>
     </OsdStage>
