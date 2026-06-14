@@ -10,7 +10,8 @@ const SAFE_ZONE_AFTER_CURRENT = 3;
 class PlaylistAlgorithm {
   /**
    * Fügt einen neuen Song fair in die Playlist ein.
-   * - Identifier = Name + Device-ID (entspricht user_id): Song-Count = Anzahl seiner Songs in der DB.
+   * - Identifier = Name + Device-ID (entspricht user_id): Song-Count = alle seine Songs in der Warteschlange
+   *   (Vergangenheit, aktuell und Zukunft); beim neuen Wunsch zählt der gerade eingefügte Song noch nicht mit.
    * - Der neue Song startet am Ende der Liste und tauscht mit dem direkt darüber (kleinere Position),
    *   solange sein Song-Count kleiner ist als der des Nachbarn.
    * - Kein Tausch über den aktuellen Song und nicht über die nächsten SAFE_ZONE_AFTER_CURRENT Wünsche
@@ -47,8 +48,9 @@ class PlaylistAlgorithm {
         if (currentSongId && above.id === currentSongId) break;
         if (nonSwappableAboveIds.has(above.id)) break;
 
-        const countMoving = await this.getIdentifierSongCount(moving.user_id);
-        const countAbove = await this.getIdentifierSongCount(above.user_id);
+        // Bisherige Warteschlangen-Länge (ohne diesen Song) vs. Gesamtanzahl des Nachbarn inkl. Vergangenheit
+        const countMoving = await this.getQueueSongCount(moving.user_id, moving.id);
+        const countAbove = await this.getQueueSongCount(above.user_id);
         if (countMoving >= countAbove) break;
 
         await this.swapSongPositions(moving.id, moving.position, above.id, above.position);
@@ -110,10 +112,22 @@ class PlaylistAlgorithm {
     });
   }
 
-  /** Song-Anzahl für Identifier (user_id = Name + Device-ID), wie in der DB gezählt. */
-  static async getIdentifierSongCount(userId) {
+  /**
+   * Song-Anzahl in der gesamten Warteschlange für einen Teilnehmer (user_id = Name + Device-ID).
+   * Zählt alle Playlist-Einträge (Vergangenheit, aktuell, Zukunft); optional einen Eintrag ausschließen.
+   */
+  static async getQueueSongCount(userId, excludeSongId = null) {
     return new Promise((resolve, reject) => {
-      db.get('SELECT COUNT(*) AS c FROM songs WHERE user_id = ?', [userId], (err, row) => {
+      let query =
+        'SELECT COUNT(*) AS c FROM songs WHERE user_id = ? AND position IS NOT NULL AND position > 0';
+      const params = [userId];
+
+      if (excludeSongId != null) {
+        query += ' AND id != ?';
+        params.push(excludeSongId);
+      }
+
+      db.get(query, params, (err, row) => {
         if (err) reject(err);
         else resolve(row && row.c != null ? row.c : 0);
       });
@@ -121,11 +135,11 @@ class PlaylistAlgorithm {
   }
 
   /**
-   * Priorität pro Teilnehmer (Name + Device-ID): Anzahl seiner Songs in der DB (inkl. neuem Eintrag).
+   * Priorität pro Teilnehmer (Name + Device-ID): Anzahl seiner Songs in der gesamten Warteschlange.
    * user_id entspricht genau einem Eintrag (Name + device_id); über ein Gerät können sich mehrere Leute eintragen (verschiedene Namen → verschiedene user_id).
    */
   static async calculatePriority(userId, _deviceId) {
-    const c = await this.getIdentifierSongCount(userId);
+    const c = await this.getQueueSongCount(userId);
     return Math.max(1, c);
   }
 
