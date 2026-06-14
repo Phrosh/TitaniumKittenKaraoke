@@ -48,6 +48,7 @@ import Footer from './Footer';
 import Header from './Header';
 import Overlay from './Overlay';
 import StartOverlay from './StartOverlay';
+import EmergencyYouTubeOverlay from './EmergencyYouTubeOverlay';
 import QRCodeCorner from './QRCodeCorner';
 import ControlButtons from './ControlButtons';
 import AdCorner from './AdCorner';
@@ -56,6 +57,10 @@ import {
   DONATION_DISPLAY_DEFAULTS,
   applyNotificationTemplate,
 } from '../../utils/donationDisplay';
+import {
+  EmergencyYouTubePending,
+  openEmergencyYouTubePlayer,
+} from '../../utils/emergencyYouTube';
 
 /** Anzeigedauer der Spendendank-Box (vorher 8 s, um 3 s verkürzt) */
 const DONATION_OSD_VISIBLE_MS = 5000;
@@ -212,6 +217,8 @@ const ShowView: React.FC = () => {
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true); // Default: enabled
   const [showMuted, setShowMuted] = useState(false);
   const [showProjectionMode, setShowProjectionMode] = useState(false);
+  const [emergencyYouTubePending, setEmergencyYouTubePending] = useState<EmergencyYouTubePending | null>(null);
+  const emergencyYouTubeTsRef = useRef(0);
 
   const [sessionDonors, setSessionDonors] = useState<Array<{ name: string; at: string }>>([]);
   const [donationMarqueeTemplate, setDonationMarqueeTemplate] = useState(
@@ -227,6 +234,25 @@ const ShowView: React.FC = () => {
   const [donationOsdText, setDonationOsdText] = useState('');
   const [donationOsdHighlightName, setDonationOsdHighlightName] = useState<string | null>(null);
   const donationOsdHideRef = useRef<number | null>(null);
+
+  const applyEmergencyYouTubePending = useCallback((data: EmergencyYouTubePending | null | undefined) => {
+    if (!data?.videoId || !data.ts) {
+      setEmergencyYouTubePending(null);
+      return;
+    }
+    if (data.ts <= emergencyYouTubeTsRef.current) {
+      return;
+    }
+    emergencyYouTubeTsRef.current = data.ts;
+    setEmergencyYouTubePending({
+      videoId: data.videoId,
+      youtubeUrl: data.youtubeUrl,
+      embedUrl: data.embedUrl,
+      artist: data.artist,
+      title: data.title,
+      ts: data.ts,
+    });
+  }, []);
 
   const currentLyricStyle = {
     fontSize: '7vh',
@@ -1132,7 +1158,8 @@ const ShowView: React.FC = () => {
 
       // Nur State aktualisieren wenn sich der Song geändert hat
       const pitchChanged = normalizedSong && (normalizedSong.pitch ?? 0) !== lastSongPitchRef.current;
-      if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged) {
+      const songChanged = !normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged;
+      if (songChanged) {
         console.log('🌐 Setting new song from API:', normalizedSong);
         
         // Stop background music when new song is loaded
@@ -1141,6 +1168,8 @@ const ShowView: React.FC = () => {
         hideBackgroundVideo();
         // Reset video error state on song change
         setVideoError(false);
+        setEmergencyYouTubePending(null);
+        emergencyYouTubeTsRef.current = 0;
         
         setCurrentSong(normalizedSong);
         setLastSongId(normalizedSong?.id || null);
@@ -1189,6 +1218,8 @@ const ShowView: React.FC = () => {
           setVideoStartTime(null);
           setTimeRemaining(null);
         }
+      } else {
+        applyEmergencyYouTubePending(response.data.emergencyYouTube);
       }
 
       setNextSongs(nextSongs);
@@ -1233,7 +1264,8 @@ const ShowView: React.FC = () => {
       donationMarqueeTemplate: wsMarqueeTpl,
       donationNotificationTemplate: wsNotifTpl,
       donationMarqueeSeparator: wsMarqueeSep,
-    } = data;
+      emergencyYouTube: wsEmergencyYouTube,
+    } = data as ShowUpdateData & { emergencyYouTube?: EmergencyYouTubePending | null };
 
     if (wsDonors && Array.isArray(wsDonors)) {
       setSessionDonors(wsDonors);
@@ -1287,7 +1319,8 @@ const ShowView: React.FC = () => {
 
     // Nur State aktualisieren wenn sich der Song geändert hat
     const pitchChanged = normalizedSong && (normalizedSong.pitch ?? 0) !== lastSongPitchRef.current;
-    if (!normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged) {
+    const songChanged = !normalizedSong || normalizedSong.id !== lastSongIdRef.current || pitchChanged;
+    if (songChanged) {
       console.log('🔌 Setting new song from WebSocket:', normalizedSong);
       
       // Stop background music when new song is loaded
@@ -1296,6 +1329,8 @@ const ShowView: React.FC = () => {
       hideBackgroundVideo();
       // Reset video error state on song change
       setVideoError(false);
+      setEmergencyYouTubePending(null);
+      emergencyYouTubeTsRef.current = 0;
       
       setCurrentSong(normalizedSong);
       setLastSongId(normalizedSong?.id || null);
@@ -1352,10 +1387,12 @@ const ShowView: React.FC = () => {
         setVideoStartTime(null);
         setTimeRemaining(null);
       }
+    } else {
+      applyEmergencyYouTubePending(wsEmergencyYouTube);
     }
 
     setNextSongs(nextSongs);
-  }, [showAPI, stopUltrastarTiming, stopProgress]);
+  }, [showAPI, stopUltrastarTiming, stopProgress, applyEmergencyYouTubePending]);
 
   useEffect(() => {
     // Initial fetch
@@ -1670,6 +1707,11 @@ const ShowView: React.FC = () => {
     const handleShowMuteToggle = (data: { muted: boolean }) => {
       setShowMuted(data.muted);
     };
+
+    const handleEmergencyYouTube = (data: EmergencyYouTubePending) => {
+      console.log('🆘 ShowView: Emergency YouTube pending:', data);
+      applyEmergencyYouTubePending(data);
+    };
     
     // Listen for background video sync events (sent when video is enabled)
     const handleBackgroundVideoSync = (data: { enabled: boolean }) => {
@@ -1712,6 +1754,7 @@ const ShowView: React.FC = () => {
     websocketService.on('background-video-toggle', handleBackgroundVideoToggle);
     websocketService.on('background-video-sync', handleBackgroundVideoSync);
     websocketService.on('show-mute-toggle', handleShowMuteToggle);
+    websocketService.on('emergency-youtube', handleEmergencyYouTube);
 
     /** Muss im gleichen Effect wie connect/disconnect: bei Songwechsel o. Ä. wird disconnect ausgeführt –
      * ein separater Effect würde den Listener sonst auf der alten Socket-Instanz lassen. */
@@ -1766,6 +1809,7 @@ const ShowView: React.FC = () => {
       websocketService.off('background-video-toggle', handleBackgroundVideoToggle);
       websocketService.off('background-video-sync', handleBackgroundVideoSync);
       websocketService.off('show-mute-toggle', handleShowMuteToggle);
+      websocketService.off('emergency-youtube', handleEmergencyYouTube);
       websocketService.disconnect();
       stopUltrastarTiming(); // Cleanup ultrastar timing
     };
@@ -1777,6 +1821,7 @@ const ShowView: React.FC = () => {
     youtubeIsPaused,
     t,
     donationNotificationTemplate,
+    applyEmergencyYouTubePending,
   ]);
 
   // Timer effect
@@ -2538,6 +2583,13 @@ const ShowView: React.FC = () => {
     }
   }, [currentSong]);
 
+  const handleEmergencyYouTubeOpen = useCallback(() => {
+    if (!emergencyYouTubePending?.videoId) return;
+    setHasUserInteracted(true);
+    openEmergencyYouTubePlayer(emergencyYouTubePending.videoId);
+    setEmergencyYouTubePending(null);
+  }, [emergencyYouTubePending]);
+
   // Cursor management functions
   const hideCursor = useCallback(() => {
     setCursorVisible(false);
@@ -3098,6 +3150,11 @@ const ShowView: React.FC = () => {
       <StartOverlay
         show={showStartOverlay}
         onStartClick={handleStartButtonClick}
+      />
+
+      <EmergencyYouTubeOverlay
+        pending={emergencyYouTubePending}
+        onOpenClick={handleEmergencyYouTubeOpen}
       />
 
       {/* Permanent QR Code Corner - Hide when overlay is visible */}

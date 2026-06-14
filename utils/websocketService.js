@@ -153,7 +153,9 @@ async function broadcastShowUpdate(io) {
 
     const donationsStore = require('./donationsStore');
     const { loadDonationDisplaySettings } = require('./donationDisplaySettings');
+    const { getEmergencyYouTubePending } = require('./emergencyYouTubeState');
     const donationDisplay = await loadDonationDisplaySettings();
+    const emergencyYouTube = getEmergencyYouTubePending();
     const showData = {
       currentSong: currentSong ? {
         id: currentSong.id,
@@ -176,6 +178,7 @@ async function broadcastShowUpdate(io) {
       showProjectionMode,
       sessionDonors: donationsStore.getSessionDonors(),
       ...donationDisplay,
+      emergencyYouTube,
     };
 
     // Send update to all clients in show room
@@ -188,12 +191,38 @@ async function broadcastShowUpdate(io) {
 }
 
 /**
+ * Notfall-YouTube zurücksetzen und Show-Audio wieder aktivieren (Songwechsel).
+ * @param {Object} io
+ */
+async function resetShowMediaOnSongChange(io) {
+  const db = require('../config/database');
+  const { clearEmergencyYouTubePending } = require('./emergencyYouTubeState');
+
+  clearEmergencyYouTubePending();
+
+  await new Promise((resolve, reject) => {
+    db.run(
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+      ['show_muted', 'false'],
+      function (err) {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+
+  io.emit('show-mute-toggle', { muted: false });
+  console.log('🔇 Song change: emergency YouTube cleared, show unmuted');
+}
+
+/**
  * Sendet einen Song-Wechsel Event
  * @param {Object} io - Socket.IO Server Instance
  * @param {Object} newSong - Der neue aktuelle Song
  */
 async function broadcastSongChange(io, newSong) {
   try {
+    await resetShowMediaOnSongChange(io);
     await broadcastShowUpdate(io);
     console.log(`🎵 Broadcasted song change: ${newSong?.artist} - ${newSong?.title}`);
   } catch (error) {
@@ -245,6 +274,19 @@ async function broadcastShowMuteToggle(io, muted) {
     console.log(`🔇 Broadcasted show mute toggle: ${muted}`);
   } catch (error) {
     console.error('Error broadcasting show mute toggle:', error);
+  }
+}
+
+/**
+ * @param {Object} io
+ * @param {{ youtubeUrl: string }} data
+ */
+async function broadcastEmergencyYouTube(io, data) {
+  try {
+    io.emit('emergency-youtube', data);
+    console.log(`🆘 Broadcasted emergency YouTube: ${data.youtubeUrl}`);
+  } catch (error) {
+    console.error('Error broadcasting emergency YouTube:', error);
   }
 }
 
@@ -536,6 +578,7 @@ module.exports = {
   broadcastQRCodeToggle,
   broadcastBackgroundVideoToggle,
   broadcastShowMuteToggle,
+  broadcastEmergencyYouTube,
   broadcastAdminUpdate,
   broadcastPlaylistUpdate,
   broadcastTogglePlayPause,

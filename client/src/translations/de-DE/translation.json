@@ -244,6 +244,12 @@
     "showMediaMuted": "Show-Audio stummgeschaltet",
     "showMediaUnmuted": "Show-Audio wieder aktiv",
     "showMediaToggleError": "Fehler beim Umschalten des Show-Audios",
+    "emergencyYouTube": "Notfall YouTube – YouTube-Fallback auf der Show starten",
+    "emergencyYouTubeStarted": "Notfall-YouTube in neuem Tab geöffnet",
+    "emergencyYouTubeButtonOnShow": "Notfall-YouTube: Button auf der Show erscheint",
+    "emergencyYouTubeError": "Fehler beim Starten des Notfall-YouTube",
+    "emergencyYouTubeNoSong": "Kein aktueller Song – Notfall-YouTube nicht möglich",
+    "emergencyYouTubeNoLink": "Kein YouTube-Link und keine Suchbegriffe verfügbar",
     "showPast": "Vergangene anzeigen",
     "hidePast": "Vergangene ausblenden",
     "clearList": "Liste Leeren",
@@ -424,7 +430,9 @@
     "donorMarqueeSep": "♥",
     "donorMarqueeSuffix": "– ihr seid großartig!",
     "donationThanksName": "Danke, {{name}} – deine Unterstützung hilft uns sehr!",
-    "donationThanksGeneric": "Danke für deine Unterstützung!"
+    "donationThanksGeneric": "Danke für deine Unterstützung!",
+    "emergencyYouTubeTitle": "Notfall YouTube",
+    "emergencyYouTubeOpen": "▶ YouTube öffnen"
   },
   "songs": {
     "title": "Songverwaltung",

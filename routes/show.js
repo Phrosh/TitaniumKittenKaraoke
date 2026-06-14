@@ -4,6 +4,7 @@ const path = require('path');
 const router = express.Router();
 const Song = require('../models/Song');
 const QRCode = require('qrcode');
+const { getEmergencyYouTubePending } = require('../utils/emergencyYouTubeState');
 // const { findYouTubeSong } = require('../utils/youtubeSongs');
 
 // GET /show - Zeige aktuelles Video und nächste Songs
@@ -184,6 +185,7 @@ router.get('/', async (req, res) => {
     const donationsStore = require('../utils/donationsStore');
     const { loadDonationDisplaySettings } = require('../utils/donationDisplaySettings');
     const donationDisplay = await loadDonationDisplaySettings();
+    const emergencyYouTube = getEmergencyYouTubePending();
 
     res.json({
       currentSong: currentSong ? {
@@ -207,6 +209,7 @@ router.get('/', async (req, res) => {
       showProjectionMode,
       sessionDonors: donationsStore.getSessionDonors(),
       ...donationDisplay,
+      emergencyYouTube,
     });
   } catch (error) {
     console.error('Error fetching show data:', error);

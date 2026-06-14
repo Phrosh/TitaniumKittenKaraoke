@@ -29,6 +29,14 @@ export interface ShowUpdateData {
   donationMarqueeTemplate?: string;
   donationNotificationTemplate?: string;
   donationMarqueeSeparator?: string;
+  emergencyYouTube?: {
+    videoId: string;
+    youtubeUrl: string;
+    embedUrl: string;
+    artist?: string | null;
+    title?: string | null;
+    ts: number;
+  } | null;
 }
 
 export interface AdminUpdateData {

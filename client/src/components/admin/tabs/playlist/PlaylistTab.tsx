@@ -37,6 +37,8 @@ import EditSongModal from './EditSongModal';
 import AddSongModal from './AddSongModal';
 import DownloadStatusBadge from '../../../shared/DownloadStatusBadge';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
+import YouTubeSearchModal from '../../modals/YouTubeSearchModal';
+import { resolveEmergencyYouTubeUrl } from '../../../../utils/emergencyYouTube';
 
 /** True if this song should be shown as magic-youtube (not as ultrastar) in the playlist. */
 function isMagicYouTubeDisplay(song: Song, magicYouTubeSongs?: { artist: string; title: string }[]): boolean {
@@ -109,6 +111,8 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   const [manualSongList, setManualSongList] = useState<any[]>([]);
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(true);
   const [showMuted, setShowMuted] = useState(false);
+  const [showEmergencyYouTubeSearch, setShowEmergencyYouTubeSearch] = useState(false);
+  const [emergencySearchQuery, setEmergencySearchQuery] = useState('');
 
   useEffect(() => {
     const raw = dashboardData.settings?.show_muted;
@@ -345,6 +349,66 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       console.error('Error toggling show mute:', error);
       toast.error(t('playlist.showMediaToggleError'));
     }
+  };
+
+  const triggerEmergencyYouTubeOnShow = async (youtubeUrl: string, song?: { artist?: string; title?: string }) => {
+    try {
+      await adminAPI.triggerEmergencyYouTube(youtubeUrl, {
+        artist: song?.artist,
+        title: song?.title,
+      });
+      await adminAPI.setShowMute(true);
+      setShowMuted(true);
+      toast.success(t('playlist.emergencyYouTubeButtonOnShow'));
+    } catch (error) {
+      console.error('Error triggering emergency YouTube:', error);
+      toast.error(t('playlist.emergencyYouTubeError'));
+    }
+  };
+
+  const handleEmergencyYouTube = async () => {
+    if (!currentSong) {
+      toast.error(t('playlist.emergencyYouTubeNoSong'));
+      return;
+    }
+
+    const isUltrastar =
+      currentSong.mode === 'ultrastar' || currentSong.mode === 'magic-youtube';
+
+    if (isUltrastar) {
+      if (currentSong.artist?.trim() && currentSong.title?.trim()) {
+        setEmergencySearchQuery(`${currentSong.artist} - ${currentSong.title} Karaoke`);
+        setShowEmergencyYouTubeSearch(true);
+        return;
+      }
+      toast.error(t('playlist.emergencyYouTubeNoLink'));
+      return;
+    }
+
+    const url = resolveEmergencyYouTubeUrl(currentSong, dashboardData.youtubeSongs || []);
+    if (url) {
+      await triggerEmergencyYouTubeOnShow(url, {
+        artist: currentSong.artist,
+        title: currentSong.title,
+      });
+      return;
+    }
+
+    if (currentSong.artist?.trim() && currentSong.title?.trim()) {
+      setEmergencySearchQuery(`${currentSong.artist} - ${currentSong.title} Karaoke`);
+      setShowEmergencyYouTubeSearch(true);
+      return;
+    }
+
+    toast.error(t('playlist.emergencyYouTubeNoLink'));
+  };
+
+  const handleEmergencyYouTubeVideoSelect = async (url: string) => {
+    setShowEmergencyYouTubeSearch(false);
+    await triggerEmergencyYouTubeOnShow(url, {
+      artist: currentSong?.artist,
+      title: currentSong?.title,
+    });
   };
 
   const handleNextSong = async () => {
@@ -790,6 +854,14 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
               {showMuted ? '🔇' : '🔊'}
             </QRCodeToggleButton>
             <QRCodeToggleButton
+              onClick={handleEmergencyYouTube}
+              disabled={actionLoading || !currentSong}
+              style={{ marginRight: '10px' }}
+              title={t('playlist.emergencyYouTube')}
+            >
+              🆘 📺
+            </QRCodeToggleButton>
+            <QRCodeToggleButton
               onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
               $active={showQRCodeOverlay}
               style={{ marginRight: '10px' }}
@@ -1117,6 +1189,12 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           setAddSongData={setAddSongData}
           manualSongList={manualSongList}
           dashboardData={dashboardData}
+        />
+        <YouTubeSearchModal
+          show={showEmergencyYouTubeSearch}
+          searchQuery={emergencySearchQuery}
+          onClose={() => setShowEmergencyYouTubeSearch(false)}
+          onSelectVideo={handleEmergencyYouTubeVideoSelect}
         />
 
 

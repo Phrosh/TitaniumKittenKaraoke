@@ -40,10 +40,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.socket.io"],
       imgSrc: ["'self'", "data:", "https:"],
       frameSrc: ["'self'", "https://www.youtube.com", "https://youtube.com"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'", "https://www.youtube.com", "https://youtube.com", "http://localhost:*"],
@@ -480,6 +480,20 @@ app.use('/api/admin', videoModesRoutes);
 app.use('/api/show', showRoutes);
 app.use('/api/donations', createDonationsRouter(() => app.get('io')));
 app.use('/api/i18n', i18nRoutes);
+
+app.get('/emergency-youtube-player.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  res.sendFile(path.join(__dirname, 'client/public/emergency-youtube-player.html'));
+});
+
+app.get('/emergency-youtube-player.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('ngrok-skip-browser-warning', 'true');
+  res.sendFile(path.join(__dirname, 'client/public/emergency-youtube-player.js'));
+});
 
 // Serve static files from React app (both production and development)
 app.use(express.static(path.join(__dirname, 'client/build'), {

@@ -21,6 +21,7 @@ const testRoutes = require('./test');
 const backgroundMusicRoutes = require('./backgroundMusic');
 const backgroundVideoRoutes = require('./backgroundVideo');
 const showMuteRoutes = require('./showMute');
+const emergencyYouTubeRoutes = require('./emergencyYouTube');
 const customPipelineRoutes = require('./customPipeline');
 const donationsSessionRoutes = require('./donationsSession');
 
@@ -41,6 +42,7 @@ router.use('/', testRoutes);
 router.use('/', backgroundMusicRoutes);
 router.use('/', backgroundVideoRoutes);
 router.use('/', showMuteRoutes);
+router.use('/', emergencyYouTubeRoutes);
 router.use('/', customPipelineRoutes);
 router.use('/', donationsSessionRoutes);
 

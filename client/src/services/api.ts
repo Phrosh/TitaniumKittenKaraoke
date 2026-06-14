@@ -150,6 +150,9 @@ export const adminAPI = {
 
   setShowMute: (muted: boolean) =>
     api.put('/admin/show-mute', { muted }),
+
+  triggerEmergencyYouTube: (youtubeUrl: string, meta?: { artist?: string; title?: string }) =>
+    api.put('/admin/emergency-youtube', { youtubeUrl, ...meta }),
   
   getSong: (songId: number) =>
     api.get(`/admin/song/${songId}`),

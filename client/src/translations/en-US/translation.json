@@ -244,6 +244,12 @@
     "showMediaMuted": "Show audio muted",
     "showMediaUnmuted": "Show audio unmuted",
     "showMediaToggleError": "Error toggling show audio",
+    "emergencyYouTube": "Emergency YouTube – start YouTube fallback on show display",
+    "emergencyYouTubeStarted": "Emergency YouTube opened in new tab",
+    "emergencyYouTubeButtonOnShow": "Emergency YouTube: button shown on display",
+    "emergencyYouTubeError": "Error starting emergency YouTube",
+    "emergencyYouTubeNoSong": "No current song – emergency YouTube unavailable",
+    "emergencyYouTubeNoLink": "No YouTube link and no search terms available",
     "showPast": "Show past",
     "hidePast": "Hide past",
     "clearList": "Clear List",
@@ -418,7 +424,9 @@
     "donorMarqueeSep": "♥",
     "donorMarqueeSuffix": "— thank you!",
     "donationThanksName": "Thank you, {{name}} — your support makes a difference!",
-    "donationThanksGeneric": "Thanks for supporting the event!"
+    "donationThanksGeneric": "Thanks for supporting the event!",
+    "emergencyYouTubeTitle": "Emergency YouTube",
+    "emergencyYouTubeOpen": "▶ Open YouTube"
   },
   "songs": {
     "title": "Song Management",
