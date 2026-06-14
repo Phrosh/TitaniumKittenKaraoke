@@ -10,6 +10,13 @@ const PlaylistAlgorithm = require('./playlistAlgorithm');
 /** Letzter Song-Start fürs Admin-Dashboard (für Sync nach Reconnect / Seitenreload). */
 let lastAdminSongStart = null;
 
+function getCurrentSongRemainingSeconds(currentSongId) {
+  if (!lastAdminSongStart || !lastAdminSongStart.durationSeconds) return null;
+  if (currentSongId && lastAdminSongStart.songId !== currentSongId) return null;
+  const elapsed = (Date.now() - new Date(lastAdminSongStart.startTimestamp).getTime()) / 1000;
+  return Math.max(0, lastAdminSongStart.durationSeconds - elapsed);
+}
+
 /**
  * Sendet Show-Updates an alle verbundenen Clients
  * @param {Object} io - Socket.IO Server Instance
@@ -570,6 +577,7 @@ async function broadcastQueueStatus(io, data) {
 }
 
 module.exports = {
+  getCurrentSongRemainingSeconds,
   broadcastSongStart,
   syncAdminSongStartToSocket,
   broadcastPlayPauseStatus,

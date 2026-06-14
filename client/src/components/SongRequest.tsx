@@ -6,6 +6,7 @@ import { SongRequestData } from '../types';
 import { useTranslation } from 'react-i18next';
 import Button from './shared/Button';
 import { TextWithDuetBadge } from './shared/SmallModeBadge';
+import MyQueueStatus from './songRequest/MyQueueStatus';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -396,6 +397,7 @@ const SongRequest: React.FC = () => {
   const [donorThanksBanner, setDonorThanksBanner] = useState(
     () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
   );
+  const [queueRefreshTrigger, setQueueRefreshTrigger] = useState(0);
 
   const donationMoneyFmt = useMemo(() => {
     try {
@@ -884,6 +886,7 @@ const SongRequest: React.FC = () => {
       setFormData(prev => ({ ...prev, songInput: '' }));
       setSongEntryFieldExpanded(false);
       setWithBackgroundVocals(false);
+      setQueueRefreshTrigger((n) => n + 1);
     } catch (error: any) {
       setMessage({
         type: 'error',
@@ -1079,6 +1082,9 @@ const SongRequest: React.FC = () => {
           </>
         ) : (
           <>
+            {deviceId && (
+              <MyQueueStatus deviceId={deviceId} refreshTrigger={queueRefreshTrigger} />
+            )}
             <Form onSubmit={handleSubmit}>
               <FormGroup>
                 <Label htmlFor="name">{t('songRequest.yourName')}:</Label>

@@ -352,7 +352,21 @@
     "donateNeedName": "Please enter your name first so we can thank you on screen.",
     "donateThankYouSession": "Thank you for your support! Your name may appear on the big screen during this event.",
     "donateCancelled": "Donation cancelled.",
-    "donateError": "Donation could not be started. Please try again later."
+    "donateError": "Donation could not be started. Please try again later.",
+    "queueTitle": "Your song requests",
+    "queueSubtitle": "Approximate wait time – may change as new requests come in.",
+    "queueSongsBefore_one": "song ahead",
+    "queueSongsBefore_other": "songs ahead",
+    "queueEstimatedWait": "Wait time",
+    "queueAboutMinutes_one": "~{{count}} min",
+    "queueAboutMinutes_other": "~{{count}} min",
+    "queueLessThanOneMinute": "< 1 min",
+    "queueAboutHours_one": "~{{count}} hr",
+    "queueAboutHours_other": "~{{count}} hr",
+    "queueAboutHoursMinutes": "~{{hours}} hr {{minutes}} min",
+    "queueYourTurn": "You're up now!",
+    "queuePendingApproval": "Awaiting approval",
+    "queueUnknownSong": "Unknown song"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Please enter a YouTube URL",

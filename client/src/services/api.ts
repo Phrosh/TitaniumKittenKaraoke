@@ -38,6 +38,9 @@ export const songAPI = {
   
   getPlaylist: () =>
     api.get('/songs/playlist'),
+
+  getMyQueue: (deviceId: string) =>
+    api.get('/songs/my-queue', { params: { deviceId } }),
   
   getPendingSongs: () =>
     api.get('/songs/pending'),

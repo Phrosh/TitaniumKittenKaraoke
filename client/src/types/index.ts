@@ -23,6 +23,7 @@ export interface Song {
   position: number;
   delay_count: number;
   created_at: string;
+  duration_seconds?: number | null;
   user_name?: string;
   device_id?: string;
   with_background_vocals?: boolean;
@@ -76,6 +77,24 @@ export interface SongRequestData {
   name: string;
   songInput: string;
   deviceId?: string;
+}
+
+export interface MyQueueItem {
+  id: number;
+  artist?: string;
+  title?: string;
+  position?: number;
+  status: 'queued' | 'current' | 'pending_approval';
+  songsBefore: number | null;
+  estimatedWaitSeconds: number | null;
+  singerName?: string;
+  createdAt?: string;
+}
+
+export interface MyQueueResponse {
+  items: MyQueueItem[];
+  currentSongId: number | null;
+  fetchedAt: string;
 }
 
 export interface QRData {

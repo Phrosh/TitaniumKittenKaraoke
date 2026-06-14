@@ -358,7 +358,21 @@
     "donateNeedName": "Bitte zuerst deinen Namen eintragen – so können wir dich auf der Leinwand danken.",
     "donateThankYouSession": "Vielen Dank für deine Unterstützung! Dein Name kann an diesem Abend auf der Leinwand erscheinen.",
     "donateCancelled": "Spende abgebrochen.",
-    "donateError": "Spende konnte nicht gestartet werden. Bitte später erneut versuchen."
+    "donateError": "Spende konnte nicht gestartet werden. Bitte später erneut versuchen.",
+    "queueTitle": "Deine Songwünsche",
+    "queueSubtitle": "Ungefähre Wartezeit – kann sich durch neue Wünsche ändern.",
+    "queueSongsBefore_one": "Song davor",
+    "queueSongsBefore_other": "Songs davor",
+    "queueEstimatedWait": "Wartezeit",
+    "queueAboutMinutes_one": "ca. {{count}} Min.",
+    "queueAboutMinutes_other": "ca. {{count}} Min.",
+    "queueLessThanOneMinute": "< 1 Min.",
+    "queueAboutHours_one": "ca. {{count}} Std.",
+    "queueAboutHours_other": "ca. {{count}} Std.",
+    "queueAboutHoursMinutes": "ca. {{hours}} Std. {{minutes}} Min.",
+    "queueYourTurn": "Du bist jetzt dran!",
+    "queuePendingApproval": "Wird noch geprüft",
+    "queueUnknownSong": "Unbekannter Song"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Bitte gib eine YouTube-URL ein",
