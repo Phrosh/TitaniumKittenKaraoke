@@ -13,10 +13,13 @@ import {
   PlaylistContainer,
   PlaylistHeader,
   ControlButtons,
+  LeftButtons,
   CenterButtons,
   ControlButtonGroup,
-  ControlButton,
   RightButtons,
+  MoreOptionsPanel,
+  MoreOptionsLeft,
+  MoreOptionsRight,
   SmallButton,
   QRCodeToggleButton,
   DropZone,
@@ -113,6 +116,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   const [showMuted, setShowMuted] = useState(false);
   const [showEmergencyYouTubeSearch, setShowEmergencyYouTubeSearch] = useState(false);
   const [emergencySearchQuery, setEmergencySearchQuery] = useState('');
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   useEffect(() => {
     const raw = dashboardData.settings?.show_muted;
@@ -829,47 +833,15 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
     <PlaylistContainer>
       <PlaylistHeader>
         <ControlButtons>
-          <div>
+          <LeftButtons>
             <Button
               onClick={handleOpenAddSongModal}
-              style={{ background: '#28a745', marginRight: '15px', fontVariantEmoji: 'text' as const }}
+              style={{ background: '#28a745', fontVariantEmoji: 'text' as const }}
             >
               ➕ {t('playlist.addSong')}
             </Button>
-          </div>
+          </LeftButtons>
           <CenterButtons>
-            <QRCodeToggleButton
-              onClick={() => handleToggleBackgroundVideo(!backgroundVideoEnabled)}
-              $active={backgroundVideoEnabled}
-              style={{ marginRight: '10px' }}
-            >
-              🎬 {backgroundVideoEnabled ? t('playlist.backgroundVideoHide') : t('playlist.backgroundVideoShow')}
-            </QRCodeToggleButton>
-            <QRCodeToggleButton
-              onClick={() => handleToggleShowMute(!showMuted)}
-              $active={!showMuted}
-              style={{ marginRight: '10px' }}
-              title={showMuted ? t('playlist.showMediaUnmute') : t('playlist.showMediaMute')}
-            >
-              {showMuted ? '🔇' : '🔊'}
-            </QRCodeToggleButton>
-            <QRCodeToggleButton
-              onClick={handleEmergencyYouTube}
-              disabled={actionLoading || !currentSong}
-              style={{ marginRight: '10px' }}
-              title={t('playlist.emergencyYouTube')}
-            >
-              🆘 📺
-            </QRCodeToggleButton>
-            <QRCodeToggleButton
-              onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
-              $active={showQRCodeOverlay}
-              style={{ marginRight: '10px' }}
-            >
-              📱 {showQRCodeOverlay ? t('playlist.overlayHide') : t('playlist.overlayShow')}
-            </QRCodeToggleButton>
-
-            {/* Control Buttons */}
             <ControlButtonGroup>
               <Button
                 onClick={handlePreviousSong}
@@ -921,24 +893,66 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
           </CenterButtons>
           <RightButtons>
             <Button
-              onClick={() => setShowPastSongs(!showPastSongs)}
+              onClick={() => setShowMoreOptions(!showMoreOptions)}
               size="small"
-              variant={showPastSongs ? 'secondary' : 'default'}
-              style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
+              variant={showMoreOptions ? 'secondary' : 'default'}
+              title={showMoreOptions ? t('playlist.hideMoreOptions') : t('playlist.showMoreOptions')}
+              style={{ fontVariantEmoji: 'text' as const }}
             >
-              📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
-            </Button>
-            <Button
-              onClick={handleClearAllSongs}
-              disabled={actionLoading}
-              type="danger"
-              size="small"
-              style={{ marginRight: '8px', fontVariantEmoji: 'text' as const }}
-            >
-              🗑️ {t('playlist.clearList')}
+              {showMoreOptions ? '▲' : '▼'} {showMoreOptions ? t('playlist.less') : t('playlist.more')}
             </Button>
           </RightButtons>
         </ControlButtons>
+
+        {showMoreOptions && (
+          <MoreOptionsPanel>
+            <MoreOptionsLeft>
+              <QRCodeToggleButton
+                onClick={() => handleToggleBackgroundVideo(!backgroundVideoEnabled)}
+                $active={backgroundVideoEnabled}
+              >
+                🎬 {backgroundVideoEnabled ? t('playlist.backgroundVideoHide') : t('playlist.backgroundVideoShow')}
+              </QRCodeToggleButton>
+              <QRCodeToggleButton
+                onClick={() => handleToggleShowMute(!showMuted)}
+                $active={!showMuted}
+                title={showMuted ? t('playlist.showMediaUnmute') : t('playlist.showMediaMute')}
+              >
+                {showMuted ? '🔇' : '🔊'}
+              </QRCodeToggleButton>
+              <QRCodeToggleButton
+                onClick={handleEmergencyYouTube}
+                disabled={actionLoading || !currentSong}
+                title={t('playlist.emergencyYouTube')}
+              >
+                🆘 📺
+              </QRCodeToggleButton>
+              <QRCodeToggleButton
+                onClick={() => handleToggleQRCodeOverlay(!showQRCodeOverlay)}
+                $active={showQRCodeOverlay}
+              >
+                📱 {showQRCodeOverlay ? t('playlist.overlayHide') : t('playlist.overlayShow')}
+              </QRCodeToggleButton>
+            </MoreOptionsLeft>
+            <MoreOptionsRight>
+              <Button
+                onClick={() => setShowPastSongs(!showPastSongs)}
+                variant={showPastSongs ? 'secondary' : 'default'}
+                style={{ fontVariantEmoji: 'text' as const }}
+              >
+                📜 {showPastSongs ? t('playlist.hidePast') : t('playlist.showPast')}
+              </Button>
+              <Button
+                onClick={handleClearAllSongs}
+                disabled={actionLoading}
+                type="danger"
+                style={{ fontVariantEmoji: 'text' as const }}
+              >
+                🗑️ {t('playlist.clearList')}
+              </Button>
+            </MoreOptionsRight>
+          </MoreOptionsPanel>
+        )}
       </PlaylistHeader>
 
       {filteredPlaylist.length === 0 ? (

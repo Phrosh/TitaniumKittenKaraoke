@@ -19,9 +19,36 @@ export const PlaylistContainer = styled.div`
 
 export const PlaylistHeader = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 20px;
+`;
+
+export const MoreOptionsPanel = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f0f2f5;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+`;
+
+export const MoreOptionsLeft = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+`;
+
+export const MoreOptionsRight = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-left: auto;
 `;
 
 export const PlaylistTitle = styled.h2`
@@ -30,21 +57,27 @@ export const PlaylistTitle = styled.h2`
 `;
 
 export const ControlButtons = styled.div`
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   width: 100%;
+`;
+
+export const LeftButtons = styled.div`
+  justify-self: start;
 `;
 
 export const CenterButtons = styled.div`
   display: flex;
   gap: 15px;
   justify-content: center;
+  justify-self: center;
 `;
 
 export const RightButtons = styled.div`
   display: flex;
   gap: 8px;
+  justify-self: end;
 `;
 
 export const ControlButtonGroup = styled.div`
