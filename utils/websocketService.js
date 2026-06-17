@@ -230,6 +230,15 @@ async function resetShowMediaOnSongChange(io) {
 async function broadcastSongChange(io, newSong) {
   try {
     await resetShowMediaOnSongChange(io);
+    if (newSong) {
+      await broadcastSongStart(io, newSong, false);
+    } else {
+      lastAdminSongStart = null;
+      io.to('show').emit('queue-refresh', {
+        currentSongId: null,
+        timestamp: new Date().toISOString(),
+      });
+    }
     await broadcastShowUpdate(io);
     console.log(`🎵 Broadcasted song change: ${newSong?.artist} - ${newSong?.title}`);
   } catch (error) {
@@ -380,6 +389,11 @@ async function broadcastSongStart(io, song, isRestart = false) {
     lastAdminSongStart = payload;
 
     io.to('admin').emit('song-start', payload);
+    io.to('show').emit('queue-refresh', {
+      currentSongId: song.id,
+      timestamp: startTimestamp,
+      isRestart,
+    });
     
     console.log(`⏱️ Broadcasted song start to admin: ${song?.artist} - ${song?.title} (${startTimestamp}, duration: ${durationSeconds || 'null'})`);
   } catch (error) {

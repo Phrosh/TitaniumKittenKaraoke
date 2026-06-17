@@ -328,9 +328,6 @@ router.put('/current', verifyToken, async (req, res) => {
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
       
-      // Broadcast song start event with timestamp for admin dashboard
-      await broadcastSongStart(io, song, false);
-      
       // Broadcast song start event to auto-hide QR overlay
       io.emit('song-action', {
         action: 'song-started',
@@ -408,9 +405,6 @@ router.post('/next', verifyToken, async (req, res) => {
       await broadcastSongChange(io, nextSong);
       await broadcastAdminUpdate(io);
       await broadcastPlaylistUpdate(io);
-      
-      // Broadcast song start event with timestamp for admin dashboard
-      await broadcastSongStart(io, nextSong, false);
       
       // Broadcast song start event to auto-hide QR overlay
       io.emit('song-action', {

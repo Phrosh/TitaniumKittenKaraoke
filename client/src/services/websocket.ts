@@ -100,6 +100,12 @@ export interface PlaylistUpdateData {
   total: number;
 }
 
+export interface QueueRefreshData {
+  currentSongId: number | null;
+  timestamp: string;
+  isRestart?: boolean;
+}
+
 export interface PlaylistUpgradeData {
   message: string;
   upgradeCount: number;
@@ -295,6 +301,18 @@ class WebSocketService {
   offPlaylistUpdate(callback: (data: PlaylistUpdateData) => void): void {
     if (this.socket) {
       this.socket.off('playlist-update', callback);
+    }
+  }
+
+  onQueueRefresh(callback: (data: QueueRefreshData) => void): void {
+    if (this.socket) {
+      this.socket.on('queue-refresh', callback);
+    }
+  }
+
+  offQueueRefresh(callback: (data: QueueRefreshData) => void): void {
+    if (this.socket) {
+      this.socket.off('queue-refresh', callback);
     }
   }
 

@@ -3,7 +3,7 @@ import styled, { keyframes } from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { songAPI } from '../../services/api';
 import { MyQueueItem } from '../../types';
-import websocketService from '../../services/websocket';
+import websocketService, { ShowUpdateData } from '../../services/websocket';
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
@@ -149,6 +149,7 @@ const MyQueueStatus: React.FC<Props> = ({ deviceId, refreshTrigger = 0 }) => {
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [liveNow, setLiveNow] = useState(Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCurrentSongIdRef = useRef<number | null | undefined>(undefined);
 
   const fetchQueue = useCallback(async () => {
     if (!deviceId) return;
@@ -166,14 +167,31 @@ const MyQueueStatus: React.FC<Props> = ({ deviceId, refreshTrigger = 0 }) => {
   }, [fetchQueue, refreshTrigger]);
 
   useEffect(() => {
+    const handlePlaylistUpdate = () => fetchQueue();
+
+    const handleShowUpdate = (data: ShowUpdateData) => {
+      const nextId = data.currentSong?.id ?? null;
+      if (lastCurrentSongIdRef.current !== nextId) {
+        lastCurrentSongIdRef.current = nextId;
+        fetchQueue();
+      }
+    };
+
+    const handleQueueRefresh = () => fetchQueue();
+
     websocketService.connect().then(() => {
       websocketService.joinPlaylistRoom();
-      websocketService.onPlaylistUpdate(() => fetchQueue());
+      websocketService.onPlaylistUpdate(handlePlaylistUpdate);
+      websocketService.onShowUpdate(handleShowUpdate);
+      websocketService.onQueueRefresh(handleQueueRefresh);
     }).catch(() => {
       pollRef.current = setInterval(fetchQueue, 30000);
     });
 
     return () => {
+      websocketService.offPlaylistUpdate(handlePlaylistUpdate);
+      websocketService.offShowUpdate(handleShowUpdate);
+      websocketService.offQueueRefresh(handleQueueRefresh);
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [fetchQueue]);
