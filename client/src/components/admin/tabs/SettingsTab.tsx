@@ -6,6 +6,7 @@ import { adminAPI } from '../../../services/api';
 import LanguageSelector from '../../LanguageSelector';
 import Button from '../../shared/Button';
 import { SettingsSection, SettingsTitle, SettingsCard, SettingsLabel, SettingsInput, SettingsTextArea, SettingsDescription } from '../style';
+import PlaylistChangeLogPanel from './settings/PlaylistChangeLogPanel';
 
 // Custom hook für Debouncing
 const useDebounce = (value: any, delay: number) => {
@@ -307,7 +308,8 @@ type SettingsSubTabKey =
   | 'playback'
   | 'songRequests'
   | 'usdb'
-  | 'localSongs';
+  | 'localSongs'
+  | 'log';
 
 const SettingsTab: React.FC<SettingsTabProps> = () => {
   const { t } = useTranslation();
@@ -391,6 +393,7 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
         { key: 'songRequests' as const, label: 'Songwünsche' },
         { key: 'usdb' as const, label: t('settings.usdbCredentials') },
         { key: 'localSongs' as const, label: t('settings.localSongFolder') },
+        { key: 'log' as const, label: t('settings.playlistLogTab') },
       ] as const,
     [t]
   );
@@ -1765,6 +1768,8 @@ const SettingsTab: React.FC<SettingsTabProps> = () => {
             </SettingsCard>
           </>
         )}
+
+        {settingsSubTab === 'log' && <PlaylistChangeLogPanel />}
       </SubTabPanel>
     </SettingsSection>
   );

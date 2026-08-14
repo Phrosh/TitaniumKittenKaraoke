@@ -5,6 +5,7 @@ const { verifyToken } = require('./auth');
 const { broadcastSongChange, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate, broadcastTogglePlayPause, broadcastRestartSong, broadcastSongStart, broadcastPlayPauseStatus } = require('../utils/websocketService');
 
 const router = express.Router();
+const playlistChangeLog = require('../utils/playlistChangeLog');
 
 // // Helper function to find next playable song
 // async function findNextPlayableSong(currentSongId = null) {
@@ -238,6 +239,24 @@ router.put('/reorder', verifyToken, async (req, res) => {
 
     // Calculate and update priority based on neighboring songs
     await updateSongPriorityBasedOnPosition(songId, newPosition);
+
+    await playlistChangeLog.log({
+      action: 'reorder',
+      song_id: songId,
+      artist: song.artist,
+      title: song.title,
+      singer_name: song.user_name,
+      device_id: song.device_id,
+      actor_type: 'admin',
+      start_position: oldPosition,
+      end_position: newPosition,
+      positions_climbed: oldPosition - newPosition,
+      mode: song.mode,
+      details: {
+        reason: 'Manuelle Umsortierung durch Admin (Drag & Drop)',
+        direction: newPosition < oldPosition ? 'up' : 'down',
+      },
+    });
 
     // Rebuild cache to ensure updated positions are reflected immediately
     const songCache = require('../utils/songCache');
@@ -621,6 +640,23 @@ router.delete('/:songId', verifyToken, async (req, res) => {
 
     // Delete the song
     await Song.delete(songId);
+
+    await playlistChangeLog.log({
+      action: 'delete',
+      song_id: Number(songId),
+      artist: song.artist,
+      title: song.title,
+      singer_name: song.user_name,
+      device_id: song.device_id,
+      actor_type: 'admin',
+      start_position: song.position,
+      end_position: null,
+      positions_climbed: null,
+      mode: song.mode,
+      details: {
+        reason: 'Song vom Admin aus der Playlist gelöscht',
+      },
+    });
     
     // Renumber all remaining songs to ensure positions are continuous (1, 2, 3, ...)
     const allSongsAfterDelete = await Song.getAll();

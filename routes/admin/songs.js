@@ -14,6 +14,8 @@ const fs = require('fs');
 const { findFolderSongForImage } = require('../../utils/songImageLookup');
 const { processUploadedImage } = require('../../utils/imageProcessor');
 const { listImageFiles, getSongImageInfo } = require('../../utils/imageFiles');
+const PlaylistAlgorithm = require('../../utils/playlistAlgorithm');
+const playlistChangeLog = require('../../utils/playlistChangeLog');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -291,6 +293,37 @@ router.post('/song-approvals/:id/approve', async (req, res) => {
       withBackgroundVocals || approval.with_background_vocals
     );
 
+    const placement = await PlaylistAlgorithm.insertSong(song.id);
+    const position = typeof placement === 'object' ? placement.position : placement;
+
+    await playlistChangeLog.log({
+      action: 'insert',
+      song_id: song.id,
+      artist: artist || approval.artist,
+      title: title || approval.title,
+      singer_name: singerName || approval.singer_name,
+      device_id: approval.device_id,
+      actor_type: 'admin',
+      start_position: placement.startPosition,
+      end_position: position,
+      positions_climbed: placement.positionsClimbed,
+      mode: 'youtube',
+      details: {
+        stopReason: placement.stopReason,
+        stopReasonText: playlistChangeLog.describeStopReason(
+          placement.stopReason,
+          placement.stopContext || {}
+        ),
+        aboveSong: placement.aboveSong,
+        belowSong: placement.belowSong,
+        swaps: placement.swaps,
+        singerQueueCount: placement.singerQueueCount,
+        sourceNotes: ['Manuell vom Admin freigegeben'],
+        approvalId: Number(id),
+        followUps: [],
+      },
+    });
+
     // Update approval status
     await new Promise((resolve, reject) => {
       db.run(
@@ -303,7 +336,16 @@ router.post('/song-approvals/:id/approve', async (req, res) => {
       );
     });
 
-    res.json({ message: 'Song erfolgreich genehmigt und zur Playlist hinzugefügt', song });
+    const io = req.app.get('io');
+    if (io) {
+      await broadcastAdminUpdate(io);
+      await broadcastPlaylistUpdate(io);
+    }
+
+    res.json({
+      message: 'Song erfolgreich genehmigt und zur Playlist hinzugefügt',
+      song: { ...song, position },
+    });
   } catch (error) {
     console.error('Error approving song:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -337,6 +379,13 @@ router.post('/song-approvals/:id/reject', async (req, res) => {
 // Clear all songs (admin only)
 router.delete('/clear-all', async (req, res) => {
   try {
+    const countBefore = await new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) AS c FROM songs', (err, row) => {
+        if (err) reject(err);
+        else resolve(row?.c || 0);
+      });
+    });
+
     await new Promise((resolve, reject) => {
       db.run('DELETE FROM songs', function(err) {
         if (err) reject(err);
@@ -346,6 +395,15 @@ router.delete('/clear-all', async (req, res) => {
 
     // Reset current song
     await Song.setCurrentSong(0);
+
+    await playlistChangeLog.log({
+      action: 'clear_all',
+      actor_type: 'admin',
+      details: {
+        reason: 'Gesamte Playlist geleert',
+        songsRemoved: countBefore,
+      },
+    });
 
     // Broadcast song change via WebSocket (no current song)
     const io = req.app.get('io');

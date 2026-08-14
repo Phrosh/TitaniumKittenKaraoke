@@ -200,6 +200,15 @@ export const adminAPI = {
   updateUSDBSearchEnabled: (usdbSearchEnabled: boolean) =>
     api.put('/admin/settings/usdb-search-enabled', { usdbSearchEnabled }),
 
+  getPlaylistChangeLog: (params?: { limit?: number; offset?: number }) =>
+    api.get('/admin/playlist-change-log', { params }),
+
+  setPlaylistChangeLogEnabled: (enabled: boolean) =>
+    api.put('/admin/playlist-change-log/enabled', { enabled }),
+
+  clearPlaylistChangeLog: () =>
+    api.delete('/admin/playlist-change-log'),
+
   updatePayPalDonationSettings: (data: {
     paypalPublicUrl: string;
     paypalClientId: string;

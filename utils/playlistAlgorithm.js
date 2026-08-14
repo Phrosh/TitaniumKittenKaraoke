@@ -39,15 +39,35 @@ class PlaylistAlgorithm {
         SAFE_ZONE_AFTER_CURRENT
       );
 
+      const swaps = [];
+      let stopReason = 'end_of_playlist';
+      let stopContext = {};
+
       let moving = await Song.getById(songId);
       while (moving) {
         const above = this.findSongDirectlyAbove(playlist, moving);
-        if (!above) break;
-        if (currentSongId && above.id === currentSongId) break;
-        if (nonSwappableAboveIds.has(above.id)) break;
+        if (!above) {
+          stopReason = 'no_above';
+          stopContext = {};
+          break;
+        }
+        if (currentSongId && above.id === currentSongId) {
+          stopReason = 'current_song';
+          stopContext = { above };
+          break;
+        }
+        if (nonSwappableAboveIds.has(above.id)) {
+          stopReason = 'safe_zone';
+          stopContext = { above };
+          break;
+        }
 
         const twoAbove = this.findSongTwoAbove(playlist, moving);
-        if (isSameSinger(twoAbove, moving)) break;
+        if (isSameSinger(twoAbove, moving)) {
+          stopReason = 'same_singer_two_above';
+          stopContext = { above, twoAbove };
+          break;
+        }
 
         const countMoving = await this.getQueueSongCount(
           moving.user_name,
@@ -55,7 +75,26 @@ class PlaylistAlgorithm {
           moving.id
         );
         const countAbove = await this.getQueueSongCount(above.user_name, above.device_id);
-        if (countAbove <= countMoving) break;
+        if (countAbove <= countMoving) {
+          stopReason = 'count_not_higher';
+          stopContext = { above, countAbove, countMoving };
+          break;
+        }
+
+        swaps.push({
+          fromPosition: moving.position,
+          toPosition: above.position,
+          swappedWith: {
+            id: above.id,
+            artist: above.artist,
+            title: above.title,
+            user_name: above.user_name,
+            device_id: above.device_id,
+            position: above.position,
+          },
+          countAbove,
+          countMoving,
+        });
 
         await this.swapSongPositions(moving.id, moving.position, above.id, above.position);
         playlist = await Song.getAll();
@@ -63,7 +102,54 @@ class PlaylistAlgorithm {
       }
 
       const finalSong = await Song.getById(songId);
-      return finalSong ? finalSong.position : endPosition;
+      const finalPosition = finalSong ? finalSong.position : endPosition;
+      playlist = await Song.getAll();
+      const neighborAbove = this.findSongDirectlyAbove(
+        playlist,
+        finalSong || { id: songId, position: finalPosition }
+      );
+      const neighborBelow = playlist
+        .filter(
+          (s) =>
+            s.id !== songId &&
+            s.position != null &&
+            s.position > finalPosition
+        )
+        .reduce(
+          (best, s) => (!best || s.position < best.position ? s : best),
+          null
+        );
+
+      const summarize = (s) =>
+        s
+          ? {
+              id: s.id,
+              artist: s.artist,
+              title: s.title,
+              user_name: s.user_name,
+              device_id: s.device_id,
+              position: s.position,
+            }
+          : null;
+
+      return {
+        position: finalPosition,
+        startPosition: endPosition,
+        positionsClimbed: Math.max(0, endPosition - finalPosition),
+        stopReason,
+        stopContext: {
+          countAbove: stopContext.countAbove,
+          countMoving: stopContext.countMoving,
+          above: summarize(stopContext.above),
+          twoAbove: summarize(stopContext.twoAbove),
+        },
+        aboveSong: summarize(neighborAbove),
+        belowSong: summarize(neighborBelow),
+        swaps,
+        singerQueueCount: priority,
+        currentSongId,
+        safeZoneSize: SAFE_ZONE_AFTER_CURRENT,
+      };
     } catch (error) {
       console.error('Error inserting song:', error);
       throw error;

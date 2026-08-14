@@ -164,6 +164,13 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
 
     if (!credentials) {
       console.log('⚠️ No USDB credentials found, skipping automatic search');
+      try {
+        const playlistChangeLog = require('../../../utils/playlistChangeLog');
+        await playlistChangeLog.appendFollowUp(songId, {
+          type: 'usdb_skipped',
+          message: 'USDB-Suche übersprungen — keine Zugangsdaten hinterlegt',
+        });
+      } catch {}
       return;
     }
 
@@ -208,6 +215,16 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
           timestamp: new Date().toISOString()
         });
 
+        try {
+          const playlistChangeLog = require('../../../utils/playlistChangeLog');
+          await playlistChangeLog.appendFollowUp(songId, {
+            type: 'usdb_found',
+            message: `USDB-Treffer: ${firstSong.artist} – ${firstSong.title}`,
+            usdbId: firstSong.id,
+            usdbUrl: firstSong.url,
+          });
+        } catch {}
+
         // Trigger USDB download
         await triggerAutomaticUSDBDownload(songId, firstSong.url);
       } else {
@@ -217,6 +234,13 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
           response: searchResponse.data,
           timestamp: new Date().toISOString()
         });
+        try {
+          const playlistChangeLog = require('../../../utils/playlistChangeLog');
+          await playlistChangeLog.appendFollowUp(songId, {
+            type: 'usdb_not_found',
+            message: 'Kein USDB-Treffer gefunden',
+          });
+        } catch {}
       }
     } catch (error) {
       console.error('🔍 USDB search error:', {
@@ -225,6 +249,13 @@ async function triggerAutomaticUSDBSearch(songId, artist, title) {
         response: error.response?.data,
         timestamp: new Date().toISOString()
       });
+      try {
+        const playlistChangeLog = require('../../../utils/playlistChangeLog');
+        await playlistChangeLog.appendFollowUp(songId, {
+          type: 'usdb_search_error',
+          message: `USDB-Suche fehlgeschlagen: ${error.message}`,
+        });
+      } catch {}
     }
 
   } catch (error) {
@@ -348,6 +379,17 @@ async function triggerAutomaticUSDBDownload(songId, usdbUrl) {
         } catch (fsError) {
           console.error('❌ Error finding actual folder name:', fsError);
         }
+
+        try {
+          const playlistChangeLog = require('../../../utils/playlistChangeLog');
+          await playlistChangeLog.appendFollowUp(songId, {
+            type: 'usdb_download_success',
+            message: actualFolderName
+              ? `USDB-Download fertig: ${actualFolderName}`
+              : 'USDB-Pipeline erfolgreich abgeschlossen',
+            folderName: actualFolderName || null,
+          });
+        } catch {}
         
         if (actualFolderName) {
           // Update song with ultrastar mode and actual folder name

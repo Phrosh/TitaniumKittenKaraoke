@@ -12,6 +12,7 @@ const { checkIfSongRequiresApproval, storeSongRequestForApproval } = require('./
 const { broadcastProcessingStatus, broadcastShowUpdate, broadcastAdminUpdate, broadcastPlaylistUpdate } = require('../../utils/websocketService');
 const songCache = require('../../utils/songCache');
 const { VIDEO_EXTENSIONS } = require('../../utils/fileExtensions');
+const playlistChangeLog = require('../../utils/playlistChangeLog');
 
 // Submit new song request
 router.post('/request', [
@@ -306,8 +307,8 @@ router.post('/request', [
     // Clean up any existing test songs when adding new songs
     await cleanupTestSongs();
 
-    // Check if this is an admin request (no deviceId or deviceId is 'ADMIN')
-    const isAdminRequest = !deviceId || deviceId === 'ADMIN' || name === 'Admin';
+    // Check if this is an admin request (no deviceId or deviceId is 'ADMIN'/'ADM')
+    const isAdminRequest = !deviceId || deviceId === 'ADMIN' || deviceId === 'ADM' || name === 'Admin';
     console.log(`🔍 Request source: ${isAdminRequest ? 'Admin' : 'User'} (deviceId: ${deviceId}, name: ${name})`);
     
     // For admin requests, always add directly (no approval needed)
@@ -521,6 +522,14 @@ router.post('/request', [
             .then(async (downloadResult) => {
               if (downloadResult && downloadResult.success) {
                 console.log(`✅ YouTube video downloaded successfully: ${downloadResult.folderName}`);
+                try {
+                  const playlistChangeLog = require('../../utils/playlistChangeLog');
+                  await playlistChangeLog.appendFollowUp(song.id, {
+                    type: 'youtube_download_success',
+                    message: `YouTube-Download fertig: ${downloadResult.folderName}`,
+                    folderName: downloadResult.folderName,
+                  });
+                } catch {}
                 // Don't set status to 'ready' here - wait for processing to complete
                 // Status will be updated by processing-status endpoint after normalization/cleanup
                 try {
@@ -553,6 +562,13 @@ router.post('/request', [
               } else {
                 console.log(`⚠️ YouTube download failed: ${downloadResult?.error}`);
                 try {
+                  const playlistChangeLog = require('../../utils/playlistChangeLog');
+                  await playlistChangeLog.appendFollowUp(song.id, {
+                    type: 'youtube_download_failed',
+                    message: `YouTube-Download fehlgeschlagen: ${downloadResult?.error || 'unbekannt'}`,
+                  });
+                } catch {}
+                try {
                   await Song.updateDownloadStatus(song.id, 'failed');
                 } catch {}
                 try {
@@ -565,6 +581,13 @@ router.post('/request', [
             })
             .catch(async (err) => {
               console.error('❌ Async YouTube download error:', err?.message || err);
+              try {
+                const playlistChangeLog = require('../../utils/playlistChangeLog');
+                await playlistChangeLog.appendFollowUp(song.id, {
+                  type: 'youtube_download_failed',
+                  message: `YouTube-Download Fehler: ${err?.message || err}`,
+                });
+              } catch {}
               try { await Song.updateDownloadStatus(song.id, 'failed'); } catch {}
               try {
                 const io2 = req.app.get('io');
@@ -622,7 +645,89 @@ router.post('/request', [
     }
     
     // Insert into playlist using algorithm
-    const position = await PlaylistAlgorithm.insertSong(song.id);
+    const placement = await PlaylistAlgorithm.insertSong(song.id);
+    const position = typeof placement === 'object' ? placement.position : placement;
+
+    const sourceNotes = [];
+    if (mode === 'youtube_cache') {
+      sourceNotes.push('Song bereits im YouTube-Cache gefunden');
+    } else if (mode === 'file') {
+      sourceNotes.push('Lokale Datei (höchste Priorität)');
+    } else if (mode === 'server_video') {
+      sourceNotes.push('Server-Video gefunden');
+    } else if (mode === 'ultrastar') {
+      sourceNotes.push('UltraStar-Song lokal vorhanden');
+    } else if (mode === 'magic-songs' || mode === 'magic-videos' || mode === 'magic-youtube') {
+      sourceNotes.push(`Magic-Modus: ${mode}`);
+    } else if (mode === 'youtube') {
+      sourceNotes.push('YouTube-Modus (kein lokaler Treffer)');
+    }
+    if (shouldTriggerUSDB) {
+      sourceNotes.push('Automatische USDB-Suche gestartet');
+    } else if (youtubeMode === 'magic') {
+      sourceNotes.push('Magic-YouTube-Verarbeitung gestartet');
+    } else if (downloadStatus === 'downloading') {
+      sourceNotes.push('YouTube-Download gestartet');
+    }
+
+    await playlistChangeLog.log({
+      action: 'insert',
+      song_id: song.id,
+      artist,
+      title,
+      singer_name: name,
+      device_id: deviceId || user.device_id,
+      actor_type: isAdminRequest ? 'admin' : 'guest',
+      start_position: placement.startPosition,
+      end_position: position,
+      positions_climbed: placement.positionsClimbed,
+      mode: finalMode,
+      details: {
+        stopReason: placement.stopReason,
+        stopReasonText: playlistChangeLog.describeStopReason(
+          placement.stopReason,
+          placement.stopContext || {}
+        ),
+        aboveSong: placement.aboveSong,
+        belowSong: placement.belowSong,
+        swaps: placement.swaps,
+        singerQueueCount: placement.singerQueueCount,
+        safeZoneSize: placement.safeZoneSize,
+        currentSongId: placement.currentSongId,
+        sourceNotes,
+        youtubeUrl: finalYoutubeUrl || null,
+        youtubeMode: youtubeMode || null,
+        downloadStatus,
+        usdbTriggered: !!shouldTriggerUSDB,
+        followUps: [],
+      },
+    });
+
+    if (shouldTriggerUSDB) {
+      playlistChangeLog.appendFollowUp(song.id, {
+        type: 'usdb_search_started',
+        message: 'Automatische USDB-Suche gestartet',
+      }).catch(() => {});
+    }
+    if (downloadStatus === 'downloading' && youtubeMode !== 'magic') {
+      playlistChangeLog.appendFollowUp(song.id, {
+        type: 'youtube_download_started',
+        message: 'YouTube-Download gestartet',
+      }).catch(() => {});
+    }
+    if (youtubeMode === 'magic') {
+      playlistChangeLog.appendFollowUp(song.id, {
+        type: 'magic_youtube_started',
+        message: 'Magic-YouTube-Verarbeitung gestartet',
+      }).catch(() => {});
+    }
+    if (mode === 'youtube_cache' || mode === 'file' || mode === 'ultrastar' || mode === 'server_video') {
+      playlistChangeLog.appendFollowUp(song.id, {
+        type: 'local_or_cache_hit',
+        message: sourceNotes[0] || `Quelle: ${mode}`,
+        mode,
+      }).catch(() => {});
+    }
 
     // Broadcast playlist update via WebSocket
     const io = req.app.get('io');

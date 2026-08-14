@@ -24,6 +24,7 @@ const showMuteRoutes = require('./showMute');
 const emergencyYouTubeRoutes = require('./emergencyYouTube');
 const customPipelineRoutes = require('./customPipeline');
 const donationsSessionRoutes = require('./donationsSession');
+const playlistChangeLogRoutes = require('./playlistChangeLog');
 
 // Mount modular admin routes
 router.use('/', dashboardRoutes);
@@ -45,6 +46,7 @@ router.use('/', showMuteRoutes);
 router.use('/', emergencyYouTubeRoutes);
 router.use('/', customPipelineRoutes);
 router.use('/', donationsSessionRoutes);
+router.use('/', playlistChangeLogRoutes);
 
 module.exports = {
   router

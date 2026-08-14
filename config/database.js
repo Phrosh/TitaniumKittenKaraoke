@@ -116,6 +116,33 @@ function initializeDatabase() {
     }
   );
 
+  db.run(
+    `INSERT OR IGNORE INTO settings (key, value) VALUES ('playlist_change_log_enabled', 'true')`,
+    (mErr) => {
+      if (mErr) console.error('Migration playlist_change_log_enabled:', mErr);
+    }
+  );
+
+  // Playlist change log (audit trail for inserts, reorders, deletes, follow-ups)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS playlist_change_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action TEXT NOT NULL,
+      song_id INTEGER,
+      artist TEXT,
+      title TEXT,
+      singer_name TEXT,
+      device_id TEXT,
+      actor_type TEXT,
+      start_position INTEGER,
+      end_position INTEGER,
+      positions_climbed INTEGER,
+      mode TEXT,
+      details TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migration: Add mode column to existing songs table
   db.run(`
     ALTER TABLE songs ADD COLUMN mode TEXT DEFAULT 'youtube'
