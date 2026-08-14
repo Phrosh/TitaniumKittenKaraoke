@@ -1,21 +1,19 @@
 const db = require('../config/database');
 const Song = require('../models/Song');
+const { normalizeParts, isSameSinger } = require('./singerIdentity');
 
 /**
- * Songwünsche direkt nach dem aktuellen Song: ein neuer Wunsch darf nicht über diese Einträge
- * „tauschen“ (gleiches Verhalten wie beim aktuellen Song). Standard: 3.
+ * Songwünsche direkt nach dem aktuellen Song: geschützte Zone für spätere Fairness-Regeln.
  */
 const SAFE_ZONE_AFTER_CURRENT = 3;
 
 class PlaylistAlgorithm {
   /**
-   * Fügt einen neuen Song fair in die Playlist ein.
-   * - Identifier = Name + Device-ID (entspricht user_id): Song-Count = alle seine Songs in der Warteschlange
-   *   (Vergangenheit, aktuell und Zukunft); beim neuen Wunsch zählt der gerade eingefügte Song noch nicht mit.
-   * - Der neue Song startet am Ende der Liste und tauscht mit dem direkt darüber (kleinere Position),
-   *   solange sein Song-Count kleiner ist als der des Nachbarn.
-   * - Kein Tausch über den aktuellen Song und nicht über die nächsten SAFE_ZONE_AFTER_CURRENT Wünsche
-   *   nach dem aktuellen Song (gleiche Song-IDs wie beim Einfügen festgehalten).
+   * Fügt einen neuen Song in die Playlist ein.
+   * - Start bei max(Position) + 1 (= x).
+   * - Tausch mit x-1, solange dort mehr Songwünsche als beim neuen Song (ohne diesen selbst).
+   * - Kein Tausch über Safe Zone (aktueller Song + nächste SAFE_ZONE_AFTER_CURRENT).
+   * - Stopp, wenn x-2 derselbe Sänger ist wie x (Hash aus Name + Device-ID).
    */
   static async insertSong(songId) {
     try {
@@ -31,7 +29,7 @@ class PlaylistAlgorithm {
       const endPosition = maxPos + 1;
       await Song.updatePosition(songId, endPosition);
 
-      const priority = await this.calculatePriority(newSong.user_id, newSong.device_id);
+      const priority = await this.calculatePriority(newSong.user_name, newSong.device_id);
       await this.updateSongPriority(songId, priority);
 
       playlist = await Song.getAll();
@@ -48,10 +46,16 @@ class PlaylistAlgorithm {
         if (currentSongId && above.id === currentSongId) break;
         if (nonSwappableAboveIds.has(above.id)) break;
 
-        // Bisherige Warteschlangen-Länge (ohne diesen Song) vs. Gesamtanzahl des Nachbarn inkl. Vergangenheit
-        const countMoving = await this.getQueueSongCount(moving.user_id, moving.id);
-        const countAbove = await this.getQueueSongCount(above.user_id);
-        if (countMoving >= countAbove) break;
+        const twoAbove = this.findSongTwoAbove(playlist, moving);
+        if (isSameSinger(twoAbove, moving)) break;
+
+        const countMoving = await this.getQueueSongCount(
+          moving.user_name,
+          moving.device_id,
+          moving.id
+        );
+        const countAbove = await this.getQueueSongCount(above.user_name, above.device_id);
+        if (countAbove <= countMoving) break;
 
         await this.swapSongPositions(moving.id, moving.position, above.id, above.position);
         playlist = await Song.getAll();
@@ -96,6 +100,13 @@ class PlaylistAlgorithm {
     return candidates.reduce((best, s) => (s.position > best.position ? s : best));
   }
 
+  /** Zwei Positionen über moving (= x-2, wenn moving bei x steht). */
+  static findSongTwoAbove(playlist, moving) {
+    const oneAbove = this.findSongDirectlyAbove(playlist, moving);
+    if (!oneAbove) return null;
+    return this.findSongDirectlyAbove(playlist, oneAbove);
+  }
+
   static async swapSongPositions(songIdA, posA, songIdB, posB) {
     const temp = await this.getTemporaryPosition();
     await Song.updatePosition(songIdA, temp);
@@ -113,17 +124,26 @@ class PlaylistAlgorithm {
   }
 
   /**
-   * Song-Anzahl in der gesamten Warteschlange für einen Teilnehmer (user_id = Name + Device-ID).
-   * Zählt alle Playlist-Einträge (Vergangenheit, aktuell, Zukunft); optional einen Eintrag ausschließen.
+   * Song-Anzahl in der Playlist für einen Sänger (Hash aus Name + Device-ID).
+   * Zählt alle Einträge in der songs-Tabelle mit gültiger Position — Vergangenheit,
+   * aktueller Song und Zukunft — solange sie noch in der Playlist sind.
+   * Nach Playlist-Leerung ist der Zähler wieder 0.
    */
-  static async getQueueSongCount(userId, excludeSongId = null) {
+  static async getQueueSongCount(name, deviceId, excludeSongId = null) {
+    const { deviceKey, nameKey } = normalizeParts(name, deviceId);
     return new Promise((resolve, reject) => {
-      let query =
-        'SELECT COUNT(*) AS c FROM songs WHERE user_id = ? AND position IS NOT NULL AND position > 0';
-      const params = [userId];
+      let query = `
+        SELECT COUNT(*) AS c
+        FROM songs s
+        JOIN users u ON s.user_id = u.id
+        WHERE UPPER(TRIM(u.device_id)) = ?
+          AND LOWER(TRIM(u.name)) = ?
+          AND s.position IS NOT NULL
+          AND s.position > 0`;
+      const params = [deviceKey, nameKey];
 
       if (excludeSongId != null) {
-        query += ' AND id != ?';
+        query += ' AND s.id != ?';
         params.push(excludeSongId);
       }
 
@@ -135,11 +155,11 @@ class PlaylistAlgorithm {
   }
 
   /**
-   * Priorität pro Teilnehmer (Name + Device-ID): Anzahl seiner Songs in der gesamten Warteschlange.
-   * user_id entspricht genau einem Eintrag (Name + device_id); über ein Gerät können sich mehrere Leute eintragen (verschiedene Namen → verschiedene user_id).
+   * Priorität pro Sänger (Name + Device-ID): alle seine Songs in der Playlist
+   * (inkl. bereits gesungener, solange noch vorhanden).
    */
-  static async calculatePriority(userId, _deviceId) {
-    const c = await this.getQueueSongCount(userId);
+  static async calculatePriority(name, deviceId) {
+    const c = await this.getQueueSongCount(name, deviceId);
     return Math.max(1, c);
   }
 

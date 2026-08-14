@@ -366,7 +366,11 @@
     "queueAboutHoursMinutes": "~{{hours}} hr {{minutes}} min",
     "queueYourTurn": "You're up now!",
     "queuePendingApproval": "Awaiting approval",
-    "queueUnknownSong": "Unknown song"
+    "queueUnknownSong": "Unknown song",
+    "queueBarYourTurn": "You're up now",
+    "queueBarNextUp": "You're up next",
+    "queueBarSongsUntilTurn_one": "{{count}} song until you're up",
+    "queueBarSongsUntilTurn_other": "{{count}} songs until you're up"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Please enter a YouTube URL",

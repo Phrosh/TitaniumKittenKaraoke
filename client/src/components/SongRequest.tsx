@@ -398,6 +398,7 @@ const SongRequest: React.FC = () => {
     () => typeof window !== 'undefined' && sessionStorage.getItem('karaokeDonationThanks') === '1'
   );
   const [queueRefreshTrigger, setQueueRefreshTrigger] = useState(0);
+  const [queueBarVisible, setQueueBarVisible] = useState(false);
 
   const donationMoneyFmt = useMemo(() => {
     try {
@@ -1019,9 +1020,12 @@ const SongRequest: React.FC = () => {
     youtubeEnabled &&
     (songEntryFieldExpanded || formData.songInput.trim() !== '');
 
+  const donateBarVisible = donateAmountStepOpen && showDonationButtonOnNew;
+  const stickyBarPadding = donateBarVisible || queueBarVisible ? 96 : 20;
+
   return (
     <>
-    <Container style={{ paddingBottom: donateAmountStepOpen && showDonationButtonOnNew ? 96 : 20 }}>
+    <Container style={{ paddingBottom: stickyBarPadding }}>
       <Card>
         {donateAmountStepOpen && showDonationButtonOnNew ? (
           <>
@@ -1082,9 +1086,6 @@ const SongRequest: React.FC = () => {
           </>
         ) : (
           <>
-            {deviceId && (
-              <MyQueueStatus deviceId={deviceId} refreshTrigger={queueRefreshTrigger} />
-            )}
             <Form onSubmit={handleSubmit}>
               <FormGroup>
                 <Label htmlFor="name">{t('songRequest.yourName')}:</Label>
@@ -1240,7 +1241,16 @@ const SongRequest: React.FC = () => {
       </Card>
     </Container>
 
-    <DonateStickyBar $visible={donateAmountStepOpen && showDonationButtonOnNew}>
+    {deviceId && (
+      <MyQueueStatus
+        deviceId={deviceId}
+        refreshTrigger={queueRefreshTrigger}
+        suppressed={donateBarVisible}
+        onVisibilityChange={setQueueBarVisible}
+      />
+    )}
+
+    <DonateStickyBar $visible={donateBarVisible}>
       <Button
         type="button"
         variant="secondary"

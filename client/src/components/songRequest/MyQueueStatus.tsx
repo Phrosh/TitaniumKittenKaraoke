@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import styled, { keyframes } from 'styled-components';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { songAPI } from '../../services/api';
 import { MyQueueItem } from '../../types';
@@ -7,147 +7,90 @@ import websocketService, { ShowUpdateData } from '../../services/websocket';
 
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.65; }
+  50% { opacity: 0.75; }
 `;
 
-const QueueSection = styled.section`
-  margin-bottom: 24px;
-  padding: 20px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.25);
-`;
-
-const QueueHeader = styled.div`
-  display: flex;
+const QueueStickyBar = styled.div<{ $visible: boolean; $variant: 'waiting' | 'next' | 'current' }>`
+  display: ${(p) => (p.$visible ? 'flex' : 'none')};
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2400;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+  justify-content: center;
   align-items: center;
   gap: 10px;
-  margin-bottom: 4px;
-`;
-
-const QueueTitle = styled.h2`
-  margin: 0;
-  font-size: 1.15rem;
-  color: #333;
-  font-weight: 700;
-`;
-
-const QueueSubtitle = styled.p`
-  margin: 0 0 14px;
-  font-size: 0.85rem;
-  color: #666;
-  line-height: 1.4;
-`;
-
-const QueueItemCard = styled.div<{ $isCurrent?: boolean }>`
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 10px;
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1);
-  border: 1px solid ${(p) => (p.$isCurrent ? '#667eea' : '#e9ecef')};
-  ${(p) =>
-    p.$isCurrent
-      ? `box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25), 0 4px 14px rgba(102, 126, 234, 0.15);`
-      : ''}
-`;
-
-const SongLine = styled.div`
-  font-weight: 600;
-  color: #333;
-  font-size: 0.95rem;
-  line-height: 1.35;
-  margin-bottom: 12px;
-`;
-
-const StatsRow = styled.div`
-  display: flex;
-  gap: 10px;
-`;
-
-const StatBadge = styled.div<{ $variant?: 'primary' | 'time' | 'pending' | 'current' }>`
-  flex: 1;
   text-align: center;
-  padding: 10px 8px;
-  border-radius: 10px;
-  background: ${(p) => {
-    if (p.$variant === 'current') return 'linear-gradient(135deg, #667eea, #764ba2)';
-    if (p.$variant === 'pending') return '#fff8e6';
-    if (p.$variant === 'time') return '#f0f4ff';
-    return '#f8f9fa';
-  }};
-  color: ${(p) => (p.$variant === 'current' ? 'white' : '#333')};
-  border: 1px solid
-    ${(p) => {
-      if (p.$variant === 'current') return 'transparent';
-      if (p.$variant === 'pending') return '#ffe08a';
-      if (p.$variant === 'time') return '#c5d0f5';
-      return '#e9ecef';
-    }};
+  border-top: 1px solid transparent;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.1);
+  ${(p) => {
+    if (p.$variant === 'current') {
+      return css`
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border-top-color: transparent;
+        animation: ${pulse} 2.2s ease-in-out infinite;
+      `;
+    }
+    if (p.$variant === 'next') {
+      return css`
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+        color: #fff;
+        border-top-color: transparent;
+      `;
+    }
+    return css`
+      background: rgba(255, 255, 255, 0.98);
+      color: #333;
+      border-top-color: #e1e5e9;
+    `;
+  }}
 `;
 
-const StatValue = styled.div`
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.2;
+const BarEmoji = styled.span`
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
 `;
 
-const StatLabel = styled.div`
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.85;
-  margin-top: 2px;
+const BarText = styled.span`
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
 `;
 
-const ProgressTrack = styled.div`
-  height: 5px;
-  background: #e9ecef;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 12px;
-`;
+/** Nächsten relevanten Playlist-Eintrag wählen (aktuell > nächster > sonst wenigste Songs davor). */
+function pickNearestPlaylistItem(items: MyQueueItem[]): MyQueueItem | null {
+  const relevant = items.filter((i) => i.status === 'current' || i.status === 'queued');
+  if (relevant.length === 0) return null;
 
-const ProgressFill = styled.div<{ $pct: number; $isCurrent?: boolean }>`
-  height: 100%;
-  width: ${(p) => Math.min(100, Math.max(0, p.$pct))}%;
-  background: ${(p) =>
-    p.$isCurrent
-      ? 'linear-gradient(90deg, #667eea, #764ba2)'
-      : 'linear-gradient(90deg, #a8b4f0, #667eea)'};
-  border-radius: 3px;
-  transition: width 0.6s ease;
-  ${(p) => (p.$isCurrent ? `animation: ${pulse} 2s ease-in-out infinite;` : '')}
-`;
+  const current = relevant.find((i) => i.status === 'current');
+  if (current) return current;
 
-function formatWaitMinutes(seconds: number, t: (key: string, opts?: object) => string): string {
-  if (seconds < 60) return t('songRequest.queueLessThanOneMinute');
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return t('songRequest.queueAboutMinutes', { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (rest === 0) return t('songRequest.queueAboutHours', { count: hours });
-  return t('songRequest.queueAboutHoursMinutes', { hours, minutes: rest });
-}
-
-function progressPercent(item: MyQueueItem, maxWait: number): number {
-  if (item.status === 'current') return 100;
-  if (item.status === 'pending_approval') return 5;
-  if (!item.estimatedWaitSeconds || maxWait <= 0) return 0;
-  return Math.max(8, 100 - (item.estimatedWaitSeconds / maxWait) * 100);
+  return relevant.reduce((best, item) => {
+    const bestBefore = best.songsBefore ?? Number.POSITIVE_INFINITY;
+    const itemBefore = item.songsBefore ?? Number.POSITIVE_INFINITY;
+    return itemBefore < bestBefore ? item : best;
+  });
 }
 
 interface Props {
   deviceId: string;
   refreshTrigger?: number;
+  /** z. B. Spenden-Bottom-Bar ist offen */
+  suppressed?: boolean;
+  onVisibilityChange?: (visible: boolean) => void;
 }
 
-const MyQueueStatus: React.FC<Props> = ({ deviceId, refreshTrigger = 0 }) => {
+const MyQueueStatus: React.FC<Props> = ({
+  deviceId,
+  refreshTrigger = 0,
+  suppressed = false,
+  onVisibilityChange,
+}) => {
   const { t } = useTranslation();
   const [items, setItems] = useState<MyQueueItem[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
-  const [liveNow, setLiveNow] = useState(Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCurrentSongIdRef = useRef<number | null | undefined>(undefined);
 
@@ -156,7 +99,6 @@ const MyQueueStatus: React.FC<Props> = ({ deviceId, refreshTrigger = 0 }) => {
     try {
       const { data } = await songAPI.getMyQueue(deviceId);
       setItems(data.items || []);
-      setFetchedAt(Date.now());
     } catch {
       /* ignore – Gast sieht einfach nichts */
     }
@@ -196,96 +138,52 @@ const MyQueueStatus: React.FC<Props> = ({ deviceId, refreshTrigger = 0 }) => {
     };
   }, [fetchQueue]);
 
+  const nearest = useMemo(() => pickNearestPlaylistItem(items), [items]);
+
+  const message = useMemo(() => {
+    if (!nearest) return null;
+    if (nearest.status === 'current') {
+      return {
+        text: t('songRequest.queueBarYourTurn'),
+        variant: 'current' as const,
+        emoji: '🎶',
+      };
+    }
+    const songsBefore = nearest.songsBefore ?? 0;
+    if (songsBefore <= 1) {
+      return {
+        text: t('songRequest.queueBarNextUp'),
+        variant: 'next' as const,
+        emoji: '🎤',
+      };
+    }
+    return {
+      text: t('songRequest.queueBarSongsUntilTurn', { count: songsBefore }),
+      variant: 'waiting' as const,
+      emoji: '🎤',
+    };
+  }, [nearest, t]);
+
+  const visible = Boolean(message) && !suppressed;
+
   useEffect(() => {
-    const interval = setInterval(() => setLiveNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (items.length === 0) return null;
-
-  const elapsedSinceFetch = fetchedAt ? (liveNow - fetchedAt) / 1000 : 0;
-
-  const liveItems = items.map((item) => {
-    if (item.status === 'pending_approval' || item.estimatedWaitSeconds == null) return item;
-    const liveWait = Math.max(0, Math.round(item.estimatedWaitSeconds - elapsedSinceFetch));
-    return { ...item, estimatedWaitSeconds: liveWait };
-  });
-
-  const maxWait = Math.max(
-    ...liveItems
-      .filter((i) => i.estimatedWaitSeconds != null)
-      .map((i) => i.estimatedWaitSeconds as number),
-    1
-  );
+    onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
 
   return (
-    <QueueSection aria-live="polite">
-      <QueueHeader>
-        <span style={{ fontSize: '1.4rem' }}>🎤</span>
-        <QueueTitle>{t('songRequest.queueTitle')}</QueueTitle>
-      </QueueHeader>
-      <QueueSubtitle>{t('songRequest.queueSubtitle')}</QueueSubtitle>
-
-      {liveItems.map((item) => {
-        const songLabel =
-          item.artist && item.title
-            ? `${item.artist} – ${item.title}`
-            : item.title || item.artist || t('songRequest.queueUnknownSong');
-
-        if (item.status === 'pending_approval') {
-          return (
-            <QueueItemCard key={`pending-${item.id}`}>
-              <SongLine>{songLabel}</SongLine>
-              <StatBadge $variant="pending">
-                <StatValue style={{ fontSize: '1rem' }}>⏳</StatValue>
-                <StatLabel>{t('songRequest.queuePendingApproval')}</StatLabel>
-              </StatBadge>
-            </QueueItemCard>
-          );
-        }
-
-        if (item.status === 'current') {
-          return (
-            <QueueItemCard key={item.id} $isCurrent>
-              <SongLine>{songLabel}</SongLine>
-              <StatBadge $variant="current">
-                <StatValue>🎶</StatValue>
-                <StatLabel>{t('songRequest.queueYourTurn')}</StatLabel>
-              </StatBadge>
-              <ProgressTrack>
-                <ProgressFill $pct={100} $isCurrent />
-              </ProgressTrack>
-            </QueueItemCard>
-          );
-        }
-
-        const waitSec = item.estimatedWaitSeconds ?? 0;
-        const songsCount = item.songsBefore ?? 0;
-
-        return (
-          <QueueItemCard key={item.id}>
-            <SongLine>{songLabel}</SongLine>
-            <StatsRow>
-              <StatBadge $variant="primary">
-                <StatValue>{songsCount}</StatValue>
-                <StatLabel>
-                  {t('songRequest.queueSongsBefore', { count: songsCount })}
-                </StatLabel>
-              </StatBadge>
-              <StatBadge $variant="time">
-                <StatValue style={{ fontSize: waitSec >= 3600 ? '1rem' : '1.35rem' }}>
-                  {formatWaitMinutes(waitSec, t)}
-                </StatValue>
-                <StatLabel>{t('songRequest.queueEstimatedWait')}</StatLabel>
-              </StatBadge>
-            </StatsRow>
-            <ProgressTrack>
-              <ProgressFill $pct={progressPercent(item, maxWait)} />
-            </ProgressTrack>
-          </QueueItemCard>
-        );
-      })}
-    </QueueSection>
+    <QueueStickyBar
+      $visible={visible}
+      $variant={message?.variant ?? 'waiting'}
+      role="status"
+      aria-live="polite"
+    >
+      {message && (
+        <>
+          <BarEmoji aria-hidden>{message.emoji}</BarEmoji>
+          <BarText>{message.text}</BarText>
+        </>
+      )}
+    </QueueStickyBar>
   );
 };
 

@@ -372,7 +372,11 @@
     "queueAboutHoursMinutes": "ca. {{hours}} Std. {{minutes}} Min.",
     "queueYourTurn": "Du bist jetzt dran!",
     "queuePendingApproval": "Wird noch geprüft",
-    "queueUnknownSong": "Unbekannter Song"
+    "queueUnknownSong": "Unbekannter Song",
+    "queueBarYourTurn": "Du bist jetzt dran",
+    "queueBarNextUp": "Du bist als nächstes dran",
+    "queueBarSongsUntilTurn_one": "Noch {{count}} Song, dann bist du dran",
+    "queueBarSongsUntilTurn_other": "Noch {{count}} Songs, dann bist du dran"
   },
   "youtubeDownloadModal": {
     "pleaseEnterUrl": "Bitte gib eine YouTube-URL ein",
