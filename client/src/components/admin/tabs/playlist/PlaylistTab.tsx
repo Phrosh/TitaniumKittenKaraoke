@@ -1,6 +1,6 @@
 import React from 'react';
 import { AdminDashboardData, Song } from '../../../../types';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cleanYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { adminAPI, playlistAPI, showAPI, songAPI } from '../../../../services/api';
@@ -312,6 +312,17 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   const filteredPlaylist = showPastSongs
     ? playlist
     : playlist.filter(song => !currentSong || song.position >= currentSong.position);
+
+  // Count all requests per device across the complete playlist, including past songs.
+  const deviceIdCounts = useMemo(() => {
+    return playlist.reduce<Record<string, number>>((counts, song) => {
+      const deviceId = song.device_id?.trim().toUpperCase();
+      if (deviceId && deviceId !== 'ADM') {
+        counts[deviceId] = (counts[deviceId] || 0) + 1;
+      }
+      return counts;
+    }, {});
+  }, [playlist]);
 
   // New Add Song Modal Handlers
   const handleOpenAddSongModal = async () => {
@@ -1008,6 +1019,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
                         title={t('playlist.clickToBan')}
                       >
                         📱 {song.device_id}
+                        {song.device_id?.trim().toUpperCase() !== 'ADM' && song.device_id?.trim()
+                          ? ` (${deviceIdCounts[song.device_id.trim().toUpperCase()] || 0})`
+                          : ''}
                       </DeviceId>
                     </SongName>
                     <SongTitleRow>
