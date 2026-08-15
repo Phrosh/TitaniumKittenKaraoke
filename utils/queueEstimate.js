@@ -21,8 +21,14 @@ function estimateWaitForSong(playlist, currentSong, targetSongId, currentSongRem
   if (targetIdx === -1) return null;
 
   const target = sorted[targetIdx];
+  const currentSongCompleted =
+    currentSongRemainingSeconds !== null &&
+    currentSongRemainingSeconds !== undefined &&
+    currentSongRemainingSeconds <= 0;
 
   if (currentSong?.id === target.id) {
+    if (currentSongCompleted) return null;
+
     const remaining = currentSongRemainingSeconds ?? getSongDurationSeconds(target);
     return {
       songsBefore: 0,
@@ -36,7 +42,13 @@ function estimateWaitForSong(playlist, currentSong, targetSongId, currentSongRem
 
   for (let i = 0; i < targetIdx; i++) {
     const song = sorted[i];
-    if (currentSong && song.position < currentSong.position) continue;
+    if (
+      currentSong &&
+      (song.position < currentSong.position ||
+        (currentSongCompleted && song.id === currentSong.id))
+    ) {
+      continue;
+    }
 
     songsBefore++;
     if (currentSong && song.id === currentSong.id) {
@@ -59,6 +71,8 @@ function estimateQueueForDevice(playlist, currentSong, deviceId, currentSongRema
     .filter((s) => s.device_id === deviceId)
     .map((song) => {
       const estimate = estimateWaitForSong(playlist, currentSong, song.id, currentSongRemainingSeconds);
+      if (!estimate) return null;
+
       return {
         id: song.id,
         artist: song.artist,
@@ -66,7 +80,8 @@ function estimateQueueForDevice(playlist, currentSong, deviceId, currentSongRema
         position: song.position,
         ...estimate,
       };
-    });
+    })
+    .filter(Boolean);
 }
 
 module.exports = {

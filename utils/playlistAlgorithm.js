@@ -1,6 +1,10 @@
 const db = require('../config/database');
 const Song = require('../models/Song');
-const { normalizeParts, isSameSinger } = require('./singerIdentity');
+const {
+  normalizeParts,
+  isSameSinger,
+  getSingerSongRound,
+} = require('./singerIdentity');
 
 /**
  * Songwünsche direkt nach dem aktuellen Song: geschützte Zone für spätere Fairness-Regeln.
@@ -11,7 +15,7 @@ class PlaylistAlgorithm {
   /**
    * Fügt einen neuen Song in die Playlist ein.
    * - Start bei max(Position) + 1 (= x).
-   * - Tausch mit x-1, solange dort mehr Songwünsche als beim neuen Song (ohne diesen selbst).
+   * - Tausch mit x-1, solange dessen Song aus einer späteren Wunschrunde stammt.
    * - Kein Tausch über Safe Zone (aktueller Song + nächste SAFE_ZONE_AFTER_CURRENT).
    * - Stopp, wenn x-2 derselbe Sänger ist wie x (Hash aus Name + Device-ID).
    */
@@ -69,15 +73,11 @@ class PlaylistAlgorithm {
           break;
         }
 
-        const countMoving = await this.getQueueSongCount(
-          moving.user_name,
-          moving.device_id,
-          moving.id
-        );
-        const countAbove = await this.getQueueSongCount(above.user_name, above.device_id);
-        if (countAbove <= countMoving) {
-          stopReason = 'count_not_higher';
-          stopContext = { above, countAbove, countMoving };
+        const roundMoving = getSingerSongRound(playlist, moving);
+        const roundAbove = getSingerSongRound(playlist, above);
+        if (roundAbove <= roundMoving) {
+          stopReason = 'round_not_higher';
+          stopContext = { above, roundAbove, roundMoving };
           break;
         }
 
@@ -92,8 +92,8 @@ class PlaylistAlgorithm {
             device_id: above.device_id,
             position: above.position,
           },
-          countAbove,
-          countMoving,
+          roundAbove,
+          roundMoving,
         });
 
         await this.swapSongPositions(moving.id, moving.position, above.id, above.position);
@@ -138,8 +138,8 @@ class PlaylistAlgorithm {
         positionsClimbed: Math.max(0, endPosition - finalPosition),
         stopReason,
         stopContext: {
-          countAbove: stopContext.countAbove,
-          countMoving: stopContext.countMoving,
+          roundAbove: stopContext.roundAbove,
+          roundMoving: stopContext.roundMoving,
           above: summarize(stopContext.above),
           twoAbove: summarize(stopContext.twoAbove),
         },

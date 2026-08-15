@@ -242,6 +242,10 @@ function describeStopReason(reason, ctx = {}) {
       return `Sänger darüber hat nicht mehr Wünsche (${ctx.countAbove ?? '?'} ≤ ${
         ctx.countMoving ?? '?'
       }) — kein Tausch mit ${songLabel(ctx.above) || '?'}.`;
+    case 'round_not_higher':
+      return `Song darüber ist aus derselben oder einer früheren Wunschrunde (${
+        ctx.roundAbove ?? '?'
+      } ≤ ${ctx.roundMoving ?? '?'}) — kein Tausch mit ${songLabel(ctx.above) || '?'}.`;
     case 'end_of_playlist':
       return 'Am Ende der Playlist eingefügt (keine weiteren Tausche).';
     default:
