@@ -140,6 +140,18 @@ const MyQueueStatus: React.FC<Props> = ({
 
   const nearest = useMemo(() => pickNearestPlaylistItem(items), [items]);
 
+  useEffect(() => {
+    if (nearest?.status !== 'current') return;
+
+    // Das Song-Ende erzeugt nicht zwingend ein Playlist-Event. Bis dahin
+    // regelmäßig aktualisieren und spätestens nach der Restlaufzeit neu laden.
+    const remainingSeconds = nearest.estimatedWaitSeconds ?? 15;
+    const refreshAfterMs = Math.max(1000, Math.min(remainingSeconds * 1000 + 500, 15000));
+    const timeout = setTimeout(fetchQueue, refreshAfterMs);
+
+    return () => clearTimeout(timeout);
+  }, [nearest, fetchQueue]);
+
   const message = useMemo(() => {
     if (!nearest) return null;
     if (nearest.status === 'current') {
