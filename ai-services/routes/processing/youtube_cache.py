@@ -2,7 +2,6 @@ from flask import Blueprint, jsonify
 import os
 import logging
 import threading
-from urllib.parse import unquote
 from ..utils import get_youtube_dir
 
 # Erstelle einen Blueprint für YouTube-Cache-Processing
@@ -11,12 +10,24 @@ youtube_cache_bp = Blueprint('youtube_cache', __name__)
 # Logger für Processing-Module
 logger = logging.getLogger(__name__)
 
+
+def resolve_youtube_cache_folder(base_dir, folder_name):
+    """Resolve a canonical, already URL-decoded route segment below base_dir.
+
+    Flask decodes the HTTP path once. Literal encodings in our canonical folder
+    names (for example ``%27`` for an apostrophe) must therefore remain intact.
+    """
+    base_path = os.path.abspath(base_dir)
+    folder_path = os.path.abspath(os.path.join(base_path, folder_name))
+    if os.path.commonpath([base_path, folder_path]) != base_path:
+        raise ValueError('Invalid folder name')
+    return folder_path
+
+
 @youtube_cache_bp.route('/process_youtube_cache/<folder_name>', methods=['POST'])
 def process_youtube_cache(folder_name):
     try:
         from flask import request
-        # Decode folder name from URL (handles %27, %26, %20, etc.)
-        folder_name = unquote(folder_name)
         from modules import (
             ProcessingMode,
             create_meta_from_file_path,
@@ -31,7 +42,7 @@ def process_youtube_cache(folder_name):
             song_id = request.json.get('song_id')
 
         base_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '..', 'songs', 'youtube'))
-        folder_path = os.path.join(base_dir, folder_name)
+        folder_path = resolve_youtube_cache_folder(base_dir, folder_name)
         if not os.path.exists(folder_path):
             return jsonify({'error': 'Folder not found'}), 404
         

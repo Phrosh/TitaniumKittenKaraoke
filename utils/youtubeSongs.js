@@ -293,7 +293,8 @@ async function downloadYouTubeVideo(youtubeUrl, artist, title, songId = null) {
       const processUrl = `http://localhost:6000/process_youtube_cache/${encodeURIComponent(folderName)}`;
       await axios.post(processUrl, { song_id: songId }, { timeout: 180000 });
     } catch (e) {
-      console.warn('YouTube cache post-processing failed (normalize/cleanup):', e?.message || e);
+      const details = e?.response?.data?.error || e?.response?.data?.message || e?.message || String(e);
+      throw new Error(`YouTube cache post-processing failed: ${details}`);
     }
 
     return {
