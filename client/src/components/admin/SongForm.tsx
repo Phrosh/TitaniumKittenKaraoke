@@ -4,6 +4,7 @@ import getFirstLetter from '../../utils/getFirstLetter';
 import {adminAPI} from '../../services/api';
 import SmallModeBadge, { TextWithDuetBadge } from '../shared/SmallModeBadge';
 import YouTubeSearchModal from './modals/YouTubeSearchModal';
+import { isApiUrl } from '../../utils/youtubeUrlCleaner';
 
 // Reusable Song Form Component
 interface SongFormProps {
@@ -249,7 +250,7 @@ const SongForm: React.FC<SongFormProps> = ({
           }}>
             {t('songForm.youtubeLink')}
           </label>
-          {youtubeUrl && youtubeUrl.trim().startsWith('/api') ? (
+          {isApiUrl(youtubeUrl) ? (
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button
                 type="button"

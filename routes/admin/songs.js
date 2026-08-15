@@ -113,6 +113,7 @@ router.put('/song/:songId', [
 
     // Clean the YouTube URL before saving
     const cleanedUrl = cleanYouTubeUrl(youtubeUrl);
+    let resultingMode = song.mode;
     
     // Determine with_background_vocals value (use existing value if not provided)
     const withBackgroundVocalsValue = withBackgroundVocals !== undefined 
@@ -217,10 +218,28 @@ router.put('/song/:songId', [
     } else {
       // No YouTube URL, reset download status
       await Song.updateDownloadStatus(songId, 'none');
+
+      // Selecting a local song in the edit dialog clears the YouTube URL.
+      // Reclassify immediately so YouTube/cache entries actually switch to
+      // Ultrastar (or another available local mode) when they are saved.
+      const { findBestVideoMode } = require('../../config/videoModes');
+      const classification = await findBestVideoMode(artist, title, null, req);
+      resultingMode = classification.mode;
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE songs SET youtube_url = ?, mode = ? WHERE id = ?',
+          [classification.url || null, resultingMode, songId],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     }
 
     // Trigger automatic USDB search if artist or title changed and it's a YouTube song
-    if (song.mode === 'youtube' && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song') {
+    if (resultingMode === 'youtube' && artist && title && artist !== 'Unknown Artist' && title !== 'YouTube Song') {
       // Import the function from songHelpers
       triggerAutomaticUSDBSearch(songId, artist, title);
     }

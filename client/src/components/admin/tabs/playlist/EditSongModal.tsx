@@ -5,7 +5,7 @@ import SongForm from '../../SongForm';
 import { useTranslation } from 'react-i18next';
 import SmallModeBadge from '../../../shared/SmallModeBadge';
 import { isSongInYouTubeCache } from '../../../../utils/helper';
-import { extractVideoIdFromUrl, isYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
+import { extractVideoIdFromUrl, isApiUrl, isYouTubeUrl } from '../../../../utils/youtubeUrlCleaner';
 import { AdminDashboardData } from '../../../types';
 
 type ModalType = 'edit' | 'youtube';
@@ -219,7 +219,7 @@ const EditSongModal: React.FC<EditSongModalProps> = ({
   
   // Check if song list should be shown (when YouTube URL is empty)
   const shouldShowSongList = () => {
-    return !formData.youtubeUrl.trim();
+    return !formData.youtubeUrl.trim() || isApiUrl(formData.youtubeUrl);
   };
 
   if (!show) return null;

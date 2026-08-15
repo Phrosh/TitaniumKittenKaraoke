@@ -53,6 +53,20 @@ export function isYouTubeUrl(url: string): boolean {
 }
 
 /**
+ * Checks whether a URL points to an application API route.
+ * Supports both relative routes and absolute cache URLs emitted by the backend.
+ */
+export function isApiUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+
+  const trimmed = url.trim();
+  return /^\/api(?:\/|$)/i.test(trimmed) ||
+    /^https?:\/\/[^/]+\/api(?:\/|$)/i.test(trimmed);
+}
+
+/**
  * Extracts video ID from various YouTube URL formats
  * @param url - The YouTube URL
  * @returns The video ID or null if not found
